@@ -2,10 +2,13 @@ package store
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"testing"
+	"testing/fstest"
 
 	"klats/internal/roster"
 	"klats/internal/store/db"
@@ -191,5 +194,110 @@ func TestSnapshotKeepsNewest(t *testing.T) {
 	defer func() { _ = newest.Close() }()
 	if classes, _ := newest.Q().ListClasses(context.Background()); len(classes) != 1 {
 		t.Fatalf("newest snapshot lacks the latest write: %+v", classes)
+	}
+}
+
+// migrationSets returns the embedded migrations alone (v1) and extended with a
+// second migration (v2), to simulate a database one release behind.
+func migrationSets(t *testing.T) (v1, v2 fs.FS) {
+	t.Helper()
+	initSQL, err := fs.ReadFile(migrationsFS, "migrations/00001_init.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	extra := []byte("-- +goose Up\nCREATE TABLE extra (id INTEGER);\n-- +goose Down\nDROP TABLE extra;\n")
+	v1 = fstest.MapFS{"00001_init.sql": {Data: initSQL}}
+	v2 = fstest.MapFS{"00001_init.sql": {Data: initSQL}, "00002_extra.sql": {Data: extra}}
+	return v1, v2
+}
+
+func snapshotFiles(t *testing.T, dbPath string) []string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(filepath.Dir(dbPath), "snapshots", "klats-*.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+func TestOpenSnapshotsBeforePendingMigration(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "klats.db")
+	v1, v2 := migrationSets(t)
+	old, err := openWith(path, v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := old.Q().InsertClass(context.Background(), db.InsertClassParams{ID: "c1", Name: "7-А", CreatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	_ = old.Close()
+	if n := len(snapshotFiles(t, path)); n != 0 {
+		t.Fatalf("fresh database took %d snapshots", n)
+	}
+
+	s, err := openWith(path, v2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+	files := snapshotFiles(t, path)
+	if len(files) != 1 {
+		t.Fatalf("got %d snapshots, want 1", len(files))
+	}
+
+	// The snapshot is the pre-migration state: it has the data but not the new table.
+	snap, err := openWith(files[0], v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = snap.Close() }()
+	var extra int
+	_ = snap.conn.QueryRow(`SELECT count(*) FROM sqlite_master WHERE name = 'extra'`).Scan(&extra)
+	if classes, _ := snap.Q().ListClasses(context.Background()); len(classes) != 1 || extra != 0 {
+		t.Fatalf("snapshot is not the pre-migration state: classes=%v extra=%d", classes, extra)
+	}
+}
+
+func TestOpenFreshDBTakesNoSnapshot(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "klats.db")
+	for range 2 { // second Open is an existing, up-to-date database
+		s, err := Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = s.Close()
+	}
+	if n := len(snapshotFiles(t, path)); n != 0 {
+		t.Fatalf("got %d snapshots, want 0", n)
+	}
+}
+
+func TestOpenRejectsNewerSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "klats.db")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.conn.Exec(`INSERT INTO goose_db_version (version_id, is_applied) VALUES (99, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := Open(path); !errors.Is(err, ErrSchemaTooNew) {
+		t.Fatalf("got %v, want ErrSchemaTooNew", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("database file changed")
+	}
+	if n := len(snapshotFiles(t, path)); n != 0 {
+		t.Fatalf("got %d snapshots, want 0", n)
 	}
 }
