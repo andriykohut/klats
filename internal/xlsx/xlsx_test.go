@@ -2,6 +2,7 @@ package xlsx
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ func para(s string) []byte {
 }
 
 func sample() wire.AssignmentResults {
-	noon := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC).UnixMilli()
+	noon := time.Date(2026, 10, 21, 12, 0, 0, 0, time.Local).UnixMilli()
 	return wire.AssignmentResults{
 		TestTitle: "Дроби", ClassName: "7-А",
 		Questions: []wire.ResultQuestion{
@@ -137,6 +138,10 @@ func TestFileName(t *testing.T) {
 		{"plain", func(*wire.AssignmentResults) {}, "Дроби — 7-А — 2026-10-21.xlsx"},
 		{"slash", func(r *wire.AssignmentResults) { r.TestTitle = `Дроби 1/2: "що?"` }, "Дроби 1_2_ _що__ — 7-А — 2026-10-21.xlsx"},
 		{"empty class", func(r *wire.AssignmentResults) { r.ClassName = "" }, "Дроби — 2026-10-21.xlsx"},
+		{"earliest not first", func(r *wire.AssignmentResults) {
+			day := func(d int) int64 { return time.Date(2026, 10, d, 12, 0, 0, 0, time.Local).UnixMilli() }
+			r.Rows = []wire.ResultRow{{SittingDate: day(22)}, {SittingDate: day(21)}, {SittingDate: day(23)}}
+		}, "Дроби — 7-А — 2026-10-21.xlsx"},
 		{"no rows", func(r *wire.AssignmentResults) { r.Rows = nil }, "Дроби — 7-А.xlsx"},
 		{"long title", func(r *wire.AssignmentResults) { r.TestTitle = strings.Repeat("ї", 150) }, strings.Repeat("ї", 100) + " — 7-А — 2026-10-21.xlsx"},
 		{"empty title", func(r *wire.AssignmentResults) { r.TestTitle = " . " }, "Тест — 7-А — 2026-10-21.xlsx"},
@@ -149,5 +154,58 @@ func TestFileName(t *testing.T) {
 				t.Errorf("FileName = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestDateColumnWidth(t *testing.T) {
+	f := open(t, sample(), "uk")
+	// Columns: 3 fixed, 3 questions, then Бали, Оцінка, Час, Дата.
+	w, err := f.GetColWidth("Результати", "J")
+	if err != nil || w < 11 {
+		t.Errorf("date column width = %v, %v; want at least 11", w, err)
+	}
+}
+
+func TestQuestionCut(t *testing.T) {
+	for _, tc := range []struct {
+		runes int
+		want  string
+	}{
+		{200, strings.Repeat("я", 200)},
+		{201, strings.Repeat("я", 200) + "…"},
+	} {
+		r := wire.AssignmentResults{Questions: []wire.ResultQuestion{{Text: para(strings.Repeat("я", tc.runes))}}}
+		f := open(t, r, "uk")
+		if got, _ := f.GetCellValue("Питання", "B2"); got != tc.want {
+			t.Errorf("%d runes: got %d runes, want %d", tc.runes, len([]rune(got)), len([]rune(tc.want)))
+		}
+	}
+}
+
+// Not parallel: it replaces the process-wide time.Local.
+func TestLocalDate(t *testing.T) {
+	old := time.Local
+	time.Local = time.FixedZone("x", 13*3600)
+	t.Cleanup(func() { time.Local = old })
+	r := sample()
+	// 23:00 UTC is 12:00 the next day at UTC+13.
+	late := time.Date(2026, 10, 21, 23, 0, 0, 0, time.UTC).UnixMilli()
+	r.Rows[0].SittingDate, r.Rows[1].SittingDate = late, late
+	f := open(t, r, "uk")
+	if got, _ := f.GetCellValue("Результати", "J2"); got != "22.10.2026" {
+		t.Errorf("date cell = %q, want 22.10.2026", got)
+	}
+	if got := FileName(r); got != "Дроби — 7-А — 2026-10-22.xlsx" {
+		t.Errorf("FileName = %q", got)
+	}
+}
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, errors.New("disk full") }
+
+func TestExportWriteError(t *testing.T) {
+	if err := Export(failWriter{}, sample(), "uk"); err == nil {
+		t.Error("Export to a failing writer returned nil")
 	}
 }

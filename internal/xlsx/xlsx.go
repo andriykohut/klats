@@ -4,6 +4,7 @@
 package xlsx
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"slices"
@@ -90,8 +91,13 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		d := time.UnixMilli(row.SittingDate).In(time.Local)
 		res.put(7+qn, n, time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC), date)
 	}
-	res.width("A", 6)
-	res.width("B", 32)
+	res.width(1, 1, 6)
+	res.width(2, 2, 32)
+	res.width(3, 3, 12)
+	res.width(4, 3+qn, 6)
+	res.width(4+qn, 6+qn, 8)
+	// Wide enough for dd.mm.yyyy; a narrower date column shows hashes in Excel.
+	res.width(7+qn, 7+qn, 12)
 	if res.err != nil {
 		return res.err
 	}
@@ -104,9 +110,9 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		qs.put(3, i+2, q.Correct, 0)
 		qs.put(4, i+2, q.CorrectPct, 0)
 	}
-	qs.width("A", 6)
-	qs.width("B", 80)
-	qs.width("C", 12)
+	qs.width(1, 1, 6)
+	qs.width(2, 2, 80)
+	qs.width(3, 3, 12)
 	if qs.err != nil {
 		return qs.err
 	}
@@ -140,8 +146,17 @@ func (s *sheet) put(col, row int, v any, style int) {
 	}
 }
 
-func (s *sheet) width(col string, w float64) {
-	s.do(s.f.SetColWidth(s.name, col, col, w))
+// width sets the width of columns from..to (1-based, inclusive). An empty
+// range is skipped.
+func (s *sheet) width(from, to int, w float64) {
+	if from > to {
+		return
+	}
+	a, err := excelize.ColumnNumberToName(from)
+	s.do(err)
+	b, err := excelize.ColumnNumberToName(to)
+	s.do(err)
+	s.do(s.f.SetColWidth(s.name, a, b, w))
 }
 
 // header writes a bold header row and freezes it.
@@ -180,7 +195,7 @@ func FileName(r wire.AssignmentResults) string {
 		parts = append(parts, c)
 	}
 	if len(r.Rows) > 0 {
-		first := slices.MinFunc(r.Rows, func(a, b wire.ResultRow) int { return int(a.SittingDate - b.SittingDate) })
+		first := slices.MinFunc(r.Rows, func(a, b wire.ResultRow) int { return cmp.Compare(a.SittingDate, b.SittingDate) })
 		parts = append(parts, time.UnixMilli(first.SittingDate).In(time.Local).Format("2006-01-02"))
 	}
 	return strings.Join(parts, " — ") + ".xlsx"
