@@ -557,6 +557,49 @@ func TestLateDeliveryFromMovedOffDevice(t *testing.T) {
 	}
 }
 
+func TestMovedOffDeliveryAfterLock(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	join(t, e, info.Code, devB, "10.0.0.2")
+	if err := e.Move(p.ID, devB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	// The new device syncs first and is shown the result, which locks p.
+	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != (wire.FinishResult{Grade: 1, Correct: 0, Total: 2}) {
+		t.Fatalf("new device = %+v", s)
+	}
+	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
+		t.Fatalf("finished by %q, want end_synced", by)
+	}
+
+	// The dead old device comes back with a change it held: still taken.
+	if res := submit(t, e, devA, change(p, "q1", 1, "o0")); res.Rejected != 0 {
+		t.Errorf("moved-off delivery after the lock = %+v", res)
+	}
+	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.Late != 1 {
+		t.Errorf("q1 = %+v, want stored late", a)
+	}
+	want := wire.FinishResult{Grade: 4, Correct: 1, Total: 2}
+	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != want {
+		t.Errorf("regraded = %+v, want %+v", s, want)
+	}
+	if evs := eventParams(t, st, info.SittingID, "late_answers"); len(evs) != 1 || evs[0]["name"] != p.Name || evs[0]["count"] != "1" {
+		t.Errorf("late_answers events = %v", evs)
+	}
+	if assignment(t, st, info.AssignmentID).ExportStale != 1 {
+		t.Error("export not marked stale")
+	}
+	// The participant's own device stays locked.
+	submit(t, e, devB, change(p, "q2", 1, "o0"))
+	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.ChangeID != "" {
+		t.Errorf("stored %+v from the locked device", a)
+	}
+}
+
 func TestConcurrentTickSubmitLive(t *testing.T) {
 	clk := newClock()
 	e, st, _ := setupAt(t, clk)

@@ -45,7 +45,7 @@ func (e *Engine) Join(code, device, ip string) (wire.JoinInfo, error) {
 	info := wire.JoinInfo{SittingID: a.sitting.ID, Mode: "typed", Names: []wire.NameEntry{}, Language: e.lang}
 	if a.assignment.ClassID.Valid {
 		info.Mode = "list"
-		if info.Names, err = e.classList(q); err != nil {
+		if info.Names, err = classList(q, a); err != nil {
 			return wire.JoinInfo{}, err
 		}
 		for i, n := range info.Names {
@@ -56,11 +56,11 @@ func (e *Engine) Join(code, device, ip string) (wire.JoinInfo, error) {
 	return info, nil
 }
 
-// classList returns the running sitting's class list in Ukrainian order
+// classList returns the class list of the sitting a in Ukrainian order
 // (students.sort_key holds roster.SortKey), with repeats of a name told apart
 // by roster.Disambiguate.
-func (e *Engine) classList(q *db.Queries) ([]wire.NameEntry, error) {
-	students, err := q.ListStudents(ctx, e.cur.assignment.ClassID.String)
+func classList(q *db.Queries, a *active) ([]wire.NameEntry, error) {
+	students, err := q.ListStudents(ctx, a.assignment.ClassID.String)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (e *Engine) Pick(code, device string, req wire.PickRequest) (wire.Participa
 	row := db.InsertParticipantParams{ID: store.NewID(), SittingID: a.sitting.ID, DeviceToken: device, State: stateWriting, JoinedAt: e.now().UnixMilli()}
 	var key string
 	if a.assignment.ClassID.Valid {
-		names, err := e.classList(q)
+		names, err := classList(q, a)
 		if err != nil {
 			return wire.Participant{}, err
 		}

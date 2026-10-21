@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -103,7 +104,7 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 	}
 
 	if a.assignment.ClassID.Valid {
-		names, err := e.classList(q)
+		names, err := classList(q, a)
 		if err != nil {
 			return wire.LiveSnapshot{}, err
 		}
@@ -137,8 +138,9 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 }
 
 // End ends the running sitting: participants still writing are finished as
-// they stand, unanswered questions scoring zero, and every device of the
-// sitting is told. Students who were offline may still deliver answers, see
+// they stand, unanswered questions scoring zero, pending name_clash events are
+// resolved, and every device of the sitting is told. Students who were
+// offline may still deliver answers, see
 // [Engine.Submit]; [Engine.Live] shows the ended sitting until the next one
 // starts. When a snapshot directory is set, End then snapshots the
 // database; a failed snapshot is logged and does not fail End. It returns
@@ -165,7 +167,12 @@ func (e *Engine) End() error {
 		if err := q.EndSitting(ctx, db.EndSittingParams{EndedAt: at, ID: a.sitting.ID}); err != nil {
 			return nil, err
 		}
+		resolved, err := e.resolveClashes(q, slices.Collect(maps.Keys(a.clashes)))
+		if err != nil {
+			return nil, err
+		}
 		return func() {
+			resolved() // reads e.cur, so before it is cleared
 			for _, p := range writing {
 				p.state, p.finishedBy, p.finishedAt = stateFinished, finishedByEnd, at.Int64
 			}

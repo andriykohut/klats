@@ -257,3 +257,46 @@ func TestOverrideChangesResults(t *testing.T) {
 		t.Errorf("status = %+v, want the overridden grade", s)
 	}
 }
+
+func TestLiveAfterEndClassMode(t *testing.T) {
+	e, st, hub := setup(t)
+	info := start(t, e, addClass(t, st, "Петренко Тарас", "Іваненко Олена", "Бойко Марія"))
+	names := join(t, e, info.Code, devA, "10.0.0.101").Names // Бойко, Іваненко, Петренко
+	join(t, e, info.Code, devB, "10.0.0.102")
+	pick(t, e, info.Code, devA, wire.PickRequest{StudentID: names[2].StudentID})
+	pick(t, e, info.Code, devB, wire.PickRequest{StudentID: names[1].StudentID})
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	for i, e := range []*Engine{e, newEngine(t, st, hub)} {
+		l := liveOf(t, e)
+		if c := l.Counts; !l.Sitting.Ended || len(l.Rows) != 2 || c.ClassSize != 3 || c.Finished != 2 || !slices.Equal(c.NotJoined, []string{"Бойко Марія"}) {
+			t.Errorf("engine %d: live after the end = %+v", i, l)
+		}
+	}
+}
+
+func TestEndResolvesClashes(t *testing.T) {
+	e, st, hub, info, _, eventID := startClash(t)
+	newcomer, unsub := hub.Subscribe("device:" + devB)
+	defer unsub()
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	if len(openClashes(t, st, info.SittingID)) != 0 {
+		t.Error("clash left open after the end")
+	}
+	if !received(newcomer) {
+		t.Error("newcomer device not told")
+	}
+	for i, e := range []*Engine{e, newEngine(t, st, hub)} {
+		for _, ev := range liveOf(t, e).Events {
+			if ev.Pinned || len(ev.Actions) != 0 {
+				t.Errorf("engine %d: event %+v still waits for a decision", i, ev)
+			}
+		}
+		if err := e.ResolveEvent(eventID, ActionMove); !errors.Is(err, ErrNotFound) {
+			t.Errorf("engine %d: resolving after the end: err = %v, want ErrNotFound", i, err)
+		}
+	}
+}

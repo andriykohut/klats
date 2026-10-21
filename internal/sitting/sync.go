@@ -40,7 +40,8 @@ type delivery struct {
 // seq stored for its participant and question; a lower or equal seq and a
 // change id already seen are acked and ignored, as are changes from a locked
 // participant: one who finished on their own, or was finished by the end of
-// the sitting and has since settled (see below).
+// the sitting and has since settled (see below). A settled participant still
+// takes what devices it was moved off deliver, as they never showed a result.
 //
 // The device may send changes for the participant it writes as, and for
 // participants moved off it to another device. Changes for anyone else, and
@@ -106,7 +107,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 			*rejected++
 			continue
 		}
-		if p.locked() {
+		if p.refuses(device) {
 			continue
 		}
 		seen, err := q.ChangeSeen(ctx, c.ChangeID)
@@ -304,6 +305,13 @@ func (e *Engine) lock(p *participant) error {
 
 func (p *participant) locked() bool {
 	return p.finishedBy == finishedByStudent || p.finishedBy == finishedByEndSynced
+}
+
+// refuses reports whether the participant takes no more changes from the
+// device: none at all once it finished on its own, and none from its current
+// device once settled after the end.
+func (p *participant) refuses(device string) bool {
+	return p.finishedBy == finishedByStudent || (p.finishedBy == finishedByEndSynced && device == p.device)
 }
 
 // status returns the device's status: from the running sitting if one runs,
