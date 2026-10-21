@@ -1,7 +1,9 @@
 package rich
 
 import (
+	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -152,5 +154,44 @@ func TestIsEmptyTreatsWhitespaceAsEmpty(t *testing.T) {
 	}
 	if !(Doc{Type: "doc"}).IsEmpty() {
 		t.Fatal("doc without content should be empty")
+	}
+}
+
+func TestParseRejectsNonCanonicalKeys(t *testing.T) {
+	for name, raw := range map[string]string{
+		"case variant on node": `{"type":"doc","content":[{"type":"image","Type":"paragraph"}]}`,
+		"case variant on mark": para(`{"type":"text","text":"x","marks":[{"type":"bold","Type":"italic"}]}`),
+		"case variant on doc":  `{"type":"doc","Content":[]}`,
+		"duplicate type":       `{"type":"doc","content":[{"type":"image","type":"paragraph"}]}`,
+		"duplicate on mark":    para(`{"type":"text","text":"x","marks":[{"type":"bold","type":"italic"}]}`),
+		"unknown key in mark":  para(`{"type":"text","text":"x","marks":[{"type":"bold","attrs":{}}]}`),
+	} {
+		if _, err := Parse([]byte(raw), Block); !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: err = %v, want ErrInvalid", name, err)
+		}
+	}
+}
+
+func TestMarshalOfParsedDocRoundTrips(t *testing.T) {
+	raw := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x","marks":[{"type":"bold"},{"type":"italic"}]},{"type":"hardBreak"}]},` +
+		`{"type":"orderedList","content":[{"type":"listItem","content":[{"type":"paragraph"}]}]}]}`
+	doc, err := Parse([]byte(raw), Block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := Parse(out, Block)
+	if err != nil {
+		t.Fatalf("re-parse: %v", err)
+	}
+	if !reflect.DeepEqual(doc, again) {
+		t.Fatalf("round trip changed doc:\n%+v\n%+v", doc, again)
+	}
+	out2, _ := json.Marshal(again)
+	if string(out) != string(out2) {
+		t.Fatalf("marshal not stable: %s vs %s", out, out2)
 	}
 }

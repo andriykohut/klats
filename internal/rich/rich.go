@@ -57,21 +57,33 @@ var inlineNodes = map[string]bool{"paragraph": true, "text": true, "hardBreak": 
 
 var blockOnlyNodes = map[string]bool{"bulletList": true, "orderedList": true, "listItem": true}
 
+var allowedKeys = map[string]bool{"type": true, "text": true, "marks": true, "content": true}
+
 var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": true, "superscript": true}
 
-// Parse decodes raw and validates it against mode. It rejects unknown fields
-// (including attrs), unknown nodes and marks, text totalling more than 20,000
-// runes, and nesting deeper than 8 levels below the doc node. Every error
-// wraps [ErrInvalid].
+// Parse decodes raw and validates it against mode. It rejects object keys
+// other than exactly type, text, marks and content (case-sensitive, no
+// duplicates) at every level, unknown nodes and marks, text totalling more than
+// 20,000 runes, and nesting deeper than 8 levels below the doc node. Every
+// error wraps [ErrInvalid].
+//
+// The key check keeps Go and JavaScript reading the same bytes the same way:
+// encoding/json would otherwise match keys case-insensitively and let the last
+// duplicate win. Callers persist json.Marshal of the returned Doc, which is
+// canonical, rather than raw.
 func Parse(raw []byte, mode Mode) (Doc, error) {
+	keys := json.NewDecoder(bytes.NewReader(raw))
+	if err := checkKeys(keys); err != nil {
+		return Doc{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	if _, err := keys.Token(); err != io.EOF {
+		return Doc{}, fmt.Errorf("%w: unexpected data after document", ErrInvalid)
+	}
 	var doc Doc
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&doc); err != nil {
 		return Doc{}, fmt.Errorf("%w: %v", ErrInvalid, err)
-	}
-	if _, err := dec.Token(); err != io.EOF {
-		return Doc{}, fmt.Errorf("%w: unexpected data after document", ErrInvalid)
 	}
 	if doc.Type != "doc" {
 		return Doc{}, fmt.Errorf("%w: root must be doc, got %q", ErrInvalid, doc.Type)
@@ -81,6 +93,41 @@ func Parse(raw []byte, mode Mode) (Doc, error) {
 		return Doc{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	return doc, nil
+}
+
+// checkKeys consumes one JSON value from dec, failing on any object key that is
+// not in allowedKeys or that repeats within its object.
+func checkKeys(dec *json.Decoder) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	delim, ok := tok.(json.Delim)
+	if !ok {
+		return nil
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		if delim == '{' {
+			kt, err := dec.Token()
+			if err != nil {
+				return err
+			}
+			key := kt.(string)
+			if !allowedKeys[key] {
+				return fmt.Errorf("key %q not allowed", key)
+			}
+			if seen[key] {
+				return fmt.Errorf("duplicate key %q", key)
+			}
+			seen[key] = true
+		}
+		if err := checkKeys(dec); err != nil {
+			return err
+		}
+	}
+	_, err = dec.Token() // closing delimiter
+	return err
 }
 
 func checkNodes(nodes []Node, mode Mode, depth int, runes *int) error {
