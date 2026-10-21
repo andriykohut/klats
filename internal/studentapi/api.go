@@ -6,22 +6,19 @@
 package studentapi
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
-	"path"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"klats/internal/events"
+	"klats/internal/httpx"
 	"klats/internal/sitting"
 	"klats/internal/sse"
 	"klats/internal/wire"
@@ -38,15 +35,13 @@ const (
 	keepAliveTime   = 15 * time.Second
 )
 
-var errTrailing = errors.New("studentapi: data after the JSON value")
-
 var deviceRE = regexp.MustCompile(`^[a-z2-7]{22,64}$`)
 
 type api struct {
-	e      *sitting.Engine
-	hub    *events.Hub
-	assets fs.FS
-	rate   *limiter
+	e    *sitting.Engine
+	hub  *events.Hub
+	spa  http.Handler
+	rate *limiter
 
 	streamsMu sync.Mutex
 	streams   map[string]int // client IP → open event streams
@@ -61,7 +56,7 @@ func Handler(e *sitting.Engine, hub *events.Hub, assets fs.FS) http.Handler {
 }
 
 func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, now func() time.Time) http.Handler {
-	a := &api{e: e, hub: hub, assets: assets, rate: newLimiter(now), streams: map[string]int{}}
+	a := &api{e: e, hub: hub, spa: httpx.SPA(assets), rate: newLimiter(now), streams: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/join", a.device(a.join))
 	mux.HandleFunc("POST /api/pick", a.device(a.pick))
@@ -96,7 +91,7 @@ func (a *api) apiMiddleware(next http.Handler) http.Handler {
 		}
 		if r.Method == http.MethodPost {
 			if r.ContentLength > maxBodyBytes {
-				writeError(w, http.StatusRequestEntityTooLarge, "too_large")
+				httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large")
 				return
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
@@ -110,7 +105,7 @@ func (a *api) device(next func(w http.ResponseWriter, r *http.Request, device st
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get(deviceHeader)
 		if !deviceRE.MatchString(token) {
-			writeError(w, http.StatusBadRequest, "invalid_device")
+			httpx.Error(w, http.StatusBadRequest, "invalid_device")
 			return
 		}
 		next(w, r, token)
@@ -123,7 +118,7 @@ func isAPI(urlPath string) bool {
 
 func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.JoinRequest
-	if !a.admit(w, r, device) || !decode(w, r, &req) {
+	if !a.admit(w, r, device) || !httpx.Decode(w, r, &req, maxBodyBytes) {
 		return
 	}
 	info, err := a.e.Join(req.Code, device, clientIP(r))
@@ -132,7 +127,7 @@ func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
 
 func (a *api) pick(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.PickBody
-	if !a.admit(w, r, device) || !decode(w, r, &req) {
+	if !a.admit(w, r, device) || !httpx.Decode(w, r, &req, maxBodyBytes) {
 		return
 	}
 	p, err := a.e.Pick(req.Code, device, req.PickRequest)
@@ -146,7 +141,7 @@ func (a *api) test(w http.ResponseWriter, r *http.Request, device string) {
 
 func (a *api) answers(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.SubmitRequest
-	if !decode(w, r, &req) {
+	if !httpx.Decode(w, r, &req, maxBodyBytes) {
 		return
 	}
 	res, err := a.e.Submit(device, req.Changes, req.Pending)
@@ -155,7 +150,7 @@ func (a *api) answers(w http.ResponseWriter, r *http.Request, device string) {
 
 func (a *api) heartbeat(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.HeartbeatRequest
-	if !decode(w, r, &req) {
+	if !httpx.Decode(w, r, &req, maxBodyBytes) {
 		return
 	}
 	st, err := a.e.Heartbeat(device, req.Pending)
@@ -169,7 +164,7 @@ func (a *api) finish(w http.ResponseWriter, r *http.Request, device string) {
 
 func (a *api) focus(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.FocusRequest
-	if !decode(w, r, &req) {
+	if !httpx.Decode(w, r, &req, maxBodyBytes) {
 		return
 	}
 	a.e.Focus(device, req.Left)
@@ -180,13 +175,13 @@ func (a *api) focus(w http.ResponseWriter, r *http.Request, device string) {
 func (a *api) events(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("device")
 	if !deviceRE.MatchString(token) {
-		writeError(w, http.StatusBadRequest, "invalid_device")
+		httpx.Error(w, http.StatusBadRequest, "invalid_device")
 		return
 	}
 	ip := limitKey(r.RemoteAddr)
 	if !a.openStream(ip) {
 		w.Header().Set("Retry-After", "60")
-		writeError(w, http.StatusTooManyRequests, "rate_limited")
+		httpx.Error(w, http.StatusTooManyRequests, "rate_limited")
 		return
 	}
 	defer a.closeStream(ip)
@@ -216,45 +211,14 @@ func (a *api) closeStream(ip string) {
 	}
 }
 
-// static serves the file at the request path from the assets, or index.html
-// for any path that is not a file, so client-side routes survive a reload.
-// Unknown /api/ paths are a JSON 404, and unknown /assets/ paths a plain 404:
-// a missing hashed bundle must not be answered with HTML. A path with a
-// segment starting with a dot is a plain 404, so dotfiles in the embedded
-// build are never served.
+// static serves the student web app. Unknown /api/ paths are a JSON 404, so
+// a mistyped call is never answered with HTML.
 func (a *api) static(w http.ResponseWriter, r *http.Request) {
 	if isAPI(r.URL.Path) {
-		writeError(w, http.StatusNotFound, "not_found")
+		httpx.Error(w, http.StatusNotFound, "not_found")
 		return
 	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		w.Header().Set("Allow", "GET, HEAD")
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
-	if slices.ContainsFunc(strings.Split(name, "/"), func(seg string) bool { return strings.HasPrefix(seg, ".") }) {
-		w.Header().Set("Cache-Control", "no-store")
-		http.NotFound(w, r)
-		return
-	}
-	info, err := fs.Stat(a.assets, name)
-	missing := name == "" || err != nil || info.IsDir()
-	inAssets := name == "assets" || strings.HasPrefix(name, "assets/")
-	switch {
-	case inAssets && missing:
-		w.Header().Set("Cache-Control", "no-store")
-		http.NotFound(w, r)
-		return
-	case inAssets:
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	default:
-		w.Header().Set("Cache-Control", "no-cache")
-		if missing {
-			name = "index.html"
-		}
-	}
-	http.ServeFileFS(w, r, a.assets, name)
+	a.spa.ServeHTTP(w, r)
 }
 
 // admit counts a join or pick against the device and IP windows. When either
@@ -264,7 +228,7 @@ func (a *api) admit(w http.ResponseWriter, r *http.Request, device string) bool 
 		return true
 	}
 	w.Header().Set("Retry-After", "60")
-	writeError(w, http.StatusTooManyRequests, "rate_limited")
+	httpx.Error(w, http.StatusTooManyRequests, "rate_limited")
 	return false
 }
 
@@ -296,67 +260,28 @@ func limitKey(remoteAddr string) string {
 	return netip.PrefixFrom(addr, 64).Masked().String()
 }
 
-// decode reads the JSON body into v. It writes a 413 for a body over the cap
-// and a 400 for anything else unreadable, and reports whether v is filled.
-func decode(w http.ResponseWriter, r *http.Request, v any) bool {
-	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(v)
-	if err == nil {
-		// Anything but whitespace after the value is a malformed body.
-		if _, tail := dec.Token(); tail != io.EOF {
-			err = errTrailing
-			var tooBig *http.MaxBytesError
-			if errors.As(tail, &tooBig) {
-				err = tail
-			}
-		}
-	}
-	if err == nil {
-		return true
-	}
-	var tooBig *http.MaxBytesError
-	if errors.As(err, &tooBig) {
-		writeError(w, http.StatusRequestEntityTooLarge, "too_large")
-	} else {
-		writeError(w, http.StatusBadRequest, "invalid")
-	}
-	return false
-}
-
 // reply writes v as the JSON response, or the mapped error when err is set.
 func reply(w http.ResponseWriter, r *http.Request, v any, err error) {
 	if err == nil {
-		writeJSON(w, http.StatusOK, v)
+		httpx.JSON(w, http.StatusOK, v)
 		return
 	}
 	var taken sitting.ErrNameTaken
 	switch {
 	case errors.As(err, &taken):
-		writeJSON(w, http.StatusConflict, map[string]string{"error": "name_taken", "label": taken.Label})
+		httpx.JSON(w, http.StatusConflict, map[string]string{"error": "name_taken", "label": taken.Label})
 	case errors.Is(err, sitting.ErrBadCode):
-		writeError(w, http.StatusNotFound, "bad_code")
+		httpx.Error(w, http.StatusNotFound, "bad_code")
 	case errors.Is(err, sitting.ErrNotJoined):
-		writeError(w, http.StatusNotFound, "not_joined")
+		httpx.Error(w, http.StatusNotFound, "not_joined")
 	case errors.Is(err, sitting.ErrKicked):
-		writeError(w, http.StatusForbidden, "kicked")
+		httpx.Error(w, http.StatusForbidden, "kicked")
 	case errors.Is(err, sitting.ErrInvalid):
-		writeError(w, http.StatusBadRequest, "invalid")
+		httpx.Error(w, http.StatusBadRequest, "invalid")
 	case errors.Is(err, sitting.ErrNotFound):
-		writeError(w, http.StatusNotFound, "not_found")
+		httpx.Error(w, http.StatusNotFound, "not_found")
 	default:
 		slog.Error("studentapi: request failed", "method", r.Method, "path", r.URL.Path, "err", err)
-		writeError(w, http.StatusInternalServerError, "internal")
-	}
-}
-
-func writeError(w http.ResponseWriter, status int, code string) {
-	writeJSON(w, status, map[string]string{"error": code})
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		slog.Warn("studentapi: write response", "err", err)
+		httpx.Error(w, http.StatusInternalServerError, "internal")
 	}
 }

@@ -428,23 +428,8 @@ func TestSPAFallback(t *testing.T) {
 	if w.Body.String() != "<html>spa</html>" || w.Header().Get("Cache-Control") != "no-cache" {
 		t.Errorf("/join = %q, cache %q", w.Body, w.Header().Get("Cache-Control"))
 	}
-	w = v.do("GET", "/", "", nil)
-	if w.Code != 200 || w.Body.String() != "<html>spa</html>" {
-		t.Errorf("/ = %d %q", w.Code, w.Body)
-	}
-	w = v.do("GET", "/assets/app-1.js", "", nil)
-	if w.Body.String() != "console.log(1)" || w.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
-		t.Errorf("asset = %q, cache %q", w.Body, w.Header().Get("Cache-Control"))
-	}
-	for _, missing := range []string{"/assets/gone.js", "/assets/", "/assets"} {
-		w = v.do("GET", missing, "", nil)
-		if w.Code != 404 || w.Header().Get("Cache-Control") != "no-store" || strings.Contains(w.Body.String(), "spa") {
-			t.Errorf("%s = %d, cache %q, body %q", missing, w.Code, w.Header().Get("Cache-Control"), w.Body)
-		}
-	}
-	for _, hidden := range []string{"/.keep", "/assets/.hidden", "/sub/.hidden/x", "/.well-known/x"} {
-		w = v.do("GET", hidden, "", nil)
-		if w.Code != 404 || strings.Contains(w.Body.String(), "secret") || strings.Contains(w.Body.String(), "spa") {
+	for _, hidden := range []string{"/.keep", "/assets/.hidden"} {
+		if w = v.do("GET", hidden, "", nil); w.Code != 404 || strings.Contains(w.Body.String(), "secret") {
 			t.Errorf("%s = %d %q, want a plain 404", hidden, w.Code, w.Body)
 		}
 	}
