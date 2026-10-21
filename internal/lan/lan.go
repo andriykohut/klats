@@ -3,12 +3,12 @@
 package lan
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -87,29 +87,24 @@ func Candidates(ifaces []Iface) []netip.Addr {
 			wireless = 1
 		}
 		for _, a := range i.Addrs {
+			a = a.Unmap()
 			if !a.Is4() {
 				continue
 			}
-			r := slices.IndexFunc(privateRanges, func(p netip.Prefix) bool { return p.Contains(a) })
-			if r < 0 || slices.ContainsFunc(cs, func(c cand) bool { return c.addr == a }) {
-				continue
+			if r := slices.IndexFunc(privateRanges, func(p netip.Prefix) bool { return p.Contains(a) }); r >= 0 {
+				cs = append(cs, cand{a, virtual, r, wireless})
 			}
-			cs = append(cs, cand{a, virtual, r, wireless})
 		}
 	}
-	sort.SliceStable(cs, func(x, y int) bool {
-		a, b := cs[x], cs[y]
-		if a.virtual != b.virtual {
-			return a.virtual < b.virtual
-		}
-		if a.rng != b.rng {
-			return a.rng < b.rng
-		}
-		return a.wireless < b.wireless
+	slices.SortStableFunc(cs, func(a, b cand) int {
+		return cmp.Or(cmp.Compare(a.virtual, b.virtual), cmp.Compare(a.rng, b.rng), cmp.Compare(a.wireless, b.wireless))
 	})
-	out := make([]netip.Addr, len(cs))
-	for i, c := range cs {
-		out[i] = c.addr
+	// Dedup after sorting so an address seen on several interfaces keeps its best rank.
+	out := make([]netip.Addr, 0, len(cs))
+	for _, c := range cs {
+		if !slices.Contains(out, c.addr) {
+			out = append(out, c.addr)
+		}
 	}
 	return out
 }
@@ -165,6 +160,9 @@ func Listen(s *config.Settings, goos string) (net.Listener, error) {
 }
 
 func listen(s *config.Settings, candidates []int) (net.Listener, error) {
+	if s.Port != 0 && (s.Port < 1 || s.Port > 65535) {
+		return nil, fmt.Errorf("saved port %d is outside 1-65535", s.Port)
+	}
 	if s.Port != 0 {
 		l, err := net.Listen("tcp", ":"+strconv.Itoa(s.Port))
 		if err != nil {
@@ -172,11 +170,33 @@ func listen(s *config.Settings, candidates []int) (net.Listener, error) {
 		}
 		return l, nil
 	}
+	var lastErr error
 	for _, p := range candidates {
-		if l, err := net.Listen("tcp", ":"+strconv.Itoa(p)); err == nil {
+		l, err := net.Listen("tcp", ":"+strconv.Itoa(p))
+		if err == nil {
 			s.Port = p
 			return l, nil
 		}
+		lastErr = err
 	}
-	return nil, fmt.Errorf("no free port among %v", candidates)
+	return nil, fmt.Errorf("no free port in %s: %w", describe(candidates), lastErr)
+}
+
+// describe renders ports with runs of consecutive numbers collapsed,
+// e.g. "80, 8080–8099".
+func describe(ps []int) string {
+	var parts []string
+	for i := 0; i < len(ps); {
+		j := i
+		for j+1 < len(ps) && ps[j+1] == ps[j]+1 {
+			j++
+		}
+		if j > i {
+			parts = append(parts, fmt.Sprintf("%d–%d", ps[i], ps[j]))
+		} else {
+			parts = append(parts, strconv.Itoa(ps[i]))
+		}
+		i = j + 1
+	}
+	return strings.Join(parts, ", ")
 }

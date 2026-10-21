@@ -9,7 +9,8 @@ import (
 
 // Watch polls list every interval until ctx is done and calls onChange when
 // the set of addresses differs from the previous poll, ignoring order. The
-// first poll only sets the baseline.
+// first poll only sets the baseline. every must be positive. Nothing is
+// delivered once ctx is done.
 func Watch(ctx context.Context, every time.Duration, list func() []netip.Addr, onChange func(old, new []netip.Addr)) {
 	old := list()
 	t := time.NewTicker(every)
@@ -22,6 +23,9 @@ func Watch(ctx context.Context, every time.Duration, list func() []netip.Addr, o
 		}
 		cur := list()
 		if !sameSet(old, cur) {
+			if ctx.Err() != nil {
+				return
+			}
 			onChange(old, cur)
 			old = cur
 		}

@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/netip"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
@@ -45,16 +44,47 @@ func TestCandidatesOrder(t *testing.T) {
 			down, loop,
 		}, addrs("192.168.1.10", "10.0.0.5")},
 		{"172.16/12 last", []Iface{ifc("a", "172.20.0.2"), ifc("b", "10.1.1.1"), ifc("c", "192.168.0.2")}, addrs("192.168.0.2", "10.1.1.1", "172.20.0.2")},
-		{"wired before wireless in one range", []Iface{ifc("wlan0", "192.168.1.5"), ifc("enp3s0", "192.168.1.6"), ifc("Бездротова мережа", "192.168.1.7")}, addrs("192.168.1.6", "192.168.1.5", "192.168.1.7")},
-		{"wl prefix only", []Iface{ifc("wlp2s0", "192.168.1.5"), ifc("eth0", "192.168.1.6")}, addrs("192.168.1.6", "192.168.1.5")},
-		{"virtual adapters last", []Iface{ifc("VirtualBox Host-Only Network", "192.168.56.1"), ifc("Ethernet", "10.0.0.5")}, addrs("10.0.0.5", "192.168.56.1")},
-		{"dedup", []Iface{ifc("eth0", "10.0.0.5"), ifc("eth1", "10.0.0.5")}, addrs("10.0.0.5")},
+		{"VirtualBox host-only after ethernet", []Iface{ifc("VirtualBox Host-Only Network", "192.168.56.1"), ifc("Ethernet", "10.0.0.5")}, addrs("10.0.0.5", "192.168.56.1")},
+		{"same rank keeps input order", []Iface{ifc("eth0", "10.0.0.9"), ifc("eth1", "10.0.0.2"), ifc("eth2", "10.0.0.5")}, addrs("10.0.0.9", "10.0.0.2", "10.0.0.5")},
+		{"dedup across interfaces", []Iface{ifc("eth0", "10.0.0.5"), ifc("eth1", "10.0.0.5")}, addrs("10.0.0.5")},
+		{"dedup keeps the best rank", []Iface{ifc("docker0", "192.168.5.5"), ifc("Ethernet", "192.168.5.5", "10.0.0.1")}, addrs("192.168.5.5", "10.0.0.1")},
+		{"IPv4-mapped address is unmapped", []Iface{ifc("eth0", "::ffff:192.168.1.5")}, addrs("192.168.1.5")},
 		{"none", nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Candidates(tt.in); !slices.Equal(got, tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// The names are the ones Windows, Linux and macOS give virtual adapters. The
+// "only" names match exactly one hint so that dropping any hint fails a case.
+func TestCandidatesVirtualAdaptersLast(t *testing.T) {
+	names := []string{
+		"vEthernet (WSL)", "VMware Network Adapter VMnet8", "docker0", "br-1a2b", "veth12", "Tailscale",
+		"ZeroTier One", "utun3", "Hyper-V Virtual Ethernet Adapter",
+		"Microsoft Virtual Adapter", "VMware Adapter", "vmnet1", "vboxnet0", "Hyper-V Switch", "WSL", "vEthernet (Default Switch)",
+	}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			got := Candidates([]Iface{ifc(name, "192.168.5.5"), ifc("Ethernet", "10.0.0.5")})
+			if want := addrs("10.0.0.5", "192.168.5.5"); !slices.Equal(got, want) {
+				t.Fatalf("got %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+func TestCandidatesWirelessAfterWired(t *testing.T) {
+	names := []string{"Wi-Fi", "Intel WiFi", "nic-wlan0", "wlp2s0", "Wireless Network", "Бездротова мережа", "Беспроводная сеть"}
+	for _, name := range names {
+		t.Run(name, func(t *testing.T) {
+			got := Candidates([]Iface{ifc(name, "192.168.1.5"), ifc("Ethernet", "192.168.1.6")})
+			if want := addrs("192.168.1.6", "192.168.1.5"); !slices.Equal(got, want) {
+				t.Fatalf("got %v, want %v", got, want)
 			}
 		})
 	}
@@ -103,17 +133,28 @@ func TestPorts(t *testing.T) {
 	if other[0] != 8080 || other[len(other)-1] != 8099 || len(other) != 20 {
 		t.Fatalf("other: %v", other)
 	}
+	if got := describe(win); got != "80, 8080–8099" {
+		t.Fatal(got)
+	}
+	if got := describe(other); got != "8080–8099" {
+		t.Fatal(got)
+	}
 }
 
-// freePort returns a port that was free a moment ago.
-func freePort(t *testing.T) int {
+// freePorts returns n distinct ports that were free a moment ago. All probes
+// stay open until every port is chosen, so the ports cannot collide.
+func freePorts(t *testing.T, n int) []int {
 	t.Helper()
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
+	var out []int
+	for range n {
+		l, err := net.Listen("tcp", ":0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = l.Close() }()
+		out = append(out, l.Addr().(*net.TCPAddr).Port)
 	}
-	defer func() { _ = l.Close() }()
-	return l.Addr().(*net.TCPAddr).Port
+	return out
 }
 
 func occupy(t *testing.T, port int) {
@@ -126,102 +167,126 @@ func occupy(t *testing.T, port int) {
 }
 
 func TestListenNeverSwitchesSavedPort(t *testing.T) {
-	p := freePort(t)
-	occupy(t, p)
-	s := &config.Settings{Port: p}
-	l, err := listen(s, []int{p, freePort(t)})
+	ps := freePorts(t, 2)
+	occupy(t, ps[0])
+	s := &config.Settings{Port: ps[0]}
+	l, err := listen(s, ps)
 	if l != nil {
 		_ = l.Close()
 	}
 	var busy ErrPortBusy
-	if !errors.As(err, &busy) || busy.Port != p || busy.Err == nil || !errors.Is(err, busy.Err) {
+	if !errors.As(err, &busy) || busy.Port != ps[0] || busy.Err == nil || !errors.Is(err, busy.Err) {
 		t.Fatalf("err = %v", err)
 	}
-	if s.Port != p {
+	if s.Port != ps[0] {
 		t.Fatalf("port changed to %d", s.Port)
 	}
 }
 
+func TestListenSavedPortOutOfRange(t *testing.T) {
+	for _, p := range []int{-1, 65536, 70000} {
+		l, err := listen(&config.Settings{Port: p}, freePorts(t, 1))
+		if l != nil {
+			_ = l.Close()
+		}
+		var busy ErrPortBusy
+		if err == nil || errors.As(err, &busy) {
+			t.Fatalf("port %d: err = %v", p, err)
+		}
+	}
+}
+
 func TestListenSavedPortBinds(t *testing.T) {
-	p := freePort(t)
-	s := &config.Settings{Port: p}
-	l, err := listen(s, []int{freePort(t)})
+	ps := freePorts(t, 2)
+	s := &config.Settings{Port: ps[0]}
+	l, err := listen(s, ps[1:])
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = l.Close() }()
-	if got := l.Addr().(*net.TCPAddr).Port; got != p {
-		t.Fatalf("bound %d, want %d", got, p)
+	if got := l.Addr().(*net.TCPAddr).Port; got != ps[0] {
+		t.Fatalf("bound %d, want %d", got, ps[0])
 	}
 }
 
 func TestListenFirstRunFallsBack(t *testing.T) {
-	p1, p2 := freePort(t), freePort(t)
-	occupy(t, p1)
+	ps := freePorts(t, 2)
+	occupy(t, ps[0])
 	s := &config.Settings{}
-	l, err := listen(s, []int{p1, p2})
+	l, err := listen(s, ps)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = l.Close() }()
-	if s.Port != p2 || l.Addr().(*net.TCPAddr).Port != p2 {
-		t.Fatalf("settings port %d, listener %v, want %d", s.Port, l.Addr(), p2)
+	if s.Port != ps[1] || l.Addr().(*net.TCPAddr).Port != ps[1] {
+		t.Fatalf("settings port %d, listener %v, want %d", s.Port, l.Addr(), ps[1])
 	}
 }
 
 func TestListenFirstRunAllBusy(t *testing.T) {
-	p := freePort(t)
-	occupy(t, p)
+	ps := freePorts(t, 1)
+	occupy(t, ps[0])
 	s := &config.Settings{}
-	if _, err := listen(s, []int{p}); err == nil || s.Port != 0 {
+	_, err := listen(s, ps)
+	var opErr *net.OpError
+	if err == nil || s.Port != 0 || !errors.As(err, &opErr) {
 		t.Fatalf("err = %v, port = %d", err, s.Port)
+	}
+	if want := fmt.Sprintf("no free port in %d:", ps[0]); err.Error()[:len(want)] != want {
+		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestWatchReportsChange(t *testing.T) {
-	var mu sync.Mutex
-	cur := addrs("192.168.1.10", "10.0.0.5")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	lists := make(chan []netip.Addr)
 	list := func() []netip.Addr {
-		mu.Lock()
-		defer mu.Unlock()
-		return slices.Clone(cur)
+		select {
+		case v := <-lists:
+			return v
+		case <-ctx.Done():
+			return nil
+		}
+	}
+	feed := func(v []netip.Addr) {
+		t.Helper()
+		select {
+		case lists <- v:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Watch did not poll")
+		}
 	}
 	type change struct{ old, new []netip.Addr }
 	got := make(chan change, 4)
-	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
 		Watch(ctx, time.Millisecond, list, func(o, n []netip.Addr) { got <- change{o, n} })
 		close(done)
 	}()
 
-	// Reordering and no-ops are not changes.
-	time.Sleep(20 * time.Millisecond)
-	mu.Lock()
-	cur = addrs("10.0.0.5", "192.168.1.10")
-	mu.Unlock()
-	select {
-	case c := <-got:
-		t.Fatalf("unexpected change %v", c)
-	case <-time.After(30 * time.Millisecond):
-	}
+	feed(addrs("192.168.1.10", "10.0.0.5")) // baseline
+	feed(addrs("10.0.0.5", "192.168.1.10")) // reorder: not a change
+	feed(addrs("10.0.0.5"))                 // the first onChange must be this one
 
-	mu.Lock()
-	cur = addrs("10.0.0.5")
-	mu.Unlock()
 	select {
 	case c := <-got:
-		if len(c.old) != 2 || !slices.Equal(c.new, addrs("10.0.0.5")) {
+		if !slices.Equal(c.old, addrs("192.168.1.10", "10.0.0.5")) || !slices.Equal(c.new, addrs("10.0.0.5")) {
 			t.Fatalf("change = %+v", c)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("no change reported")
 	}
 
 	cancel()
 	select {
 	case <-done:
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Watch did not return")
+	}
+	select {
+	case c := <-got:
+		t.Fatalf("change after the first: %+v", c)
+	default:
 	}
 }
