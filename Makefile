@@ -17,8 +17,8 @@ typecheck:
 web:
 	cd web && pnpm install && pnpm -r --if-present build
 
-# The sqlc config is added with the first query.
 gen:
+	go tool sqlc generate
 	go tool tygo generate
 
 # Playwright end-to-end tests are added later.
