@@ -46,10 +46,32 @@ type ErrNameTaken struct{ Label string }
 
 func (e ErrNameTaken) Error() string { return "sitting: name is taken on device " + e.Label }
 
+// Participant states, as stored in participants.state.
 const (
 	stateWriting = "writing"
 	stateKicked  = "kicked"
+)
 
+// Device statuses, as returned by [Engine.DeviceStatus].
+const (
+	statusWriting  = "writing"
+	statusKicked   = "kicked"
+	statusMoved    = "moved"
+	statusUnjoined = "unjoined"
+)
+
+// Actions the teacher can take on a name_clash event.
+const (
+	ActionKickOld = "kick_old"
+	ActionKickNew = "kick_new"
+	ActionMove    = "move"
+)
+
+// ClashActions lists the name_clash actions in display order, for
+// [wire.Event.Actions]. Callers must not modify it.
+var ClashActions = []string{ActionKickOld, ActionKickNew, ActionMove}
+
+const (
 	kindNameClash = "name_clash"
 
 	// liveDebounce is the shortest gap between two teacher "live" events.
@@ -77,14 +99,14 @@ type active struct {
 	assignment   db.Assignment
 	test         testfmt.Test // the snapshot taken at start
 	participants []*participant
-	moved        map[string]*participant // device token → participant moved off it
-	kicked       map[string]bool         // device tokens the teacher sent back to the name picker
-	clashes      map[string]clash        // unresolved name_clash event id → who it involves
+	status       map[string]string   // device token → its last status; absent means unjoined
+	movedFrom    map[string][]string // device token → ids of the participants moved off it
+	clashes      map[string]clash    // unresolved name_clash event id → who it involves
 }
 
 type participant struct {
 	id     string
-	key    string // name lock: student id, or the normalised typed name
+	key    string // name lock: student id, or typedKey of the typed name and class
 	name   string // display name
 	device string
 	state  string
@@ -96,13 +118,13 @@ type clash struct{ participantID, device string }
 
 // New returns an engine that stores to st, publishes to hub and reads the time
 // from now. It resumes the sitting that has not ended, if there is one, and
-// panics if that sitting cannot be read.
-func New(st *store.Store, hub *events.Hub, now func() time.Time) *Engine {
+// returns an error if that sitting cannot be read.
+func New(st *store.Store, hub *events.Hub, now func() time.Time) (*Engine, error) {
 	e := &Engine{st: st, hub: hub, now: now, lang: "uk"}
 	if err := e.load(); err != nil {
-		panic(fmt.Sprintf("sitting: resume running sitting: %v", err))
+		return nil, fmt.Errorf("sitting: resume running sitting: %w", err)
 	}
-	return e
+	return e, nil
 }
 
 func (e *Engine) load() error {
@@ -132,19 +154,35 @@ func (e *Engine) load() error {
 	for _, r := range rows {
 		key := r.StudentID.String
 		if !r.StudentID.Valid {
-			key = r.TypedName.String
+			key = typedKey(r.TypedName.String, r.TypedClass.String)
 		}
 		a.participants = append(a.participants, &participant{id: r.ID, key: key, name: r.DisplayName, device: r.DeviceToken, state: r.State})
-		if r.State == stateKicked {
-			a.kicked[r.DeviceToken] = true
-		}
 	}
 	moved, err := q.ListMovedDevices(ctx, s.ID)
 	if err != nil {
 		return err
 	}
+	movedOff := map[string][]string{} // participant id → device tokens
 	for _, m := range moved {
-		a.moved[m.DeviceToken] = a.byID(m.ParticipantID)
+		a.movedFrom[m.DeviceToken] = append(a.movedFrom[m.DeviceToken], m.ParticipantID)
+		movedOff[m.ParticipantID] = append(movedOff[m.ParticipantID], m.DeviceToken)
+	}
+	// Replay participants in join order: each left "moved" on the devices it
+	// was moved off and, if kicked, "kicked" on its own; a device a participant
+	// still writes on is "writing". kick_new is not stored, so a device turned
+	// away that way resumes as unjoined, which also shows it the name picker.
+	for _, p := range a.participants {
+		for _, token := range movedOff[p.id] {
+			a.status[token] = statusMoved
+		}
+		if p.state == stateKicked {
+			a.status[p.device] = statusKicked
+		}
+	}
+	for _, p := range a.participants {
+		if p.state != stateKicked {
+			a.status[p.device] = statusWriting
+		}
 	}
 	clashes, err := q.ListOpenClashes(ctx, s.ID)
 	if err != nil {
@@ -162,7 +200,19 @@ func (e *Engine) load() error {
 }
 
 func newActive(s db.Sitting, asg db.Assignment, t testfmt.Test) *active {
-	return &active{sitting: s, assignment: asg, test: t, moved: map[string]*participant{}, kicked: map[string]bool{}, clashes: map[string]clash{}}
+	return &active{sitting: s, assignment: asg, test: t, status: map[string]string{}, movedFrom: map[string][]string{}, clashes: map[string]clash{}}
+}
+
+// DeviceStatus returns the device's status in the running sitting: "writing"
+// while it writes as a participant, "kicked" or "moved" after the teacher sent
+// it away, and "unjoined" before it picks a name or when no sitting runs.
+func (e *Engine) DeviceStatus(token string) string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur == nil || e.cur.status[token] == "" {
+		return statusUnjoined
+	}
+	return e.cur.status[token]
 }
 
 // SetLanguage sets the language student pages use ("uk" or "en"), sent in
@@ -335,6 +385,18 @@ func (a *active) holder(key string) *participant {
 		}
 	}
 	return nil
+}
+
+// clashesOf returns the ids of the pending name_clash events over the name the
+// participant holds.
+func (a *active) clashesOf(participantID string) []string {
+	var ids []string
+	for id, c := range a.clashes {
+		if c.participantID == participantID {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 // onDevice returns the participant the device is writing as, or nil.

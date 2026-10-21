@@ -42,7 +42,8 @@ INSERT OR IGNORE INTO moved_devices (device_token, participant_id) VALUES (?, ?)
 
 -- name: ListMovedDevices :many
 SELECT m.* FROM moved_devices m JOIN participants p ON p.id = m.participant_id
-WHERE p.sitting_id = ?;
+WHERE p.sitting_id = ?
+ORDER BY p.joined_at, p.id, m.device_token;
 
 -- name: InsertEvent :exec
 INSERT INTO events (id, sitting_id, kind, params, created_at, pinned) VALUES (?, ?, ?, ?, ?, ?);

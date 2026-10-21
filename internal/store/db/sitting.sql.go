@@ -183,6 +183,7 @@ func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) er
 const listMovedDevices = `-- name: ListMovedDevices :many
 SELECT m.device_token, m.participant_id FROM moved_devices m JOIN participants p ON p.id = m.participant_id
 WHERE p.sitting_id = ?
+ORDER BY p.joined_at, p.id, m.device_token
 `
 
 func (q *Queries) ListMovedDevices(ctx context.Context, sittingID string) ([]MovedDevice, error) {

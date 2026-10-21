@@ -23,6 +23,7 @@ import (
 const (
 	devA = "aaaaaaaaaaaaaaaaaaaaaaaaaa"
 	devB = "bbbbbbbbbbbbbbbbbbbbbbbbbb"
+	devC = "cccccccccccccccccccccccccc"
 )
 
 var clock = func() time.Time { return time.UnixMilli(1_790_000_000_000) }
@@ -65,7 +66,25 @@ func setup(t *testing.T) (*Engine, *store.Store, *events.Hub) {
 		t.Fatal(err)
 	}
 	hub := events.New()
-	return New(st, hub, clock), st, hub
+	return newEngine(t, st, hub), st, hub
+}
+
+func newEngine(t *testing.T, st *store.Store, hub *events.Hub) *Engine {
+	t.Helper()
+	e, err := New(st, hub, clock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+func assignment(t *testing.T, st *store.Store, id string) db.Assignment {
+	t.Helper()
+	a, err := st.Q().GetAssignment(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
 }
 
 func addClass(t *testing.T, st *store.Store, names ...string) *string {
@@ -215,6 +234,9 @@ func TestJoinLabelsDevice(t *testing.T) {
 func TestPickLocksNameToDevice(t *testing.T) {
 	e, st, _ := setup(t)
 	info := start(t, e, addClass(t, st, "Петренко Тарас", "Іваненко Олена"))
+	if a := assignment(t, st, info.AssignmentID); info.ClassName != "7-А" || a.ClassName.String != "7-А" {
+		t.Errorf("class name: info %q, stored %+v", info.ClassName, a.ClassName)
+	}
 	join(t, e, info.Code, devA, "10.0.0.107")
 	names := join(t, e, info.Code, devB, "10.0.0.108").Names
 	if len(names) != 2 || names[0].Name != "Іваненко Олена" || names[1].Name != "Петренко Тарас" {
@@ -324,9 +346,18 @@ func TestTypedModeWithoutClass(t *testing.T) {
 	if row.DisplayName != "Шевченко Тарас" || row.TypedName.String != "Шевченко Тарас" || row.TypedClass.String != "7-А" || row.StudentID.Valid {
 		t.Errorf("stored participant = %+v", row)
 	}
+	if assignment(t, st, info.AssignmentID).ClassName.Valid {
+		t.Error("class name stored for a sitting without a class")
+	}
 	var taken ErrNameTaken
-	if _, err := e.Pick(info.Code, devB, wire.PickRequest{Surname: "Шевченко", FirstName: " Тарас", ClassName: "7-Б"}); !errors.As(err, &taken) {
-		t.Errorf("same typed name on another device: err = %v, want ErrNameTaken", err)
+	if _, err := e.Pick(info.Code, devB, wire.PickRequest{Surname: "шевченко", FirstName: " ТАРАС", ClassName: "7-а"}); !errors.As(err, &taken) || taken.Label != "107" {
+		t.Errorf("same typed name in another case: err = %v, want ErrNameTaken{107}", err)
+	}
+	if _, err := e.Pick(info.Code, devB, wire.PickRequest{Surname: "Шевченко", FirstName: "Тарас", ClassName: strings.Repeat("А", 61)}); !errors.Is(err, ErrInvalid) {
+		t.Errorf("over-long class: err = %v, want ErrInvalid", err)
+	}
+	if namesake := pick(t, e, info.Code, devB, wire.PickRequest{Surname: "Шевченко", FirstName: "Тарас", ClassName: "7-Б"}); namesake.ID == p.ID {
+		t.Error("namesake in another class got the same participant")
 	}
 
 	e.SetLanguage("en")
@@ -458,8 +489,8 @@ func TestResolveClashMove(t *testing.T) {
 	if _, err := e.TestFor(devA); !errors.Is(err, ErrNotJoined) {
 		t.Errorf("old device: err = %v, want ErrNotJoined", err)
 	}
-	if e.cur.moved[devA] == nil || e.cur.moved[devA].id != p.ID {
-		t.Error("old device not recorded as moved")
+	if e.DeviceStatus(devA) != "moved" || e.DeviceStatus(devB) != "writing" || !slices.Equal(e.cur.movedFrom[devA], []string{p.ID}) {
+		t.Errorf("statuses %q, %q; moved from devA %v", e.DeviceStatus(devA), e.DeviceStatus(devB), e.cur.movedFrom[devA])
 	}
 	if err := e.ResolveEvent(eventID, "move"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("resolving twice: err = %v, want ErrNotFound", err)
@@ -467,18 +498,23 @@ func TestResolveClashMove(t *testing.T) {
 }
 
 func TestResolveClashKick(t *testing.T) {
-	e, st, _, info, p, eventID := startClash(t)
+	e, st, hub, info, p, eventID := startClash(t)
+	newCh, unsub := hub.Subscribe("device:" + devB)
+	defer unsub()
 	if err := e.ResolveEvent(eventID, "shrug"); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("unknown action: err = %v, want ErrInvalid", err)
 	}
 	if err := e.ResolveEvent(eventID, "kick_old"); err != nil {
 		t.Fatal(err)
 	}
+	if !received(newCh) {
+		t.Error("newcomer not told the name is free")
+	}
 	if row := participantRow(t, st, info.SittingID, p.ID); row.State != "kicked" {
 		t.Errorf("holder state = %q, want kicked", row.State)
 	}
-	if !e.cur.kicked[devA] {
-		t.Error("holder device not kicked")
+	if got := e.DeviceStatus(devA); got != "kicked" {
+		t.Errorf("holder device status = %q, want kicked", got)
 	}
 	if _, err := e.TestFor(devA); !errors.Is(err, ErrNotJoined) {
 		t.Errorf("kicked device: err = %v, want ErrNotJoined", err)
@@ -502,8 +538,75 @@ func TestResolveClashKick(t *testing.T) {
 	if row := participantRow(t, st, info.SittingID, fresh.ID); row.State != "writing" || row.DeviceToken != devB {
 		t.Errorf("holder after kick_new = %+v", row)
 	}
-	if !e.cur.kicked[devA] {
-		t.Error("newcomer device not kicked")
+	if got := e.DeviceStatus(devA); got != "kicked" {
+		t.Errorf("newcomer device status = %q, want kicked", got)
+	}
+	if got := e.DeviceStatus(devB); got != "writing" {
+		t.Errorf("holder device status = %q, want writing", got)
+	}
+}
+
+func TestKickOrMoveResolvesClash(t *testing.T) {
+	for _, action := range []string{"kick", "move"} {
+		e, st, hub, info, p, eventID := startClash(t)
+		newCh, unsub := hub.Subscribe("device:" + devB)
+		join(t, e, info.Code, devC, "10.0.0.109")
+		var err error
+		if action == "kick" {
+			err = e.Kick(p.ID)
+		} else {
+			err = e.Move(p.ID, devC)
+		}
+		unsub()
+		if err != nil {
+			t.Fatalf("%s: %v", action, err)
+		}
+		if len(openClashes(t, st, info.SittingID)) != 0 {
+			t.Errorf("%s left the clash open", action)
+		}
+		if !received(newCh) {
+			t.Errorf("%s: newcomer not notified", action)
+		}
+		if err := e.ResolveEvent(eventID, "kick_new"); !errors.Is(err, ErrNotFound) {
+			t.Errorf("%s: resolving the clash: err = %v, want ErrNotFound", action, err)
+		}
+	}
+}
+
+func TestKickAndMoveErrors(t *testing.T) {
+	e, st, _ := setup(t)
+	if err := e.Kick("nobody"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Kick without a sitting: err = %v, want ErrNotFound", err)
+	}
+	info := start(t, e, addClass(t, st, "Петренко Тарас", "Іваненко Олена"))
+	names := join(t, e, info.Code, devA, "10.0.0.107").Names
+	join(t, e, info.Code, devB, "10.0.0.108")
+	pa := pick(t, e, info.Code, devA, wire.PickRequest{StudentID: names[0].StudentID})
+	pb := pick(t, e, info.Code, devB, wire.PickRequest{StudentID: names[1].StudentID})
+
+	if err := e.Kick("nobody"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Kick unknown participant: err = %v, want ErrNotFound", err)
+	}
+	if err := e.Move("nobody", devB); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Move unknown participant: err = %v, want ErrNotFound", err)
+	}
+	if err := e.Move(pa.ID, devC); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Move to unknown device: err = %v, want ErrNotFound", err)
+	}
+	if err := e.Move(pa.ID, devB); !errors.Is(err, ErrInvalid) {
+		t.Errorf("Move onto a writing device: err = %v, want ErrInvalid", err)
+	}
+	if err := e.Kick(pb.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Kick(pb.ID); err != nil {
+		t.Errorf("Kick twice: %v", err)
+	}
+	if err := e.Move(pb.ID, devB); !errors.Is(err, ErrInvalid) {
+		t.Errorf("Move a kicked participant: err = %v, want ErrInvalid", err)
+	}
+	if row := participantRow(t, st, info.SittingID, pa.ID); row.DeviceToken != devA {
+		t.Errorf("failed moves changed the participant: %+v", row)
 	}
 }
 
@@ -536,7 +639,7 @@ func TestPickNotifiesTeacherDebounced(t *testing.T) {
 func TestRestartResumesSitting(t *testing.T) {
 	_, st, hub, info, p, eventID := startClash(t)
 
-	e2 := New(st, hub, clock)
+	e2 := newEngine(t, st, hub)
 	if _, err := e2.TestFor(devA); err != nil {
 		t.Fatalf("TestFor after restart: %v", err)
 	}
@@ -552,5 +655,52 @@ func TestRestartResumesSitting(t *testing.T) {
 	}
 	if err := e2.ResolveEvent(eventID, "kick_new"); err != nil {
 		t.Errorf("resolve after restart: %v", err)
+	}
+}
+
+func TestRestartRebuildsDeviceStatus(t *testing.T) {
+	e, st, hub := setup(t)
+	info := start(t, e, addClass(t, st, "Петренко Тарас", "Іваненко Олена", "Бойко Марія"))
+	names := join(t, e, info.Code, devA, "10.0.0.107").Names
+	join(t, e, info.Code, devB, "10.0.0.108")
+	join(t, e, info.Code, devC, "10.0.0.109")
+	pa := pick(t, e, info.Code, devA, wire.PickRequest{StudentID: names[0].StudentID})
+	pb := pick(t, e, info.Code, devB, wire.PickRequest{StudentID: names[1].StudentID})
+	if err := e.Kick(pa.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.Move(pb.ID, devC); err != nil {
+		t.Fatal(err)
+	}
+
+	e2 := newEngine(t, st, hub)
+	for device, want := range map[string]string{devA: "kicked", devB: "moved", devC: "writing", "unknown": "unjoined"} {
+		if got := e2.DeviceStatus(device); got != want {
+			t.Errorf("status of %s after restart = %q, want %q", device, got, want)
+		}
+	}
+	if !slices.Equal(e2.cur.movedFrom[devB], []string{pb.ID}) {
+		t.Errorf("moved from devB = %v, want [%s]", e2.cur.movedFrom[devB], pb.ID)
+	}
+
+	// Picking clears a kicked or moved status.
+	pick(t, e2, info.Code, devA, wire.PickRequest{StudentID: names[0].StudentID})
+	pick(t, e2, info.Code, devB, wire.PickRequest{StudentID: names[2].StudentID})
+	if a, b := e2.DeviceStatus(devA), e2.DeviceStatus(devB); a != "writing" || b != "writing" {
+		t.Errorf("statuses after picking = %q, %q, want writing", a, b)
+	}
+}
+
+func TestRestartReportsUnreadableSitting(t *testing.T) {
+	st := openStore(t)
+	ctx := context.Background()
+	if err := st.Q().InsertAssignment(ctx, db.InsertAssignmentParams{ID: "a1", TestSnapshot: "[]"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q().InsertSitting(ctx, db.InsertSittingParams{ID: "s1", AssignmentID: "a1", JoinCode: "1234"}); err != nil {
+		t.Fatal(err)
+	}
+	if e, err := New(st, events.New(), clock); err == nil || e != nil {
+		t.Fatalf("New = %v, %v; want an error", e, err)
 	}
 }
