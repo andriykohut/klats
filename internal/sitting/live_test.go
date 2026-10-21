@@ -183,7 +183,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	finish(t, e, devA)
 
 	r := resultsOf(t, e, info.AssignmentID)
-	if r.TestTitle != "Дроби" || r.ClassName != "" || r.ExportStale || len(r.Questions) != 2 || r.Questions[0].ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 {
+	if r.TestTitle != "Дроби" || r.ClassName != "" || r.ExportStale || len(r.Questions) != 2 || r.Questions[0].ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
 		t.Errorf("results = %+v", r)
 	}
 	if len(r.Rows) != 2 || r.Rows[0].Name != "Франко Учень" || r.Rows[1].Name != p.Name {
@@ -207,6 +207,9 @@ func TestOverrideChangesResults(t *testing.T) {
 	}
 	if r.Questions[0].CorrectPct != 50 {
 		t.Errorf("q1 correct pct = %d, want 50", r.Questions[0].CorrectPct)
+	}
+	if r.Questions[0].Correct != 1 {
+		t.Errorf("q1 correct = %d, want 1", r.Questions[0].Correct)
 	}
 	if s := heartbeat(t, e, devA, 0); s.Result == nil || s.Result.Grade != 12 {
 		t.Errorf("status = %+v, want the overridden grade", s)

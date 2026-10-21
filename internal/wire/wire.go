@@ -228,11 +228,13 @@ type AssignmentResults struct {
 	Rows         []ResultRow      `json:"rows"`
 }
 
-// ResultQuestion is a question of the results table. CorrectPct is the
-// percent of rows that scored full points on it.
+// ResultQuestion is a question of the results table. Correct is the number of
+// rows that scored full points on it, and CorrectPct is that count as a
+// percent of all rows.
 type ResultQuestion struct {
 	ID         string          `json:"id"`
 	Text       json.RawMessage `json:"text"`
+	Correct    int             `json:"correct"`
 	CorrectPct int             `json:"correctPct"`
 }
 

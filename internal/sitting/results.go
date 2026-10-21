@@ -68,7 +68,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		}
 	}
 	for i, question := range t.Questions {
-		rq := wire.ResultQuestion{ID: question.ID, Text: question.Text}
+		rq := wire.ResultQuestion{ID: question.ID, Text: question.Text, Correct: full[i]}
 		if len(out.Rows) > 0 {
 			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(len(out.Rows))))
 		}
