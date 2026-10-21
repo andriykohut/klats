@@ -360,6 +360,12 @@ func TestSPAFallback(t *testing.T) {
 	if w.Body.String() != "console.log(1)" || w.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
 		t.Errorf("asset = %q, cache %q", w.Body, w.Header().Get("Cache-Control"))
 	}
+	for _, missing := range []string{"/assets/gone.js", "/assets/", "/assets"} {
+		w = v.do("GET", missing, "", nil)
+		if w.Code != 404 || w.Header().Get("Cache-Control") != "no-store" || strings.Contains(w.Body.String(), "spa") {
+			t.Errorf("%s = %d, cache %q, body %q", missing, w.Code, w.Header().Get("Cache-Control"), w.Body)
+		}
+	}
 	w = v.do("GET", "/api/nope", "", nil)
 	wantStatus(t, w, 404)
 	if got := decodeBody[map[string]string](t, w); got["error"] != "not_found" {
@@ -387,5 +393,54 @@ func TestEventsStream(t *testing.T) {
 	n, err := resp.Body.Read(buf)
 	if err != nil || !strings.HasPrefix(string(buf[:n]), "event: status") {
 		t.Errorf("frame = %q, %v", buf[:n], err)
+	}
+}
+
+func TestEventStreamsCappedPerIP(t *testing.T) {
+	v := setup(t)
+	srv := httptest.NewServer(v.h)
+	defer srv.Close()
+	open := func() (*http.Response, context.CancelFunc) {
+		ctx, cancel := context.WithCancel(context.Background())
+		req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?device="+devA, nil)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			cancel()
+			t.Fatal(err)
+		}
+		return resp, cancel
+	}
+	var cancels []context.CancelFunc
+	for i := range maxStreamsPerIP {
+		resp, cancel := open()
+		defer cancel()
+		defer func() { _ = resp.Body.Close() }()
+		cancels = append(cancels, cancel)
+		if resp.StatusCode != 200 {
+			t.Fatalf("stream %d = %d", i+1, resp.StatusCode)
+		}
+	}
+	resp, cancel := open()
+	defer cancel()
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != 429 || !strings.Contains(string(body), "rate_limited") {
+		t.Fatalf("9th stream = %d %s, want 429 rate_limited", resp.StatusCode, body)
+	}
+
+	cancels[0]()
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		resp, cancel := open()
+		code := resp.StatusCode
+		defer cancel()
+		defer func() { _ = resp.Body.Close() }()
+		if code == 200 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("slot not released after a stream ended: %d", code)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

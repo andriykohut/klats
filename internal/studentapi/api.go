@@ -15,6 +15,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"klats/internal/events"
@@ -29,8 +30,9 @@ import (
 const deviceHeader = "X-Klats-Device"
 
 const (
-	maxBodyBytes  = 256 << 10
-	keepAliveTime = 15 * time.Second
+	maxBodyBytes    = 256 << 10
+	maxStreamsPerIP = 8
+	keepAliveTime   = 15 * time.Second
 )
 
 var deviceRE = regexp.MustCompile(`^[a-z2-7]{22,64}$`)
@@ -40,6 +42,9 @@ type api struct {
 	hub    *events.Hub
 	assets fs.FS
 	rate   *limiter
+
+	streamsMu sync.Mutex
+	streams   map[string]int // client IP → open event streams
 }
 
 // Handler returns the student API under /api/ and, for every other path, the
@@ -51,7 +56,7 @@ func Handler(e *sitting.Engine, hub *events.Hub, assets fs.FS) http.Handler {
 }
 
 func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, now func() time.Time) http.Handler {
-	a := &api{e: e, hub: hub, assets: assets, rate: newLimiter(now)}
+	a := &api{e: e, hub: hub, assets: assets, rate: newLimiter(now), streams: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/join", a.device(a.join))
 	mux.HandleFunc("POST /api/pick", a.device(a.pick))
@@ -107,21 +112,8 @@ func (a *api) device(next func(w http.ResponseWriter, r *http.Request, device st
 	}
 }
 
-type joinRequest struct {
-	Code string `json:"code"`
-}
-
-type pickRequest struct {
-	wire.PickRequest
-	Code string `json:"code"`
-}
-
-type focusRequest struct {
-	Left bool `json:"left"`
-}
-
 func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
-	var req joinRequest
+	var req wire.JoinRequest
 	if !a.limited(w, r, device) || !decode(w, r, &req) {
 		return
 	}
@@ -130,7 +122,7 @@ func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
 }
 
 func (a *api) pick(w http.ResponseWriter, r *http.Request, device string) {
-	var req pickRequest
+	var req wire.PickBody
 	if !a.limited(w, r, device) || !decode(w, r, &req) {
 		return
 	}
@@ -167,7 +159,7 @@ func (a *api) finish(w http.ResponseWriter, r *http.Request, device string) {
 }
 
 func (a *api) focus(w http.ResponseWriter, r *http.Request, device string) {
-	var req focusRequest
+	var req wire.FocusRequest
 	if !decode(w, r, &req) {
 		return
 	}
@@ -182,6 +174,13 @@ func (a *api) events(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_device")
 		return
 	}
+	ip := clientIP(r)
+	if !a.openStream(ip) {
+		w.Header().Set("Retry-After", "60")
+		writeError(w, http.StatusTooManyRequests, "rate_limited")
+		return
+	}
+	defer a.closeStream(ip)
 	ch, unsubscribe := a.hub.Subscribe("device:" + token)
 	defer unsubscribe()
 	if err := sse.Stream(w, r, ch, keepAliveTime); err != nil {
@@ -189,9 +188,29 @@ func (a *api) events(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// openStream takes one of the client's event stream slots, if one is free.
+func (a *api) openStream(ip string) bool {
+	a.streamsMu.Lock()
+	defer a.streamsMu.Unlock()
+	if a.streams[ip] >= maxStreamsPerIP {
+		return false
+	}
+	a.streams[ip]++
+	return true
+}
+
+func (a *api) closeStream(ip string) {
+	a.streamsMu.Lock()
+	defer a.streamsMu.Unlock()
+	if a.streams[ip]--; a.streams[ip] == 0 {
+		delete(a.streams, ip)
+	}
+}
+
 // static serves the file at the request path from the assets, or index.html
 // for any path that is not a file, so client-side routes survive a reload.
-// Unknown /api/ paths are a JSON 404.
+// Unknown /api/ paths are a JSON 404, and unknown /assets/ paths a plain 404:
+// a missing hashed bundle must not be answered with HTML.
 func (a *api) static(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		writeError(w, http.StatusNotFound, "not_found")
@@ -203,13 +222,21 @@ func (a *api) static(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
-	if info, err := fs.Stat(a.assets, name); name == "" || err != nil || info.IsDir() {
-		name = "index.html"
-	}
-	if strings.HasPrefix(name, "assets/") {
+	info, err := fs.Stat(a.assets, name)
+	missing := name == "" || err != nil || info.IsDir()
+	inAssets := name == "assets" || strings.HasPrefix(name, "assets/")
+	switch {
+	case inAssets && missing:
+		w.Header().Set("Cache-Control", "no-store")
+		http.NotFound(w, r)
+		return
+	case inAssets:
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	} else {
+	default:
 		w.Header().Set("Cache-Control", "no-cache")
+		if missing {
+			name = "index.html"
+		}
 	}
 	http.ServeFileFS(w, r, a.assets, name)
 }

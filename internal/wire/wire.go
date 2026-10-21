@@ -44,6 +44,24 @@ type PickRequest struct {
 	ClassName string `json:"className"`
 }
 
+// JoinRequest is the body of a student device's join: the sitting's join code.
+type JoinRequest struct {
+	Code string `json:"code"`
+}
+
+// PickBody is the body of a student device's name pick: the join code and the
+// student to join as.
+type PickBody struct {
+	PickRequest `tstype:",extends"`
+	Code        string `json:"code"`
+}
+
+// FocusRequest is the body of a student device's focus report. Left is true
+// when the page lost focus.
+type FocusRequest struct {
+	Left bool `json:"left"`
+}
+
 // Participant is one student's place in a sitting. State is "writing",
 // "finished" or "kicked".
 type Participant struct {
