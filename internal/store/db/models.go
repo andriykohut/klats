@@ -74,6 +74,7 @@ type Participant struct {
 	State          string
 	JoinedAt       int64
 	FinishedAt     sql.NullInt64
+	FinishedBy     sql.NullString
 	WindowSwitches int64
 }
 

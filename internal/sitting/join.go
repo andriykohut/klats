@@ -162,12 +162,15 @@ func (e *Engine) Pick(code, device string, req wire.PickRequest) (wire.Participa
 		return wire.Participant{}, ErrNameTaken{Label: holder.Label}
 	}
 
-	p := &participant{id: row.ID, key: key, name: row.DisplayName, device: device, state: row.State}
+	p := &participant{
+		id: row.ID, key: key, name: row.DisplayName, class: row.TypedClass.String, device: device, state: row.State,
+		joinedAt: row.JoinedAt, answers: map[string][]string{}, overrides: map[string]float64{}, lastSeen: e.now(),
+	}
 	err = e.commit(func(q *db.Queries) (func(), error) {
 		if err := q.InsertParticipant(ctx, row); err != nil {
 			return nil, err
 		}
-		_, err := e.raise(q, "joined", map[string]string{"name": p.name, "label": dev.Label}, false)
+		_, err := e.raise(q, a.sitting.ID, "joined", map[string]string{"name": p.name, "label": dev.Label}, false)
 		return func() {
 			a.participants = append(a.participants, p)
 			a.status[device] = statusWriting
@@ -191,7 +194,7 @@ func (e *Engine) raiseClash(h *participant, newcomer, holderLabel, newcomerLabel
 		}
 	}
 	return e.commit(func(q *db.Queries) (func(), error) {
-		id, err := e.raise(q, kindNameClash, map[string]string{
+		id, err := e.raise(q, e.cur.sitting.ID, kindNameClash, map[string]string{
 			"name": h.name, "holder": holderLabel, "newcomer": newcomerLabel,
 			"participantId": h.id, "device": newcomer,
 		}, true)

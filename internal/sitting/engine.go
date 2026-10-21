@@ -38,6 +38,8 @@ var (
 	// ErrInvalid means the request is malformed or not allowed in the current
 	// state, such as an unknown student or an empty typed name.
 	ErrInvalid = errors.New("sitting: invalid request")
+	// ErrKicked means the teacher sent the device back to the name picker.
+	ErrKicked = errors.New("sitting: device was kicked")
 )
 
 // ErrNameTaken is returned by [Engine.Pick] when another device holds the
@@ -48,8 +50,17 @@ func (e ErrNameTaken) Error() string { return "sitting: name is taken on device 
 
 // Participant states, as stored in participants.state.
 const (
-	stateWriting = "writing"
-	stateKicked  = "kicked"
+	stateWriting  = "writing"
+	stateFinished = "finished"
+	stateKicked   = "kicked"
+)
+
+// Who finished a participant, as stored in participants.finished_by. A student
+// who finished locks their answers; one finished by the end of the sitting may
+// still deliver answers late.
+const (
+	finishedByStudent = "student"
+	finishedByEnd     = "end"
 )
 
 // Device statuses, as returned by [Engine.DeviceStatus].
@@ -58,6 +69,13 @@ const (
 	statusKicked   = "kicked"
 	statusMoved    = "moved"
 	statusUnjoined = "unjoined"
+)
+
+// Further states of [wire.Status] and [wire.LiveRow].
+const (
+	statusFinished = "finished"
+	statusEnded    = "ended"
+	statusOffline  = "offline"
 )
 
 // Actions the teacher can take on a name_clash event.
@@ -89,6 +107,7 @@ type Engine struct {
 
 	mu          sync.Mutex
 	lang        string
+	snapshotDir string
 	cur         *active // nil when no sitting is running
 	livePending bool
 }
@@ -105,11 +124,23 @@ type active struct {
 }
 
 type participant struct {
-	id     string
-	key    string // name lock: student id, or typedKey of the typed name and class
-	name   string // display name
-	device string
-	state  string
+	id         string
+	key        string // name lock: student id, or typedKey of the typed name and class
+	name       string // display name
+	class      string // typed class; empty for a class-list student
+	device     string
+	state      string
+	finishedBy string // finishedByStudent or finishedByEnd once finished
+	joinedAt   int64
+	finishedAt int64               // 0 until finished
+	switches   int                 // window switches
+	answers    map[string][]string // question id → selected option ids
+	overrides  map[string]float64  // question id → points set by the teacher
+
+	// Presence lives only in memory: a restart counts everyone as just seen.
+	lastSeen time.Time
+	offline  bool
+	synced   int // changes stored while offline
 }
 
 // clash identifies the holder participant and the newcomer device of a
@@ -136,31 +167,57 @@ func (e *Engine) load() error {
 	if err != nil {
 		return err
 	}
-	asg, err := q.GetAssignment(ctx, s.AssignmentID)
-	if err != nil {
-		return err
-	}
+	e.cur, err = e.loadSitting(q, s)
+	return err
+}
+
+// loadSitting reads the sitting s, running or ended, with its participants,
+// answers, overrides, moved devices and pending name clashes.
+func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 	// The snapshot was validated by testfmt.Decode at start.
-	var t testfmt.Test
-	if err := json.Unmarshal([]byte(asg.TestSnapshot), &t); err != nil {
-		return err
+	asg, t, err := assignmentTest(q, s.AssignmentID)
+	if err != nil {
+		return nil, err
 	}
 	a := newActive(s, asg, t)
 
 	rows, err := q.ListParticipants(ctx, s.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	now := e.now()
 	for _, r := range rows {
 		key := r.StudentID.String
 		if !r.StudentID.Valid {
 			key = typedKey(r.TypedName.String, r.TypedClass.String)
 		}
-		a.participants = append(a.participants, &participant{id: r.ID, key: key, name: r.DisplayName, device: r.DeviceToken, state: r.State})
+		a.participants = append(a.participants, &participant{
+			id: r.ID, key: key, name: r.DisplayName, class: r.TypedClass.String, device: r.DeviceToken, state: r.State,
+			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches),
+			answers: map[string][]string{}, overrides: map[string]float64{}, lastSeen: now,
+		})
+	}
+	answers, err := q.ListAnswers(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, ans := range answers {
+		var ids []string
+		if err := json.Unmarshal([]byte(ans.OptionIds), &ids); err != nil {
+			return nil, err
+		}
+		a.byID(ans.ParticipantID).answers[ans.QuestionID] = ids
+	}
+	overrides, err := q.ListOverrides(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range overrides {
+		a.byID(o.ParticipantID).overrides[o.QuestionID] = o.Points
 	}
 	moved, err := q.ListMovedDevices(ctx, s.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	movedOff := map[string][]string{} // participant id → device tokens
 	for _, m := range moved {
@@ -186,17 +243,16 @@ func (e *Engine) load() error {
 	}
 	clashes, err := q.ListOpenClashes(ctx, s.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, ev := range clashes {
 		var p map[string]string
 		if err := json.Unmarshal([]byte(ev.Params), &p); err != nil {
-			return err
+			return nil, err
 		}
 		a.clashes[ev.ID] = clash{p["participantId"], p["device"]}
 	}
-	e.cur = a
-	return nil
+	return a, nil
 }
 
 func newActive(s db.Sitting, asg db.Assignment, t testfmt.Test) *active {
@@ -355,13 +411,13 @@ func (e *Engine) publishStatus(device string) {
 	e.hub.Publish(events.Event{Topic: "device:" + device, Name: "status"})
 }
 
-// raise stores an event of the running sitting and returns its id.
-func (e *Engine) raise(q *db.Queries, kind string, params map[string]string, pinned bool) (string, error) {
+// raise stores an event of the sitting and returns its id.
+func (e *Engine) raise(q *db.Queries, sittingID, kind string, params map[string]string, pinned bool) (string, error) {
 	b, err := json.Marshal(params)
 	if err != nil {
 		return "", err
 	}
-	ev := db.InsertEventParams{ID: store.NewID(), SittingID: e.cur.sitting.ID, Kind: kind, Params: string(b), CreatedAt: e.now().UnixMilli()}
+	ev := db.InsertEventParams{ID: store.NewID(), SittingID: sittingID, Kind: kind, Params: string(b), CreatedAt: e.now().UnixMilli()}
 	if pinned {
 		ev.Pinned = 1
 	}

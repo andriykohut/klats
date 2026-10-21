@@ -55,3 +55,73 @@ ORDER BY created_at, id;
 
 -- name: ResolveEvent :exec
 UPDATE events SET resolved_at = ? WHERE id = ?;
+
+-- name: GetSitting :one
+SELECT * FROM sittings WHERE id = ?;
+
+-- name: ListAssignmentSittings :many
+SELECT * FROM sittings WHERE assignment_id = ? ORDER BY started_at, id;
+
+-- name: EndSitting :exec
+UPDATE sittings SET ended_at = ? WHERE id = ?;
+
+-- name: GetParticipant :one
+SELECT * FROM participants WHERE id = ?;
+
+-- name: LastEndedParticipantOnDevice :one
+SELECT p.* FROM participants p JOIN sittings s ON s.id = p.sitting_id
+WHERE p.device_token = ? AND p.state != 'kicked' AND s.ended_at IS NOT NULL
+ORDER BY p.joined_at DESC, p.id DESC
+LIMIT 1;
+
+-- name: FinishParticipant :exec
+UPDATE participants SET state = 'finished', finished_by = ?, finished_at = ? WHERE id = ?;
+
+-- name: SetWindowSwitches :exec
+UPDATE participants SET window_switches = ? WHERE id = ?;
+
+-- name: ListDeviceLabels :many
+SELECT DISTINCT d.token, d.label FROM devices d JOIN participants p ON p.device_token = d.token
+WHERE p.sitting_id = ?;
+
+-- name: ChangeSeen :one
+SELECT EXISTS (SELECT 1 FROM answers WHERE change_id = ?);
+
+-- UpsertAnswer stores the answer unless one with an equal or higher seq is
+-- stored; it then affects no row.
+-- name: UpsertAnswer :execrows
+INSERT INTO answers (participant_id, question_id, option_ids, seq, change_id, received_at, late)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (participant_id, question_id) DO UPDATE SET
+    option_ids = excluded.option_ids, seq = excluded.seq, change_id = excluded.change_id,
+    received_at = excluded.received_at, late = excluded.late
+WHERE excluded.seq > answers.seq;
+
+-- name: ListAnswers :many
+SELECT a.* FROM answers a JOIN participants p ON p.id = a.participant_id
+WHERE p.sitting_id = ?
+ORDER BY a.participant_id, a.question_id;
+
+-- name: ListOverrides :many
+SELECT o.* FROM overrides o JOIN participants p ON p.id = o.participant_id
+WHERE p.sitting_id = ?;
+
+-- name: UpsertOverride :exec
+INSERT INTO overrides (assignment_id, participant_id, question_id, points) VALUES (?, ?, ?, ?)
+ON CONFLICT (assignment_id, participant_id, question_id) DO UPDATE SET points = excluded.points;
+
+-- name: DeleteOverride :exec
+DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND question_id = ?;
+
+-- name: SetExportStale :exec
+UPDATE assignments SET export_stale = 1 WHERE id = ?;
+
+-- Events of one millisecond keep their insertion order by rowid.
+-- name: ListOpenPinnedEvents :many
+SELECT * FROM events WHERE sitting_id = ? AND pinned = 1 AND resolved_at IS NULL
+ORDER BY created_at DESC, rowid DESC;
+
+-- name: ListRecentEvents :many
+SELECT * FROM events WHERE sitting_id = ? AND NOT (pinned = 1 AND resolved_at IS NULL)
+ORDER BY created_at DESC, rowid DESC
+LIMIT 20;

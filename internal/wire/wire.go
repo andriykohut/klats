@@ -82,3 +82,121 @@ type Event struct {
 	Pinned  bool              `json:"pinned"`
 	Actions []string          `json:"actions"`
 }
+
+// AnswerChange is one answer edit from a student device, for the participant
+// the device picked. Seq numbers the edits of one question from 1 and the
+// highest Seq wins. It carries no client time: ordering and late flags use
+// only Seq and the server clock.
+type AnswerChange struct {
+	ChangeID      string   `json:"changeId"`
+	ParticipantID string   `json:"participantId"`
+	QuestionID    string   `json:"questionId"`
+	OptionIDs     []string `json:"optionIds"`
+	Seq           int64    `json:"seq"`
+}
+
+// SubmitResult answers a batch of changes. Acks lists every change id the
+// device can forget, including repeats and changes that were not stored.
+// Rejected counts the acked changes refused as malformed or not the device's
+// to send.
+type SubmitResult struct {
+	Acks     []string `json:"acks"`
+	Rejected int      `json:"rejected"`
+	Status   Status   `json:"status"`
+}
+
+// Status is what a student device is told about its place in the sitting.
+// State is "writing", "finished" (by the student, while the sitting runs),
+// "ended" (the teacher ended the sitting), "kicked", "moved" or "unjoined".
+// Result is set once the participant has finished. RemainingMs is always nil
+// in this version, which has no time limits.
+type Status struct {
+	State       string        `json:"state"`
+	RemainingMs *int64        `json:"remainingMs"`
+	Result      *FinishResult `json:"result"`
+}
+
+// FinishResult is the grade a student sees: no correct answers, only how many
+// of Total questions scored full points.
+type FinishResult struct {
+	Grade   int `json:"grade"`
+	Correct int `json:"correct"`
+	Total   int `json:"total"`
+}
+
+// LiveSnapshot is the teacher's live view of the running sitting. Kicked
+// participants are left out. QuestionPct has one entry per question: the
+// percent of answers to it that score full points, or nil while nobody has
+// answered it. Events lists the pinned events waiting for a decision, then the
+// 20 newest others, newest first.
+type LiveSnapshot struct {
+	Sitting     SittingInfo `json:"sitting"`
+	Counts      Counts      `json:"counts"`
+	Rows        []LiveRow   `json:"rows"`
+	QuestionPct []*int      `json:"questionPct"`
+	Events      []Event     `json:"events"`
+}
+
+// Counts sums up the live view. ClassSize is 0 for a sitting without a class
+// list; NotJoined names the class-list students who have not joined.
+type Counts struct {
+	InTest    int      `json:"inTest"`
+	ClassSize int      `json:"classSize"`
+	Finished  int      `json:"finished"`
+	Offline   int      `json:"offline"`
+	NotJoined []string `json:"notJoined"`
+}
+
+// LiveRow is one participant in the live view, in Ukrainian order of Name.
+// Cells has one entry per question: "correct" (full points), "wrong"
+// (answered with fewer), "current" (the question after the last one answered,
+// while writing) or "empty". Status is "writing", "offline" or "finished".
+// Grade is set once finished.
+type LiveRow struct {
+	ParticipantID  string   `json:"participantId"`
+	Name           string   `json:"name"`
+	DeviceLabel    string   `json:"deviceLabel"`
+	Cells          []string `json:"cells"`
+	Status         string   `json:"status"`
+	Grade          *int     `json:"grade"`
+	WindowSwitches int      `json:"windowSwitches"`
+}
+
+// AssignmentResults are the graded results of every sitting of an
+// assignment, kicked participants left out. ExportStale means results changed
+// after the last Excel export.
+type AssignmentResults struct {
+	AssignmentID string           `json:"assignmentId"`
+	TestTitle    string           `json:"testTitle"`
+	ClassName    string           `json:"className"`
+	ExportStale  bool             `json:"exportStale"`
+	Questions    []ResultQuestion `json:"questions"`
+	Rows         []ResultRow      `json:"rows"`
+}
+
+// ResultQuestion is a question of the results table. CorrectPct is the
+// percent of rows that scored full points on it.
+type ResultQuestion struct {
+	ID         string          `json:"id"`
+	Text       json.RawMessage `json:"text"`
+	CorrectPct int             `json:"correctPct"`
+}
+
+// ResultRow is one participant's result, in Ukrainian order of Name. Points
+// has one entry per question, teacher overrides applied; Overridden lists the
+// ids of the overridden questions. DurationSec is 0 when the participant has
+// not finished. SittingDate is when the participant's sitting started.
+// Answers maps question id to the selected option ids, for answered questions.
+type ResultRow struct {
+	ParticipantID string              `json:"participantId"`
+	Name          string              `json:"name"`
+	ClassName     string              `json:"className"`
+	Points        []float64           `json:"points"`
+	Earned        float64             `json:"earned"`
+	Max           float64             `json:"max"`
+	Grade         int                 `json:"grade"`
+	DurationSec   int                 `json:"durationSec"`
+	SittingDate   int64               `json:"sittingDate"`
+	Answers       map[string][]string `json:"answers"`
+	Overridden    []string            `json:"overridden"`
+}

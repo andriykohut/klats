@@ -19,6 +19,9 @@ func (e *Engine) TestFor(device string) (wire.StudentTest, error) {
 	if e.cur == nil || e.cur.onDevice(device) == nil {
 		return wire.StudentTest{}, ErrNotJoined
 	}
+	if err := e.touch(device); err != nil {
+		return wire.StudentTest{}, err
+	}
 	return studentTest(e.cur.test, device), nil
 }
 

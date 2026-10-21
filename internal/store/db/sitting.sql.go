@@ -10,6 +10,61 @@ import (
 	"database/sql"
 )
 
+const changeSeen = `-- name: ChangeSeen :one
+SELECT EXISTS (SELECT 1 FROM answers WHERE change_id = ?)
+`
+
+func (q *Queries) ChangeSeen(ctx context.Context, changeID string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, changeSeen, changeID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const deleteOverride = `-- name: DeleteOverride :exec
+DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND question_id = ?
+`
+
+type DeleteOverrideParams struct {
+	AssignmentID  string
+	ParticipantID string
+	QuestionID    string
+}
+
+func (q *Queries) DeleteOverride(ctx context.Context, arg DeleteOverrideParams) error {
+	_, err := q.db.ExecContext(ctx, deleteOverride, arg.AssignmentID, arg.ParticipantID, arg.QuestionID)
+	return err
+}
+
+const endSitting = `-- name: EndSitting :exec
+UPDATE sittings SET ended_at = ? WHERE id = ?
+`
+
+type EndSittingParams struct {
+	EndedAt sql.NullInt64
+	ID      string
+}
+
+func (q *Queries) EndSitting(ctx context.Context, arg EndSittingParams) error {
+	_, err := q.db.ExecContext(ctx, endSitting, arg.EndedAt, arg.ID)
+	return err
+}
+
+const finishParticipant = `-- name: FinishParticipant :exec
+UPDATE participants SET state = 'finished', finished_by = ?, finished_at = ? WHERE id = ?
+`
+
+type FinishParticipantParams struct {
+	FinishedBy sql.NullString
+	FinishedAt sql.NullInt64
+	ID         string
+}
+
+func (q *Queries) FinishParticipant(ctx context.Context, arg FinishParticipantParams) error {
+	_, err := q.db.ExecContext(ctx, finishParticipant, arg.FinishedBy, arg.FinishedAt, arg.ID)
+	return err
+}
+
 const getActiveSitting = `-- name: GetActiveSitting :one
 SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE ended_at IS NULL ORDER BY started_at DESC, id LIMIT 1
 `
@@ -58,6 +113,47 @@ func (q *Queries) GetDevice(ctx context.Context, token string) (Device, error) {
 		&i.Label,
 		&i.LastIp,
 		&i.LastSeenAt,
+	)
+	return i, err
+}
+
+const getParticipant = `-- name: GetParticipant :one
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches FROM participants WHERE id = ?
+`
+
+func (q *Queries) GetParticipant(ctx context.Context, id string) (Participant, error) {
+	row := q.db.QueryRowContext(ctx, getParticipant, id)
+	var i Participant
+	err := row.Scan(
+		&i.ID,
+		&i.SittingID,
+		&i.StudentID,
+		&i.DisplayName,
+		&i.TypedName,
+		&i.TypedClass,
+		&i.DeviceToken,
+		&i.State,
+		&i.JoinedAt,
+		&i.FinishedAt,
+		&i.FinishedBy,
+		&i.WindowSwitches,
+	)
+	return i, err
+}
+
+const getSitting = `-- name: GetSitting :one
+SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE id = ?
+`
+
+func (q *Queries) GetSitting(ctx context.Context, id string) (Sitting, error) {
+	row := q.db.QueryRowContext(ctx, getSitting, id)
+	var i Sitting
+	err := row.Scan(
+		&i.ID,
+		&i.AssignmentID,
+		&i.JoinCode,
+		&i.StartedAt,
+		&i.EndedAt,
 	)
 	return i, err
 }
@@ -180,6 +276,136 @@ func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) er
 	return err
 }
 
+const lastEndedParticipantOnDevice = `-- name: LastEndedParticipantOnDevice :one
+SELECT p.id, p.sitting_id, p.student_id, p.display_name, p.typed_name, p.typed_class, p.device_token, p.state, p.joined_at, p.finished_at, p.finished_by, p.window_switches FROM participants p JOIN sittings s ON s.id = p.sitting_id
+WHERE p.device_token = ? AND p.state != 'kicked' AND s.ended_at IS NOT NULL
+ORDER BY p.joined_at DESC, p.id DESC
+LIMIT 1
+`
+
+func (q *Queries) LastEndedParticipantOnDevice(ctx context.Context, deviceToken string) (Participant, error) {
+	row := q.db.QueryRowContext(ctx, lastEndedParticipantOnDevice, deviceToken)
+	var i Participant
+	err := row.Scan(
+		&i.ID,
+		&i.SittingID,
+		&i.StudentID,
+		&i.DisplayName,
+		&i.TypedName,
+		&i.TypedClass,
+		&i.DeviceToken,
+		&i.State,
+		&i.JoinedAt,
+		&i.FinishedAt,
+		&i.FinishedBy,
+		&i.WindowSwitches,
+	)
+	return i, err
+}
+
+const listAnswers = `-- name: ListAnswers :many
+SELECT a.participant_id, a.question_id, a.option_ids, a.seq, a.change_id, a.received_at, a.late FROM answers a JOIN participants p ON p.id = a.participant_id
+WHERE p.sitting_id = ?
+ORDER BY a.participant_id, a.question_id
+`
+
+func (q *Queries) ListAnswers(ctx context.Context, sittingID string) ([]Answer, error) {
+	rows, err := q.db.QueryContext(ctx, listAnswers, sittingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Answer
+	for rows.Next() {
+		var i Answer
+		if err := rows.Scan(
+			&i.ParticipantID,
+			&i.QuestionID,
+			&i.OptionIds,
+			&i.Seq,
+			&i.ChangeID,
+			&i.ReceivedAt,
+			&i.Late,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAssignmentSittings = `-- name: ListAssignmentSittings :many
+SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE assignment_id = ? ORDER BY started_at, id
+`
+
+func (q *Queries) ListAssignmentSittings(ctx context.Context, assignmentID string) ([]Sitting, error) {
+	rows, err := q.db.QueryContext(ctx, listAssignmentSittings, assignmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Sitting
+	for rows.Next() {
+		var i Sitting
+		if err := rows.Scan(
+			&i.ID,
+			&i.AssignmentID,
+			&i.JoinCode,
+			&i.StartedAt,
+			&i.EndedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeviceLabels = `-- name: ListDeviceLabels :many
+SELECT DISTINCT d.token, d.label FROM devices d JOIN participants p ON p.device_token = d.token
+WHERE p.sitting_id = ?
+`
+
+type ListDeviceLabelsRow struct {
+	Token string
+	Label string
+}
+
+func (q *Queries) ListDeviceLabels(ctx context.Context, sittingID string) ([]ListDeviceLabelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDeviceLabels, sittingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDeviceLabelsRow
+	for rows.Next() {
+		var i ListDeviceLabelsRow
+		if err := rows.Scan(&i.Token, &i.Label); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMovedDevices = `-- name: ListMovedDevices :many
 SELECT m.device_token, m.participant_id FROM moved_devices m JOIN participants p ON p.id = m.participant_id
 WHERE p.sitting_id = ?
@@ -246,8 +472,78 @@ func (q *Queries) ListOpenClashes(ctx context.Context, sittingID string) ([]Even
 	return items, nil
 }
 
+const listOpenPinnedEvents = `-- name: ListOpenPinnedEvents :many
+SELECT id, sitting_id, kind, params, created_at, pinned, resolved_at FROM events WHERE sitting_id = ? AND pinned = 1 AND resolved_at IS NULL
+ORDER BY created_at DESC, rowid DESC
+`
+
+// Events of one millisecond keep their insertion order by rowid.
+func (q *Queries) ListOpenPinnedEvents(ctx context.Context, sittingID string) ([]Event, error) {
+	rows, err := q.db.QueryContext(ctx, listOpenPinnedEvents, sittingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Event
+	for rows.Next() {
+		var i Event
+		if err := rows.Scan(
+			&i.ID,
+			&i.SittingID,
+			&i.Kind,
+			&i.Params,
+			&i.CreatedAt,
+			&i.Pinned,
+			&i.ResolvedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOverrides = `-- name: ListOverrides :many
+SELECT o.assignment_id, o.participant_id, o.question_id, o.points FROM overrides o JOIN participants p ON p.id = o.participant_id
+WHERE p.sitting_id = ?
+`
+
+func (q *Queries) ListOverrides(ctx context.Context, sittingID string) ([]Override, error) {
+	rows, err := q.db.QueryContext(ctx, listOverrides, sittingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Override
+	for rows.Next() {
+		var i Override
+		if err := rows.Scan(
+			&i.AssignmentID,
+			&i.ParticipantID,
+			&i.QuestionID,
+			&i.Points,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listParticipants = `-- name: ListParticipants :many
-SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, window_switches FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
 `
 
 func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Participant, error) {
@@ -270,7 +566,45 @@ func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Par
 			&i.State,
 			&i.JoinedAt,
 			&i.FinishedAt,
+			&i.FinishedBy,
 			&i.WindowSwitches,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentEvents = `-- name: ListRecentEvents :many
+SELECT id, sitting_id, kind, params, created_at, pinned, resolved_at FROM events WHERE sitting_id = ? AND NOT (pinned = 1 AND resolved_at IS NULL)
+ORDER BY created_at DESC, rowid DESC
+LIMIT 20
+`
+
+func (q *Queries) ListRecentEvents(ctx context.Context, sittingID string) ([]Event, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentEvents, sittingID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Event
+	for rows.Next() {
+		var i Event
+		if err := rows.Scan(
+			&i.ID,
+			&i.SittingID,
+			&i.Kind,
+			&i.Params,
+			&i.CreatedAt,
+			&i.Pinned,
+			&i.ResolvedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -343,6 +677,15 @@ func (q *Queries) ResolveEvent(ctx context.Context, arg ResolveEventParams) erro
 	return err
 }
 
+const setExportStale = `-- name: SetExportStale :exec
+UPDATE assignments SET export_stale = 1 WHERE id = ?
+`
+
+func (q *Queries) SetExportStale(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, setExportStale, id)
+	return err
+}
+
 const setParticipantDevice = `-- name: SetParticipantDevice :exec
 UPDATE participants SET device_token = ? WHERE id = ?
 `
@@ -371,6 +714,57 @@ func (q *Queries) SetParticipantState(ctx context.Context, arg SetParticipantSta
 	return err
 }
 
+const setWindowSwitches = `-- name: SetWindowSwitches :exec
+UPDATE participants SET window_switches = ? WHERE id = ?
+`
+
+type SetWindowSwitchesParams struct {
+	WindowSwitches int64
+	ID             string
+}
+
+func (q *Queries) SetWindowSwitches(ctx context.Context, arg SetWindowSwitchesParams) error {
+	_, err := q.db.ExecContext(ctx, setWindowSwitches, arg.WindowSwitches, arg.ID)
+	return err
+}
+
+const upsertAnswer = `-- name: UpsertAnswer :execrows
+INSERT INTO answers (participant_id, question_id, option_ids, seq, change_id, received_at, late)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (participant_id, question_id) DO UPDATE SET
+    option_ids = excluded.option_ids, seq = excluded.seq, change_id = excluded.change_id,
+    received_at = excluded.received_at, late = excluded.late
+WHERE excluded.seq > answers.seq
+`
+
+type UpsertAnswerParams struct {
+	ParticipantID string
+	QuestionID    string
+	OptionIds     string
+	Seq           int64
+	ChangeID      string
+	ReceivedAt    int64
+	Late          int64
+}
+
+// UpsertAnswer stores the answer unless one with an equal or higher seq is
+// stored; it then affects no row.
+func (q *Queries) UpsertAnswer(ctx context.Context, arg UpsertAnswerParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, upsertAnswer,
+		arg.ParticipantID,
+		arg.QuestionID,
+		arg.OptionIds,
+		arg.Seq,
+		arg.ChangeID,
+		arg.ReceivedAt,
+		arg.Late,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const upsertDevice = `-- name: UpsertDevice :exec
 INSERT INTO devices (token, label, last_ip, last_seen_at) VALUES (?, ?, ?, ?)
 ON CONFLICT (token) DO UPDATE SET last_ip = excluded.last_ip, last_seen_at = excluded.last_seen_at
@@ -389,6 +783,28 @@ func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) erro
 		arg.Label,
 		arg.LastIp,
 		arg.LastSeenAt,
+	)
+	return err
+}
+
+const upsertOverride = `-- name: UpsertOverride :exec
+INSERT INTO overrides (assignment_id, participant_id, question_id, points) VALUES (?, ?, ?, ?)
+ON CONFLICT (assignment_id, participant_id, question_id) DO UPDATE SET points = excluded.points
+`
+
+type UpsertOverrideParams struct {
+	AssignmentID  string
+	ParticipantID string
+	QuestionID    string
+	Points        float64
+}
+
+func (q *Queries) UpsertOverride(ctx context.Context, arg UpsertOverrideParams) error {
+	_, err := q.db.ExecContext(ctx, upsertOverride,
+		arg.AssignmentID,
+		arg.ParticipantID,
+		arg.QuestionID,
+		arg.Points,
 	)
 	return err
 }
