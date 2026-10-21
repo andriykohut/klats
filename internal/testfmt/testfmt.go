@@ -3,6 +3,7 @@
 package testfmt
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -45,7 +46,7 @@ var palettes = []string{DefaultPalette, "grape", "coral", "lavender", "classic"}
 
 // Decode parses and validates a test document. An empty palette becomes
 // DefaultPalette. Every rich-text field is replaced by the canonical JSON of
-// its parsed rich.Doc, so callers persist the result rather than the input.
+// its parsed rich.Doc (a missing or null field becomes an empty document), so callers persist the result rather than the input.
 // Content problems such as a missing correct option are not errors here; see
 // Test.Problems.
 func Decode(raw []byte) (Test, error) {
@@ -81,10 +82,20 @@ func Decode(raw []byte) (Test, error) {
 	return t, nil
 }
 
+// emptyDoc is the canonical form of a rich field with no content, including a
+// missing or null field: the builder autosaves drafts that have no text yet.
+const emptyDoc = `{"type":"doc","content":[]}`
+
 func canonical(raw json.RawMessage, mode rich.Mode) (json.RawMessage, error) {
+	if len(bytes.TrimSpace(raw)) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return json.RawMessage(emptyDoc), nil
+	}
 	doc, err := rich.Parse(raw, mode)
 	if err != nil {
 		return nil, err
+	}
+	if len(doc.Content) == 0 {
+		return json.RawMessage(emptyDoc), nil
 	}
 	return json.Marshal(doc)
 }

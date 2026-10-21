@@ -169,3 +169,26 @@ func TestProblemJSONOmitsZeroCount(t *testing.T) {
 		t.Fatalf("json = %s", b)
 	}
 }
+
+const emptyDocJSON = `{"type":"doc","content":[]}`
+
+func TestDecodeMissingOrNullTextIsEmpty(t *testing.T) {
+	base := string(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}))
+	withText := `"text":` + richText("Q") + `,`
+	for name, repl := range map[string]string{"omitted": "", "null": `"text":null,`} {
+		tst := decode(t, []byte(strings.Replace(base, withText, repl, 1)))
+		if got := string(tst.Questions[0].Text); got != emptyDocJSON {
+			t.Fatalf("%s: text = %s", name, got)
+		}
+		wantCodes(t, tst, "no_text")
+	}
+}
+
+func TestDecodeMissingOptionContentIsEmpty(t *testing.T) {
+	base := string(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}))
+	tst := decode(t, []byte(strings.Replace(base, `"content":`+richText("b")+`,`, "", 1)))
+	if got := string(tst.Questions[0].Options[1].Content); got != emptyDocJSON {
+		t.Fatalf("content = %s", got)
+	}
+	wantCodes(t, tst, "empty_option")
+}
