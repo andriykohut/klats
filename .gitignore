@@ -1,0 +1,8 @@
+.superpowers/
+docs/superpowers/
+dist/*
+!dist/.keep
+node_modules/
+web/*/src/paraglide/
+web/shared/src/generated/
+*.db

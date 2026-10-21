@@ -1,0 +1,13 @@
+{
+  "formatter": { "enabled": true, "indentStyle": "space" },
+  "linter": { "enabled": true },
+  "files": {
+    "includes": [
+      "web/**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/paraglide",
+      "!**/generated"
+    ]
+  }
+}
