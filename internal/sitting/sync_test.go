@@ -773,3 +773,31 @@ func TestRestartKeepsAnswers(t *testing.T) {
 		t.Errorf("q1 = %+v, want the stored seq 2 kept", a)
 	}
 }
+
+func TestResumeReturnsStoredAnswers(t *testing.T) {
+	e, _, _ := setup(t)
+	info := start(t, e, nil)
+	if _, err := e.Resume(devA); !errors.Is(err, ErrNotJoined) {
+		t.Fatalf("Resume before joining = %v, want ErrNotJoined", err)
+	}
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	submit(t, e, devA, change(p, "q1", 3, "o1"))
+
+	res, err := e.Resume(devA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ParticipantID != p.ID || len(res.Test.Questions) != 2 || res.Status.State != "writing" {
+		t.Errorf("Resume = %+v", res)
+	}
+	if len(res.Answers) != 1 || res.Answers[0].QuestionID != "q1" || res.Answers[0].Seq != 3 || !slices.Equal(res.Answers[0].OptionIDs, []string{"o1"}) {
+		t.Errorf("answers = %+v", res.Answers)
+	}
+
+	if err := e.Kick(p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Resume(devA); !errors.Is(err, ErrKicked) {
+		t.Errorf("Resume after kick = %v, want ErrKicked", err)
+	}
+}

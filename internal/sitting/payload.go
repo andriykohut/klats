@@ -1,6 +1,7 @@
 package sitting
 
 import (
+	"encoding/json"
 	"hash/fnv"
 	"io"
 	"math/rand/v2"
@@ -23,6 +24,46 @@ func (e *Engine) TestFor(device string) (wire.StudentTest, error) {
 		return wire.StudentTest{}, err
 	}
 	return studentTest(e.cur.test, device), nil
+}
+
+// Resume returns what the device needs to start or resume writing: the test
+// as [Engine.TestFor] returns it, the answers stored for the device's
+// participant, that participant's id and the device's status. It returns
+// [ErrKicked] if the teacher sent the device back to the name picker and
+// [ErrNotJoined] unless the device writes as a participant in the running
+// sitting.
+func (e *Engine) Resume(device string) (wire.TestResponse, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur == nil {
+		return wire.TestResponse{}, ErrNotJoined
+	}
+	if e.cur.status[device] == statusKicked {
+		return wire.TestResponse{}, ErrKicked
+	}
+	p := e.cur.onDevice(device)
+	if p == nil {
+		return wire.TestResponse{}, ErrNotJoined
+	}
+	if err := e.touch(device); err != nil {
+		return wire.TestResponse{}, err
+	}
+	rows, err := e.st.Q().ListAnswers(ctx, e.cur.sitting.ID)
+	if err != nil {
+		return wire.TestResponse{}, err
+	}
+	answers := []wire.StoredAnswer{}
+	for _, r := range rows {
+		if r.ParticipantID != p.id {
+			continue
+		}
+		var options []string
+		if err := json.Unmarshal([]byte(r.OptionIds), &options); err != nil {
+			return wire.TestResponse{}, err
+		}
+		answers = append(answers, wire.StoredAnswer{QuestionID: r.QuestionID, OptionIDs: options, Seq: r.Seq})
+	}
+	return wire.TestResponse{ParticipantID: p.id, Test: studentTest(e.cur.test, device), Answers: answers, Status: e.status(device)}, nil
 }
 
 func studentTest(t testfmt.Test, device string) wire.StudentTest {

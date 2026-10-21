@@ -61,6 +61,24 @@ type StudentTest struct {
 	Questions []StudentQuestion `json:"questions"`
 }
 
+// StoredAnswer is an answer the server holds for a participant. Seq is the
+// highest sequence number stored for the question.
+type StoredAnswer struct {
+	QuestionID string   `json:"questionId"`
+	OptionIDs  []string `json:"optionIds"`
+	Seq        int64    `json:"seq"`
+}
+
+// TestResponse is what a student device loads to start or resume writing: the
+// test, the answers already stored, its participant id (carried by every
+// [AnswerChange]) and its current status.
+type TestResponse struct {
+	ParticipantID string         `json:"participantId"`
+	Test          StudentTest    `json:"test"`
+	Answers       []StoredAnswer `json:"answers"`
+	Status        Status         `json:"status"`
+}
+
 type StudentQuestion struct {
 	ID      string          `json:"id"`
 	Type    string          `json:"type"`
