@@ -128,3 +128,19 @@ ORDER BY created_at DESC, rowid DESC;
 SELECT * FROM events WHERE sitting_id = ? AND NOT (pinned = 1 AND resolved_at IS NULL)
 ORDER BY created_at DESC, rowid DESC
 LIMIT 20;
+
+-- ListAssignments counts the participants who are not kicked, across all
+-- sittings of each assignment.
+-- name: ListAssignments :many
+SELECT a.id,
+       CAST(json_extract(a.test_snapshot, '$.title') AS TEXT) AS test_title,
+       COALESCE(a.class_name, '') AS class_name,
+       a.created_at,
+       a.export_stale,
+       (SELECT count(*) FROM participants p JOIN sittings s ON s.id = p.sitting_id
+        WHERE s.assignment_id = a.id AND p.state <> 'kicked') AS participants
+FROM assignments a
+ORDER BY a.created_at DESC, a.rowid DESC;
+
+-- name: ClearExportStale :exec
+UPDATE assignments SET export_stale = 0 WHERE id = ?;

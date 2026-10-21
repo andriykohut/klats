@@ -21,6 +21,15 @@ func (q *Queries) ChangeSeen(ctx context.Context, changeID string) (bool, error)
 	return exists, err
 }
 
+const clearExportStale = `-- name: ClearExportStale :exec
+UPDATE assignments SET export_stale = 0 WHERE id = ?
+`
+
+func (q *Queries) ClearExportStale(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearExportStale, id)
+	return err
+}
+
 const deleteOverride = `-- name: DeleteOverride :exec
 DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND question_id = ?
 `
@@ -334,6 +343,59 @@ func (q *Queries) ListAssignmentSittings(ctx context.Context, assignmentID strin
 			&i.JoinCode,
 			&i.StartedAt,
 			&i.EndedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAssignments = `-- name: ListAssignments :many
+SELECT a.id,
+       CAST(json_extract(a.test_snapshot, '$.title') AS TEXT) AS test_title,
+       COALESCE(a.class_name, '') AS class_name,
+       a.created_at,
+       a.export_stale,
+       (SELECT count(*) FROM participants p JOIN sittings s ON s.id = p.sitting_id
+        WHERE s.assignment_id = a.id AND p.state <> 'kicked') AS participants
+FROM assignments a
+ORDER BY a.created_at DESC, a.rowid DESC
+`
+
+type ListAssignmentsRow struct {
+	ID           string
+	TestTitle    string
+	ClassName    string
+	CreatedAt    int64
+	ExportStale  int64
+	Participants int64
+}
+
+// ListAssignments counts the participants who are not kicked, across all
+// sittings of each assignment.
+func (q *Queries) ListAssignments(ctx context.Context) ([]ListAssignmentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAssignments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAssignmentsRow
+	for rows.Next() {
+		var i ListAssignmentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TestTitle,
+			&i.ClassName,
+			&i.CreatedAt,
+			&i.ExportStale,
+			&i.Participants,
 		); err != nil {
 			return nil, err
 		}
