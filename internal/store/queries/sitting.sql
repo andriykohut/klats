@@ -117,7 +117,7 @@ ON CONFLICT (assignment_id, participant_id, question_id) DO UPDATE SET points = 
 DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND question_id = ?;
 
 -- name: SetExportStale :exec
-UPDATE assignments SET export_stale = 1 WHERE id = ?;
+UPDATE assignments SET export_stale = 1, results_rev = results_rev + 1 WHERE id = ?;
 
 -- Events of one millisecond keep their insertion order by rowid.
 -- name: ListOpenPinnedEvents :many
@@ -142,5 +142,7 @@ SELECT a.id,
 FROM assignments a
 ORDER BY a.created_at DESC, a.rowid DESC;
 
+-- ClearExportStale clears the flag only if no result changed since the export
+-- read results_rev, so a change made while the file was written stays stale.
 -- name: ClearExportStale :exec
-UPDATE assignments SET export_stale = 0 WHERE id = ?;
+UPDATE assignments SET export_stale = 0 WHERE id = ? AND results_rev = ?;

@@ -63,7 +63,7 @@ func goodTest(id string) testfmt.Test {
 	}}
 }
 
-func setup(t *testing.T, withDialogs bool) *env {
+func setup(t *testing.T, withDialogs bool, tweak ...func(*Deps)) *env {
 	t.Helper()
 	dir := t.TempDir()
 	st, err := store.Open(filepath.Join(dir, "klats.db"))
@@ -80,7 +80,7 @@ func setup(t *testing.T, withDialogs bool) *env {
 	d := Deps{
 		Store: st, Engine: e, Hub: hub, Token: token, Port: port, DataDir: dir,
 		Assets:   fstest.MapFS{"index.html": {Data: []byte("<html>teacher</html>")}},
-		Settings: &config.Settings{Port: 8080, Language: "uk"},
+		Settings: &config.Settings{Port: 8080, Language: "uk"}, LANPort: 8080,
 		Interfaces: func() []lan.Iface {
 			return []lan.Iface{{Name: "eth0", Up: true, Addrs: []netip.Addr{netip.MustParseAddr("192.168.1.20"), netip.MustParseAddr("10.0.0.7")}}}
 		},
@@ -88,6 +88,9 @@ func setup(t *testing.T, withDialogs bool) *env {
 	if withDialogs {
 		v.dialogs = &fakeDialogs{}
 		d.Dialogs = v.dialogs
+	}
+	for _, f := range tweak {
+		f(&d)
 	}
 	v.h = Handler(d)
 	return v
@@ -582,6 +585,47 @@ func TestExportThroughDialogs(t *testing.T) {
 	}
 }
 
+func TestClearStaleSkipsChangedResults(t *testing.T) {
+	v := setup(t, false)
+	asg := v.startSitting(t)
+	info := decodeBody[wire.LiveSnapshot](t, v.do("GET", "/api/sittings/current", nil)).Sitting
+	if _, err := v.e.Join(info.Code, "dev1", "10.0.0.5"); err != nil {
+		t.Fatal(err)
+	}
+	p, err := v.e.Pick(info.Code, "dev1", wire.PickRequest{Surname: "Учень", FirstName: "А"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := v.e.SetOverride(asg, p.ID, "q1", ptr(1)); err != nil {
+		t.Fatal(err)
+	}
+	read, err := v.e.Results(asg) // what an export in progress holds
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := v.e.SetOverride(asg, p.ID, "q1", ptr(2)); err != nil {
+		t.Fatal(err)
+	}
+	clearStale := func(res wire.AssignmentResults) {
+		t.Helper()
+		if err := v.st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: asg, ResultsRev: res.ResultsRev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clearStale(read)
+	if !v.stale(t, asg) {
+		t.Error("an export of older results cleared export_stale")
+	}
+	fresh, err := v.e.Results(asg)
+	if err != nil || fresh.ResultsRev <= read.ResultsRev {
+		t.Fatalf("rev %d after %d, %v", fresh.ResultsRev, read.ResultsRev, err)
+	}
+	clearStale(fresh)
+	if v.stale(t, asg) {
+		t.Error("an export of the current results left export_stale set")
+	}
+}
+
 func TestExportCancelledKeepsStale(t *testing.T) {
 	v := setup(t, true)
 	asg := v.startSitting(t)
@@ -653,9 +697,17 @@ func TestSettings(t *testing.T) {
 	}
 	w := v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 9000, Language: "en"})
 	wantStatus(t, w, 200)
-	if s := decodeBody[wire.SettingsInfo](t, w); s.Port != 9000 || s.Language != "en" {
+	if s := decodeBody[wire.SettingsInfo](t, w); s.Port != 9000 || s.Language != "en" || !s.RestartRequired {
 		t.Errorf("settings = %+v", s)
 	}
+	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); !s.RestartRequired {
+		t.Errorf("GET settings = %+v", s)
+	}
+	// Saving the running port back needs no restart.
+	if s := decodeBody[wire.SettingsInfo](t, v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 8080, Language: "en"})); s.RestartRequired {
+		t.Errorf("settings at the running port = %+v", s)
+	}
+	wantStatus(t, v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 9000, Language: "en"}), 200)
 	saved, err := config.Load(v.dir)
 	if err != nil || saved.Port != 9000 || saved.Language != "en" {
 		t.Errorf("saved = %+v, %v", saved, err)
@@ -670,6 +722,27 @@ func TestSettings(t *testing.T) {
 	jr, err := v.e.Join(info.Code, "dev", "10.0.0.5")
 	if err != nil || jr.Language != "en" {
 		t.Errorf("join = %+v, %v", jr, err)
+	}
+}
+
+func TestLANPortIsTheRunningServer(t *testing.T) {
+	// A -port override: the server runs on 8090 while the saved port is 8080.
+	v := setup(t, false, func(d *Deps) { d.LANPort = 8090 })
+	n := decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil))
+	if n.Port != 8090 || n.URL != "http://192.168.1.20:8090" {
+		t.Errorf("network = %+v", n)
+	}
+	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); s.Port != 8080 || !s.RestartRequired {
+		t.Errorf("settings = %+v", s)
+	}
+
+	// No LAN server: no port to differ from.
+	v = setup(t, false, func(d *Deps) { d.LANPort = 0 })
+	if n = decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Port != 0 {
+		t.Errorf("network = %+v", n)
+	}
+	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); s.RestartRequired {
+		t.Errorf("settings = %+v", s)
 	}
 }
 

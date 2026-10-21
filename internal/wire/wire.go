@@ -224,6 +224,7 @@ type AssignmentResults struct {
 	TestTitle    string           `json:"testTitle"`
 	ClassName    string           `json:"className"`
 	ExportStale  bool             `json:"exportStale"`
+	ResultsRev   int64            `json:"resultsRev"`
 	Questions    []ResultQuestion `json:"questions"`
 	Rows         []ResultRow      `json:"rows"`
 }

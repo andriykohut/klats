@@ -64,8 +64,12 @@ type Deps struct {
 	Port   int // this API's own port, for the Host and Origin checks
 	// DataDir is where Settings are saved.
 	DataDir string
-	// Settings holds the launch settings, with Port set to the student port in
-	// use. The handler copies it, and owns the saved settings from then on.
+	// LANPort is the port the student server is bound to, or 0 when it is not
+	// running. It can differ from Settings.Port, for example under a -port
+	// override, and a saved port takes effect only at the next launch.
+	LANPort int
+	// Settings holds the saved settings. The handler copies it, and owns the
+	// saved settings from then on.
 	Settings *config.Settings
 	// Interfaces lists the network interfaces; nil means [lan.System].
 	Interfaces func() []lan.Iface
@@ -82,9 +86,7 @@ type api struct {
 	dataDir string
 	ifaces  func() []lan.Iface
 	dialogs Dialogs
-	// livePort is the student port of this launch. A port saved in settings
-	// takes effect at the next launch, so the network URL keeps using this one.
-	livePort int
+	lanPort int
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -98,7 +100,7 @@ type api struct {
 func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, token: d.Token, port: d.Port, dataDir: d.DataDir,
-		ifaces: d.Interfaces, dialogs: d.Dialogs, livePort: d.Settings.Port, settings: *d.Settings,
+		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, settings: *d.Settings,
 	}
 	if a.ifaces == nil {
 		a.ifaces = lan.System
@@ -600,7 +602,9 @@ func (a *api) language() string {
 
 // export writes the assignment's results workbook. With Dialogs the teacher
 // picks the file, which is replaced atomically; without, the workbook is the
-// response. Either way a finished export clears export_stale.
+// response. Either way a finished export clears export_stale, unless a result
+// changed after the workbook's results were read (see
+// [wire.AssignmentResults.ResultsRev]).
 func (a *api) export(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	res, err := a.eng.Results(id)
@@ -615,7 +619,7 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 			fail(w, r, err)
 			return
 		}
-		if err := a.st.Q().ClearExportStale(r.Context(), id); err != nil {
+		if err := a.clearStale(r, res); err != nil {
 			fail(w, r, err)
 			return
 		}
@@ -625,6 +629,8 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(buf.Bytes())
 		return
 	}
+	// The dialog can stay open while students deliver late answers, so the
+	// results are read again once the teacher has chosen the file.
 	path, err := a.dialogs.SaveFile(xlsx.FileName(res))
 	if err != nil {
 		fail(w, r, fmt.Errorf("save dialog: %w", err))
@@ -634,16 +640,26 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	if res, err = a.eng.Results(id); err != nil {
+		fail(w, r, err)
+		return
+	}
 	if err := replaceFile(path, func(w io.Writer) error { return xlsx.Export(w, res, lang) }); err != nil {
 		slog.Warn("teacherapi: export not written", "err", err)
 		httpx.Error(w, http.StatusConflict, "write_failed")
 		return
 	}
-	if err := a.st.Q().ClearExportStale(r.Context(), id); err != nil {
+	if err := a.clearStale(r, res); err != nil {
 		fail(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, wire.ExportResult{Path: path})
+}
+
+// clearStale clears the assignment's export_stale flag if its results are
+// still the ones res holds.
+func (a *api) clearStale(r *http.Request, res wire.AssignmentResults) error {
+	return a.st.Q().ClearExportStale(r.Context(), db.ClearExportStaleParams{ID: res.AssignmentID, ResultsRev: res.ResultsRev})
 }
 
 // replaceFile writes the file at path through a temporary file in the same
@@ -695,12 +711,12 @@ func contentDisposition(name string) string {
 
 // networkInfo describes the address students use. The caller holds a.mu.
 func (a *api) networkInfo(cands []netip.Addr) wire.NetworkInfo {
-	info := wire.NetworkInfo{Candidates: make([]string, len(cands)), Port: a.livePort}
+	info := wire.NetworkInfo{Candidates: make([]string, len(cands)), Port: a.lanPort}
 	for i, c := range cands {
 		info.Candidates[i] = c.String()
 	}
 	if chosen, ok := lan.Choose(cands, a.settings.Address); ok {
-		info.Address, info.URL = chosen.String(), lan.URL(chosen, a.livePort)
+		info.Address, info.URL = chosen.String(), lan.URL(chosen, a.lanPort)
 	}
 	return info
 }
@@ -744,10 +760,18 @@ func containsAddr(addrs []netip.Addr, a netip.Addr) bool {
 	return false
 }
 
+// settingsInfo describes the saved settings. The caller holds a.mu.
+func (a *api) settingsInfo() wire.SettingsInfo {
+	return wire.SettingsInfo{
+		Port: a.settings.Port, Language: a.settings.Language,
+		RestartRequired: a.lanPort != 0 && a.settings.Port != a.lanPort,
+	}
+}
+
 func (a *api) getSettings(w http.ResponseWriter, r *http.Request) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	httpx.JSON(w, http.StatusOK, wire.SettingsInfo{Port: a.settings.Port, Language: a.settings.Language})
+	httpx.JSON(w, http.StatusOK, a.settingsInfo())
 }
 
 func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
@@ -769,7 +793,7 @@ func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	a.settings = next
 	a.eng.SetLanguage(next.Language)
-	httpx.JSON(w, http.StatusOK, req)
+	httpx.JSON(w, http.StatusOK, a.settingsInfo())
 }
 
 // events streams the teacher's "live" hints until the client leaves.

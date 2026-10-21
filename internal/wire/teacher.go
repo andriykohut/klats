@@ -121,8 +121,10 @@ type NetworkRequest struct {
 }
 
 // SettingsInfo holds the program settings. A changed Port applies at the next
-// launch.
+// launch; RestartRequired is set while the saved Port differs from the port
+// the student server runs on. It is ignored in requests.
 type SettingsInfo struct {
-	Port     int    `json:"port"`
-	Language string `json:"language"`
+	Port            int    `json:"port"`
+	Language        string `json:"language"`
+	RestartRequired bool   `json:"restartRequired"`
 }

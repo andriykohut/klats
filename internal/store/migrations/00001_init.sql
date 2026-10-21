@@ -28,7 +28,8 @@ CREATE TABLE assignments (
     class_id      TEXT REFERENCES classes (id) ON DELETE SET NULL,
     class_name    TEXT,
     created_at    INTEGER NOT NULL,
-    export_stale  INTEGER NOT NULL DEFAULT 0
+    export_stale  INTEGER NOT NULL DEFAULT 0,
+    results_rev   INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE sittings (

@@ -22,11 +22,18 @@ func (q *Queries) ChangeSeen(ctx context.Context, changeID string) (bool, error)
 }
 
 const clearExportStale = `-- name: ClearExportStale :exec
-UPDATE assignments SET export_stale = 0 WHERE id = ?
+UPDATE assignments SET export_stale = 0 WHERE id = ? AND results_rev = ?
 `
 
-func (q *Queries) ClearExportStale(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, clearExportStale, id)
+type ClearExportStaleParams struct {
+	ID         string
+	ResultsRev int64
+}
+
+// ClearExportStale clears the flag only if no result changed since the export
+// read results_rev, so a change made while the file was written stays stale.
+func (q *Queries) ClearExportStale(ctx context.Context, arg ClearExportStaleParams) error {
+	_, err := q.db.ExecContext(ctx, clearExportStale, arg.ID, arg.ResultsRev)
 	return err
 }
 
@@ -75,7 +82,7 @@ func (q *Queries) FinishParticipant(ctx context.Context, arg FinishParticipantPa
 }
 
 const getAssignment = `-- name: GetAssignment :one
-SELECT id, test_id, test_snapshot, class_id, class_name, created_at, export_stale FROM assignments WHERE id = ?
+SELECT id, test_id, test_snapshot, class_id, class_name, created_at, export_stale, results_rev FROM assignments WHERE id = ?
 `
 
 func (q *Queries) GetAssignment(ctx context.Context, id string) (Assignment, error) {
@@ -89,6 +96,7 @@ func (q *Queries) GetAssignment(ctx context.Context, id string) (Assignment, err
 		&i.ClassName,
 		&i.CreatedAt,
 		&i.ExportStale,
+		&i.ResultsRev,
 	)
 	return i, err
 }
@@ -751,7 +759,7 @@ func (q *Queries) ResolveEvent(ctx context.Context, arg ResolveEventParams) erro
 }
 
 const setExportStale = `-- name: SetExportStale :exec
-UPDATE assignments SET export_stale = 1 WHERE id = ?
+UPDATE assignments SET export_stale = 1, results_rev = results_rev + 1 WHERE id = ?
 `
 
 func (q *Queries) SetExportStale(ctx context.Context, id string) error {

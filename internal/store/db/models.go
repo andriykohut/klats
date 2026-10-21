@@ -26,6 +26,7 @@ type Assignment struct {
 	ClassName    sql.NullString
 	CreatedAt    int64
 	ExportStale  int64
+	ResultsRev   int64
 }
 
 type Class struct {
