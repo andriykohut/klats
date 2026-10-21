@@ -1,7 +1,7 @@
 .superpowers/
 docs/superpowers/
-dist/*
-!dist/.keep
+web/*/dist/*
+!web/*/dist/.keep
 node_modules/
 web/*/src/paraglide/
 web/shared/src/generated/
