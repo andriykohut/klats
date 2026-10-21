@@ -17,9 +17,9 @@ typecheck:
 web:
 	cd web && pnpm install && pnpm -r --if-present build
 
-# sqlc and tygo configs are added with the first query and shared types.
+# The sqlc config is added with the first query.
 gen:
-	@echo "gen: nothing to generate yet"
+	go tool tygo generate
 
 # Playwright end-to-end tests are added later.
 e2e:

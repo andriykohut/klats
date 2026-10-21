@@ -1,0 +1,3 @@
+packages:
+  - path: "klats/internal/testfmt"
+    output_path: "web/shared/src/generated/testfmt.ts"
