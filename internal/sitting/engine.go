@@ -1,0 +1,357 @@
+// Package sitting runs a sitting: one live run of a test for a class over the
+// school LAN. The Engine holds the running sitting in memory behind a mutex and
+// writes every change to SQLite before reporting success, so a restarted
+// program resumes the sitting from the database.
+//
+// A participant is one student's place in a sitting, bound to the device token
+// of the browser that picked the name. The name stays locked to that device
+// until the teacher kicks the participant or moves it to another device.
+package sitting
+
+import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math/big"
+	"slices"
+	"sync"
+	"time"
+
+	"klats/internal/events"
+	"klats/internal/store"
+	"klats/internal/store/db"
+	"klats/internal/testfmt"
+	"klats/internal/wire"
+)
+
+var (
+	ErrSittingActive = errors.New("sitting: a sitting is already running")
+	ErrBadCode       = errors.New("sitting: wrong join code")
+	ErrNotJoined     = errors.New("sitting: device has not joined the sitting")
+	ErrHasProblems   = errors.New("sitting: test has blocking problems")
+	// ErrNotFound means the test, class, device, participant or pending event
+	// does not exist, or no sitting is running.
+	ErrNotFound = errors.New("sitting: not found")
+	// ErrInvalid means the request is malformed or not allowed in the current
+	// state, such as an unknown student or an empty typed name.
+	ErrInvalid = errors.New("sitting: invalid request")
+)
+
+// ErrNameTaken is returned by [Engine.Pick] when another device holds the
+// name. Label is that device's label.
+type ErrNameTaken struct{ Label string }
+
+func (e ErrNameTaken) Error() string { return "sitting: name is taken on device " + e.Label }
+
+const (
+	stateWriting = "writing"
+	stateKicked  = "kicked"
+
+	kindNameClash = "name_clash"
+
+	// liveDebounce is the shortest gap between two teacher "live" events.
+	liveDebounce = 250 * time.Millisecond
+)
+
+// Engine methods take no context: every query runs under this one.
+var ctx = context.Background()
+
+// Engine runs at most one sitting at a time. It is safe for concurrent use.
+type Engine struct {
+	st  *store.Store
+	hub *events.Hub
+	now func() time.Time
+
+	mu          sync.Mutex
+	lang        string
+	cur         *active // nil when no sitting is running
+	livePending bool
+}
+
+// active is the running sitting.
+type active struct {
+	sitting      db.Sitting
+	assignment   db.Assignment
+	test         testfmt.Test // the snapshot taken at start
+	participants []*participant
+	moved        map[string]*participant // device token → participant moved off it
+	kicked       map[string]bool         // device tokens the teacher sent back to the name picker
+	clashes      map[string]clash        // unresolved name_clash event id → who it involves
+}
+
+type participant struct {
+	id     string
+	key    string // name lock: student id, or the normalised typed name
+	name   string // display name
+	device string
+	state  string
+}
+
+// clash identifies the holder participant and the newcomer device of a
+// name_clash event.
+type clash struct{ participantID, device string }
+
+// New returns an engine that stores to st, publishes to hub and reads the time
+// from now. It resumes the sitting that has not ended, if there is one, and
+// panics if that sitting cannot be read.
+func New(st *store.Store, hub *events.Hub, now func() time.Time) *Engine {
+	e := &Engine{st: st, hub: hub, now: now, lang: "uk"}
+	if err := e.load(); err != nil {
+		panic(fmt.Sprintf("sitting: resume running sitting: %v", err))
+	}
+	return e
+}
+
+func (e *Engine) load() error {
+	q := e.st.Q()
+	s, err := q.GetActiveSitting(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	asg, err := q.GetAssignment(ctx, s.AssignmentID)
+	if err != nil {
+		return err
+	}
+	// The snapshot was validated by testfmt.Decode at start.
+	var t testfmt.Test
+	if err := json.Unmarshal([]byte(asg.TestSnapshot), &t); err != nil {
+		return err
+	}
+	a := newActive(s, asg, t)
+
+	rows, err := q.ListParticipants(ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		key := r.StudentID.String
+		if !r.StudentID.Valid {
+			key = r.TypedName.String
+		}
+		a.participants = append(a.participants, &participant{id: r.ID, key: key, name: r.DisplayName, device: r.DeviceToken, state: r.State})
+		if r.State == stateKicked {
+			a.kicked[r.DeviceToken] = true
+		}
+	}
+	moved, err := q.ListMovedDevices(ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	for _, m := range moved {
+		a.moved[m.DeviceToken] = a.byID(m.ParticipantID)
+	}
+	clashes, err := q.ListOpenClashes(ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	for _, ev := range clashes {
+		var p map[string]string
+		if err := json.Unmarshal([]byte(ev.Params), &p); err != nil {
+			return err
+		}
+		a.clashes[ev.ID] = clash{p["participantId"], p["device"]}
+	}
+	e.cur = a
+	return nil
+}
+
+func newActive(s db.Sitting, asg db.Assignment, t testfmt.Test) *active {
+	return &active{sitting: s, assignment: asg, test: t, moved: map[string]*participant{}, kicked: map[string]bool{}, clashes: map[string]clash{}}
+}
+
+// SetLanguage sets the language student pages use ("uk" or "en"), sent in
+// [wire.JoinInfo]. The default is "uk".
+func (e *Engine) SetLanguage(lang string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.lang = lang
+}
+
+// Start begins a sitting of the stored test, for the class with classID or,
+// when classID is nil, for students who type their names. The test as it is
+// now is snapshotted into a new assignment, so later edits don't reach the
+// sitting.
+//
+// It returns [ErrSittingActive] while another sitting runs, [ErrNotFound] for
+// an unknown test or class, and [ErrHasProblems] if the test has
+// blocking problems.
+func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != nil {
+		return wire.SittingInfo{}, ErrSittingActive
+	}
+	q := e.st.Q()
+	row, err := q.GetTest(ctx, testID)
+	if err != nil {
+		return wire.SittingInfo{}, notFound(err)
+	}
+	t, err := testfmt.Decode([]byte(row.Doc))
+	if err != nil {
+		return wire.SittingInfo{}, err
+	}
+	if t.HasBlocking() {
+		return wire.SittingInfo{}, ErrHasProblems
+	}
+	snapshot, err := json.Marshal(t)
+	if err != nil {
+		return wire.SittingInfo{}, err
+	}
+	now := e.now().UnixMilli()
+	asg := db.Assignment{ID: store.NewID(), TestID: valid(testID), TestSnapshot: string(snapshot), CreatedAt: now}
+	if classID != nil {
+		c, err := q.GetClass(ctx, *classID)
+		if err != nil {
+			return wire.SittingInfo{}, notFound(err)
+		}
+		asg.ClassID, asg.ClassName = valid(c.ID), valid(c.Name)
+	}
+	code, err := joinCode(q)
+	if err != nil {
+		return wire.SittingInfo{}, err
+	}
+	s := db.Sitting{ID: store.NewID(), AssignmentID: asg.ID, JoinCode: code, StartedAt: now}
+
+	err = e.commit(func(q *db.Queries) (func(), error) {
+		err := q.InsertAssignment(ctx, db.InsertAssignmentParams{
+			ID: asg.ID, TestID: asg.TestID, TestSnapshot: asg.TestSnapshot,
+			ClassID: asg.ClassID, ClassName: asg.ClassName, CreatedAt: asg.CreatedAt,
+		})
+		if err != nil {
+			return nil, err
+		}
+		err = q.InsertSitting(ctx, db.InsertSittingParams{ID: s.ID, AssignmentID: s.AssignmentID, JoinCode: s.JoinCode, StartedAt: s.StartedAt})
+		return func() { e.cur = newActive(s, asg, t) }, err
+	})
+	if err != nil {
+		return wire.SittingInfo{}, err
+	}
+	return e.cur.info(), nil
+}
+
+func (a *active) info() wire.SittingInfo {
+	return wire.SittingInfo{
+		SittingID:     a.sitting.ID,
+		AssignmentID:  a.assignment.ID,
+		Code:          a.sitting.JoinCode,
+		TestTitle:     a.test.Title,
+		ClassName:     a.assignment.ClassName.String,
+		QuestionCount: len(a.test.Questions),
+		StartedAt:     a.sitting.StartedAt,
+	}
+}
+
+// joinCode returns a random 4-digit code that differs from the codes of the
+// last 20 sittings, so a device still holding an old code can't land in the
+// new sitting.
+func joinCode(q *db.Queries) (string, error) {
+	recent, err := q.RecentJoinCodes(ctx)
+	if err != nil {
+		return "", err
+	}
+	for {
+		n, err := rand.Int(rand.Reader, big.NewInt(10000))
+		if err != nil {
+			return "", err
+		}
+		if code := fmt.Sprintf("%04d", n.Int64()); !slices.Contains(recent, code) {
+			return code, nil
+		}
+	}
+}
+
+// commit runs write in a transaction and, once it commits, applies the
+// in-memory change write returned and schedules a teacher "live" event. The
+// caller holds e.mu.
+func (e *Engine) commit(write func(q *db.Queries) (apply func(), err error)) error {
+	var apply func()
+	err := e.st.Tx(ctx, func(q *db.Queries) error {
+		var err error
+		apply, err = write(q)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	apply()
+	e.changed()
+	return nil
+}
+
+// changed publishes a teacher "live" event liveDebounce after the first of a
+// burst of changes, so the teacher page refetches once per burst. The caller
+// holds e.mu.
+func (e *Engine) changed() {
+	if e.livePending {
+		return
+	}
+	e.livePending = true
+	time.AfterFunc(liveDebounce, func() {
+		e.mu.Lock()
+		e.livePending = false
+		e.mu.Unlock()
+		e.hub.Publish(events.Event{Topic: "teacher", Name: "live"})
+	})
+}
+
+// publishStatus tells the device that its status changed.
+func (e *Engine) publishStatus(device string) {
+	e.hub.Publish(events.Event{Topic: "device:" + device, Name: "status"})
+}
+
+// raise stores an event of the running sitting and returns its id.
+func (e *Engine) raise(q *db.Queries, kind string, params map[string]string, pinned bool) (string, error) {
+	b, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+	ev := db.InsertEventParams{ID: store.NewID(), SittingID: e.cur.sitting.ID, Kind: kind, Params: string(b), CreatedAt: e.now().UnixMilli()}
+	if pinned {
+		ev.Pinned = 1
+	}
+	return ev.ID, q.InsertEvent(ctx, ev)
+}
+
+func (a *active) byID(id string) *participant {
+	for _, p := range a.participants {
+		if p.id == id {
+			return p
+		}
+	}
+	return nil
+}
+
+// holder returns the participant holding the name lock key, or nil.
+func (a *active) holder(key string) *participant {
+	for _, p := range a.participants {
+		if p.key == key && p.state != stateKicked {
+			return p
+		}
+	}
+	return nil
+}
+
+// onDevice returns the participant the device is writing as, or nil.
+func (a *active) onDevice(device string) *participant {
+	for _, p := range a.participants {
+		if p.device == device && p.state != stateKicked {
+			return p
+		}
+	}
+	return nil
+}
+
+func valid(s string) sql.NullString { return sql.NullString{String: s, Valid: true} }
+
+func notFound(err error) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	return err
+}
