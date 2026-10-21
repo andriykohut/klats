@@ -301,3 +301,94 @@ func TestOpenRejectsNewerSchema(t *testing.T) {
 		t.Fatalf("got %d snapshots, want 0", n)
 	}
 }
+
+func mustExec(t *testing.T, s *Store, query string, args ...any) {
+	t.Helper()
+	if _, err := s.conn.Exec(query, args...); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+}
+
+func TestDeleteTestKeepsAssignment(t *testing.T) {
+	s := openTemp(t)
+	ctx := context.Background()
+	if err := s.Q().InsertTest(ctx, db.InsertTestParams{ID: "t1", Title: "Фізика", Doc: `{}`, CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, created_at) VALUES ('a1', 't1', '{"title":"Фізика"}', 1)`)
+
+	if err := s.Q().DeleteTest(ctx, "t1"); err != nil {
+		t.Fatal(err)
+	}
+	var testID *string
+	var snapshot string
+	if err := s.conn.QueryRow(`SELECT test_id, test_snapshot FROM assignments WHERE id = 'a1'`).Scan(&testID, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if testID != nil || snapshot != `{"title":"Фізика"}` {
+		t.Fatalf("test_id=%v snapshot=%s", testID, snapshot)
+	}
+}
+
+// seedParticipant inserts a class, a student, an assignment of class c1, a
+// sitting, a device and a participant picked from the class list.
+func seedParticipant(t *testing.T, s *Store) {
+	t.Helper()
+	ctx := context.Background()
+	if err := s.Q().InsertTest(ctx, db.InsertTestParams{ID: "t1", Title: "Фізика", Doc: `{}`, CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Q().InsertClass(ctx, db.InsertClassParams{ID: "c1", Name: "7-А", CreatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Q().InsertStudent(ctx, db.InsertStudentParams{ID: "s1", ClassID: "c1", Name: "Бойко Андрій", SortKey: roster.SortKey("Бойко Андрій")}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, class_id, class_name, created_at) VALUES ('a1', 't1', '{}', 'c1', '7-А', 1)`)
+	mustExec(t, s, `INSERT INTO sittings (id, assignment_id, join_code, started_at) VALUES ('si1', 'a1', '1234', 1)`)
+	mustExec(t, s, `INSERT INTO devices (token, last_seen_at) VALUES ('d1', 1)`)
+	mustExec(t, s, `INSERT INTO participants (id, sitting_id, student_id, display_name, device_token, state, joined_at)
+		VALUES ('p1', 'si1', 's1', 'Бойко Андрій', 'd1', 'writing', 1)`)
+}
+
+func TestDeleteStudentKeepsParticipant(t *testing.T) {
+	s := openTemp(t)
+	seedParticipant(t, s)
+
+	if err := s.Q().DeleteStudent(context.Background(), "s1"); err != nil {
+		t.Fatal(err)
+	}
+	var studentID *string
+	var name string
+	if err := s.conn.QueryRow(`SELECT student_id, display_name FROM participants WHERE id = 'p1'`).Scan(&studentID, &name); err != nil {
+		t.Fatal(err)
+	}
+	if studentID != nil || name != "Бойко Андрій" {
+		t.Fatalf("student_id=%v display_name=%q", studentID, name)
+	}
+}
+
+func TestDeleteClassKeepsAssignmentClassName(t *testing.T) {
+	s := openTemp(t)
+	seedParticipant(t, s)
+
+	if err := s.Q().DeleteClass(context.Background(), "c1"); err != nil {
+		t.Fatal(err)
+	}
+	var classID, className *string
+	if err := s.conn.QueryRow(`SELECT class_id, class_name FROM assignments WHERE id = 'a1'`).Scan(&classID, &className); err != nil {
+		t.Fatal(err)
+	}
+	if classID != nil || className == nil || *className != "7-А" {
+		t.Fatalf("class_id=%v class_name=%v", classID, className)
+	}
+	// The class's students are gone, but the participant keeps its name.
+	var studentID *string
+	var name string
+	if err := s.conn.QueryRow(`SELECT student_id, display_name FROM participants WHERE id = 'p1'`).Scan(&studentID, &name); err != nil {
+		t.Fatal(err)
+	}
+	if studentID != nil || name != "Бойко Андрій" {
+		t.Fatalf("student_id=%v display_name=%q", studentID, name)
+	}
+}

@@ -20,9 +20,10 @@ type Answer struct {
 
 type Assignment struct {
 	ID           string
-	TestID       string
+	TestID       sql.NullString
 	TestSnapshot string
 	ClassID      sql.NullString
+	ClassName    sql.NullString
 	CreatedAt    int64
 	ExportStale  int64
 }
@@ -66,6 +67,7 @@ type Participant struct {
 	ID             string
 	SittingID      string
 	StudentID      sql.NullString
+	DisplayName    string
 	TypedName      sql.NullString
 	TypedClass     sql.NullString
 	DeviceToken    string

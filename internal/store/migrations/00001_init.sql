@@ -23,9 +23,10 @@ CREATE INDEX students_class_sort ON students (class_id, sort_key);
 
 CREATE TABLE assignments (
     id            TEXT PRIMARY KEY,
-    test_id       TEXT NOT NULL REFERENCES tests (id),
+    test_id       TEXT REFERENCES tests (id) ON DELETE SET NULL,
     test_snapshot TEXT NOT NULL CHECK (json_valid(test_snapshot)),
-    class_id      TEXT REFERENCES classes (id),
+    class_id      TEXT REFERENCES classes (id) ON DELETE SET NULL,
+    class_name    TEXT,
     created_at    INTEGER NOT NULL,
     export_stale  INTEGER NOT NULL DEFAULT 0
 );
@@ -48,7 +49,8 @@ CREATE TABLE devices (
 CREATE TABLE participants (
     id              TEXT PRIMARY KEY,
     sitting_id      TEXT NOT NULL REFERENCES sittings (id) ON DELETE CASCADE,
-    student_id      TEXT REFERENCES students (id),
+    student_id      TEXT REFERENCES students (id) ON DELETE SET NULL,
+    display_name    TEXT NOT NULL,
     typed_name      TEXT,
     typed_class     TEXT,
     device_token    TEXT NOT NULL REFERENCES devices (token),
