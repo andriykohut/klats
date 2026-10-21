@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -232,7 +233,7 @@ func TestListenFirstRunAllBusy(t *testing.T) {
 	if err == nil || s.Port != 0 || !errors.As(err, &opErr) {
 		t.Fatalf("err = %v, port = %d", err, s.Port)
 	}
-	if want := fmt.Sprintf("no free port in %d:", ps[0]); err.Error()[:len(want)] != want {
+	if want := fmt.Sprintf("no free port in %d:", ps[0]); !strings.HasPrefix(err.Error(), want) {
 		t.Fatalf("err = %v", err)
 	}
 }
