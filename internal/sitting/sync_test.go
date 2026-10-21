@@ -708,7 +708,7 @@ func TestEditTestDuringSittingUsesSnapshot(t *testing.T) {
 	e, st, _ := setup(t)
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
-	before, err := e.TestFor(devA)
+	before, err := testFor(e, devA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,12 +731,12 @@ func TestEditTestDuringSittingUsesSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	after, err := e.TestFor(devA)
+	after, err := testFor(e, devA)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(before, after) {
-		t.Errorf("TestFor changed with the edit:\n%+v\n%+v", before, after)
+		t.Errorf("test payload changed with the edit:\n%+v\n%+v", before, after)
 	}
 	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"))
 	if got := finish(t, e, devA); got != (wire.FinishResult{Grade: 12, Correct: 2, Total: 2}) {

@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -35,9 +38,12 @@ func rich(s string) json.RawMessage {
 var assets = fstest.MapFS{
 	"index.html":      {Data: []byte("<html>spa</html>")},
 	"assets/app-1.js": {Data: []byte("console.log(1)")},
+	".keep":           {Data: []byte("secret")},
+	"assets/.hidden":  {Data: []byte("secret")},
 }
 
 type env struct {
+	st   *store.Store
 	e    *sitting.Engine
 	hub  *events.Hub
 	h    http.Handler
@@ -92,7 +98,7 @@ func setup(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{e: e, hub: hub, h: newHandler(e, hub, assets, now.Now), code: info.Code, now: now}
+	return &env{st: st, e: e, hub: hub, h: newHandler(e, hub, assets, now.Now), code: info.Code, now: now}
 }
 
 // do sends the request to the handler from remote address 10.0.0.5:4000.
@@ -118,6 +124,15 @@ func (v *env) doFrom(remote, method, path, device string, body any) *httptest.Re
 	w := httptest.NewRecorder()
 	v.h.ServeHTTP(w, r)
 	return w
+}
+
+// wantError checks the status and the error code of a JSON error reply.
+func wantError(t *testing.T, w *httptest.ResponseRecorder, status int, code string) {
+	t.Helper()
+	wantStatus(t, w, status)
+	if got := decodeBody[map[string]string](t, w)["error"]; got != code {
+		t.Fatalf("error = %q, want %q; body %s", got, code, w.Body)
+	}
 }
 
 func decodeBody[T any](t *testing.T, w *httptest.ResponseRecorder) T {
@@ -157,13 +172,13 @@ func TestJoinPickTestFlow(t *testing.T) {
 	if info := decodeBody[wire.JoinInfo](t, w); info.Mode != "typed" || info.Language != "uk" {
 		t.Errorf("join = %+v", info)
 	}
-	wantStatus(t, v.do("POST", "/api/join", devA, map[string]string{"code": "0000x"}), 404)
+	wantError(t, v.do("POST", "/api/join", devA, map[string]string{"code": "0000x"}), 404, "bad_code")
 
 	w = v.do("POST", "/api/pick", devA, map[string]string{"code": v.code, "surname": "Шевченко", "firstName": "Тарас"})
 	wantStatus(t, w, 200)
 	p := decodeBody[wire.Participant](t, w)
 
-	wantStatus(t, v.do("GET", "/api/test", devB, nil), 404)
+	wantError(t, v.do("GET", "/api/test", devB, nil), 404, "not_joined")
 	w = v.do("GET", "/api/test", devA, nil)
 	wantStatus(t, w, 200)
 	res := decodeBody[wire.TestResponse](t, w)
@@ -188,7 +203,14 @@ func TestJoinPickTestFlow(t *testing.T) {
 	if st := decodeBody[wire.Status](t, w); st.State != "writing" {
 		t.Errorf("heartbeat = %+v", st)
 	}
-	wantStatus(t, v.do("POST", "/api/focus", devA, map[string]bool{"left": true}), 204)
+	wantStatus(t, v.do("POST", "/api/focus", devA, wire.FocusRequest{Left: true}), 204)
+	live, err := v.e.Live()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(live.Rows) != 1 || live.Rows[0].WindowSwitches != 1 {
+		t.Errorf("window switches after focus = %+v", live.Rows)
+	}
 
 	w = v.do("POST", "/api/finish", devA, nil)
 	wantStatus(t, w, 200)
@@ -200,7 +222,9 @@ func TestJoinPickTestFlow(t *testing.T) {
 func TestTestResponseNeverHasCorrect(t *testing.T) {
 	v := setup(t)
 	v.enter(t, devA, "Шевченко")
-	body := v.do("GET", "/api/test", devA, nil).Body.String()
+	w := v.do("GET", "/api/test", devA, nil)
+	wantStatus(t, w, 200)
+	body := w.Body.String()
 	for _, banned := range []string{`"correct"`, `"points"`} {
 		if strings.Contains(body, banned) {
 			t.Errorf("test response contains %s: %s", banned, body)
@@ -213,10 +237,9 @@ func TestNameTakenIs409WithLabel(t *testing.T) {
 	v.enter(t, devA, "Шевченко")
 	wantStatus(t, v.do("POST", "/api/join", devB, map[string]string{"code": v.code}), 200)
 	w := v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "Шевченко", "firstName": "Учень"})
-	wantStatus(t, w, 409)
-	got := decodeBody[map[string]string](t, w)
-	if got["error"] != "name_taken" || got["label"] == "" {
-		t.Errorf("body = %v", got)
+	wantError(t, w, 409, "name_taken")
+	if got := decodeBody[map[string]string](t, w); got["label"] == "" {
+		t.Errorf("body = %v, want the holder's label", got)
 	}
 }
 
@@ -230,9 +253,7 @@ func TestJoinRateLimitPerDevice(t *testing.T) {
 			t.Fatalf("join %d = %d", i, c)
 		}
 	}
-	if c := join(devA); c != 429 {
-		t.Errorf("11th join = %d, want 429", c)
-	}
+	wantError(t, v.do("POST", "/api/join", devA, map[string]string{"code": v.code}), 429, "rate_limited")
 	if c := join(devB); c != 200 {
 		t.Errorf("other device = %d, want 200", c)
 	}
@@ -262,9 +283,7 @@ func TestIPRateLimit(t *testing.T) {
 			t.Fatalf("join %d = %d", i, c)
 		}
 	}
-	if c := v.doFrom("10.0.0.9:6000", "POST", "/api/join", devA, map[string]string{"code": v.code}).Code; c != 429 {
-		t.Errorf("301st join from the IP = %d, want 429", c)
-	}
+	wantError(t, v.doFrom("10.0.0.9:6000", "POST", "/api/join", devA, map[string]string{"code": v.code}), 429, "rate_limited")
 	if c := v.doFrom("10.0.0.10:6000", "POST", "/api/join", devA, map[string]string{"code": v.code}).Code; c != 200 {
 		t.Errorf("join from another IP = %d, want 200", c)
 	}
@@ -272,48 +291,105 @@ func TestIPRateLimit(t *testing.T) {
 
 func TestBadDeviceToken(t *testing.T) {
 	v := setup(t)
-	for _, bad := range []string{"", "short", strings.Repeat("A", 26), strings.Repeat("1", 26), strings.Repeat("a", 65)} {
-		if c := v.do("GET", "/api/test", bad, nil).Code; c != 400 {
-			t.Errorf("token %q: status = %d, want 400", bad, c)
-		}
+	for _, bad := range []string{"", "short", strings.Repeat("a", 21), strings.Repeat("A", 26), strings.Repeat("1", 26), strings.Repeat("a", 65)} {
+		wantError(t, v.do("GET", "/api/test", bad, nil), 400, "invalid_device")
 	}
-	wantStatus(t, v.do("GET", "/api/events?device=bad", "", nil), 400)
+	// A well-formed token passes validation and reaches the engine.
+	for _, ok := range []string{strings.Repeat("a", 22), strings.Repeat("z7", 32)} {
+		wantError(t, v.do("GET", "/api/test", ok, nil), 404, "not_joined")
+	}
+	wantError(t, v.do("GET", "/api/events?device=bad", "", nil), 400, "invalid_device")
 }
 
 func TestOversizeBodyIs413(t *testing.T) {
 	v := setup(t)
 	big := []byte(`{"code":"` + strings.Repeat("1", maxBodyBytes) + `"}`)
-	wantStatus(t, v.do("POST", "/api/join", devA, big), 413)
+	wantError(t, v.do("POST", "/api/join", devA, big), 413, "too_large")
 
 	// A body that omits Content-Length is caught while reading.
 	r := httptest.NewRequest("POST", "/api/join", io.MultiReader(bytes.NewReader(big)))
 	r.Header.Set(deviceHeader, devA)
 	w := httptest.NewRecorder()
 	v.h.ServeHTTP(w, r)
-	wantStatus(t, w, 413)
+	wantError(t, w, 413, "too_large")
 
-	wantStatus(t, v.do("POST", "/api/join", devA, []byte(`{not json`)), 400)
+	wantError(t, v.do("POST", "/api/join", devA, []byte(`{not json`)), 400, "invalid")
+}
+
+func TestTrailingBytesRejected(t *testing.T) {
+	v := setup(t)
+	good := `{"code":"` + v.code + `"}`
+	wantStatus(t, v.do("POST", "/api/join", devA, []byte(good+" \n")), 200)
+	for _, tail := range []string{" x", "{}", "}", " 1"} {
+		wantError(t, v.do("POST", "/api/join", devA, []byte(good+tail)), 400, "invalid")
+	}
 }
 
 func TestErrorMapping(t *testing.T) {
 	v := setup(t)
 	p := v.enter(t, devA, "Шевченко")
 	// Not joined: no participant on this device.
-	wantStatus(t, v.do("POST", "/api/finish", devB, nil), 404)
+	wantError(t, v.do("POST", "/api/finish", devB, nil), 404, "not_joined")
 	// Too many changes is invalid.
 	changes := make([]wire.AnswerChange, 201)
 	for i := range changes {
 		changes[i] = wire.AnswerChange{ChangeID: fmt.Sprint(i), ParticipantID: p.ID, QuestionID: "q1", Seq: 1}
 	}
-	wantStatus(t, v.do("POST", "/api/answers", devA, wire.SubmitRequest{Changes: changes}), 400)
+	wantError(t, v.do("POST", "/api/answers", devA, wire.SubmitRequest{Changes: changes}), 400, "invalid")
+	// A pick the engine refuses.
+	wantError(t, v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "", "firstName": "Х"}), 404, "not_joined")
+	wantStatus(t, v.do("POST", "/api/join", devB, map[string]string{"code": v.code}), 200)
+	wantError(t, v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "", "firstName": "Х"}), 400, "invalid")
+	wantError(t, v.do("POST", "/api/pick", devB, map[string]string{"code": "nope", "surname": "А", "firstName": "Б"}), 404, "bad_code")
 	// Kicked.
 	if err := v.e.Kick(p.ID); err != nil {
 		t.Fatal(err)
 	}
-	w := v.do("POST", "/api/answers", devA, wire.SubmitRequest{})
-	wantStatus(t, w, 403)
-	if got := decodeBody[map[string]string](t, w); got["error"] != "kicked" {
-		t.Errorf("body = %v", got)
+	wantError(t, v.do("POST", "/api/answers", devA, wire.SubmitRequest{}), 403, "kicked")
+	wantError(t, v.do("GET", "/api/test", devA, nil), 403, "kicked")
+}
+
+func TestInternalErrorLeaksNothing(t *testing.T) {
+	v := setup(t)
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	t.Cleanup(func() { slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil))) })
+	if err := v.st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	w := v.do("POST", "/api/join", devA, map[string]string{"code": v.code})
+	wantStatus(t, w, 500)
+	if got := strings.TrimSpace(w.Body.String()); got != `{"error":"internal"}` {
+		t.Errorf("body = %s", got)
+	}
+}
+
+func TestPickRateLimit(t *testing.T) {
+	v := setup(t)
+	pick := func() *httptest.ResponseRecorder {
+		return v.do("POST", "/api/pick", devA, map[string]string{"code": v.code, "surname": "Шевченко", "firstName": "Тарас"})
+	}
+	wantStatus(t, v.do("POST", "/api/join", devA, map[string]string{"code": v.code}), 200)
+	for i := 2; i <= 10; i++ {
+		wantStatus(t, pick(), 200)
+	}
+	wantError(t, pick(), 429, "rate_limited")
+}
+
+func TestTestResponseIsOwnAnswersOnly(t *testing.T) {
+	v := setup(t)
+	a := v.enter(t, devA, "Шевченко")
+	b := v.enter(t, devB, "Франко")
+	submit := func(device string, c wire.AnswerChange) {
+		wantStatus(t, v.do("POST", "/api/answers", device, wire.SubmitRequest{Changes: []wire.AnswerChange{c}}), 200)
+	}
+	submit(devA, wire.AnswerChange{ChangeID: "a1", ParticipantID: a.ID, QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1})
+	submit(devB, wire.AnswerChange{ChangeID: "b1", ParticipantID: b.ID, QuestionID: "q1", OptionIDs: []string{"o1"}, Seq: 1})
+	submit(devB, wire.AnswerChange{ChangeID: "b2", ParticipantID: b.ID, QuestionID: "q2", OptionIDs: []string{"o0", "o1"}, Seq: 1})
+
+	res := decodeBody[wire.TestResponse](t, v.do("GET", "/api/test", devA, nil))
+	want := []wire.StoredAnswer{{QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1}}
+	if !reflect.DeepEqual(res.Answers, want) {
+		t.Errorf("A's answers = %+v, want %+v", res.Answers, want)
 	}
 }
 
@@ -366,24 +442,37 @@ func TestSPAFallback(t *testing.T) {
 			t.Errorf("%s = %d, cache %q, body %q", missing, w.Code, w.Header().Get("Cache-Control"), w.Body)
 		}
 	}
-	w = v.do("GET", "/api/nope", "", nil)
-	wantStatus(t, w, 404)
-	if got := decodeBody[map[string]string](t, w); got["error"] != "not_found" {
-		t.Errorf("unknown api path body = %v", got)
+	for _, hidden := range []string{"/.keep", "/assets/.hidden", "/sub/.hidden/x", "/.well-known/x"} {
+		w = v.do("GET", hidden, "", nil)
+		if w.Code != 404 || strings.Contains(w.Body.String(), "secret") || strings.Contains(w.Body.String(), "spa") {
+			t.Errorf("%s = %d %q, want a plain 404", hidden, w.Code, w.Body)
+		}
 	}
+	for _, unknown := range []string{"/api", "/api/", "/api/nope"} {
+		wantError(t, v.do("GET", unknown, "", nil), 404, "not_found")
+	}
+}
+
+// openStream opens an event stream for the device and returns once the
+// response headers are in. The caller closes the response body.
+func openStream(t *testing.T, srv *httptest.Server, device string) (*http.Response, context.CancelFunc) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?device="+device, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	return resp, cancel
 }
 
 func TestEventsStream(t *testing.T) {
 	v := setup(t)
 	srv := httptest.NewServer(v.h)
 	defer srv.Close()
-	ctx, cancel := context.WithCancel(context.Background())
+	resp, cancel := openStream(t, srv, devA)
 	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?device="+devA, nil)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
 	defer func() { _ = resp.Body.Close() }()
 	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
 		t.Fatalf("content type = %q", ct)
@@ -396,23 +485,38 @@ func TestEventsStream(t *testing.T) {
 	}
 }
 
+// eventually polls cond for up to 3 s: the server notices a disconnect
+// asynchronously.
+func eventually(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(3 * time.Second); !cond(); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+	}
+}
+
+func TestEventStreamUnsubscribesOnDisconnect(t *testing.T) {
+	v := setup(t)
+	srv := httptest.NewServer(v.h)
+	defer srv.Close()
+	topic := "device:" + devA
+	resp, cancel := openStream(t, srv, devA)
+	defer func() { _ = resp.Body.Close() }()
+	if n := v.hub.Subscribers(topic); n != 1 {
+		t.Fatalf("subscribers while streaming = %d, want 1", n)
+	}
+	cancel()
+	eventually(t, "the subscription to end", func() bool { return v.hub.Subscribers(topic) == 0 })
+}
+
 func TestEventStreamsCappedPerIP(t *testing.T) {
 	v := setup(t)
 	srv := httptest.NewServer(v.h)
 	defer srv.Close()
-	open := func() (*http.Response, context.CancelFunc) {
-		ctx, cancel := context.WithCancel(context.Background())
-		req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?device="+devA, nil)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			cancel()
-			t.Fatal(err)
-		}
-		return resp, cancel
-	}
 	var cancels []context.CancelFunc
 	for i := range maxStreamsPerIP {
-		resp, cancel := open()
+		resp, cancel := openStream(t, srv, token(i))
 		defer cancel()
 		defer func() { _ = resp.Body.Close() }()
 		cancels = append(cancels, cancel)
@@ -420,27 +524,95 @@ func TestEventStreamsCappedPerIP(t *testing.T) {
 			t.Fatalf("stream %d = %d", i+1, resp.StatusCode)
 		}
 	}
-	resp, cancel := open()
+	// A live stream's body never ends: read it only if the reply is the 429.
+	resp, cancel := openStream(t, srv, devA)
 	defer cancel()
-	body, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if resp.StatusCode != 429 || !strings.Contains(string(body), "rate_limited") {
-		t.Fatalf("9th stream = %d %s, want 429 rate_limited", resp.StatusCode, body)
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != 429 {
+		t.Fatalf("stream %d = %d, want 429", maxStreamsPerIP+1, resp.StatusCode)
+	}
+	if body, _ := io.ReadAll(resp.Body); strings.TrimSpace(string(body)) != `{"error":"rate_limited"}` {
+		t.Errorf("429 body = %s", body)
 	}
 
 	cancels[0]()
-	deadline := time.Now().Add(3 * time.Second)
-	for {
-		resp, cancel := open()
-		code := resp.StatusCode
+	eventually(t, "a stream slot to be released", func() bool {
+		resp, cancel := openStream(t, srv, devA)
 		defer cancel()
 		defer func() { _ = resp.Body.Close() }()
-		if code == 200 {
-			return
+		return resp.StatusCode == 200
+	})
+}
+
+func TestIPv6ClientsCountPerPrefix(t *testing.T) {
+	v := setup(t)
+	join := func(remote string, i int) int {
+		return v.doFrom(remote, "POST", "/api/join", token(i), map[string]string{"code": v.code}).Code
+	}
+	for i := range 300 {
+		if c := join("[2001:db8:0:1::1]:5000", i); c != 200 {
+			t.Fatalf("join %d = %d", i, c)
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("slot not released after a stream ended: %d", code)
+	}
+	if c := join("[2001:db8:0:1::ffff]:5000", 300); c != 429 {
+		t.Errorf("another address of the same /64 = %d, want 429", c)
+	}
+	if c := join("[2001:db8:0:2::1]:5000", 301); c != 200 {
+		t.Errorf("another /64 = %d, want 200", c)
+	}
+}
+
+func TestLimitKey(t *testing.T) {
+	for remote, want := range map[string]string{
+		"10.0.0.9:5000":            "10.0.0.9",
+		"10.0.0.10:5000":           "10.0.0.10",
+		"[::ffff:10.0.0.9]:5000":   "10.0.0.9",
+		"[2001:db8:0:1::1]:5000":   "2001:db8:0:1::/64",
+		"[2001:db8:0:1:aaaa::2]:1": "2001:db8:0:1::/64",
+		"[fe80::1%eth0]:1":         "fe80::/64",
+		"10.0.0.9":                 "10.0.0.9",
+		"not an address":           "not an address",
+		"[2001:db8:0:2::1]:5000":   "2001:db8:0:2::/64",
+	} {
+		if got := limitKey(remote); got != want {
+			t.Errorf("limitKey(%q) = %q, want %q", remote, got, want)
 		}
-		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func TestLimiterRefusedAttemptsDoNotCount(t *testing.T) {
+	now := &fakeNow{t: time.UnixMilli(1_790_000_000_000)}
+	l := newLimiter(now.Now)
+	for range deviceLimit {
+		if !l.allow("ip", "d") {
+			t.Fatal("attempt within the limit refused")
+		}
+	}
+	now.add(30 * time.Second)
+	for range 50 {
+		if l.allow("ip", "d") {
+			t.Fatal("attempt over the limit admitted")
+		}
+	}
+	now.add(31 * time.Second) // the first ten are out of the window; the refused 50 would not be
+	if !l.allow("ip", "d") {
+		t.Error("refused attempts were counted toward the window")
+	}
+}
+
+func TestLimiterSweepKeepsLiveKeys(t *testing.T) {
+	now := &fakeNow{t: time.UnixMilli(1_790_000_000_000)}
+	l := newLimiter(now.Now)
+	l.allow("other", "x") // the first call sets the sweep time
+	now.add(30 * time.Second)
+	for range deviceLimit {
+		l.allow("ip", "d")
+	}
+	now.add(31 * time.Second) // this call sweeps; d's attempts are 31 s old
+	if l.allow("ip", "d") {
+		t.Error("sweep dropped a key with attempts inside the window")
+	}
+	if n := len(l.hits); n != 2 {
+		t.Errorf("keys after the sweep = %d, want only d and ip", n)
 	}
 }

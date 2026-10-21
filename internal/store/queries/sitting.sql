@@ -101,6 +101,10 @@ SELECT a.* FROM answers a JOIN participants p ON p.id = a.participant_id
 WHERE p.sitting_id = ?
 ORDER BY a.participant_id, a.question_id;
 
+-- name: ListParticipantAnswers :many
+SELECT * FROM answers WHERE participant_id = ?
+ORDER BY question_id;
+
 -- name: ListOverrides :many
 SELECT o.* FROM overrides o JOIN participants p ON p.id = o.participant_id
 WHERE p.sitting_id = ?;

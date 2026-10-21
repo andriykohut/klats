@@ -10,60 +10,49 @@ import (
 	"klats/internal/wire"
 )
 
-// TestFor returns the running test as the device's participant sees it,
-// without correct answers or points. Questions keep their order; the options
-// of a question with ShuffleOptions are shuffled in an order fixed per device.
-// It returns [ErrNotJoined] unless the device writes as a participant.
-func (e *Engine) TestFor(device string) (wire.StudentTest, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if e.cur == nil || e.cur.onDevice(device) == nil {
-		return wire.StudentTest{}, ErrNotJoined
-	}
-	if err := e.touch(device); err != nil {
-		return wire.StudentTest{}, err
-	}
-	return studentTest(e.cur.test, device), nil
-}
-
 // Resume returns what the device needs to start or resume writing: the test
-// as [Engine.TestFor] returns it, the answers stored for the device's
-// participant, that participant's id and the device's status. It returns
+// (without correct answers or points; questions keep their order, and the
+// options of a question with ShuffleOptions are shuffled in an order fixed per
+// device), the answers stored for the device's participant, that
+// participant's id and the device's status. It returns
 // [ErrKicked] if the teacher sent the device back to the name picker and
 // [ErrNotJoined] unless the device writes as a participant in the running
 // sitting.
 func (e *Engine) Resume(device string) (wire.TestResponse, error) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.cur == nil {
+		e.mu.Unlock()
 		return wire.TestResponse{}, ErrNotJoined
 	}
 	if e.cur.status[device] == statusKicked {
+		e.mu.Unlock()
 		return wire.TestResponse{}, ErrKicked
 	}
 	p := e.cur.onDevice(device)
 	if p == nil {
+		e.mu.Unlock()
 		return wire.TestResponse{}, ErrNotJoined
 	}
 	if err := e.touch(device); err != nil {
+		e.mu.Unlock()
 		return wire.TestResponse{}, err
 	}
-	rows, err := e.st.Q().ListAnswers(ctx, e.cur.sitting.ID)
+	res := wire.TestResponse{ParticipantID: p.id, Test: studentTest(e.cur.test, device), Status: e.status(device)}
+	e.mu.Unlock()
+
+	rows, err := e.st.Q().ListParticipantAnswers(ctx, res.ParticipantID)
 	if err != nil {
 		return wire.TestResponse{}, err
 	}
-	answers := []wire.StoredAnswer{}
+	res.Answers = make([]wire.StoredAnswer, 0, len(rows))
 	for _, r := range rows {
-		if r.ParticipantID != p.id {
-			continue
-		}
 		var options []string
 		if err := json.Unmarshal([]byte(r.OptionIds), &options); err != nil {
 			return wire.TestResponse{}, err
 		}
-		answers = append(answers, wire.StoredAnswer{QuestionID: r.QuestionID, OptionIDs: options, Seq: r.Seq})
+		res.Answers = append(res.Answers, wire.StoredAnswer{QuestionID: r.QuestionID, OptionIDs: options, Seq: r.Seq})
 	}
-	return wire.TestResponse{ParticipantID: p.id, Test: studentTest(e.cur.test, device), Answers: answers, Status: e.status(device)}, nil
+	return res, nil
 }
 
 func studentTest(t testfmt.Test, device string) wire.StudentTest {

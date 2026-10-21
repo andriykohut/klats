@@ -366,15 +366,21 @@ func TestTypedModeWithoutClass(t *testing.T) {
 	}
 }
 
+// testFor returns the test the device's participant sees.
+func testFor(e *Engine, device string) (wire.StudentTest, error) {
+	res, err := e.Resume(device)
+	return res.Test, err
+}
+
 func TestStudentPayloadHasNoAnswers(t *testing.T) {
 	e, _, _ := setup(t)
 	code := start(t, e, nil).Code
 	join(t, e, code, devA, "10.0.0.107")
-	if _, err := e.TestFor(devA); !errors.Is(err, ErrNotJoined) {
+	if _, err := testFor(e, devA); !errors.Is(err, ErrNotJoined) {
 		t.Fatalf("before pick: err = %v, want ErrNotJoined", err)
 	}
 	pick(t, e, code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Тарас"})
-	st, err := e.TestFor(devA)
+	st, err := testFor(e, devA)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,7 +414,7 @@ func TestShuffleStablePerDevice(t *testing.T) {
 		pick(t, e, code, d, wire.PickRequest{Surname: "Учень", FirstName: strconv.Itoa(i)})
 	}
 	order := func(device string, q int) []string {
-		st, err := e.TestFor(device)
+		st, err := testFor(e, device)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -483,10 +489,10 @@ func TestResolveClashMove(t *testing.T) {
 	if len(openClashes(t, st, info.SittingID)) != 0 {
 		t.Error("event still open")
 	}
-	if _, err := e.TestFor(devB); err != nil {
+	if _, err := testFor(e, devB); err != nil {
 		t.Errorf("new device: %v", err)
 	}
-	if _, err := e.TestFor(devA); !errors.Is(err, ErrNotJoined) {
+	if _, err := testFor(e, devA); !errors.Is(err, ErrNotJoined) {
 		t.Errorf("old device: err = %v, want ErrNotJoined", err)
 	}
 	if e.DeviceStatus(devA) != "moved" || e.DeviceStatus(devB) != "writing" || !slices.Equal(e.cur.movedFrom[devA], []string{p.ID}) {
@@ -516,8 +522,8 @@ func TestResolveClashKick(t *testing.T) {
 	if got := e.DeviceStatus(devA); got != "kicked" {
 		t.Errorf("holder device status = %q, want kicked", got)
 	}
-	if _, err := e.TestFor(devA); !errors.Is(err, ErrNotJoined) {
-		t.Errorf("kicked device: err = %v, want ErrNotJoined", err)
+	if _, err := testFor(e, devA); !errors.Is(err, ErrKicked) {
+		t.Errorf("kicked device: err = %v, want ErrKicked", err)
 	}
 	fresh := pick(t, e, info.Code, devB, wire.PickRequest{StudentID: participantRow(t, st, info.SittingID, p.ID).StudentID.String})
 	if fresh.ID == p.ID {
@@ -640,8 +646,8 @@ func TestRestartResumesSitting(t *testing.T) {
 	_, st, hub, info, p, eventID := startClash(t)
 
 	e2 := newEngine(t, st, hub)
-	if _, err := e2.TestFor(devA); err != nil {
-		t.Fatalf("TestFor after restart: %v", err)
+	if _, err := testFor(e2, devA); err != nil {
+		t.Fatalf("Resume after restart: %v", err)
 	}
 	if _, err := e2.Start("t1", nil); !errors.Is(err, ErrSittingActive) {
 		t.Errorf("Start after restart: err = %v, want ErrSittingActive", err)

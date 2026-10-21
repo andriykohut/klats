@@ -66,3 +66,10 @@ func (h *Hub) Publish(e Event) {
 		}
 	}
 }
+
+// Subscribers returns how many subscriptions to topic are open.
+func (h *Hub) Subscribers(topic string) int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.subs[topic])
+}

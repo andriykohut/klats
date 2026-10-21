@@ -8,12 +8,15 @@ package studentapi
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -31,9 +34,11 @@ const deviceHeader = "X-Klats-Device"
 
 const (
 	maxBodyBytes    = 256 << 10
-	maxStreamsPerIP = 8
+	maxStreamsPerIP = 64
 	keepAliveTime   = 15 * time.Second
 )
+
+var errTrailing = errors.New("studentapi: data after the JSON value")
 
 var deviceRE = regexp.MustCompile(`^[a-z2-7]{22,64}$`)
 
@@ -75,7 +80,7 @@ func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, now func() tim
 // preflights into 204 and caps POST bodies.
 func (a *api) apiMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/") {
+		if !isAPI(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -112,9 +117,13 @@ func (a *api) device(next func(w http.ResponseWriter, r *http.Request, device st
 	}
 }
 
+func isAPI(urlPath string) bool {
+	return urlPath == "/api" || strings.HasPrefix(urlPath, "/api/")
+}
+
 func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.JoinRequest
-	if !a.limited(w, r, device) || !decode(w, r, &req) {
+	if !a.admit(w, r, device) || !decode(w, r, &req) {
 		return
 	}
 	info, err := a.e.Join(req.Code, device, clientIP(r))
@@ -123,7 +132,7 @@ func (a *api) join(w http.ResponseWriter, r *http.Request, device string) {
 
 func (a *api) pick(w http.ResponseWriter, r *http.Request, device string) {
 	var req wire.PickBody
-	if !a.limited(w, r, device) || !decode(w, r, &req) {
+	if !a.admit(w, r, device) || !decode(w, r, &req) {
 		return
 	}
 	p, err := a.e.Pick(req.Code, device, req.PickRequest)
@@ -174,7 +183,7 @@ func (a *api) events(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_device")
 		return
 	}
-	ip := clientIP(r)
+	ip := limitKey(r.RemoteAddr)
 	if !a.openStream(ip) {
 		w.Header().Set("Retry-After", "60")
 		writeError(w, http.StatusTooManyRequests, "rate_limited")
@@ -210,9 +219,11 @@ func (a *api) closeStream(ip string) {
 // static serves the file at the request path from the assets, or index.html
 // for any path that is not a file, so client-side routes survive a reload.
 // Unknown /api/ paths are a JSON 404, and unknown /assets/ paths a plain 404:
-// a missing hashed bundle must not be answered with HTML.
+// a missing hashed bundle must not be answered with HTML. A path with a
+// segment starting with a dot is a plain 404, so dotfiles in the embedded
+// build are never served.
 func (a *api) static(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/api/") {
+	if isAPI(r.URL.Path) {
 		writeError(w, http.StatusNotFound, "not_found")
 		return
 	}
@@ -222,6 +233,11 @@ func (a *api) static(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+	if slices.ContainsFunc(strings.Split(name, "/"), func(seg string) bool { return strings.HasPrefix(seg, ".") }) {
+		w.Header().Set("Cache-Control", "no-store")
+		http.NotFound(w, r)
+		return
+	}
 	info, err := fs.Stat(a.assets, name)
 	missing := name == "" || err != nil || info.IsDir()
 	inAssets := name == "assets" || strings.HasPrefix(name, "assets/")
@@ -241,10 +257,10 @@ func (a *api) static(w http.ResponseWriter, r *http.Request) {
 	http.ServeFileFS(w, r, a.assets, name)
 }
 
-// limited counts a join or pick against the device and IP windows and writes
-// the 429 reply when either is full.
-func (a *api) limited(w http.ResponseWriter, r *http.Request, device string) bool {
-	if a.rate.allow(clientIP(r), device) {
+// admit counts a join or pick against the device and IP windows. When either
+// is full it writes the 429 reply and returns false.
+func (a *api) admit(w http.ResponseWriter, r *http.Request, device string) bool {
+	if a.rate.allow(limitKey(r.RemoteAddr), device) {
 		return true
 	}
 	w.Header().Set("Retry-After", "60")
@@ -261,10 +277,40 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
+// limitKey returns the key the per-client limits count remoteAddr under: the
+// IPv4 address, or the /64 prefix of an IPv6 address, since a single IPv6
+// client holds a whole /64 and could otherwise rotate addresses past the limits.
+func limitKey(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+	addr = addr.WithZone("").Unmap()
+	if addr.Is4() {
+		return addr.String()
+	}
+	return netip.PrefixFrom(addr, 64).Masked().String()
+}
+
 // decode reads the JSON body into v. It writes a 413 for a body over the cap
 // and a 400 for anything else unreadable, and reports whether v is filled.
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {
-	err := json.NewDecoder(r.Body).Decode(v)
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(v)
+	if err == nil {
+		// Anything but whitespace after the value is a malformed body.
+		if _, tail := dec.Token(); tail != io.EOF {
+			err = errTrailing
+			var tooBig *http.MaxBytesError
+			if errors.As(tail, &tooBig) {
+				err = tail
+			}
+		}
+	}
 	if err == nil {
 		return true
 	}

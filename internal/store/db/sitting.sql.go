@@ -517,6 +517,42 @@ func (q *Queries) ListOverrides(ctx context.Context, sittingID string) ([]Overri
 	return items, nil
 }
 
+const listParticipantAnswers = `-- name: ListParticipantAnswers :many
+SELECT participant_id, question_id, option_ids, seq, change_id, received_at, late FROM answers WHERE participant_id = ?
+ORDER BY question_id
+`
+
+func (q *Queries) ListParticipantAnswers(ctx context.Context, participantID string) ([]Answer, error) {
+	rows, err := q.db.QueryContext(ctx, listParticipantAnswers, participantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Answer
+	for rows.Next() {
+		var i Answer
+		if err := rows.Scan(
+			&i.ParticipantID,
+			&i.QuestionID,
+			&i.OptionIds,
+			&i.Seq,
+			&i.ChangeID,
+			&i.ReceivedAt,
+			&i.Late,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listParticipants = `-- name: ListParticipants :many
 SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
 `

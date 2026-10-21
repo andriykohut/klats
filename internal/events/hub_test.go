@@ -80,3 +80,20 @@ func TestConcurrentUse(t *testing.T) {
 		<-done
 	}
 }
+
+func TestSubscribersCountsOpenSubscriptions(t *testing.T) {
+	h := New()
+	if n := h.Subscribers("t"); n != 0 {
+		t.Fatalf("empty hub = %d", n)
+	}
+	_, unsubA := h.Subscribe("t")
+	_, unsubB := h.Subscribe("t")
+	if n := h.Subscribers("t"); n != 2 {
+		t.Errorf("two subscribed = %d", n)
+	}
+	unsubA()
+	unsubB()
+	if n := h.Subscribers("t"); n != 0 {
+		t.Errorf("after unsubscribing = %d", n)
+	}
+}
