@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"klats/internal/events"
@@ -14,9 +15,11 @@ import (
 // Stream writes the events received on ch to w as `event: <Name>` and
 // `data: <json>` frames, and a `: ka` comment every keepAlive so idle
 // connections stay open. It returns nil when the request context is done or ch
-// is closed, an error if w cannot flush (before anything is written) or an
-// event's Data cannot be marshalled to JSON, and the write error if the
-// client connection fails.
+// is closed, an error if w cannot flush (before anything is written), an
+// event's Name is empty or contains a CR or LF (it would break the frame), or
+// an event's Data cannot be marshalled to JSON, and the write error if the
+// client connection fails. An invalid event ends the stream before anything
+// is written for it.
 func Stream(w http.ResponseWriter, r *http.Request, ch <-chan events.Event, keepAlive time.Duration) error {
 	rc := http.NewResponseController(w)
 	h := w.Header()
@@ -37,6 +40,9 @@ func Stream(w http.ResponseWriter, r *http.Request, ch <-chan events.Event, keep
 		case e, ok := <-ch:
 			if !ok {
 				return nil
+			}
+			if e.Name == "" || strings.ContainsAny(e.Name, "\r\n") {
+				return fmt.Errorf("sse: invalid event name %q", e.Name)
 			}
 			data, err := json.Marshal(e.Data)
 			if err != nil {

@@ -68,3 +68,18 @@ func TestStreamWithoutFlusherFailsBeforeWriting(t *testing.T) {
 		t.Fatalf("wrote %q", rec.Body.String())
 	}
 }
+
+func TestStreamRejectsNameWithLineBreak(t *testing.T) {
+	for _, name := range []string{"a\nb", "a\rb", ""} {
+		ch := make(chan events.Event, 1)
+		ch <- events.Event{Name: name, Data: 1}
+		rec := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "/", nil)
+		if err := Stream(rec, r, ch, time.Minute); err == nil {
+			t.Fatalf("name %q: want error", name)
+		}
+		if strings.Contains(rec.Body.String(), "data:") {
+			t.Fatalf("name %q: body %q", name, rec.Body.String())
+		}
+	}
+}
