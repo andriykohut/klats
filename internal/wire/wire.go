@@ -5,8 +5,8 @@ package wire
 
 import "encoding/json"
 
-// SittingInfo describes the running sitting to the teacher. ClassName is
-// empty when the sitting has no class list.
+// SittingInfo describes a sitting to the teacher. ClassName is empty when the
+// sitting has no class list. Ended is set once the teacher ended it.
 type SittingInfo struct {
 	SittingID     string `json:"sittingId"`
 	AssignmentID  string `json:"assignmentId"`
@@ -15,6 +15,7 @@ type SittingInfo struct {
 	ClassName     string `json:"className"`
 	QuestionCount int    `json:"questionCount"`
 	StartedAt     int64  `json:"startedAt"`
+	Ended         bool   `json:"ended"`
 }
 
 // JoinInfo is what a student device gets for a correct join code. Mode is
@@ -83,6 +84,19 @@ type Event struct {
 	Actions []string          `json:"actions"`
 }
 
+// SubmitRequest is the body of a student device's answer batch. Pending is
+// how many unacked changes the device still holds after this batch.
+type SubmitRequest struct {
+	Changes []AnswerChange `json:"changes"`
+	Pending int            `json:"pending"`
+}
+
+// HeartbeatRequest is the body of a student device's heartbeat. Pending is
+// how many unacked changes the device holds.
+type HeartbeatRequest struct {
+	Pending int `json:"pending"`
+}
+
 // AnswerChange is one answer edit from a student device, for the participant
 // the device picked. Seq numbers the edits of one question from 1 and the
 // highest Seq wins. It carries no client time: ordering and late flags use
@@ -108,8 +122,10 @@ type SubmitResult struct {
 // Status is what a student device is told about its place in the sitting.
 // State is "writing", "finished" (by the student, while the sitting runs),
 // "ended" (the teacher ended the sitting), "kicked", "moved" or "unjoined".
-// Result is set once the participant has finished. RemainingMs is always nil
-// in this version, which has no time limits.
+// Result is set once the participant has finished; for one finished by the
+// end of the sitting, only once the device reports no pending changes, which
+// also stops it taking more. RemainingMs is always nil in this version, which
+// has no time limits.
 type Status struct {
 	State       string        `json:"state"`
 	RemainingMs *int64        `json:"remainingMs"`
@@ -124,8 +140,9 @@ type FinishResult struct {
 	Total   int `json:"total"`
 }
 
-// LiveSnapshot is the teacher's live view of the running sitting. Kicked
-// participants are left out. QuestionPct has one entry per question: the
+// LiveSnapshot is the teacher's live view of the running sitting or, until
+// the next one starts, of the last ended one. Kicked participants are left
+// out. QuestionPct has one entry per question: the
 // percent of answers to it that score full points, or nil while nobody has
 // answered it. Events lists the pinned events waiting for a decision, then the
 // 20 newest others, newest first.
@@ -155,6 +172,7 @@ type Counts struct {
 type LiveRow struct {
 	ParticipantID  string   `json:"participantId"`
 	Name           string   `json:"name"`
+	DeviceToken    string   `json:"deviceToken"`
 	DeviceLabel    string   `json:"deviceLabel"`
 	Cells          []string `json:"cells"`
 	Status         string   `json:"status"`
@@ -186,7 +204,8 @@ type ResultQuestion struct {
 // has one entry per question, teacher overrides applied; Overridden lists the
 // ids of the overridden questions. DurationSec is 0 when the participant has
 // not finished. SittingDate is when the participant's sitting started.
-// Answers maps question id to the selected option ids, for answered questions.
+// Answers maps question id to the selected option ids, for answered questions;
+// Late lists the questions whose answer arrived after the sitting ended.
 type ResultRow struct {
 	ParticipantID string              `json:"participantId"`
 	Name          string              `json:"name"`
@@ -199,4 +218,5 @@ type ResultRow struct {
 	SittingDate   int64               `json:"sittingDate"`
 	Answers       map[string][]string `json:"answers"`
 	Overridden    []string            `json:"overridden"`
+	Late          []string            `json:"late"`
 }

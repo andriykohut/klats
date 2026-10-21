@@ -67,7 +67,7 @@ func TestLiveCellsAndPct(t *testing.T) {
 	}
 	for i, w := range want {
 		r := l.Rows[i]
-		if r.Name != w.Name || r.DeviceLabel != w.DeviceLabel || !slices.Equal(r.Cells, w.Cells) || r.Status != w.Status || (r.Grade == nil) != (w.Grade == nil) || (r.Grade != nil && *r.Grade != *w.Grade) {
+		if r.Name != w.Name || r.DeviceLabel != w.DeviceLabel || r.DeviceToken != map[string]string{"101": devA, "102": devB, "103": devC}[w.DeviceLabel] || !slices.Equal(r.Cells, w.Cells) || r.Status != w.Status || (r.Grade == nil) != (w.Grade == nil) || (r.Grade != nil && *r.Grade != *w.Grade) {
 			t.Errorf("row %d = %+v, want %+v", i, r, w)
 		}
 	}
@@ -153,8 +153,8 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	if snaps, _ := filepath.Glob(filepath.Join(dir, "snapshots", "klats-*.db")); len(snaps) != 1 {
 		t.Errorf("snapshots = %v, want one", snaps)
 	}
-	if l := liveOf(t, e); l.Sitting != (wire.SittingInfo{}) || len(l.Rows) != 0 || l.Rows == nil {
-		t.Errorf("live after the end = %+v", l)
+	if l := liveOf(t, e); !l.Sitting.Ended || l.Sitting.SittingID != info.SittingID || len(l.Rows) != 2 || l.Counts.Finished != 2 {
+		t.Errorf("live after the end = %+v, want the ended sitting", l)
 	}
 	want := wire.FinishResult{Grade: 1, Correct: 0, Total: 2}
 	if got := finish(t, e, devA); got != want {
@@ -166,7 +166,10 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	if err := e.End(); !errors.Is(err, ErrNotFound) {
 		t.Errorf("End twice: err = %v, want ErrNotFound", err)
 	}
-	start(t, e, nil)
+	next := start(t, e, nil)
+	if l := liveOf(t, e); l.Sitting != next || len(l.Rows) != 0 || l.Rows == nil {
+		t.Errorf("live after the next start = %+v", l)
+	}
 }
 
 func TestOverrideChangesResults(t *testing.T) {
@@ -205,7 +208,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	if r.Questions[0].CorrectPct != 50 {
 		t.Errorf("q1 correct pct = %d, want 50", r.Questions[0].CorrectPct)
 	}
-	if s := heartbeat(t, e, devA); s.Result == nil || s.Result.Grade != 12 {
+	if s := heartbeat(t, e, devA, 0); s.Result == nil || s.Result.Grade != 12 {
 		t.Errorf("status = %+v, want the overridden grade", s)
 	}
 	if l := liveOf(t, e); !slices.Equal(l.Rows[1].Cells, []string{"correct", "correct"}) {
@@ -234,5 +237,23 @@ func TestOverrideChangesResults(t *testing.T) {
 	}
 	if assignment(t, st, info.AssignmentID).ExportStale != 1 {
 		t.Error("export not stale")
+	}
+
+	// Overrides still apply once the sitting has ended.
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	one := 1.0
+	if err := e.SetOverride(info.AssignmentID, p.ID, "q2", &one); err != nil {
+		t.Fatal(err)
+	}
+	if row := resultsOf(t, e, info.AssignmentID).Rows[1]; !slices.Equal(row.Points, []float64{0, 1}) || row.Grade != 2 {
+		t.Errorf("row overridden after the end = %+v", row)
+	}
+	if l := liveOf(t, e); !slices.Equal(l.Rows[1].Cells, []string{"wrong", "wrong"}) {
+		t.Errorf("ended live cells = %v", l.Rows[1].Cells)
+	}
+	if s := heartbeat(t, e, devA, 0); s.Result == nil || s.Result.Grade != 2 {
+		t.Errorf("status = %+v, want the overridden grade", s)
 	}
 }

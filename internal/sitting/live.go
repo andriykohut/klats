@@ -1,6 +1,7 @@
 package sitting
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"log/slog"
@@ -33,13 +34,14 @@ func (e *Engine) SetSnapshotDir(dir string) {
 	e.snapshotDir = dir
 }
 
-// Live returns the teacher's view of the running sitting, or a snapshot with
-// a zero Sitting and no rows when none runs.
+// Live returns the teacher's view of the running sitting or, until the next
+// one starts, of the last ended one, where late answers show. With neither,
+// it returns a zero Sitting and no rows.
 func (e *Engine) Live() (wire.LiveSnapshot, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	out := wire.LiveSnapshot{Counts: wire.Counts{NotJoined: []string{}}, Rows: []wire.LiveRow{}, QuestionPct: []*int{}, Events: []wire.Event{}}
-	a := e.cur
+	a := cmp.Or(e.cur, e.ended)
 	if a == nil {
 		return out, nil
 	}
@@ -61,7 +63,7 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 			continue
 		}
 		r := a.grade(p)
-		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceLabel: labels[p.device], Cells: make([]string, n), Status: p.state, WindowSwitches: p.switches}
+		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: make([]string, n), Status: p.state, WindowSwitches: p.switches}
 		last := -1
 		for i, question := range a.test.Questions {
 			row.Cells[i] = cellEmpty
@@ -137,7 +139,8 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 // End ends the running sitting: participants still writing are finished as
 // they stand, unanswered questions scoring zero, and every device of the
 // sitting is told. Students who were offline may still deliver answers, see
-// [Engine.Submit]. When a snapshot directory is set, End then snapshots the
+// [Engine.Submit]; [Engine.Live] shows the ended sitting until the next one
+// starts. When a snapshot directory is set, End then snapshots the
 // database; a failed snapshot is logged and does not fail End. It returns
 // [ErrNotFound] when no sitting runs.
 func (e *Engine) End() error {
@@ -149,6 +152,7 @@ func (e *Engine) End() error {
 	}
 	at := sql.NullInt64{Int64: e.now().UnixMilli(), Valid: true}
 	err := e.commit(func(q *db.Queries) (func(), error) {
+		var writing []*participant
 		for _, p := range a.participants {
 			if p.state != stateWriting {
 				continue
@@ -156,12 +160,17 @@ func (e *Engine) End() error {
 			if err := q.FinishParticipant(ctx, db.FinishParticipantParams{FinishedBy: valid(finishedByEnd), FinishedAt: at, ID: p.id}); err != nil {
 				return nil, err
 			}
+			writing = append(writing, p)
 		}
 		if err := q.EndSitting(ctx, db.EndSittingParams{EndedAt: at, ID: a.sitting.ID}); err != nil {
 			return nil, err
 		}
 		return func() {
-			e.cur = nil
+			for _, p := range writing {
+				p.state, p.finishedBy, p.finishedAt = stateFinished, finishedByEnd, at.Int64
+			}
+			a.sitting.EndedAt = at
+			e.cur, e.ended = nil, a
 			for device := range a.status {
 				e.publishStatus(device)
 			}

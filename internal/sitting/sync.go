@@ -38,8 +38,9 @@ type delivery struct {
 // Submit stores the device's answer changes and returns their acks with the
 // device's status. A change is stored only when its seq is higher than the
 // seq stored for its participant and question; a lower or equal seq and a
-// change id already seen are acked and ignored, as are changes from a
-// participant who finished on their own.
+// change id already seen are acked and ignored, as are changes from a locked
+// participant: one who finished on their own, or was finished by the end of
+// the sitting and has since settled (see below).
 //
 // The device may send changes for the participant it writes as, and for
 // participants moved off it to another device. Changes for anyone else, and
@@ -50,9 +51,14 @@ type delivery struct {
 // stored, flagged late: the participant is regraded, a late_answers event is
 // raised and the assignment's export is marked stale.
 //
+// pending is how many unacked changes the device holds after this call. A
+// participant finished by the end of the last sitting is shown no result
+// until its device sends pending 0, which settles it: it is locked, so the
+// grade it then sees can't be probed with more changes.
+//
 // It returns [ErrInvalid] for more than 200 changes and [ErrKicked] if the
 // teacher sent the device back to the name picker.
-func (e *Engine) Submit(device string, changes []wire.AnswerChange) (wire.SubmitResult, error) {
+func (e *Engine) Submit(device string, changes []wire.AnswerChange, pending int) (wire.SubmitResult, error) {
 	if len(changes) > maxChanges {
 		return wire.SubmitResult{}, ErrInvalid
 	}
@@ -74,9 +80,11 @@ func (e *Engine) Submit(device string, changes []wire.AnswerChange) (wire.Submit
 	if err := e.touch(device); err != nil {
 		return wire.SubmitResult{}, err
 	}
-	var err error
-	res.Status, err = e.status(device)
-	return res, err
+	if err := e.settle(device, pending); err != nil {
+		return wire.SubmitResult{}, err
+	}
+	res.Status = e.status(device)
+	return res, nil
 }
 
 // deliver writes the changes that pass Submit's rules, counting refused ones in
@@ -98,7 +106,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 			*rejected++
 			continue
 		}
-		if p.finishedBy == finishedByStudent {
+		if p.locked() {
 			continue
 		}
 		seen, err := q.ChangeSeen(ctx, c.ChangeID)
@@ -150,6 +158,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 	return func() {
 		for _, d := range stored {
 			d.p.answers[d.question] = d.options
+			d.p.late[d.question] = d.a.sitting.EndedAt.Valid
 			if d.p.offline {
 				d.p.synced++
 			}
@@ -163,13 +172,9 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 // writer returns the participant with the id, and its sitting, if the device
 // may send changes for it: it is not kicked, and it writes on the device or
 // was moved off it. It returns a nil participant otherwise. A participant of
-// an ended sitting is read from the database, through loaded.
+// an older sitting is read from the database, through loaded.
 func (e *Engine) writer(q *db.Queries, loaded map[string]*active, device, participantID string) (*active, *participant, error) {
-	a := e.cur
-	var p *participant
-	if a != nil {
-		p = a.byID(participantID)
-	}
+	a, p := e.held(participantID)
 	if p == nil {
 		row, err := q.GetParticipant(ctx, participantID)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -238,59 +243,105 @@ func (e *Engine) touch(device string) error {
 	})
 }
 
+// held returns the participant with the id, and its sitting, from the running
+// or the last ended sitting, or nils.
+func (e *Engine) held(participantID string) (*active, *participant) {
+	for _, a := range []*active{e.cur, e.ended} {
+		if a != nil {
+			if p := a.byID(participantID); p != nil {
+				return a, p
+			}
+		}
+	}
+	return nil, nil
+}
+
 // Heartbeat records that the device is still there and returns its status.
-func (e *Engine) Heartbeat(device string) (wire.Status, error) {
+// pending is how many unacked changes the device holds, as in [Engine.Submit].
+func (e *Engine) Heartbeat(device string, pending int) (wire.Status, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if err := e.touch(device); err != nil {
 		return wire.Status{}, err
 	}
-	return e.status(device)
+	if err := e.settle(device, pending); err != nil {
+		return wire.Status{}, err
+	}
+	return e.status(device), nil
 }
 
-// status returns the device's status. A device that is not in the running
-// sitting is "ended", with its result, if its last participant who was not
-// kicked is in an ended sitting, and "unjoined" otherwise. The caller holds
-// e.mu.
-func (e *Engine) status(device string) (wire.Status, error) {
+// ender returns the participant the device was writing as at the end of the
+// last ended sitting, or nil if a sitting runs (e.ended is then nil), or the
+// device's last part in that sitting was being kicked or moved off, or it had
+// none. The caller holds e.mu.
+func (e *Engine) ender(device string) *participant {
+	if a := e.ended; a != nil && a.status[device] == statusWriting {
+		return a.onDevice(device)
+	}
+	return nil
+}
+
+// settle locks the device's participant in the last ended sitting once the
+// device holds no pending changes. The caller holds e.mu.
+func (e *Engine) settle(device string, pending int) error {
+	if p := e.ender(device); p != nil && pending == 0 {
+		return e.lock(p)
+	}
+	return nil
+}
+
+// lock stops a participant finished by the end of the sitting from taking
+// more late changes, so its result can be shown. The caller holds e.mu.
+func (e *Engine) lock(p *participant) error {
+	if p.finishedBy != finishedByEnd {
+		return nil
+	}
+	return e.commit(func(q *db.Queries) (func(), error) {
+		err := q.SetFinishedBy(ctx, db.SetFinishedByParams{FinishedBy: valid(finishedByEndSynced), ID: p.id})
+		return func() { p.finishedBy = finishedByEndSynced }, err
+	})
+}
+
+func (p *participant) locked() bool {
+	return p.finishedBy == finishedByStudent || p.finishedBy == finishedByEndSynced
+}
+
+// status returns the device's status: from the running sitting if one runs,
+// else "ended" for the device's participant in the last ended sitting (see
+// ender), with its result once it is locked, and "unjoined" otherwise. The
+// caller holds e.mu.
+func (e *Engine) status(device string) wire.Status {
 	if a := e.cur; a != nil {
 		switch s := a.status[device]; s {
 		case statusKicked, statusMoved:
-			return wire.Status{State: s}, nil
+			return wire.Status{State: s}
 		case statusWriting:
 			p := a.onDevice(device)
 			if p.state != stateFinished {
-				return wire.Status{State: statusWriting}, nil
+				return wire.Status{State: statusWriting}
 			}
 			r := a.finishResult(p)
-			return wire.Status{State: statusFinished, Result: &r}, nil
+			return wire.Status{State: statusFinished, Result: &r}
 		}
 	}
-	q := e.st.Q()
-	row, err := q.LastEndedParticipantOnDevice(ctx, device)
-	if errors.Is(err, sql.ErrNoRows) {
-		return wire.Status{State: statusUnjoined}, nil
+	p := e.ender(device)
+	if p == nil {
+		return wire.Status{State: statusUnjoined}
 	}
-	if err != nil {
-		return wire.Status{}, err
+	s := wire.Status{State: statusEnded}
+	if p.locked() {
+		r := e.ended.finishResult(p)
+		s.Result = &r
 	}
-	s, err := q.GetSitting(ctx, row.SittingID)
-	if err != nil {
-		return wire.Status{}, err
-	}
-	a, err := e.loadSitting(q, s)
-	if err != nil {
-		return wire.Status{}, err
-	}
-	r := a.finishResult(a.byID(row.ID))
-	return wire.Status{State: statusEnded, Result: &r}, nil
+	return s
 }
 
 // Finish ends the test for the participant the device writes as, locks its
-// answers, raises a finished event and returns the grade. Finishing again, or
-// after the sitting ended, returns the grade as it stands. It returns
-// [ErrKicked] if the teacher sent the device back to the name picker and
-// [ErrNotJoined] if the device has no participant.
+// answers, raises a finished event and returns the grade. Finishing again
+// returns the grade as it stands. Finishing after the sitting ended locks a
+// participant the end finished (see [Engine.Submit]) and returns its grade.
+// It returns [ErrKicked] if the teacher sent the device back to the name
+// picker, and [ErrNotJoined] wherever [Engine.Heartbeat] reports "unjoined".
 func (e *Engine) Finish(device string) (wire.FinishResult, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -301,23 +352,25 @@ func (e *Engine) Finish(device string) (wire.FinishResult, error) {
 		if a.status[device] == statusKicked {
 			return wire.FinishResult{}, ErrKicked
 		}
-		if p := a.onDevice(device); p != nil {
-			if p.state == stateWriting {
-				if err := e.finish(p); err != nil {
-					return wire.FinishResult{}, err
-				}
-			}
-			return a.finishResult(p), nil
+		p := a.onDevice(device)
+		if p == nil {
+			return wire.FinishResult{}, ErrNotJoined
 		}
+		if p.state == stateWriting {
+			if err := e.finish(p); err != nil {
+				return wire.FinishResult{}, err
+			}
+		}
+		return a.finishResult(p), nil
 	}
-	s, err := e.status(device)
-	if err != nil {
-		return wire.FinishResult{}, err
-	}
-	if s.Result == nil {
+	p := e.ender(device)
+	if p == nil {
 		return wire.FinishResult{}, ErrNotJoined
 	}
-	return *s.Result, nil
+	if err := e.lock(p); err != nil {
+		return wire.FinishResult{}, err
+	}
+	return e.ended.finishResult(p), nil
 }
 
 func (e *Engine) finish(p *participant) error {

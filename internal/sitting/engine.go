@@ -56,11 +56,13 @@ const (
 )
 
 // Who finished a participant, as stored in participants.finished_by. A student
-// who finished locks their answers; one finished by the end of the sitting may
-// still deliver answers late.
+// who finished locks their answers. One finished by the end of the sitting may
+// still deliver answers late until its device reports none pending, which
+// locks it as finishedByEndSynced.
 const (
-	finishedByStudent = "student"
-	finishedByEnd     = "end"
+	finishedByStudent   = "student"
+	finishedByEnd       = "end"
+	finishedByEndSynced = "end_synced"
 )
 
 // Device statuses, as returned by [Engine.DeviceStatus].
@@ -109,6 +111,7 @@ type Engine struct {
 	lang        string
 	snapshotDir string
 	cur         *active // nil when no sitting is running
+	ended       *active // the last ended sitting while none runs
 	livePending bool
 }
 
@@ -135,6 +138,7 @@ type participant struct {
 	finishedAt int64               // 0 until finished
 	switches   int                 // window switches
 	answers    map[string][]string // question id → selected option ids
+	late       map[string]bool     // question ids answered after the end
 	overrides  map[string]float64  // question id → points set by the teacher
 
 	// Presence lives only in memory: a restart counts everyone as just seen.
@@ -148,8 +152,8 @@ type participant struct {
 type clash struct{ participantID, device string }
 
 // New returns an engine that stores to st, publishes to hub and reads the time
-// from now. It resumes the sitting that has not ended, if there is one, and
-// returns an error if that sitting cannot be read.
+// from now. It resumes the latest sitting, running or ended, and returns an
+// error if that sitting cannot be read.
 func New(st *store.Store, hub *events.Hub, now func() time.Time) (*Engine, error) {
 	e := &Engine{st: st, hub: hub, now: now, lang: "uk"}
 	if err := e.load(); err != nil {
@@ -160,15 +164,23 @@ func New(st *store.Store, hub *events.Hub, now func() time.Time) (*Engine, error
 
 func (e *Engine) load() error {
 	q := e.st.Q()
-	s, err := q.GetActiveSitting(ctx)
+	s, err := q.GetLatestSitting(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	e.cur, err = e.loadSitting(q, s)
-	return err
+	a, err := e.loadSitting(q, s)
+	if err != nil {
+		return err
+	}
+	if s.EndedAt.Valid {
+		e.ended = a
+	} else {
+		e.cur = a
+	}
+	return nil
 }
 
 // loadSitting reads the sitting s, running or ended, with its participants,
@@ -194,7 +206,7 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		a.participants = append(a.participants, &participant{
 			id: r.ID, key: key, name: r.DisplayName, class: r.TypedClass.String, device: r.DeviceToken, state: r.State,
 			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches),
-			answers: map[string][]string{}, overrides: map[string]float64{}, lastSeen: now,
+			answers: map[string][]string{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: now,
 		})
 	}
 	answers, err := q.ListAnswers(ctx, s.ID)
@@ -206,7 +218,9 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		if err := json.Unmarshal([]byte(ans.OptionIds), &ids); err != nil {
 			return nil, err
 		}
-		a.byID(ans.ParticipantID).answers[ans.QuestionID] = ids
+		p := a.byID(ans.ParticipantID)
+		p.answers[ans.QuestionID] = ids
+		p.late[ans.QuestionID] = ans.Late == 1
 	}
 	overrides, err := q.ListOverrides(ctx, s.ID)
 	if err != nil {
@@ -333,7 +347,7 @@ func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error)
 			return nil, err
 		}
 		err = q.InsertSitting(ctx, db.InsertSittingParams{ID: s.ID, AssignmentID: s.AssignmentID, JoinCode: s.JoinCode, StartedAt: s.StartedAt})
-		return func() { e.cur = newActive(s, asg, t) }, err
+		return func() { e.cur, e.ended = newActive(s, asg, t), nil }, err
 	})
 	if err != nil {
 		return wire.SittingInfo{}, err
@@ -350,6 +364,7 @@ func (a *active) info() wire.SittingInfo {
 		ClassName:     a.assignment.ClassName.String,
 		QuestionCount: len(a.test.Questions),
 		StartedAt:     a.sitting.StartedAt,
+		Ended:         a.sitting.EndedAt.Valid,
 	}
 }
 

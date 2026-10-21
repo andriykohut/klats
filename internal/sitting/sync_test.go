@@ -81,18 +81,25 @@ func change(p wire.Participant, question string, seq int64, options ...string) w
 	return wire.AnswerChange{ChangeID: store.NewID(), ParticipantID: p.ID, QuestionID: question, OptionIDs: options, Seq: seq}
 }
 
+// submit sends the changes as a device that holds no others.
 func submit(t *testing.T, e *Engine, device string, changes ...wire.AnswerChange) wire.SubmitResult {
 	t.Helper()
-	res, err := e.Submit(device, changes)
+	return submitPending(t, e, device, 0, changes...)
+}
+
+func submitPending(t *testing.T, e *Engine, device string, pending int, changes ...wire.AnswerChange) wire.SubmitResult {
+	t.Helper()
+	res, err := e.Submit(device, changes, pending)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return res
 }
 
-func heartbeat(t *testing.T, e *Engine, device string) wire.Status {
+// heartbeat beats as a device holding pending unacked changes.
+func heartbeat(t *testing.T, e *Engine, device string, pending int) wire.Status {
 	t.Helper()
-	s, err := e.Heartbeat(device)
+	s, err := e.Heartbeat(device, pending)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +219,7 @@ func TestSubmitRejectsInvalidChanges(t *testing.T) {
 	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.OptionIds != `["o0","o1"]` {
 		t.Errorf("q2 = %s, want repeats stored once", a.OptionIds)
 	}
-	if _, err := e.Submit(devA, make([]wire.AnswerChange, 201)); !errors.Is(err, ErrInvalid) {
+	if _, err := e.Submit(devA, make([]wire.AnswerChange, 201), 0); !errors.Is(err, ErrInvalid) {
 		t.Errorf("201 changes: err = %v, want ErrInvalid", err)
 	}
 }
@@ -241,8 +248,9 @@ func TestLateFlagUsesServerClock(t *testing.T) {
 		t.Fatal(err)
 	}
 	clk.add(time.Minute)
-	submit(t, e, devA, change(p, "q1", 1, "o1")) // an older edit arriving after the end
-	submit(t, e, devA, change(p, "q2", 1, "o0"))
+	// The device still holds changes, so it stays open for late ones.
+	submitPending(t, e, devA, 2, change(p, "q1", 1, "o1")) // an older edit arriving after the end
+	submitPending(t, e, devA, 1, change(p, "q2", 1, "o0"))
 
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 2 || a.Late != 0 || a.ReceivedAt != t0 {
 		t.Errorf("q1 = %+v, want seq 2, on time, received at %d", a, t0)
@@ -250,7 +258,7 @@ func TestLateFlagUsesServerClock(t *testing.T) {
 	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Late != 1 || a.ReceivedAt != clk.now().UnixMilli() {
 		t.Errorf("q2 = %+v, want late, received at the server's time", a)
 	}
-	submit(t, e, devA, change(p, "q1", 3, "o1"))
+	submitPending(t, e, devA, 1, change(p, "q1", 3, "o1"))
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 3 || a.Late != 1 {
 		t.Errorf("q1 = %+v, want seq 3, late", a)
 	}
@@ -263,7 +271,7 @@ func TestKickedDeviceRejected(t *testing.T) {
 	if err := e.Kick(p.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.Submit(devA, []wire.AnswerChange{change(p, "q1", 1, "o0")}); !errors.Is(err, ErrKicked) {
+	if _, err := e.Submit(devA, []wire.AnswerChange{change(p, "q1", 1, "o0")}, 0); !errors.Is(err, ErrKicked) {
 		t.Errorf("Submit: err = %v, want ErrKicked", err)
 	}
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.ChangeID != "" {
@@ -272,10 +280,10 @@ func TestKickedDeviceRejected(t *testing.T) {
 	if _, err := e.Finish(devA); !errors.Is(err, ErrKicked) {
 		t.Errorf("Finish: err = %v, want ErrKicked", err)
 	}
-	if s := heartbeat(t, e, devA); s.State != "kicked" {
+	if s := heartbeat(t, e, devA, 0); s.State != "kicked" {
 		t.Errorf("state = %q, want kicked", s.State)
 	}
-	if s := heartbeat(t, e, devC); s.State != "unjoined" {
+	if s := heartbeat(t, e, devC, 0); s.State != "unjoined" {
 		t.Errorf("unknown device: state = %q, want unjoined", s.State)
 	}
 	// Picking again makes a fresh participant; the kicked one stays shut.
@@ -352,7 +360,7 @@ func TestFinishGrades(t *testing.T) {
 	if got := finish(t, e, devA); got != want {
 		t.Errorf("second Finish = %+v", got)
 	}
-	if s := heartbeat(t, e, devA); s.State != "finished" || s.Result == nil || *s.Result != want {
+	if s := heartbeat(t, e, devA, 0); s.State != "finished" || s.Result == nil || *s.Result != want {
 		t.Errorf("status = %+v", s)
 	}
 	if evs := eventParams(t, st, info.SittingID, "finished"); len(evs) != 1 {
@@ -366,8 +374,10 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 	info := start(t, e, nil)
 	pa := enter(t, e, info.Code, devA, "Шевченко") // goes offline before the end
 	pb := enter(t, e, info.Code, devB, "Франко")   // finishes on her own
+	pc := enter(t, e, info.Code, devC, "Бойко")    // stays offline until the next sitting
 	submit(t, e, devA, change(pa, "q1", 1, "o1"))
 	submit(t, e, devB, change(pb, "q1", 1, "o0"))
+	submit(t, e, devC, change(pc, "q1", 1, "o1"))
 	finish(t, e, devB)
 
 	ch, unsub := hub.Subscribe("device:" + devA)
@@ -382,38 +392,42 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 	if row := participantRow(t, st, info.SittingID, pa.ID); row.State != "finished" || row.FinishedBy.String != "end" || row.FinishedAt.Int64 != clk.now().UnixMilli() {
 		t.Errorf("participant writing at the end = %+v", row)
 	}
-	grade := func() int {
+	row := func(p wire.Participant) wire.ResultRow {
 		t.Helper()
-		r, err := e.Results(info.AssignmentID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		i := slices.IndexFunc(r.Rows, func(r wire.ResultRow) bool { return r.ParticipantID == pa.ID })
-		return r.Rows[i].Grade
+		r := resultsOf(t, e, info.AssignmentID)
+		return r.Rows[slices.IndexFunc(r.Rows, func(r wire.ResultRow) bool { return r.ParticipantID == p.ID })]
 	}
-	if g := grade(); g != 1 {
+	if g := row(pa).Grade; g != 1 {
 		t.Errorf("grade at the end = %d, want 1", g)
-	}
-	if s := heartbeat(t, e, devA); s.State != "ended" || s.Result == nil || *s.Result != (wire.FinishResult{Grade: 1, Correct: 0, Total: 2}) {
-		t.Errorf("status after the end = %+v", s)
 	}
 
 	// devA comes back online with the fix it made offline.
-	res := submit(t, e, devA, change(pa, "q1", 2, "o0"), change(pa, "q2", 1, "o0"))
+	res := submitPending(t, e, devA, 0, change(pa, "q1", 2, "o0"), change(pa, "q2", 1, "o0"))
 	if res.Rejected != 0 || res.Status.State != "ended" || res.Status.Result == nil || *res.Status.Result != (wire.FinishResult{Grade: 12, Correct: 2, Total: 2}) {
 		t.Errorf("late submit = %+v", res)
 	}
 	if a := stored(t, st, info.SittingID, pa.ID, "q1"); a.Seq != 2 || a.Late != 1 {
 		t.Errorf("q1 = %+v, want seq 2, late", a)
 	}
-	if g := grade(); g != 12 {
-		t.Errorf("regraded = %d, want 12", g)
+	if r := row(pa); r.Grade != 12 || !slices.Equal(r.Late, []string{"q1", "q2"}) {
+		t.Errorf("regraded row = %+v, want grade 12, both answers late", r)
+	}
+	if r := row(pb); len(r.Late) != 0 {
+		t.Errorf("on-time row late = %v", r.Late)
 	}
 	if evs := eventParams(t, st, info.SittingID, "late_answers"); len(evs) != 1 || evs[0]["name"] != "Шевченко Учень" || evs[0]["count"] != "2" {
 		t.Errorf("late_answers events = %v", evs)
 	}
 	if assignment(t, st, info.AssignmentID).ExportStale != 1 {
 		t.Error("export not marked stale")
+	}
+	// The teacher still sees the ended sitting, late answers included.
+	l := liveOf(t, e)
+	if !l.Sitting.Ended || l.Sitting.SittingID != info.SittingID || len(l.Rows) != 3 || l.Events[0].Kind != "late_answers" {
+		t.Fatalf("live after the end = %+v", l)
+	}
+	if i := slices.IndexFunc(l.Rows, func(r wire.LiveRow) bool { return r.ParticipantID == pa.ID }); !slices.Equal(l.Rows[i].Cells, []string{"correct", "correct"}) {
+		t.Errorf("late cells = %v", l.Rows[i].Cells)
 	}
 	// A student who finished on her own stays locked.
 	submit(t, e, devB, change(pb, "q2", 1, "o0"))
@@ -423,11 +437,172 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 
 	// Late answers still land after the next sitting has started.
 	start(t, e, nil)
-	if res := submit(t, e, devA, change(pa, "q1", 3, "o1")); res.Rejected != 0 {
+	if res := submit(t, e, devC, change(pc, "q1", 2, "o0")); res.Rejected != 0 || res.Status.State != "unjoined" {
 		t.Errorf("late submit during the next sitting = %+v", res)
 	}
-	if g := grade(); g != 7 {
-		t.Errorf("regraded = %d, want 7", g)
+	if r := row(pc); r.Grade != 4 || !slices.Equal(r.Late, []string{"q1"}) {
+		t.Errorf("regraded row = %+v, want grade 4", r)
+	}
+}
+
+func TestResultWithheldUntilSynced(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	q := enter(t, e, info.Code, devB, "Франко")
+	submit(t, e, devA, change(p, "q1", 1, "o1"))
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+
+	if s := heartbeat(t, e, devA, 2); s.State != "ended" || s.Result != nil {
+		t.Errorf("status with changes pending = %+v, want no result", s)
+	}
+	if res := submitPending(t, e, devA, 1, change(p, "q1", 2, "o0")); res.Status.Result != nil {
+		t.Errorf("status with one change pending = %+v, want no result", res.Status)
+	}
+	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end" {
+		t.Errorf("finished by %q before syncing, want end", by)
+	}
+	want := wire.FinishResult{Grade: 12, Correct: 2, Total: 2}
+	if res := submitPending(t, e, devA, 0, change(p, "q2", 1, "o0")); res.Status.Result == nil || *res.Status.Result != want {
+		t.Errorf("status once synced = %+v, want %+v", res.Status, want)
+	}
+	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
+		t.Errorf("finished by %q once synced, want end_synced", by)
+	}
+	// Locked: a further change is acked and ignored, and the grade stays.
+	res := submit(t, e, devA, change(p, "q1", 3, "o1"))
+	if len(res.Acks) != 1 || res.Rejected != 0 || res.Status.Result == nil || *res.Status.Result != want || stored(t, st, info.SittingID, p.ID, "q1").Seq != 2 {
+		t.Errorf("change after the lock = %+v", res)
+	}
+
+	// Finishing after the end locks at once.
+	if got := finish(t, e, devB); got != (wire.FinishResult{Grade: 1, Correct: 0, Total: 2}) {
+		t.Errorf("Finish after the end = %+v", got)
+	}
+	submitPending(t, e, devB, 3, change(q, "q1", 1, "o0"))
+	if s := heartbeat(t, e, devB, 3); s.Result == nil || s.Result.Grade != 1 || stored(t, st, info.SittingID, q.ID, "q1").ChangeID != "" {
+		t.Errorf("after finishing post-end: status %+v; the change must be ignored", s)
+	}
+}
+
+func TestEndedStatusIsTheDevicesOwn(t *testing.T) {
+	e, st, hub := setup(t)
+	s1 := start(t, e, nil)
+	enter(t, e, s1.Code, devA, "Шевченко")
+	finish(t, e, devA)
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	if s := heartbeat(t, e, devA, 0); s.State != "ended" || s.Result == nil {
+		t.Errorf("own result = %+v", s)
+	}
+
+	// The next lesson: the same lab PC joins, but nobody has picked yet.
+	s2 := start(t, e, nil)
+	join(t, e, s2.Code, devA, "10.0.0.1")
+	if s := heartbeat(t, e, devA, 0); s.State != "unjoined" || s.Result != nil {
+		t.Errorf("joined, not picked = %+v, want unjoined", s)
+	}
+	if _, err := e.Finish(devA); !errors.Is(err, ErrNotJoined) {
+		t.Errorf("Finish before picking: err = %v, want ErrNotJoined", err)
+	}
+	f := pick(t, e, s2.Code, devA, wire.PickRequest{Surname: "Франко", FirstName: "Іван"})
+	if err := e.Kick(f.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range []*Engine{e, newEngine(t, st, hub)} {
+		if s := heartbeat(t, e, devA, 0); s.State != "unjoined" || s.Result != nil {
+			t.Errorf("kicked in the last sitting = %+v, want unjoined, no earlier student's result", s)
+		}
+		if _, err := e.Finish(devA); !errors.Is(err, ErrNotJoined) {
+			t.Errorf("Finish: err = %v, want ErrNotJoined", err)
+		}
+	}
+}
+
+func TestLateDeliveryFromMovedOffDevice(t *testing.T) {
+	e, st, hub := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	join(t, e, info.Code, devB, "10.0.0.2")
+	if err := e.Move(p.ID, devB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+
+	// The dead old device comes back after the end with a change it held.
+	if res := submitPending(t, e, devA, 0, change(p, "q1", 1, "o0")); res.Rejected != 0 || res.Status.State != "unjoined" {
+		t.Errorf("late delivery from the moved-off device = %+v", res)
+	}
+	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.Late != 1 {
+		t.Errorf("q1 = %+v, want stored late", a)
+	}
+	if s := heartbeat(t, e, devB, 1); s.State != "ended" || s.Result != nil {
+		t.Errorf("new device, a change pending = %+v", s)
+	}
+	for _, e := range []*Engine{e, newEngine(t, st, hub)} {
+		if s := heartbeat(t, e, devA, 0); s.State != "unjoined" {
+			t.Errorf("moved-off device = %+v, want unjoined", s)
+		}
+		if s := heartbeat(t, e, devB, 0); s.State != "ended" || s.Result == nil || s.Result.Grade != 4 {
+			t.Errorf("new device = %+v, want its result with the late answer", s)
+		}
+	}
+}
+
+func TestConcurrentTickSubmitLive(t *testing.T) {
+	clk := newClock()
+	e, st, _ := setupAt(t, clk)
+	info := start(t, e, nil)
+	devices := []string{devA, devB, devC}
+	ps := make([]wire.Participant, len(devices))
+	for i, d := range devices {
+		ps[i] = enter(t, e, info.Code, d, "Учень"+strconv.Itoa(i))
+	}
+
+	const edits = 40
+	errs := make(chan error, 4*edits*len(devices))
+	var wg sync.WaitGroup
+	for i, d := range devices {
+		wg.Go(func() {
+			for seq := int64(1); seq <= edits; seq++ {
+				if _, err := e.Submit(d, []wire.AnswerChange{change(ps[i], "q2", seq, "o"+strconv.Itoa(int(seq)%6))}, 0); err != nil {
+					errs <- err
+				}
+				if _, err := e.Heartbeat(d, 0); err != nil {
+					errs <- err
+				}
+			}
+		})
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for range 2 * edits {
+			clk.add(time.Second)
+			e.Tick()
+			if _, err := e.Live(); err != nil {
+				errs <- err
+			}
+		}
+	}()
+	wg.Wait()
+	<-done
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	for _, p := range ps {
+		if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Seq != edits {
+			t.Errorf("%s: stored seq %d, want %d", p.Name, a.Seq, edits)
+		}
 	}
 }
 
@@ -450,7 +625,7 @@ func TestOfflineOnlineEvents(t *testing.T) {
 	}
 
 	clk.add(10 * time.Second)
-	heartbeat(t, e, devB)
+	heartbeat(t, e, devB, 0)
 	clk.add(6 * time.Second)
 	e.Tick()
 	e.Tick()
@@ -480,7 +655,7 @@ func TestOfflineOnlineEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	submit(t, e, devA, change(p, "q1", 2, "o1"))
-	heartbeat(t, e, devC)
+	heartbeat(t, e, devC, 0)
 	if got := silent("online"); len(got) != 2 || got[1]["synced"] != "1" {
 		t.Errorf("online events = %v, want a second one with synced 1", got)
 	}

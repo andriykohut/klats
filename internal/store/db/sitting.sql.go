@@ -65,23 +65,6 @@ func (q *Queries) FinishParticipant(ctx context.Context, arg FinishParticipantPa
 	return err
 }
 
-const getActiveSitting = `-- name: GetActiveSitting :one
-SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE ended_at IS NULL ORDER BY started_at DESC, id LIMIT 1
-`
-
-func (q *Queries) GetActiveSitting(ctx context.Context) (Sitting, error) {
-	row := q.db.QueryRowContext(ctx, getActiveSitting)
-	var i Sitting
-	err := row.Scan(
-		&i.ID,
-		&i.AssignmentID,
-		&i.JoinCode,
-		&i.StartedAt,
-		&i.EndedAt,
-	)
-	return i, err
-}
-
 const getAssignment = `-- name: GetAssignment :one
 SELECT id, test_id, test_snapshot, class_id, class_name, created_at, export_stale FROM assignments WHERE id = ?
 `
@@ -113,6 +96,25 @@ func (q *Queries) GetDevice(ctx context.Context, token string) (Device, error) {
 		&i.Label,
 		&i.LastIp,
 		&i.LastSeenAt,
+	)
+	return i, err
+}
+
+const getLatestSitting = `-- name: GetLatestSitting :one
+SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings ORDER BY rowid DESC LIMIT 1
+`
+
+// The latest sitting is the last inserted: rowid order can't be upset by a
+// clock change or two starts in one millisecond.
+func (q *Queries) GetLatestSitting(ctx context.Context) (Sitting, error) {
+	row := q.db.QueryRowContext(ctx, getLatestSitting)
+	var i Sitting
+	err := row.Scan(
+		&i.ID,
+		&i.AssignmentID,
+		&i.JoinCode,
+		&i.StartedAt,
+		&i.EndedAt,
 	)
 	return i, err
 }
@@ -274,33 +276,6 @@ func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) er
 		arg.StartedAt,
 	)
 	return err
-}
-
-const lastEndedParticipantOnDevice = `-- name: LastEndedParticipantOnDevice :one
-SELECT p.id, p.sitting_id, p.student_id, p.display_name, p.typed_name, p.typed_class, p.device_token, p.state, p.joined_at, p.finished_at, p.finished_by, p.window_switches FROM participants p JOIN sittings s ON s.id = p.sitting_id
-WHERE p.device_token = ? AND p.state != 'kicked' AND s.ended_at IS NOT NULL
-ORDER BY p.joined_at DESC, p.id DESC
-LIMIT 1
-`
-
-func (q *Queries) LastEndedParticipantOnDevice(ctx context.Context, deviceToken string) (Participant, error) {
-	row := q.db.QueryRowContext(ctx, lastEndedParticipantOnDevice, deviceToken)
-	var i Participant
-	err := row.Scan(
-		&i.ID,
-		&i.SittingID,
-		&i.StudentID,
-		&i.DisplayName,
-		&i.TypedName,
-		&i.TypedClass,
-		&i.DeviceToken,
-		&i.State,
-		&i.JoinedAt,
-		&i.FinishedAt,
-		&i.FinishedBy,
-		&i.WindowSwitches,
-	)
-	return i, err
 }
 
 const listAnswers = `-- name: ListAnswers :many
@@ -683,6 +658,20 @@ UPDATE assignments SET export_stale = 1 WHERE id = ?
 
 func (q *Queries) SetExportStale(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, setExportStale, id)
+	return err
+}
+
+const setFinishedBy = `-- name: SetFinishedBy :exec
+UPDATE participants SET finished_by = ? WHERE id = ?
+`
+
+type SetFinishedByParams struct {
+	FinishedBy sql.NullString
+	ID         string
+}
+
+func (q *Queries) SetFinishedBy(ctx context.Context, arg SetFinishedByParams) error {
+	_, err := q.db.ExecContext(ctx, setFinishedBy, arg.FinishedBy, arg.ID)
 	return err
 }
 

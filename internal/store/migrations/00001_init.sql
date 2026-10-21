@@ -57,7 +57,7 @@ CREATE TABLE participants (
     state           TEXT NOT NULL CHECK (state IN ('writing', 'finished', 'kicked')),
     joined_at       INTEGER NOT NULL,
     finished_at     INTEGER,
-    finished_by     TEXT CHECK (finished_by IN ('student', 'end')),
+    finished_by     TEXT CHECK (finished_by IN ('student', 'end', 'end_synced')),
     window_switches INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX participants_sitting ON participants (sitting_id);

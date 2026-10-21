@@ -8,8 +8,10 @@ SELECT * FROM assignments WHERE id = ?;
 -- name: InsertSitting :exec
 INSERT INTO sittings (id, assignment_id, join_code, started_at) VALUES (?, ?, ?, ?);
 
--- name: GetActiveSitting :one
-SELECT * FROM sittings WHERE ended_at IS NULL ORDER BY started_at DESC, id LIMIT 1;
+-- The latest sitting is the last inserted: rowid order can't be upset by a
+-- clock change or two starts in one millisecond.
+-- name: GetLatestSitting :one
+SELECT * FROM sittings ORDER BY rowid DESC LIMIT 1;
 
 -- name: RecentJoinCodes :many
 SELECT join_code FROM sittings ORDER BY started_at DESC, id LIMIT 20;
@@ -68,14 +70,11 @@ UPDATE sittings SET ended_at = ? WHERE id = ?;
 -- name: GetParticipant :one
 SELECT * FROM participants WHERE id = ?;
 
--- name: LastEndedParticipantOnDevice :one
-SELECT p.* FROM participants p JOIN sittings s ON s.id = p.sitting_id
-WHERE p.device_token = ? AND p.state != 'kicked' AND s.ended_at IS NOT NULL
-ORDER BY p.joined_at DESC, p.id DESC
-LIMIT 1;
-
 -- name: FinishParticipant :exec
 UPDATE participants SET state = 'finished', finished_by = ?, finished_at = ? WHERE id = ?;
+
+-- name: SetFinishedBy :exec
+UPDATE participants SET finished_by = ? WHERE id = ?;
 
 -- name: SetWindowSwitches :exec
 UPDATE participants SET window_switches = ? WHERE id = ?;

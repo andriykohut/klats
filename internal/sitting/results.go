@@ -44,7 +44,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			row := wire.ResultRow{
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade,
-				SittingDate: s.StartedAt, Answers: map[string][]string{}, Overridden: []string{},
+				SittingDate: s.StartedAt, Answers: map[string][]string{}, Overridden: []string{}, Late: []string{},
 			}
 			if p.finishedAt > 0 {
 				row.DurationSec = int(max(0, p.finishedAt-p.joinedAt) / 1000)
@@ -59,6 +59,9 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				}
 				if _, ok := p.overrides[question.ID]; ok {
 					row.Overridden = append(row.Overridden, question.ID)
+				}
+				if p.late[question.ID] {
+					row.Late = append(row.Late, question.ID)
 				}
 			}
 			out.Rows = append(out.Rows, row)
@@ -117,13 +120,11 @@ func (e *Engine) SetOverride(assignmentID, participantID, questionID string, poi
 			return nil, err
 		}
 		return func() {
-			if e.cur != nil {
-				if p := e.cur.byID(participantID); p != nil {
-					if points == nil {
-						delete(p.overrides, questionID)
-					} else {
-						p.overrides[questionID] = *points
-					}
+			if _, p := e.held(participantID); p != nil {
+				if points == nil {
+					delete(p.overrides, questionID)
+				} else {
+					p.overrides[questionID] = *points
 				}
 			}
 			e.publishStatus(row.DeviceToken)
