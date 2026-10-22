@@ -36,10 +36,15 @@ type fakeDialogs struct {
 	path string
 	err  error
 	name string // the default name SaveFile was offered
+	// during runs while the dialog is open.
+	during func()
 }
 
 func (f *fakeDialogs) SaveFile(defaultName string) (string, error) {
 	f.name = defaultName
+	if f.during != nil {
+		f.during()
+	}
 	return f.path, f.err
 }
 
@@ -312,7 +317,7 @@ func TestStartBlockedByProblems(t *testing.T) {
 	badID := v.saveTest(t, bad)
 	w := v.do("POST", "/api/sittings", wire.StartRequest{TestID: badID})
 	wantError(t, w, 409, "has_problems")
-	probs := decodeBody[struct{ Problems []testfmt.Problem }](t, w).Problems
+	probs := decodeBody[wire.ProblemsError](t, w).Problems
 	if len(probs) != 1 || probs[0].Code != "no_correct" || probs[0].QuestionID != "q1" {
 		t.Errorf("problems = %+v", probs)
 	}
@@ -626,6 +631,64 @@ func TestClearStaleSkipsChangedResults(t *testing.T) {
 	}
 }
 
+// enterStudent joins a typed-name student on a new device and returns the
+// participant id.
+func (v *env) enterStudent(t *testing.T) string {
+	t.Helper()
+	code := decodeBody[wire.LiveSnapshot](t, v.do("GET", "/api/sittings/current", nil)).Sitting.Code
+	if _, err := v.e.Join(code, "dev1", "10.0.0.5"); err != nil {
+		t.Fatal(err)
+	}
+	p, err := v.e.Pick(code, "dev1", wire.PickRequest{Surname: "Учень", FirstName: "А"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p.ID
+}
+
+// An override made while the save dialog is open is not in the exported
+// results, so the export must leave the assignment stale.
+func TestExportKeepsStaleWhenResultsChangeDuringDialog(t *testing.T) {
+	v := setup(t, true)
+	asg := v.startSitting(t)
+	pid := v.enterStudent(t)
+	if err := v.e.SetOverride(asg, pid, "q1", ptr(1)); err != nil {
+		t.Fatal(err)
+	}
+	v.dialogs.path = filepath.Join(t.TempDir(), "out.xlsx")
+	v.dialogs.during = func() {
+		if err := v.e.SetOverride(asg, pid, "q1", ptr(2)); err != nil {
+			t.Error(err)
+		}
+	}
+	wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 200)
+	if !v.stale(t, asg) {
+		t.Error("export of older results cleared export_stale")
+	}
+	v.dialogs.during = nil
+	wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 200)
+	if v.stale(t, asg) {
+		t.Error("export of the current results left export_stale set")
+	}
+}
+
+// failingWriter is a response whose body cannot be written.
+type failingWriter struct{ *httptest.ResponseRecorder }
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("client went away") }
+
+func TestDownloadFailureKeepsStale(t *testing.T) {
+	v := setup(t, false)
+	asg := v.startSitting(t)
+	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
+		t.Fatal(err)
+	}
+	v.h.ServeHTTP(failingWriter{httptest.NewRecorder()}, v.req("POST", "/api/assignments/"+asg+"/export", nil))
+	if !v.stale(t, asg) {
+		t.Error("a download that did not reach the client cleared export_stale")
+	}
+}
+
 func TestExportCancelledKeepsStale(t *testing.T) {
 	v := setup(t, true)
 	asg := v.startSitting(t)
@@ -738,7 +801,7 @@ func TestLANPortIsTheRunningServer(t *testing.T) {
 
 	// No LAN server: no port to differ from.
 	v = setup(t, false, func(d *Deps) { d.LANPort = 0 })
-	if n = decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Port != 0 {
+	if n = decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Port != 0 || n.URL != "" || n.Address != "192.168.1.20" {
 		t.Errorf("network = %+v", n)
 	}
 	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); s.RestartRequired {

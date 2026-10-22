@@ -7,6 +7,7 @@ package teacherapi
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -154,8 +155,6 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, sitting.ErrSittingActive):
 		httpx.Error(w, http.StatusConflict, "sitting_active")
-	case errors.Is(err, sitting.ErrHasProblems):
-		httpx.JSON(w, http.StatusConflict, map[string]any{"error": "has_problems", "problems": []testfmt.Problem{}})
 	case errors.Is(err, sitting.ErrInvalid):
 		httpx.Error(w, http.StatusBadRequest, "invalid")
 	case errors.Is(err, sitting.ErrNotFound), errors.Is(err, sql.ErrNoRows):
@@ -213,9 +212,7 @@ func testDoc(row db.Test) (wire.TestDoc, error) {
 }
 
 func (a *api) createTest(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Title string `json:"title"`
-	}
+	var req wire.NewTestRequest
 	if !decode(w, r, &req) {
 		return
 	}
@@ -265,10 +262,6 @@ func (a *api) putTest(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &raw) {
 		return
 	}
-	if _, err := a.st.Q().GetTest(r.Context(), id); err != nil {
-		fail(w, r, err)
-		return
-	}
 	t, err := testfmt.Decode(raw)
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid")
@@ -281,37 +274,31 @@ func (a *api) putTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now().UnixMilli()
-	if err := a.st.Q().UpdateTest(r.Context(), db.UpdateTestParams{ID: id, Title: t.Title, Doc: string(doc), UpdatedAt: now}); err != nil {
-		fail(w, r, err)
+	n, err := a.st.Q().UpdateTest(r.Context(), db.UpdateTestParams{ID: id, Title: t.Title, Doc: string(doc), UpdatedAt: now})
+	if err != nil || n == 0 {
+		fail(w, r, cmp.Or(err, sitting.ErrNotFound))
 		return
 	}
 	httpx.JSON(w, http.StatusOK, wire.SaveResult{Problems: problemsOf(t), SavedAt: now})
 }
 
 func (a *api) deleteTest(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if _, err := a.st.Q().GetTest(r.Context(), id); err != nil {
-		fail(w, r, err)
-		return
+	n, err := a.st.Q().DeleteTest(r.Context(), r.PathValue("id"))
+	if err == nil && n == 0 {
+		err = sitting.ErrNotFound
 	}
-	noContent(w, r, a.st.Q().DeleteTest(r.Context(), id))
+	noContent(w, r, err)
 }
 
 func (a *api) listClasses(w http.ResponseWriter, r *http.Request) {
-	q := a.st.Q()
-	rows, err := q.ListClasses(r.Context())
+	rows, err := a.st.Q().ListClassSummaries(r.Context())
 	if err != nil {
 		fail(w, r, err)
 		return
 	}
 	out := make([]wire.ClassSummary, 0, len(rows))
 	for _, c := range rows {
-		students, err := q.ListStudents(r.Context(), c.ID)
-		if err != nil {
-			fail(w, r, err)
-			return
-		}
-		out = append(out, wire.ClassSummary{ID: c.ID, Name: c.Name, StudentCount: len(students)})
+		out = append(out, wire.ClassSummary{ID: c.ID, Name: c.Name, StudentCount: int(c.StudentCount)})
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
@@ -463,12 +450,11 @@ func (a *api) putClass(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) deleteClass(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if _, err := a.st.Q().GetClass(r.Context(), id); err != nil {
-		fail(w, r, err)
-		return
+	n, err := a.st.Q().DeleteClass(r.Context(), r.PathValue("id"))
+	if err == nil && n == 0 {
+		err = sitting.ErrNotFound
 	}
-	noContent(w, r, a.st.Q().DeleteClass(r.Context(), id))
+	noContent(w, r, err)
 }
 
 func (a *api) parseClass(w http.ResponseWriter, r *http.Request) {
@@ -483,26 +469,45 @@ func (a *api) parseClass(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, wire.ParseResult{Names: names})
 }
 
+// storedTest returns the decoded stored test, or [sitting.ErrNotFound].
+func (a *api) storedTest(ctx context.Context, id string) (testfmt.Test, error) {
+	row, err := a.st.Q().GetTest(ctx, id)
+	if err != nil {
+		return testfmt.Test{}, err
+	}
+	t, err := testfmt.Decode([]byte(row.Doc))
+	if err != nil {
+		return testfmt.Test{}, fmt.Errorf("stored test %s: %w", id, err)
+	}
+	return t, nil
+}
+
+func replyProblems(w http.ResponseWriter, t testfmt.Test) {
+	httpx.JSON(w, http.StatusConflict, wire.ProblemsError{Error: "has_problems", Problems: problemsOf(t)})
+}
+
 func (a *api) startSitting(w http.ResponseWriter, r *http.Request) {
 	var req wire.StartRequest
 	if !decode(w, r, &req) {
 		return
 	}
-	row, err := a.st.Q().GetTest(r.Context(), req.TestID)
+	t, err := a.storedTest(r.Context(), req.TestID)
 	if err != nil {
 		fail(w, r, err)
 		return
 	}
-	t, err := testfmt.Decode([]byte(row.Doc))
-	if err != nil {
-		fail(w, r, fmt.Errorf("stored test %s: %w", row.ID, err))
-		return
-	}
 	if t.HasBlocking() {
-		httpx.JSON(w, http.StatusConflict, map[string]any{"error": "has_problems", "problems": problemsOf(t)})
+		replyProblems(w, t)
 		return
 	}
 	info, err := a.eng.Start(req.TestID, req.ClassID)
+	if errors.Is(err, sitting.ErrHasProblems) {
+		// The test was saved with problems after the check above.
+		if t, err = a.storedTest(r.Context(), req.TestID); err == nil {
+			replyProblems(w, t)
+			return
+		}
+	}
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -602,12 +607,12 @@ func (a *api) language() string {
 
 // export writes the assignment's results workbook. With Dialogs the teacher
 // picks the file, which is replaced atomically; without, the workbook is the
-// response. Either way a finished export clears export_stale, unless a result
-// changed after the workbook's results were read (see
-// [wire.AssignmentResults.ResultsRev]).
+// response. A finished export clears export_stale, unless a result changed
+// after the results it holds were read (see
+// [wire.AssignmentResults.ResultsRev]), which includes changes made while the
+// save dialog was open.
 func (a *api) export(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	res, err := a.eng.Results(id)
+	res, err := a.eng.Results(r.PathValue("id"))
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -619,18 +624,18 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 			fail(w, r, err)
 			return
 		}
-		if err := a.clearStale(r, res); err != nil {
-			fail(w, r, err)
-			return
-		}
 		h := w.Header()
 		h.Set("Content-Type", xlsxType)
 		h.Set("Content-Disposition", contentDisposition(xlsx.FileName(res)))
-		_, _ = w.Write(buf.Bytes())
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			return // the client did not get the file
+		}
+		// The status is sent, so a failure here can only be logged.
+		if err := a.clearStale(r, res); err != nil {
+			slog.Error("teacherapi: clear export_stale", "err", err)
+		}
 		return
 	}
-	// The dialog can stay open while students deliver late answers, so the
-	// results are read again once the teacher has chosen the file.
 	path, err := a.dialogs.SaveFile(xlsx.FileName(res))
 	if err != nil {
 		fail(w, r, fmt.Errorf("save dialog: %w", err))
@@ -638,10 +643,6 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 	}
 	if path == "" {
 		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	if res, err = a.eng.Results(id); err != nil {
-		fail(w, r, err)
 		return
 	}
 	if err := replaceFile(path, func(w io.Writer) error { return xlsx.Export(w, res, lang) }); err != nil {
@@ -716,7 +717,10 @@ func (a *api) networkInfo(cands []netip.Addr) wire.NetworkInfo {
 		info.Candidates[i] = c.String()
 	}
 	if chosen, ok := lan.Choose(cands, a.settings.Address); ok {
-		info.Address, info.URL = chosen.String(), lan.URL(chosen, a.lanPort)
+		info.Address = chosen.String()
+		if a.lanPort != 0 {
+			info.URL = lan.URL(chosen, a.lanPort)
+		}
 	}
 	return info
 }

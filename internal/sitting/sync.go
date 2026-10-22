@@ -152,8 +152,15 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 		if _, err := e.raise(q, d.a.sitting.ID, "late_answers", map[string]string{"name": d.p.name, "count": strconv.Itoa(lateCount[d.p])}, false); err != nil {
 			return nil, err
 		}
-		if err := q.SetExportStale(ctx, d.a.assignment.ID); err != nil {
-			return nil, err
+	}
+	// Any stored answer, live or late, changes the results an export holds.
+	marked := map[string]bool{}
+	for _, d := range stored {
+		if id := d.a.assignment.ID; !marked[id] {
+			marked[id] = true
+			if err := q.SetExportStale(ctx, id); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return func() {

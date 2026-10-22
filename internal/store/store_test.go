@@ -87,7 +87,7 @@ func TestTestRoundTrip(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 
-	err = s.Q().UpdateTest(ctx, db.UpdateTestParams{ID: "t1", Title: "Хімія", Doc: `{}`, UpdatedAt: 2000})
+	_, err = s.Q().UpdateTest(ctx, db.UpdateTestParams{ID: "t1", Title: "Хімія", Doc: `{}`, UpdatedAt: 2000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestTestRoundTrip(t *testing.T) {
 		t.Fatalf("got %+v", list)
 	}
 
-	if err := s.Q().DeleteTest(ctx, "t1"); err != nil {
+	if _, err := s.Q().DeleteTest(ctx, "t1"); err != nil {
 		t.Fatal(err)
 	}
 	list, _ = s.Q().ListTests(ctx)
@@ -134,7 +134,7 @@ func TestClassStudentsSortedByKey(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 
-	if err := s.Q().DeleteClass(ctx, "c1"); err != nil {
+	if _, err := s.Q().DeleteClass(ctx, "c1"); err != nil {
 		t.Fatal(err)
 	}
 	if rows, _ = s.Q().ListStudents(ctx, "c1"); len(rows) != 0 {
@@ -317,7 +317,7 @@ func TestDeleteTestKeepsAssignment(t *testing.T) {
 	}
 	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, created_at) VALUES ('a1', 't1', '{"title":"Фізика"}', 1)`)
 
-	if err := s.Q().DeleteTest(ctx, "t1"); err != nil {
+	if _, err := s.Q().DeleteTest(ctx, "t1"); err != nil {
 		t.Fatal(err)
 	}
 	var testID *string
@@ -372,7 +372,7 @@ func TestDeleteClassKeepsAssignmentClassName(t *testing.T) {
 	s := openTemp(t)
 	seedParticipant(t, s)
 
-	if err := s.Q().DeleteClass(context.Background(), "c1"); err != nil {
+	if _, err := s.Q().DeleteClass(context.Background(), "c1"); err != nil {
 		t.Fatal(err)
 	}
 	var classID, className *string

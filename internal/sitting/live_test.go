@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"klats/internal/store/db"
 	"klats/internal/wire"
 )
 
@@ -183,7 +184,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	finish(t, e, devA)
 
 	r := resultsOf(t, e, info.AssignmentID)
-	if r.TestTitle != "Дроби" || r.ClassName != "" || r.ExportStale || len(r.Questions) != 2 || r.Questions[0].ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
+	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
 		t.Errorf("results = %+v", r)
 	}
 	if len(r.Rows) != 2 || r.Rows[0].Name != "Франко Учень" || r.Rows[1].Name != p.Name {
@@ -197,6 +198,10 @@ func TestOverrideChangesResults(t *testing.T) {
 		t.Errorf("unfinished row = %+v", r.Rows[0])
 	}
 
+	// Pretend the results were exported, so the override is what marks them stale.
+	if err := st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: r.AssignmentID, ResultsRev: r.ResultsRev}); err != nil {
+		t.Fatal(err)
+	}
 	two := 2.0
 	if err := e.SetOverride(info.AssignmentID, p.ID, "q1", &two); err != nil {
 		t.Fatal(err)

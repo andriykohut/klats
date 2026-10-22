@@ -9,13 +9,16 @@ import (
 	"context"
 )
 
-const deleteClass = `-- name: DeleteClass :exec
+const deleteClass = `-- name: DeleteClass :execrows
 DELETE FROM classes WHERE id = ?
 `
 
-func (q *Queries) DeleteClass(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteClass, id)
-	return err
+func (q *Queries) DeleteClass(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteClass, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteStudent = `-- name: DeleteStudent :exec
@@ -88,6 +91,42 @@ func (q *Queries) InsertStudent(ctx context.Context, arg InsertStudentParams) er
 		arg.SortKey,
 	)
 	return err
+}
+
+const listClassSummaries = `-- name: ListClassSummaries :many
+SELECT c.id, c.name, count(s.id) AS student_count
+FROM classes c LEFT JOIN students s ON s.class_id = c.id
+GROUP BY c.id
+ORDER BY c.created_at, c.id
+`
+
+type ListClassSummariesRow struct {
+	ID           string
+	Name         string
+	StudentCount int64
+}
+
+func (q *Queries) ListClassSummaries(ctx context.Context) ([]ListClassSummariesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClassSummaries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListClassSummariesRow
+	for rows.Next() {
+		var i ListClassSummariesRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.StudentCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listClasses = `-- name: ListClasses :many

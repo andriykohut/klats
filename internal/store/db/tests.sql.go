@@ -9,13 +9,16 @@ import (
 	"context"
 )
 
-const deleteTest = `-- name: DeleteTest :exec
+const deleteTest = `-- name: DeleteTest :execrows
 DELETE FROM tests WHERE id = ?
 `
 
-func (q *Queries) DeleteTest(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteTest, id)
-	return err
+func (q *Queries) DeleteTest(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteTest, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getTest = `-- name: GetTest :one
@@ -92,7 +95,7 @@ func (q *Queries) ListTests(ctx context.Context) ([]Test, error) {
 	return items, nil
 }
 
-const updateTest = `-- name: UpdateTest :exec
+const updateTest = `-- name: UpdateTest :execrows
 UPDATE tests SET title = ?, doc = ?, updated_at = ? WHERE id = ?
 `
 
@@ -103,12 +106,15 @@ type UpdateTestParams struct {
 	ID        string
 }
 
-func (q *Queries) UpdateTest(ctx context.Context, arg UpdateTestParams) error {
-	_, err := q.db.ExecContext(ctx, updateTest,
+func (q *Queries) UpdateTest(ctx context.Context, arg UpdateTestParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateTest,
 		arg.Title,
 		arg.Doc,
 		arg.UpdatedAt,
 		arg.ID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

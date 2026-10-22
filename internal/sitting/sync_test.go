@@ -727,7 +727,7 @@ func TestEditTestDuringSittingUsesSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := st.Q().UpdateTest(context.Background(), db.UpdateTestParams{Title: doc.Title, Doc: string(b), ID: "t1"}); err != nil {
+	if _, err := st.Q().UpdateTest(context.Background(), db.UpdateTestParams{Title: doc.Title, Doc: string(b), ID: "t1"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -799,5 +799,41 @@ func TestResumeReturnsStoredAnswers(t *testing.T) {
 	}
 	if _, err := e.Resume(devA); !errors.Is(err, ErrKicked) {
 		t.Errorf("Resume after kick = %v, want ErrKicked", err)
+	}
+}
+
+func TestStoredAnswerMarksExportStale(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	export := func() {
+		t.Helper()
+		res, err := e.Results(info.AssignmentID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: res.AssignmentID, ResultsRev: res.ResultsRev}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
+		t.Fatal("stale before any answer")
+	}
+	submit(t, e, devA, change(p, "q1", 1, "o0"))
+	if a := assignment(t, st, info.AssignmentID); a.ExportStale != 1 || a.ResultsRev != 1 {
+		t.Errorf("after a live answer: stale %d, rev %d", a.ExportStale, a.ResultsRev)
+	}
+	export()
+	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
+		t.Fatal("export did not clear")
+	}
+	// A repeat stores nothing and leaves the export current.
+	submit(t, e, devA, change(p, "q1", 1, "o0"))
+	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
+		t.Error("a change that stored nothing marked the export stale")
+	}
+	submit(t, e, devA, change(p, "q2", 1, "o0"))
+	if a := assignment(t, st, info.AssignmentID); a.ExportStale != 1 || a.ResultsRev != 2 {
+		t.Errorf("after a second live answer: stale %d, rev %d", a.ExportStale, a.ResultsRev)
 	}
 }

@@ -7,10 +7,16 @@ SELECT * FROM classes WHERE id = ?;
 -- name: ListClasses :many
 SELECT * FROM classes ORDER BY created_at, id;
 
+-- name: ListClassSummaries :many
+SELECT c.id, c.name, count(s.id) AS student_count
+FROM classes c LEFT JOIN students s ON s.class_id = c.id
+GROUP BY c.id
+ORDER BY c.created_at, c.id;
+
 -- name: RenameClass :exec
 UPDATE classes SET name = ? WHERE id = ?;
 
--- name: DeleteClass :exec
+-- name: DeleteClass :execrows
 DELETE FROM classes WHERE id = ?;
 
 -- name: InsertStudent :exec

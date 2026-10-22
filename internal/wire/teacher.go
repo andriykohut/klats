@@ -12,6 +12,18 @@ type TestSummary struct {
 	Blocking      bool   `json:"blocking"`
 }
 
+// NewTestRequest creates an empty test. An empty Title gets the default title.
+type NewTestRequest struct {
+	Title string `json:"title"`
+}
+
+// ProblemsError is the 409 body for a test that cannot be started: Error is
+// "has_problems" and Problems lists what blocks it.
+type ProblemsError struct {
+	Error    string            `json:"error"`
+	Problems []testfmt.Problem `json:"problems"`
+}
+
 // TestDoc is a stored test with its current problems. SavedAt is when it was
 // last saved.
 type TestDoc struct {
@@ -106,8 +118,8 @@ type ExportResult struct {
 }
 
 // NetworkInfo describes the address students use. Candidates are the
-// addresses the teacher can choose from; Address and URL are empty when there
-// are none.
+// addresses the teacher can choose from; Address is empty when there are none.
+// URL is empty too, and Port 0, while the student server is not running.
 type NetworkInfo struct {
 	Candidates []string `json:"candidates"`
 	Address    string   `json:"address"`
