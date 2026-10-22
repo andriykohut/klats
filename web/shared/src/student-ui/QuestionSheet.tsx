@@ -10,11 +10,12 @@ import {
 } from "react";
 import { CheckboxGroup } from "react-aria-components/CheckboxGroup";
 import { RadioGroup } from "react-aria-components/RadioGroup";
+import { flushSync } from "react-dom";
 import { m } from "../paraglide/messages.js";
 import type { MessagePart } from "../paraglide/runtime.js";
 import { type RichDoc, RichView } from "../rich/RichView";
 import { AnswerTile, BADGE_LETTERS, TileFace } from "./AnswerTile";
-import { chooseLayout } from "./layout";
+import { chooseLayout, countBelow, nextDensity } from "./layout";
 import { popIn, sheet } from "./motion";
 import "./student-ui.css";
 
@@ -31,9 +32,6 @@ export interface QuestionSheetProps {
   /** Buttons for the sheet's footer, such as Skip and Next. */
   children?: ReactNode;
 }
-
-/** Denser tile steps tried, in order, while the answers overflow the sheet. */
-const DENSITIES = 3;
 
 /**
  * One question on the white sheet: its number, the answer mode, the text and
@@ -55,6 +53,9 @@ export function QuestionSheet(props: QuestionSheetProps) {
   const chipId = useId();
   const scrollRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  // The first tile the cue revealed, which takes focus if the cue goes away.
+  const revealed = useRef<HTMLElement | null>(null);
   const [layout, setLayout] = useState<"grid" | "rows">("grid");
   const [density, setDensity] = useState(0);
   // "lines" measures line counts, "fit" steps density up until nothing
@@ -88,31 +89,47 @@ export function QuestionSheet(props: QuestionSheetProps) {
       setLayout(chooseLayout(options.length, lines));
       setPhase("fit");
     } else if (phase === "fit") {
-      const overflows = scroller.scrollHeight > scroller.clientHeight + 1;
-      if (overflows && density < DENSITIES - 1) setDensity(density + 1);
-      else setPhase("done");
+      const next = nextDensity(
+        scroller.scrollHeight,
+        scroller.clientHeight,
+        density,
+      );
+      if (next === null) setPhase("done");
+      else setDensity(next);
     } else {
-      setBelow(tilesBelow(scroller));
+      setBelow(tilesBelow(scroller).length);
     }
   }, [phase, density, options.length]);
+
+  // Pressing the cue can scroll it out of existence; keep focus off the body.
+  useLayoutEffect(() => {
+    const tile = revealed.current;
+    if (below > 0 || !tile) return;
+    revealed.current = null;
+    if (moreRef.current?.contains(document.activeElement)) {
+      tile.querySelector("input")?.focus({ preventScroll: true });
+    }
+  }, [below]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
+    // Synchronous, so no frame paints at the old density.
+    const refit = () => flushSync(restart);
     let size = "";
     const ro = new ResizeObserver(() => {
       const next = `${scroller.clientWidth}x${scroller.clientHeight}`;
-      if (next !== size && size !== "") restart();
+      if (next !== size && size !== "") refit();
       size = next;
     });
     ro.observe(scroller);
-    const onScroll = () => setBelow(tilesBelow(scroller));
+    const onScroll = () => setBelow(tilesBelow(scroller).length);
     scroller.addEventListener("scroll", onScroll, { passive: true });
-    document.fonts.addEventListener("loadingdone", restart);
+    document.fonts.addEventListener("loadingdone", refit);
     return () => {
       ro.disconnect();
       scroller.removeEventListener("scroll", onScroll);
-      document.fonts.removeEventListener("loadingdone", restart);
+      document.fonts.removeEventListener("loadingdone", refit);
     };
   }, [restart]);
 
@@ -196,18 +213,27 @@ export function QuestionSheet(props: QuestionSheetProps) {
             )}
           </div>
         </div>
-        <div className="k-more" data-show={below > 0 || undefined}>
+        <div
+          className="k-more"
+          ref={moreRef}
+          data-show={below > 0 || undefined}
+          // A leaving button must not take focus while it fades out.
+          inert={below === 0 || undefined}
+        >
           <AnimatePresence>
             {below > 0 && (
               <motion.button
                 type="button"
                 className="k-more-button"
-                onClick={() =>
-                  scrollRef.current?.scrollBy({
-                    top: scrollRef.current.clientHeight * 0.8,
+                onClick={() => {
+                  const scroller = scrollRef.current;
+                  if (!scroller) return;
+                  revealed.current = tilesBelow(scroller)[0] ?? null;
+                  scroller.scrollBy({
+                    top: scroller.clientHeight * 0.8,
                     behavior,
-                  })
-                }
+                  });
+                }}
                 {...popIn(0, reduced)}
                 exit={{ opacity: 0, y: "20%" }}
               >
@@ -259,12 +285,13 @@ function withKbd(parts: MessagePart[]): ReactNode[] {
   return out;
 }
 
-/** Counts the answer tiles that end below the visible part of `scroller`. */
-function tilesBelow(scroller: HTMLElement): number {
-  const visibleBottom = scroller.scrollTop + scroller.clientHeight + 1;
-  let count = 0;
-  for (const tile of scroller.querySelectorAll<HTMLElement>(".k-tile-wrap")) {
-    // Layout offsets, not client rects, so the sheet's entry rotation can't skew them.
+/** Returns the answer tiles that are not fully in the visible part of `scroller`. */
+function tilesBelow(scroller: HTMLElement): HTMLElement[] {
+  const tiles = Array.from(
+    scroller.querySelectorAll<HTMLElement>(".k-tile-wrap"),
+  );
+  // Layout offsets, not client rects, so the sheet's entry rotation can't skew them.
+  const bottoms = tiles.map((tile) => {
     let bottom = tile.offsetHeight;
     for (
       let n: HTMLElement | null = tile;
@@ -273,7 +300,9 @@ function tilesBelow(scroller: HTMLElement): number {
     ) {
       bottom += n.offsetTop;
     }
-    if (bottom > visibleBottom) count++;
-  }
-  return count;
+    return bottom;
+  });
+  const visibleBottom = scroller.scrollTop + scroller.clientHeight;
+  const first = bottoms.length - countBelow(bottoms, visibleBottom);
+  return tiles.slice(first);
 }

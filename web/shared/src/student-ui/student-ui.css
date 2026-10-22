@@ -37,6 +37,8 @@
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
+  /* Tiles scrolled into view stop above the overflow cue, ring and all. */
+  scroll-padding-bottom: var(--k-cue-height);
   display: grid;
   grid-template-columns: calc(168 * var(--k-px)) minmax(0, 1fr);
   align-content: start;
@@ -384,7 +386,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  height: calc(56 * var(--k-px));
+  height: var(--k-cue-height);
   pointer-events: none;
 }
 

@@ -23,6 +23,8 @@
 
   /* How far a tile or button stands above its base; pressing sinks it. */
   --k-depth: calc(6 * var(--k-px));
+  /* The overflow cue over a sheet's cut edge, fade and button included. */
+  --k-cue-height: calc(64 * var(--k-px));
 
   --k-shadow-sheet: 0 calc(30 * var(--k-px)) calc(60 * var(--k-px))
     calc(-24 * var(--k-px)) rgba(10, 6, 80, 0.6);

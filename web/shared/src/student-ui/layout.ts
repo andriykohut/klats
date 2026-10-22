@@ -30,3 +30,29 @@ export function progressMode(
     ? "segments"
     : "compact";
 }
+
+/** How many tile density steps QuestionSheet has, from 0 (the design's). */
+export const DENSITIES = 3;
+
+/**
+ * Returns the next denser step to try when content `contentHeight` tall
+ * overflows a view `viewHeight` tall, or null when `density` is final: the
+ * content fits, or no denser step is left. Heights within 1px count as fitting.
+ */
+export function nextDensity(
+  contentHeight: number,
+  viewHeight: number,
+  density: number,
+): number | null {
+  return contentHeight > viewHeight + 1 && density < DENSITIES - 1
+    ? density + 1
+    : null;
+}
+
+/**
+ * Counts the tiles whose bottom edge (`bottoms`, in the same coordinates)
+ * lies more than 1px below `visibleBottom`, so are not fully in view.
+ */
+export function countBelow(bottoms: number[], visibleBottom: number): number {
+  return bottoms.filter((b) => b > visibleBottom + 1).length;
+}
