@@ -48,9 +48,10 @@ type delivery struct {
 // malformed changes (a missing or over-long change id, a seq below 1, an
 // unknown question, an option of another question, more than 20 option ids)
 // are acked but counted in Rejected.
-// After the sitting has ended, changes from participants it finished are still
-// stored, flagged late: the participant is regraded, a late_answers event is
-// raised and the assignment's export is marked stale.
+// Any stored change marks the assignment's export stale and bumps its
+// results revision, once per call and assignment. After the sitting has ended,
+// changes from participants it finished are still stored, flagged late: the
+// participant is regraded and a late_answers event is raised.
 //
 // pending is how many unacked changes the device holds after this call. A
 // participant finished by the end of the last sitting is shown no result

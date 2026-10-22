@@ -837,3 +837,58 @@ func TestStoredAnswerMarksExportStale(t *testing.T) {
 		t.Errorf("after a second live answer: stale %d, rev %d", a.ExportStale, a.ResultsRev)
 	}
 }
+
+// clearExport pretends the current results were exported.
+func clearExport(t *testing.T, e *Engine, st *store.Store, assignmentID string) {
+	t.Helper()
+	res, err := e.Results(assignmentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: assignmentID, ResultsRev: res.ResultsRev}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnstoredChangesLeaveExportCurrent(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	q := enter(t, e, info.Code, devB, "Франко")
+	submit(t, e, devA, change(p, "q1", 1, "o0"))
+	finish(t, e, devA)
+	clearExport(t, e, st, info.AssignmentID)
+	before := assignment(t, st, info.AssignmentID)
+	if before.ExportStale != 0 {
+		t.Fatal("export still stale after clearing")
+	}
+
+	// A locked participant's change, a repeat, and a change for an unknown question store nothing.
+	repeat := change(q, "q1", 1, "o0")
+	submit(t, e, devB, repeat)
+	clearExport(t, e, st, info.AssignmentID)
+	before = assignment(t, st, info.AssignmentID)
+	res := submit(t, e, devA, change(p, "q2", 1, "o0"))
+	if res.Rejected != 0 {
+		t.Errorf("locked change rejected = %d, want it acked and ignored", res.Rejected)
+	}
+	submit(t, e, devB, repeat)
+	res = submit(t, e, devB, change(q, "nope", 1, "o0"))
+	if res.Rejected != 1 {
+		t.Fatalf("unknown question rejected = %d, want 1", res.Rejected)
+	}
+	if after := assignment(t, st, info.AssignmentID); after.ExportStale != 0 || after.ResultsRev != before.ResultsRev {
+		t.Errorf("stale %d, rev %d -> %d after changes that stored nothing", after.ExportStale, before.ResultsRev, after.ResultsRev)
+	}
+}
+
+func TestOneSubmitBumpsResultsRevOnce(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	before := assignment(t, st, info.AssignmentID).ResultsRev
+	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"), change(p, "q1", 2, "o1"))
+	if after := assignment(t, st, info.AssignmentID); after.ResultsRev != before+1 || after.ExportStale != 1 {
+		t.Errorf("rev %d -> %d, stale %d; want one bump", before, after.ResultsRev, after.ExportStale)
+	}
+}
