@@ -47,6 +47,12 @@ var studentUI = webui.Student
 // errUsage reports bad flags, which the flag package has already printed.
 var errUsage = errors.New("usage")
 
+// shell is the desktop window, see [desktop.App].
+type shell interface {
+	Run(ctx context.Context, teacherURL string) error
+	Dialogs() teacherapi.Dialogs
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// After the first signal, a second one kills the program at once.
@@ -96,6 +102,25 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		return err
 	}
 
+	// The shell claims the single instance before anything a running instance
+	// holds is opened; a second instance exits inside newShell. It calls back
+	// into eng and stop only once it runs, after both are set.
+	var (
+		sh   shell
+		eng  *sitting.Engine
+		stop func()
+	)
+	if !*dev {
+		language := func() string {
+			s, _ := config.Load(dataDir) // the teacher API saves language changes
+			return s.Language
+		}
+		sh, err = newShell(language, func() bool { return eng.Active() }, func() { stop() })
+		if err != nil {
+			return err
+		}
+	}
+
 	logFile, err := openLog(dataDir)
 	if err != nil {
 		return err
@@ -124,7 +149,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	snapshotDaily(st, dataDir)
 
 	hub := events.New()
-	eng, err := sitting.New(st, hub, time.Now)
+	eng, err = sitting.New(st, hub, time.Now)
 	if err != nil {
 		return err
 	}
@@ -166,8 +191,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	teacherPort := teacherL.Addr().(*net.TCPAddr).Port
 	token := teacherapi.NewToken()
 	var dialogs teacherapi.Dialogs
-	if !*dev {
-		dialogs = saveDialogs()
+	if sh != nil {
+		dialogs = sh.Dialogs()
 	}
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Assets: webui.Teacher, Token: token, Port: teacherPort,
@@ -184,7 +209,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	var wg sync.WaitGroup
 	wg.Go(func() { tick(ctx, eng) })
 	wg.Go(func() { watchAddresses(ctx, hub) })
-	stop := sync.OnceFunc(func() {
+	stop = sync.OnceFunc(func() {
 		cancel()
 		wg.Wait()
 		sctx, scancel := context.WithTimeout(context.Background(), shutdownTime)
@@ -199,7 +224,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	defer stop()
 
 	teacherURL := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", teacherPort, token)
-	slog.Info("klats started", "data", dataDir, "studentPort", lanPort, "teacher", teacherURL)
+	// The launch token is a secret, so the log gets the address without it.
+	slog.Info("klats started", "data", dataDir, "studentPort", lanPort, "teacher", fmt.Sprintf("http://127.0.0.1:%d/", teacherPort))
 	if *dev {
 		student, lanURL := "none", "none"
 		if lanL != nil {
@@ -214,10 +240,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		<-ctx.Done()
 		return nil
 	}
-	return runDesktop(ctx, teacherURL, func() string {
-		s, _ := config.Load(dataDir) // the teacher API saves language changes
-		return s.Language
-	}, eng.Active, stop)
+	return sh.Run(ctx, teacherURL)
 }
 
 // serve starts an HTTP server on l. Requests see ctx, so open event streams

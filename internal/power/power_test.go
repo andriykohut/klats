@@ -11,7 +11,7 @@ func TestPowerCommand(t *testing.T) {
 		want []string
 	}{
 		{"darwin", []string{"caffeinate", "-i", "-w", "42"}},
-		{"linux", []string{"systemd-inhibit", "--what=idle:sleep", "--who=Klats", "--why=Тест триває", "sleep", "infinity"}},
+		{"linux", []string{"systemd-inhibit", "--what=idle:sleep", "--who=Klats", "--why=Тест триває", "tail", "--pid=42", "-f", "/dev/null"}},
 		{"windows", nil},
 	} {
 		if got := command(c.goos, 42, "Тест триває"); !slices.Equal(got, c.want) {

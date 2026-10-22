@@ -15,7 +15,7 @@ React: для учнів і для вчителя. Результати й оц�
 Потрібні Go 1.27.3, Node.js 26.12.1 та pnpm 12.14.0.
 
 ```sh
-make web && go build ./cmd/klats
+make web build
 ```
 
 Перевірки (лінтери, тести, типи): `make check`.

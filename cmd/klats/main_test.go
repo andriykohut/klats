@@ -33,8 +33,9 @@ func TestDevModeServes(t *testing.T) {
 	defer cancel()
 	out, stdout := io.Pipe()
 	done := make(chan error, 1)
+	dataDir := t.TempDir()
 	go func() {
-		done <- run(ctx, []string{"-dev", "-port", "0", "-data", t.TempDir()}, stdout, &logs)
+		done <- run(ctx, []string{"-dev", "-port", "0", "-data", dataDir}, stdout, &logs)
 		_ = stdout.Close()
 	}()
 
@@ -87,6 +88,15 @@ func TestDevModeServes(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("run did not return within 5 s of cancel")
+	}
+	logFile, err := os.ReadFile(filepath.Join(dataDir, "logs", "klats.log"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, l := range map[string]string{"stderr": logs.String(), "klats.log": string(logFile)} {
+		if strings.Contains(l, teacher.Query().Get("t")) {
+			t.Errorf("the launch token is in %s", name)
+		}
 	}
 }
 

@@ -3,6 +3,10 @@
 // dialog. It is the only package that imports Wails. The window loads the
 // teacher app from the local teacher API as a browser would, so the app needs
 // no Wails bindings.
+//
+// The shell starts in two steps. [New] claims the single instance before the
+// program opens its database, log and ports, and [App.Run] opens the window
+// once the teacher API is listening.
 package desktop
 
 import (
@@ -23,101 +27,127 @@ import (
 //go:embed icon.png
 var icon []byte
 
-// Options are what [Run] needs from the program.
+// Options are what the shell needs from the program. New calls Language; the
+// other functions are called only while [App.Run] runs.
 type Options struct {
-	// TeacherURL is the teacher app's address on 127.0.0.1, with the launch
-	// token.
-	TeacherURL string
 	// Language returns the saved UI language, "uk" or "en".
 	Language func() string
 	// SittingActive reports whether a sitting is running.
 	SittingActive func() bool
-	// OnShutdown runs on the main thread as the shell quits.
+	// OnShutdown runs on the main thread as the shell quits. On macOS the
+	// process exits as soon as it returns, so the program's own shutdown
+	// belongs here rather than after Run.
 	OnShutdown func()
 }
 
-// Run opens the window on o.TeacherURL and blocks until the shell quits: when
-// the window is closed with no sitting running, when the teacher confirms
-// quitting during one, or when ctx is done. On macOS the process exits once
-// o.OnShutdown returns, so Run does not return there. A second launch of the
-// program focuses this window and exits.
+// App is the shell between [New] and the end of [App.Run].
+type App struct {
+	app       *application.App
+	win       *application.WebviewWindow
+	o         Options
+	confirmed atomic.Bool // quit without asking
+	started   atomic.Bool
+}
+
+// New creates the shell and claims its single instance. When another instance
+// of the program is already running, New asks it to show its window and exits
+// this process with status 0, so call it before opening anything the first
+// instance holds, such as the database, the log or the ports.
+func New(o Options) *App {
+	a := &App{o: o}
+	t := textsFor(o.Language())
+	a.app = application.New(application.Options{
+		Name: t.title,
+		Icon: icon,
+		// The ctx given to Run carries the program's signals.
+		DisableDefaultSignalHandler: true,
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "ua.klats.teacher",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if a.started.Load() {
+					a.show()
+				}
+			},
+		},
+		ShouldQuit: a.shouldQuit,
+		OnShutdown: o.OnShutdown,
+	})
+	a.win = a.app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title: t.title, Width: 1440, Height: 900, MinWidth: 1366, MinHeight: 768,
+	})
+	a.win.RegisterHook(events.Common.WindowClosing, a.closing)
+	return a
+}
+
+// Run opens the window on teacherURL, the teacher app's address with the
+// launch token, and blocks until the shell quits: when the window is closed
+// with no sitting running, when the teacher confirms quitting during one, or
+// when ctx is done. On macOS the process exits once Options.OnShutdown
+// returns, so Run does not return there.
 //
 // While a sitting runs, closing the window hides it, and a tray icon offers to
 // show it again or to quit, which asks first. Quitting does not end the
 // sitting: it resumes at the next launch.
-func Run(ctx context.Context, o Options) error {
-	t := textsFor(o.Language())
-	var (
-		app       *application.App
-		win       *application.WebviewWindow
-		confirmed atomic.Bool // quit without asking
-	)
-	show := func() {
-		win.UnMinimise()
-		win.Show()
-		win.Focus()
-	}
-	app = application.New(application.Options{
-		Name:   t.title,
-		Icon:   icon,
-		Logger: slog.Default(),
-		// ctx carries the program's signals.
-		DisableDefaultSignalHandler: true,
-		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID:               "ua.klats.teacher",
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) { show() },
-		},
-		ShouldQuit: func() bool {
-			if confirmed.Load() || !o.SittingActive() {
-				return true
-			}
-			// A dialog shown here would run inside the quit in progress on the
-			// main thread, so that quit is refused and askQuit issues a new one.
-			go askQuit(app, &confirmed, textsFor(o.Language()))
-			return false
-		},
-		OnShutdown: o.OnShutdown,
-	})
-	win = app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: t.title, URL: o.TeacherURL,
-		Width: 1440, Height: 900, MinWidth: 1366, MinHeight: 768,
-	})
-	// Until the app quits and closes it, the window is only hidden or quit
-	// with. On macOS, quitting when the last window closes would also fire when
-	// the quit dialog closes over the hidden window, and ask again.
-	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		if app.Context().Err() != nil {
-			return
-		}
-		e.Cancel()
-		if o.SittingActive() {
-			win.Hide()
-			return
-		}
-		go app.Quit()
-	})
+func (a *App) Run(ctx context.Context, teacherURL string) error {
+	// The program sets up its log after New.
+	a.app.Logger = slog.Default()
+	a.win.SetURL(teacherURL)
 	// Both goroutines call into Wails, which is ready only once the app runs.
-	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		a.started.Store(true)
 		go func() {
 			select {
 			case <-ctx.Done():
-				confirmed.Store(true)
-				app.Quit()
-			case <-app.Context().Done():
+				a.confirmed.Store(true)
+				a.app.Quit()
+			case <-a.app.Context().Done():
 			}
 		}()
-		go trayWhileActive(app, win, show, o)
+		go a.trayWhileActive()
 	})
-	return app.Run()
+	return a.app.Run()
 }
 
-// askQuit asks the teacher to confirm quitting during a sitting, and quits if
-// they do.
-func askQuit(app *application.App, confirmed *atomic.Bool, t texts) {
-	d := app.Dialog.Question().SetTitle(t.title).SetMessage(t.quitAsk)
+func (a *App) show() {
+	a.win.UnMinimise()
+	a.win.Show()
+	a.win.Focus()
+}
+
+// closing keeps the window open: it hides it while a sitting runs and quits
+// otherwise. On macOS, quitting when the last window closes would also fire
+// when the quit dialog closes over the hidden window, and ask again.
+func (a *App) closing(e *application.WindowEvent) {
+	if a.app.Context().Err() != nil {
+		return // the app is quitting and closes its windows
+	}
+	e.Cancel()
+	if a.o.SittingActive() {
+		a.win.Hide()
+		return
+	}
+	go a.app.Quit()
+}
+
+func (a *App) shouldQuit() bool {
+	if a.confirmed.Load() || !a.o.SittingActive() {
+		return true
+	}
+	// A dialog shown here would run inside the quit in progress on the main
+	// thread, so that quit is refused and askQuit issues a new one.
+	go a.askQuit()
+	return false
+}
+
+// askQuit asks the teacher to confirm quitting during a sitting, in front of
+// the window, and quits if they do.
+func (a *App) askQuit() {
+	t := textsFor(a.o.Language())
+	a.show() // the window may be hidden, and the question is attached to it
+	d := a.app.Dialog.Question().SetTitle(t.title).SetMessage(t.quitAsk).AttachToWindow(a.win)
 	d.AddButton(t.quit).OnClick(func() {
-		confirmed.Store(true)
-		app.Quit()
+		a.confirmed.Store(true)
+		a.app.Quit()
 	})
 	d.SetCancelButton(d.AddButton(t.cancel))
 	d.Show()
@@ -125,23 +155,23 @@ func askQuit(app *application.App, confirmed *atomic.Bool, t texts) {
 
 // trayWhileActive keeps a tray icon while a sitting runs, checking once a
 // second, until the app quits.
-func trayWhileActive(app *application.App, win *application.WebviewWindow, show func(), o Options) {
+func (a *App) trayWhileActive() {
 	var tray *application.SystemTray
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	for {
 		select {
-		case <-app.Context().Done():
+		case <-a.app.Context().Done():
 			return
 		case <-tick.C:
 		}
-		switch active := o.SittingActive(); {
+		switch active := a.o.SittingActive(); {
 		case active && tray == nil:
-			t := textsFor(o.Language())
-			menu := app.Menu.New()
-			menu.Add(t.show).OnClick(func(*application.Context) { show() })
-			menu.Add(t.quit).OnClick(func(*application.Context) { app.Quit() })
-			tray = app.SystemTray.New()
+			t := textsFor(a.o.Language())
+			menu := a.app.Menu.New()
+			menu.Add(t.show).OnClick(func(*application.Context) { a.show() })
+			menu.Add(t.quit).OnClick(func(*application.Context) { a.app.Quit() })
+			tray = a.app.SystemTray.New()
 			tray.SetIcon(icon)
 			tray.SetTooltip(t.title)
 			tray.SetMenu(menu)
@@ -149,30 +179,37 @@ func trayWhileActive(app *application.App, win *application.WebviewWindow, show 
 			application.InvokeSync(tray.Destroy)
 			tray = nil
 			// Without the tray, a hidden window has no way back on Windows.
-			if !win.IsVisible() {
-				show()
+			if !a.win.IsVisible() {
+				a.show()
 			}
 		}
 	}
 }
 
-// Dialogs returns the native file dialogs for the teacher API. They work only
-// while [Run] runs, from any goroutine: Wails shows them on the main thread.
-func Dialogs() teacherapi.Dialogs { return dialogs{} }
+// Dialogs returns the native file dialogs for the teacher API, attached to the
+// window. They work only while [App.Run] runs, from any goroutine: Wails shows
+// them on the main thread.
+func (a *App) Dialogs() teacherapi.Dialogs { return dialogs{a.app, a.win} }
 
-type dialogs struct{}
+type dialogs struct {
+	app *application.App
+	win *application.WebviewWindow
+}
 
 // SaveFile asks where to save an Excel workbook, starting in the user's
 // Documents folder. A cancelled dialog returns "" and a nil error.
-func (dialogs) SaveFile(defaultName string) (string, error) {
-	path, err := application.Get().Dialog.SaveFile().
+func (d dialogs) SaveFile(defaultName string) (string, error) {
+	path, err := d.app.Dialog.SaveFile().
 		SetFilename(defaultName).
 		AddFilter("Excel", "*.xlsx").
 		SetDirectory(application.Path(application.PathDocuments)).
 		CanCreateDirectories(true).
+		AttachToWindow(d.win).
 		PromptForSingleSelection()
-	// shortcut: Wails reports a cancel on Windows with an unexported error,
-	// matched here by its text; compare the value once Wails exports it.
+	// shortcut: Wails v3.0.0-beta.34 reports a cancelled Windows dialog only
+	// with its unexported cfd.ErrorCancelled, so it is matched by text. A
+	// changed text would turn a cancel into a failed export; compare the error
+	// value once Wails exports one.
 	if err != nil && err.Error() == "cancelled by user" {
 		return "", nil
 	}

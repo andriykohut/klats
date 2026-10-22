@@ -2,15 +2,8 @@
 
 package main
 
-import (
-	"context"
-	"errors"
+import "errors"
 
-	"klats/internal/teacherapi"
-)
-
-func saveDialogs() teacherapi.Dialogs { return nil }
-
-func runDesktop(context.Context, string, func() string, func() bool, func()) error {
-	return errors.New("the desktop shell is not built in (built with -tags nodesktop); run with -dev")
+func newShell(func() string, func() bool, func()) (shell, error) {
+	return nil, errors.New("the desktop shell is not built in (built with -tags nodesktop); run with -dev")
 }

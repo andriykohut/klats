@@ -7,9 +7,9 @@ import (
 )
 
 // Inhibit keeps the computer from idle sleep and suspend until release is
-// called, by holding a systemd-inhibit lock that names reason. Without
-// systemd-inhibit it logs a warning and returns a no-op release. release is
-// idempotent.
+// called or this process exits, by holding a systemd-inhibit lock that names
+// reason. Without systemd-inhibit it logs a warning and returns a no-op
+// release. release is idempotent.
 func Inhibit(reason string) (release func(), err error) {
 	argv := command("linux", os.Getpid(), reason)
 	if _, err := exec.LookPath(argv[0]); err != nil {

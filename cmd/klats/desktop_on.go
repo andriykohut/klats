@@ -2,15 +2,10 @@
 
 package main
 
-import (
-	"context"
+import "klats/internal/desktop"
 
-	"klats/internal/desktop"
-	"klats/internal/teacherapi"
-)
-
-func saveDialogs() teacherapi.Dialogs { return desktop.Dialogs() }
-
-func runDesktop(ctx context.Context, teacherURL string, language func() string, active func() bool, onShutdown func()) error {
-	return desktop.Run(ctx, desktop.Options{TeacherURL: teacherURL, Language: language, SittingActive: active, OnShutdown: onShutdown})
+// newShell creates the desktop shell; see [desktop.New] for the single
+// instance.
+func newShell(language func() string, active func() bool, onShutdown func()) (shell, error) {
+	return desktop.New(desktop.Options{Language: language, SittingActive: active, OnShutdown: onShutdown}), nil
 }
