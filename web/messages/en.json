@@ -102,5 +102,116 @@
         "countPlural=*": "answers of {total}"
       }
     }
-  ]
+  ],
+  "action_cancel": "Cancel",
+  "action_close": "Close",
+  "action_save": "Save",
+  "action_undo": "Undo",
+  "load_failed": "Could not load the data.",
+  "page_coming": "This page is coming soon.",
+  "auth_open_from_app": "Open Klats from the desktop app.",
+  "nav_label": "Sections",
+  "nav_tests": "My tests",
+  "nav_classes": "Classes",
+  "nav_results": "Results",
+  "nav_settings": "Settings",
+  "live_chip_running": "Test running",
+  "live_chip_code": "Code",
+  "banner_port_busy": "Port {port} is used by another program. Students cannot connect.",
+  "banner_port_change": "Change the port",
+  "banner_address_changed": "The student address has changed:",
+  "network_none": "This computer is not on a network, so students cannot connect.",
+  "tests_new": "New test",
+  "tests_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} test",
+        "countPlural=*": "{count} tests"
+      }
+    }
+  ],
+  "tests_questions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "question",
+        "countPlural=*": "questions"
+      }
+    }
+  ],
+  "tests_edited": "Edited {date}",
+  "tests_delete": "Delete the test “{title}”",
+  "tests_deleted": "Test deleted",
+  "tests_delete_failed": "Could not delete the test. Try again.",
+  "tests_empty_title": "Your tests will appear here",
+  "tests_empty_text": "Create your first test: add questions, mark the right answers and start it for a class.",
+  "classes_new": "New class",
+  "classes_students": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} student",
+        "countPlural=*": "{count} students"
+      }
+    }
+  ],
+  "classes_empty_title": "Your classes will appear here",
+  "classes_empty_text": "Create a class and type in the students’ names, or paste a list from Excel or the class register.",
+  "classes_name": "Class name",
+  "classes_paste": "Paste the list from Excel or the class register",
+  "classes_paste_hint": "Select the surname and first-name columns in your spreadsheet, copy them and paste them on the left. Row numbers and headers are dropped.",
+  "classes_found": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "name",
+        "countPlural=*": "names"
+      }
+    }
+  ],
+  "classes_name_required": "Give the class a name of up to 60 characters.",
+  "classes_name_too_long": "This name is too long: “{name}”. Keep only the surname and first name on the line.",
+  "classes_student": "Student {number}",
+  "classes_remove": "Remove {name}",
+  "classes_add_student": "Add a student",
+  "classes_unsaved": "Unsaved changes",
+  "classes_sorted": "Names are in alphabetical order",
+  "classes_revert": "Discard changes",
+  "classes_saved": "Changes saved",
+  "classes_delete": "Delete class",
+  "classes_delete_title": "Delete the class “{name}”?",
+  "classes_delete_text": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "It has {count} student.",
+        "countPlural=*": "It has {count} students."
+      }
+    }
+  ],
+  "classes_deleted": "Class {name} deleted",
+  "settings_address": "Student address",
+  "settings_address_hint": "Students open it in a browser and enter the test code.",
+  "settings_copy": "Copy",
+  "settings_copied": "Address copied",
+  "settings_network": "Network",
+  "settings_network_hint": "This computer is on several networks. Choose the one the students’ computers are on.",
+  "settings_language": "Language",
+  "settings_language_uk": "Українська",
+  "settings_language_en": "English",
+  "settings_port": "Port",
+  "settings_port_hint": "The part of the address after the colon. Change it only if another program uses the port.",
+  "settings_port_label": "Port number",
+  "settings_port_invalid": "A port is a number from 1 to 65535.",
+  "settings_restart": "Changes take effect after Klats restarts",
+  "classes_paste_open": "Paste a list",
+  "classes_paste_add": "Add",
+  "classes_student_placeholder": "Surname and first name",
+  "classes_saved_named": "Changes to {name} saved"
 }

@@ -105,5 +105,121 @@
         "countPlural=*": "відповідей з {total}"
       }
     }
-  ]
+  ],
+  "action_cancel": "Скасувати",
+  "action_close": "Закрити",
+  "action_save": "Зберегти",
+  "action_undo": "Скасувати",
+  "load_failed": "Не вдалося завантажити дані.",
+  "page_coming": "Ця сторінка з’явиться незабаром.",
+  "auth_open_from_app": "Відкрийте Klats через програму на комп’ютері.",
+  "nav_label": "Розділи",
+  "nav_tests": "Мої тести",
+  "nav_classes": "Класи",
+  "nav_results": "Результати",
+  "nav_settings": "Налаштування",
+  "live_chip_running": "Тест триває",
+  "live_chip_code": "Код",
+  "banner_port_busy": "Порт {port} зайнятий іншою програмою. Учні не зможуть підключитися.",
+  "banner_port_change": "Змінити порт",
+  "banner_address_changed": "Адреса для учнів змінилася:",
+  "network_none": "Комп’ютер не підключений до мережі, тож учні не зможуть підключитися.",
+  "tests_new": "Новий тест",
+  "tests_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} тест",
+        "countPlural=few": "{count} тести",
+        "countPlural=*": "{count} тестів"
+      }
+    }
+  ],
+  "tests_questions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "питання",
+        "countPlural=few": "питання",
+        "countPlural=*": "питань"
+      }
+    }
+  ],
+  "tests_edited": "Змінено {date}",
+  "tests_delete": "Видалити тест «{title}»",
+  "tests_deleted": "Тест видалено",
+  "tests_delete_failed": "Не вдалося видалити тест. Спробуйте ще раз.",
+  "tests_empty_title": "Тут будуть ваші тести",
+  "tests_empty_text": "Створіть перший тест: додайте питання, позначте правильні відповіді й запустіть його для класу.",
+  "classes_new": "Новий клас",
+  "classes_students": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} учень",
+        "countPlural=few": "{count} учні",
+        "countPlural=*": "{count} учнів"
+      }
+    }
+  ],
+  "classes_empty_title": "Тут будуть ваші класи",
+  "classes_empty_text": "Створіть клас і впишіть імена учнів або вставте список з Excel чи журналу.",
+  "classes_name": "Назва класу",
+  "classes_paste": "Вставте список з Excel або журналу",
+  "classes_paste_hint": "Виділіть у таблиці стовпці з прізвищами та іменами, скопіюйте їх і вставте ліворуч. Номери рядків і заголовки приберуться самі.",
+  "classes_found": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "ім’я",
+        "countPlural=few": "імені",
+        "countPlural=*": "імен"
+      }
+    }
+  ],
+  "classes_name_required": "Вкажіть назву класу, до 60 символів.",
+  "classes_name_too_long": "Задовге ім’я: «{name}». Залиште в рядку лише прізвище та ім’я.",
+  "classes_student": "Учень {number}",
+  "classes_remove": "Прибрати {name}",
+  "classes_add_student": "Додати учня",
+  "classes_unsaved": "Є незбережені зміни",
+  "classes_sorted": "Імена впорядковано за абеткою",
+  "classes_revert": "Скасувати зміни",
+  "classes_saved": "Зміни збережено",
+  "classes_delete": "Видалити клас",
+  "classes_delete_title": "Видалити клас «{name}»?",
+  "classes_delete_text": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "У ньому {count} учень.",
+        "countPlural=few": "У ньому {count} учні.",
+        "countPlural=*": "У ньому {count} учнів."
+      }
+    }
+  ],
+  "classes_deleted": "Клас {name} видалено",
+  "settings_address": "Адреса для учнів",
+  "settings_address_hint": "Учні відкривають її в браузері й вводять код тесту.",
+  "settings_copy": "Копіювати",
+  "settings_copied": "Адресу скопійовано",
+  "settings_network": "Мережа",
+  "settings_network_hint": "Комп’ютер підключений до кількох мереж. Оберіть ту, у якій комп’ютери учнів.",
+  "settings_language": "Мова",
+  "settings_language_uk": "Українська",
+  "settings_language_en": "English",
+  "settings_port": "Порт",
+  "settings_port_hint": "Частина адреси після двокрапки. Змінюйте її, лише якщо порт зайнятий іншою програмою.",
+  "settings_port_label": "Номер порту",
+  "settings_port_invalid": "Порт — це число від 1 до 65535.",
+  "settings_restart": "Зміни набудуть чинності після перезапуску Klats",
+  "classes_paste_open": "Вставити список",
+  "classes_paste_add": "Додати",
+  "classes_student_placeholder": "Прізвище та ім’я",
+  "classes_saved_named": "Зміни в класі {name} збережено"
 }

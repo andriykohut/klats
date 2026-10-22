@@ -1,0 +1,183 @@
+import type { Problem, Test } from "@klats/shared/generated/testfmt.ts";
+import type {
+  AssignmentResults,
+  AssignmentSummary,
+  Class,
+  ClassSummary,
+  ExportResult,
+  LiveSnapshot,
+  NetworkInfo,
+  OverrideRequest,
+  SaveResult,
+  SettingsInfo,
+  SittingInfo,
+  StartRequest,
+  TestDoc,
+  TestSummary,
+} from "@klats/shared/generated/wire.ts";
+
+/*
+ * One function per teacher API route (internal/teacherapi). Every call is a
+ * same-origin fetch: the launch-token cookie the server set on `/?t=` rides
+ * along, so the app never sees the token.
+ */
+
+/**
+ * An HTTP error from the teacher API. `code` is the body's `error`, such as
+ * "not_found", "invalid", "sitting_active" or "unauthorized"; `problems` is
+ * set for the 409 "has_problems" reply (wire ProblemsError) of a test that
+ * cannot start.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly problems?: Problem[];
+
+  constructor(status: number, code: string, problems?: Problem[]) {
+    super(`HTTP ${status} ${code}`);
+    this.status = status;
+    this.code = code;
+    this.problems = problems;
+  }
+}
+
+/**
+ * Resolves to the JSON reply of `method path`, or undefined for a 204. It
+ * rejects with an {@link ApiError} for an HTTP error, and with the fetch
+ * error when the server cannot be reached.
+ */
+async function call<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const res = await send(method, path, body);
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+async function send(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<Response> {
+  const res = await fetch(path, {
+    method,
+    headers:
+      body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.ok) return res;
+  const data = await res.json().catch(() => ({}));
+  throw new ApiError(res.status, String(data.error ?? ""), data.problems);
+}
+
+const id = encodeURIComponent;
+
+export const listTests = () => call<TestSummary[]>("GET", "/api/tests");
+/** Creates an empty test; an empty title gets the server's default. */
+export const createTest = (title: string) =>
+  call<TestDoc>("POST", "/api/tests", { title });
+export const getTest = (testId: string) =>
+  call<TestDoc>("GET", `/api/tests/${id(testId)}`);
+/** Saves the whole test. Problems never block a save; they come back in the result. */
+export const saveTest = (testId: string, test: Test) =>
+  call<SaveResult>("PUT", `/api/tests/${id(testId)}`, test);
+export const deleteTest = (testId: string) =>
+  call<void>("DELETE", `/api/tests/${id(testId)}`);
+
+export const listClasses = () => call<ClassSummary[]>("GET", "/api/classes");
+/** Creates a class; the reply lists the students in Ukrainian order. */
+export const createClass = (c: Pick<Class, "name" | "students">) =>
+  call<Class>("POST", "/api/classes", { id: "", ...c });
+/** Returns the student names found in pasted text, in paste order. */
+export const parseClass = (text: string) =>
+  call<{ names: string[] }>("POST", "/api/classes/parse", { text });
+export const getClass = (classId: string) =>
+  call<Class>("GET", `/api/classes/${id(classId)}`);
+/**
+ * Renames the class and makes its students match `c.students`: students with
+ * an id are renamed, those without one are added, and those left out are
+ * removed. The reply lists them in Ukrainian order.
+ */
+export const saveClass = (c: Class) =>
+  call<Class>("PUT", `/api/classes/${id(c.id)}`, c);
+export const deleteClass = (classId: string) =>
+  call<void>("DELETE", `/api/classes/${id(classId)}`);
+
+/**
+ * Starts a sitting. A test with blocking problems rejects with an ApiError
+ * whose `problems` lists them; another running sitting rejects with code
+ * "sitting_active".
+ */
+export const startSitting = (req: StartRequest) =>
+  call<SittingInfo>("POST", "/api/sittings", req);
+
+/**
+ * Resolves to the live view of the running sitting, or of the last ended one
+ * (`sitting.ended`), or to null when no sitting has run since launch.
+ */
+export async function live(): Promise<LiveSnapshot | null> {
+  const snap = await call<LiveSnapshot>("GET", "/api/sittings/current");
+  return snap.sitting.sittingId ? snap : null;
+}
+
+export const endSitting = () =>
+  call<void>("POST", "/api/sittings/current/end", {});
+export const kick = (participantId: string) =>
+  call<void>("POST", `/api/participants/${id(participantId)}/kick`, {});
+/** Moves a participant onto the device with token `device`. */
+export const move = (participantId: string, device: string) =>
+  call<void>("POST", `/api/participants/${id(participantId)}/move`, { device });
+/** Answers a pinned event with one of its `actions`. */
+export const resolveEvent = (eventId: string, action: string) =>
+  call<void>("POST", `/api/events/${id(eventId)}/resolve`, { action });
+/** Renames a device; the label is 1 to 20 characters. */
+export const renameDevice = (token: string, label: string) =>
+  call<void>("PUT", `/api/devices/${id(token)}`, { label });
+
+export const listAssignments = () =>
+  call<AssignmentSummary[]>("GET", "/api/assignments");
+export const results = (assignmentId: string) =>
+  call<AssignmentResults>(
+    "GET",
+    `/api/assignments/${id(assignmentId)}/results`,
+  );
+/** Sets a question's points for a participant (clears the override when `points` is absent) and returns the new results. */
+export const setOverride = (assignmentId: string, req: OverrideRequest) =>
+  call<AssignmentResults>(
+    "PUT",
+    `/api/assignments/${id(assignmentId)}/overrides`,
+    req,
+  );
+
+/**
+ * Exports the results workbook. In the desktop app the teacher picks the file
+ * in a save dialog: it resolves to where it was saved, or to null when the
+ * dialog was cancelled. Without the desktop window (`klats -dev`) it resolves
+ * to the workbook itself. A file that cannot be replaced, such as one open in
+ * Excel, rejects with code "write_failed".
+ */
+export async function exportResults(
+  assignmentId: string,
+): Promise<ExportResult | Blob | null> {
+  const res = await send(
+    "POST",
+    `/api/assignments/${id(assignmentId)}/export`,
+    {},
+  );
+  if (res.status === 204) return null;
+  if (res.headers.get("Content-Type")?.startsWith("application/json")) {
+    return res.json();
+  }
+  return res.blob();
+}
+
+export const getNetwork = () => call<NetworkInfo>("GET", "/api/network");
+/** Chooses the LAN address students use; it must be one of the candidates. */
+export const setAddress = (address: string) =>
+  call<NetworkInfo>("PUT", "/api/network", { address });
+export const getSettings = () => call<SettingsInfo>("GET", "/api/settings");
+/** Saves the language and the student port; a new port applies at the next launch. */
+export const saveSettings = (s: Pick<SettingsInfo, "port" | "language">) =>
+  call<SettingsInfo>("PUT", "/api/settings", s);
