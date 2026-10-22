@@ -12,7 +12,11 @@ const storageEvent = (key: string) =>
 const pageEvent = (type: string, persisted: boolean) =>
   Object.assign(new Event(type), { persisted });
 
-const otherTab = () => JSON.stringify({ id: "other-tab", at: Date.now() });
+const otherTab = (at = Date.now()) => JSON.stringify({ id: "other-tab", at });
+
+/** The time of the lease stored under `key`. */
+const leaseTime = (key: string): number =>
+  JSON.parse(localStorage.getItem(key) ?? "null")?.at;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -21,6 +25,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unloading releases this document's claims, which outlive a test.
+  window.dispatchEvent(pageEvent("pagehide", false));
   vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -29,10 +35,10 @@ afterEach(() => {
 test("second tab is refused", () => {
   expect(claimTab("k", noop)).not.toBeNull();
   expect(claimTab("k", noop)).toBeNull();
-  // The holder keeps its lease fresh.
-  vi.advanceTimersByTime(60_000);
-  expect(claimTab("k", noop)).toBeNull();
   expect(claimTab("other", noop)).not.toBeNull();
+  // The holder keeps its lease fresh for the other tabs.
+  vi.advanceTimersByTime(60_000);
+  expect(Date.now() - leaseTime("k")).toBeLessThan(5_000);
 });
 
 test("release, or leaving the page, frees the claim at once", () => {
@@ -45,19 +51,14 @@ test("release, or leaving the page, frees the claim at once", () => {
   expect(claimTab("p", noop)).not.toBeNull();
 });
 
-test("a lease left stale for 15 s is taken over, and its holder told once", () => {
-  const lost = vi.fn();
-  claimTab("k", lost);
-  // The holder's refresh stops, as in a crashed or throttled tab.
-  vi.clearAllTimers();
+test("another tab's lease left stale for 15 s is taken over", () => {
+  // Another tab claimed and then stopped refreshing, as a crashed or
+  // throttled tab does.
+  localStorage.setItem("k", otherTab());
   vi.advanceTimersByTime(14_999);
   expect(claimTab("k", noop)).toBeNull();
   vi.advanceTimersByTime(1);
   expect(claimTab("k", noop)).not.toBeNull();
-
-  window.dispatchEvent(storageEvent("k"));
-  window.dispatchEvent(storageEvent("k"));
-  expect(lost).toHaveBeenCalledTimes(1);
 });
 
 test("a holder told of a takeover stops refreshing", () => {
@@ -68,6 +69,7 @@ test("a holder told of a takeover stops refreshing", () => {
 
   const taken = otherTab();
   localStorage.setItem("k", taken);
+  window.dispatchEvent(storageEvent("k"));
   window.dispatchEvent(storageEvent("k"));
   expect(lost).toHaveBeenCalledTimes(1);
   vi.advanceTimersByTime(10_000);
@@ -125,4 +127,36 @@ test("a lease that cannot be written still claims, and the refresh carries on", 
   setItem.mockRestore();
   vi.advanceTimersByTime(5_000);
   expect(localStorage.getItem("k")).not.toBeNull();
+});
+
+const storageFull = () =>
+  vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+
+test("with storage full, a crashed tab's stale lease never takes the claim away", () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  localStorage.setItem("k", otherTab(Date.now() - 60_000));
+  storageFull();
+  const lost = vi.fn();
+  expect(claimTab("k", lost)).not.toBeNull();
+  vi.advanceTimersByTime(60_000);
+  expect(lost).not.toHaveBeenCalled();
+
+  // A reload claims again.
+  window.dispatchEvent(pageEvent("pagehide", false));
+  expect(claimTab("k", noop)).not.toBeNull();
+});
+
+test("with storage full, a second claim in the same document is still refused", () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  storageFull();
+  const release = claimTab("k", noop);
+  expect(release).not.toBeNull();
+  expect(claimTab("k", noop)).toBeNull();
+  release?.();
+  expect(claimTab("k", noop)).not.toBeNull();
+  // Releasing the old claim again leaves the new one alone.
+  release?.();
+  expect(claimTab("k", noop)).toBeNull();
 });

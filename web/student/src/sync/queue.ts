@@ -4,37 +4,43 @@ import type {
 } from "@klats/shared/generated/wire.ts";
 import { readStored } from "./storage";
 
-/**
- * How far above the server's seqs a fresh device numbers its changes. A
- * device the student was moved off still holds its unsent answers, and their
- * seqs are at most its last synced seq plus its offline edits, far below a
- * million. Numbering the new device's changes from the server's seq plus this
- * gap means whatever the student answers there beats the old device's
- * leftovers, while those still fill the questions the new device has not
- * answered: the newest version wins, as the spec's merge requires. Seqs stay
- * far below 2^53 even after many moves.
- */
-const FRESH_DEVICE_SEQ_GAP = 1_000_000;
-
-/** A local answer; the next change of its question must exceed `base` too. */
-type Answer = StoredAnswer & { base?: number };
-
 /** What an {@link AnswerQueue} keeps in storage under its key. */
 interface Saved {
   v: 1;
-  /** The seq a question without a local answer numbers its changes above. */
-  floor: number;
-  answers: Answer[];
+  /** The seq base of the last restore, which every change must exceed. */
+  seqBase: number;
+  answers: StoredAnswer[];
   pending: AnswerChange[];
 }
+
+const isAnswer = (value: unknown): value is StoredAnswer => {
+  const a = value as StoredAnswer | null;
+  return (
+    typeof a?.questionId === "string" &&
+    Array.isArray(a.optionIds) &&
+    a.optionIds.every((id) => typeof id === "string") &&
+    typeof a.seq === "number"
+  );
+};
+
+const isChange = (value: unknown): value is AnswerChange => {
+  const c = value as AnswerChange | null;
+  return (
+    isAnswer(value) &&
+    typeof c?.changeId === "string" &&
+    typeof c.participantId === "string"
+  );
+};
 
 const isSaved = (value: unknown): value is Saved => {
   const s = value as Saved | null;
   return (
     s?.v === 1 &&
-    typeof s.floor === "number" &&
+    typeof s.seqBase === "number" &&
     Array.isArray(s.answers) &&
-    Array.isArray(s.pending)
+    s.answers.every(isAnswer) &&
+    Array.isArray(s.pending) &&
+    s.pending.every(isChange)
   );
 };
 
@@ -46,11 +52,15 @@ const isSaved = (value: unknown): value is Saved => {
  *
  * Each question numbers its changes with a `seq` that only goes up, across
  * reloads and {@link AnswerQueue.restore}, because the server keeps the
- * change with the highest seq. On a queue whose storage held nothing usable
- * (a fresh device, cleared storage, or unreadable state), call `restore`
- * before the first `set`: that first restore numbers later changes from the
- * server's seqs plus {@link FRESH_DEVICE_SEQ_GAP}. A queue that is `set`
- * without a restore starts at seq 1.
+ * change with the highest seq. Every change also exceeds the seq base the
+ * last restore was given: the server's `TestResponse.seqBase`, which rises by
+ * a million each time the teacher moves the student to another device. The
+ * device moved off numbers its changes from the previous base, so as long as
+ * fewer than a million changes are made to one question between two moves,
+ * whatever the student answers on the new device outranks every change the
+ * old one still holds, and the old device's leftovers only fill questions
+ * the new one never answered. A queue that is `set` before any restore
+ * starts at seq 1.
  *
  * Only the newest unacked change of a question is pending: a newer one
  * replaces it, since the server would ignore the older one anyway.
@@ -64,10 +74,9 @@ export class AnswerQueue {
   private readonly storage: Storage;
   private readonly key: string;
   private readonly participantId: string;
-  private readonly answers: Map<string, Answer>;
+  private readonly answers: Map<string, StoredAnswer>;
   private changes: AnswerChange[];
-  private floor: number;
-  private fresh: boolean;
+  private seqBase: number;
   private failed = false;
 
   /** Loads what `storage` holds under `key`, or starts empty. */
@@ -78,8 +87,7 @@ export class AnswerQueue {
     const saved = readStored(storage, key, isSaved);
     this.answers = new Map(saved?.answers.map((a) => [a.questionId, a]));
     this.changes = saved?.pending ?? [];
-    this.floor = saved?.floor ?? 0;
-    this.fresh = saved === null;
+    this.seqBase = saved?.seqBase ?? 0;
   }
 
   /**
@@ -95,8 +103,8 @@ export class AnswerQueue {
    * replaces any unacked change of that question.
    */
   set(questionId: string, optionIds: string[]): AnswerChange {
-    const last = this.answers.get(questionId);
-    const seq = Math.max(last?.seq ?? 0, last?.base ?? this.floor) + 1;
+    const last = this.answers.get(questionId)?.seq ?? 0;
+    const seq = Math.max(last, this.seqBase) + 1;
     const change: AnswerChange = {
       changeId: newChangeId(),
       participantId: this.participantId,
@@ -107,7 +115,6 @@ export class AnswerQueue {
     this.answers.set(questionId, { questionId, optionIds, seq });
     this.changes = this.changes.filter((c) => c.questionId !== questionId);
     this.changes.push(change);
-    this.fresh = false;
     this.save();
     return change;
   }
@@ -133,26 +140,23 @@ export class AnswerQueue {
    * Merges the answers the server holds. A local answer with a higher seq
    * than the server's stays, and stays pending; otherwise the server's answer
    * and seq replace it and its unacked change is dropped. Questions the server
-   * does not list keep their local answer. On a fresh queue (see the class
-   * doc) it also sets the seq gap.
+   * does not list keep their local answer. Every later change, to any
+   * question, exceeds `seqBase` (the server's `TestResponse.seqBase`).
    */
-  restore(server: StoredAnswer[]): void {
-    if (this.fresh) this.floor = FRESH_DEVICE_SEQ_GAP;
+  restore(server: StoredAnswer[], seqBase: number): void {
+    this.seqBase = seqBase;
     for (const s of server) {
-      const local = this.answers.get(s.questionId);
-      if ((local?.seq ?? 0) > s.seq) continue;
-      const base = this.fresh ? s.seq + FRESH_DEVICE_SEQ_GAP : local?.base;
-      this.answers.set(s.questionId, { ...s, base });
+      if ((this.answers.get(s.questionId)?.seq ?? 0) > s.seq) continue;
+      this.answers.set(s.questionId, s);
       this.changes = this.changes.filter((c) => c.questionId !== s.questionId);
     }
-    this.fresh = false;
     this.save();
   }
 
   private save(): void {
     const saved: Saved = {
       v: 1,
-      floor: this.floor,
+      seqBase: this.seqBase,
       answers: [...this.answers.values()],
       pending: this.changes,
     };

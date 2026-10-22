@@ -67,10 +67,12 @@ export interface Transport {
  *
  * Each cycle submits every pending change in chunks of 100, then heartbeats,
  * then, if both went through, submits what was set during the heartbeat. A
- * failed or refused submit does not hold the heartbeat back. Cycles run every
- * 5 s while online, counted from the last pass that sent a request. Only one
- * request is in flight at a time, so a heartbeat's `pending` counts every
- * unacked change, and a submit's counts those left after it.
+ * refused submit does not hold the heartbeat back; after a failed one the
+ * heartbeat is skipped, so a cycle counts at most one failure. Cycles run
+ * every 5 s while online, counted from the last pass the server accepted;
+ * submits between cycles that fail or are refused never put the next cycle
+ * off. Only one request is in flight at a time, so a heartbeat's `pending`
+ * counts every unacked change, and a submit's counts those left after it.
  *
  * A request fails on a network error, or when no response arrives within 8 s,
  * which also aborts it. Two consecutive failures mean offline; then cycles
@@ -97,12 +99,15 @@ export class Connection {
   private want: "none" | "flush" | "cycle" = "none";
   private timer: ReturnType<typeof setTimeout> | undefined;
   private request: AbortController | undefined;
-  /**
-   * Whether the current pass sent a request, and whether the next cycle backs
-   * off: after an HTTP error response, or an error thrown in the pass.
-   */
+  /** Whether the current pass sent a request. */
   private sent = false;
+  /**
+   * Whether the current pass got an HTTP error response, or threw: the next
+   * cycle then backs off.
+   */
   private refused = false;
+  /** Whether a request of the current pass failed (a network failure). */
+  private dropped = false;
   private reported: { state: ConnectionState; pending: number } | undefined;
   private stateListener:
     | ((state: ConnectionState, pending: number) => void)
@@ -199,15 +204,18 @@ export class Connection {
         if (beat) clearTimeout(this.timer);
         this.sent = false;
         this.refused = false;
+        this.dropped = false;
         try {
           await this.pass(beat);
         } catch (err) {
           console.error(err);
           this.refused = true;
         }
-        // A pass that sent nothing keeps the heartbeat's deadline.
-        const sched = beat || this.sent || this.refused;
-        if (this.running && sched) this.schedule();
+        // A flush pass moves the next cycle's deadline only when the server
+        // took what it sent: one that sent nothing, or failed, or was refused
+        // leaves it, so answering quickly never holds the heartbeat back.
+        const took = this.sent && !this.refused && !this.dropped;
+        if (this.running && (beat || took)) this.schedule();
       }
     } finally {
       this.busy = false;
@@ -216,11 +224,16 @@ export class Connection {
 
   private async pass(beat: boolean): Promise<void> {
     const flushed = await this.flushAll();
-    if (!beat || this.want === "cycle") return;
+    // After a network failure the heartbeat could not get through either, and
+    // counting it too would let one blip mean offline.
+    if (!beat || this.dropped || this.want === "cycle") return;
     if ((await this.heartbeat()) && flushed) await this.flushAll();
   }
 
-  /** Sets the next cycle's timer, unless one is already queued (by setBase). */
+  /**
+   * Sets the next cycle's timer, unless a cycle is already queued: by
+   * setBase, or by the timer firing during a flush pass.
+   */
   private schedule(): void {
     if (this.want === "cycle") return;
     clearTimeout(this.timer);
@@ -304,6 +317,7 @@ export class Connection {
   }
 
   private failed(): void {
+    this.dropped = true;
     if (++this.failures >= OFFLINE_AFTER) this.state = "offline";
     this.emit();
   }

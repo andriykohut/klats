@@ -394,7 +394,7 @@ test("a storage write failing during ack loses nothing and stops nothing", async
   expect(reloaded.pending().map((c) => c.questionId)).toEqual(["q2"]);
 });
 
-test("a failed or refused submit does not hold the heartbeat back", async () => {
+test("a refused submit lets the heartbeat through; a failed one skips it", async () => {
   const { conn, queue, submit, log } = setup();
   submit
     .mockImplementationOnce(offline)
@@ -402,11 +402,11 @@ test("a failed or refused submit does not hold the heartbeat back", async () => 
   queue.set("q1", ["a"]);
   conn.start();
   await until(0);
-  expect(log).toEqual(["submit 1 left 0", "heartbeat 1"]);
+  expect(log).toEqual(["submit 1 left 0"]);
   await until(5000);
-  expect(log.slice(2)).toEqual(["submit 1 left 0", "heartbeat 1"]);
+  expect(log.slice(1)).toEqual(["submit 1 left 0", "heartbeat 1"]);
   await until(6000);
-  expect(log.slice(4)).toEqual(["submit 1 left 0", "heartbeat 0"]);
+  expect(log.slice(3)).toEqual(["submit 1 left 0", "heartbeat 0"]);
 });
 
 test("an empty flush or drain does not put the heartbeat off", async () => {
@@ -451,4 +451,89 @@ test("an error thrown inside a cycle is logged and the next cycle still runs", a
   await until(1000);
   expect(submit).toHaveBeenCalledTimes(2);
   expect(queue.pending()).toEqual([]);
+});
+
+test("refused submits while the student keeps answering never hold the heartbeat back", async () => {
+  const { conn, queue, submit, heartbeat } = setup();
+  submit.mockRejectedValue(new ApiError(500, "internal"));
+  const beats: number[] = [];
+  heartbeat.mockImplementation(async () => {
+    beats.push(Date.now());
+    return WRITING;
+  });
+  conn.start();
+  for (let at = 0; at <= 60_000; at += 4000) {
+    await until(at);
+    queue.set(`q${at}`, ["a"]);
+    conn.flush();
+  }
+  const gaps = beats.slice(1).map((t, i) => t - (beats[i] ?? 0));
+  expect(beats.length).toBeGreaterThan(7);
+  expect(Math.max(...gaps)).toBeLessThanOrEqual(8000);
+});
+
+test("one network blip never shows offline; two failed cycles do", async () => {
+  const { conn, queue, submit, heartbeat, states } = setup();
+  let down = [5000, 5050];
+  const isDown = () => Date.now() >= down[0] && Date.now() < down[1];
+  submit.mockImplementation((base, req) =>
+    isDown() ? offline() : ackAll(base, req),
+  );
+  heartbeat.mockImplementation(() =>
+    isDown() ? offline() : Promise.resolve(WRITING),
+  );
+  conn.start();
+  // Set without a flush, so the change goes with the 5 s cycle.
+  await until(4999);
+  queue.set("q1", ["a"]);
+  await until(20000);
+  expect(states.filter((s) => s.startsWith("offline"))).toEqual([]);
+
+  down = [25000, 31000];
+  await until(24999);
+  queue.set("q2", ["b"]);
+  await until(29999);
+  expect(states.filter((s) => s.startsWith("offline"))).toEqual([]);
+  await until(30000);
+  expect(states.at(-1)).toBe("offline 1");
+});
+
+test("setBase during an offline retry adds no backoff step", async () => {
+  const { conn, heartbeat } = setup();
+  heartbeat.mockImplementation(offline);
+  conn.start();
+  await until(5000);
+  heartbeat.mockImplementationOnce(() => new Promise(() => {}));
+  await until(6500);
+  conn.setBase("http://10.0.0.5:8080");
+  await until(6500);
+  expect(heartbeat).toHaveBeenCalledTimes(4);
+  // The failure at the new base is the second offline retry: 2 s, not 4 s.
+  await until(8499);
+  expect(heartbeat).toHaveBeenCalledTimes(4);
+  await until(8500);
+  expect(heartbeat).toHaveBeenCalledTimes(5);
+});
+
+test("setBase during a submit starts a fresh cycle, with no heartbeat in between", async () => {
+  const { conn, queue, submit, log } = setup();
+  submit.mockImplementationOnce(() => new Promise(() => {}));
+  queue.set("q1", ["a"]);
+  conn.start();
+  await until(1000);
+  conn.setBase("http://10.0.0.5:8080");
+  await until(1000);
+  expect(log).toEqual(["submit 1 left 0", "submit 1 left 0", "heartbeat 0"]);
+});
+
+test("a submit that fails between cycles does not put the next cycle off", async () => {
+  const { conn, queue, submit, heartbeat } = setup();
+  submit.mockImplementationOnce(offline);
+  conn.start();
+  await until(4000);
+  queue.set("q1", ["a"]);
+  conn.flush();
+  await until(5000);
+  expect(submit).toHaveBeenCalledTimes(2);
+  expect(heartbeat).toHaveBeenCalledTimes(2);
 });
