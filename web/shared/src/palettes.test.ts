@@ -15,15 +15,15 @@ function over(fg: string, alpha: number, bg: string): string {
 
 /**
  * Every colour pair the student screens draw: text at 4.5:1, focus rings and
- * progress fill at 3:1. The grade ring's arc is left out, since the grade
- * itself is written inside it.
+ * answered-against-open states at 3:1. The grade ring's arc is left out, since
+ * the grade itself is written inside it.
  */
 const PAIRS: [string, (p: Palette) => [string, string], number][] = [
   ["question text and titles on the sheet", (p) => [p.ink, WHITE], 4.5],
   ["question number, grade and badge letter", (p) => [p.sel, WHITE], 4.5],
   ["«з N», key hint and «з 12» on the sheet", (p) => [p.muted, WHITE], 4.5],
   ["answer mode chip", (p) => [p.sel, p.soft], 4.5],
-  ["tile, grid cell and finish chip text", (p) => [p.ink, p.tile], 4.5],
+  ["tile and finish chip text", (p) => [p.ink, p.tile], 4.5],
   ["key caps", (p) => [p.sel, p.tile], 4.5],
   ["selected tile text", (p) => [WHITE, p.sel], 4.5],
   ["text and check mark on the accent", (p) => [p.ink, p.accent], 4.5],
@@ -36,6 +36,9 @@ const PAIRS: [string, (p: Palette) => [string, string], number][] = [
   ["focus ring on the field", (p) => [p.focus, p.field], 3],
   ["focus ring beside a tile", (p) => [p.focus, p.tile], 3],
   ["answered progress segment", (p) => [p.accent, p.track], 3],
+  ["number on an open question grid cell", (p) => [WHITE, p.track], 4.5],
+  ["number on an answered question grid cell", (p) => [p.ink, p.accent], 4.5],
+  ["answered against open question grid cell", (p) => [p.accent, p.track], 3],
 ];
 
 test("contrast spans 1 to 21", () => {
