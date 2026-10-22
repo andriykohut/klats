@@ -21,6 +21,7 @@ lint:
 
 test:
 	go test ./...
+	cd web && pnpm install && pnpm -r --if-present test
 
 typecheck:
 	cd web && pnpm install && pnpm -r --if-present typecheck

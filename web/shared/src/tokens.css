@@ -1,0 +1,37 @@
+/*
+ * Design tokens for the student components. Colours come from the palette
+ * (applyPalette sets the --k-<colour> variables); everything else is here.
+ *
+ * Sizes are written in pixels of the 1280×720 design and multiplied by
+ * --k-px, so the whole screen scales with the space it has: 0.8 at 1024×768,
+ * 1.5 at 1920×1080. Container query units fall back to the viewport when no
+ * ancestor is a size container, so a preview pane sets `container-type: size`
+ * to scale the components to itself.
+ */
+:root {
+  --k-px: max(0.75px, min(100cqw / 1280, 100cqh / 720));
+
+  --k-font-display: Unbounded, "Segoe UI", system-ui, sans-serif;
+  --k-font-text: Manrope, "Segoe UI", system-ui, sans-serif;
+
+  --k-radius-sheet: calc(30 * var(--k-px));
+  --k-radius-tile: calc(20 * var(--k-px));
+  --k-radius-badge: calc(14 * var(--k-px));
+  --k-radius-chip: calc(16 * var(--k-px));
+
+  /* How far a tile or button stands above its base; pressing sinks it. */
+  --k-depth: calc(6 * var(--k-px));
+
+  --k-shadow-sheet: 0 calc(30 * var(--k-px)) calc(60 * var(--k-px))
+    calc(-24 * var(--k-px)) rgba(10, 6, 80, 0.6);
+  --k-shadow-float: 0 calc(12 * var(--k-px)) calc(28 * var(--k-px))
+    calc(-10 * var(--k-px)) rgba(10, 6, 60, 0.55);
+
+  /* Confirmation dot: answers sent, result delivered. */
+  --k-ok: #20c98b;
+
+  --k-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --k-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --k-dur-fast: 0.2s;
+  --k-dur-fill: 0.6s;
+}

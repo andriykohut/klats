@@ -1,0 +1,36 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "of_total": "з {total}",
+  "answer_single": "Одна відповідь",
+  "answer_multi": "Кілька відповідей",
+  "keys_or": "або",
+  "keys_choose": "обирають відповідь,",
+  "keys_next": "переходить далі",
+  "progress_label": "Прогрес",
+  "progress_value": "Відповідей: {answered} з {total}",
+  "progress_question_answered": "Питання {number}, є відповідь",
+  "progress_question_open": "Питання {number}, без відповіді",
+  "progress_all": "Усі питання",
+  "finish_title": "Тест завершено",
+  "finish_grade": "Оцінка {grade} з 12",
+  "finish_correct": "Правильно: {correct} з {total}",
+  "finish_sent": "Результат надіслано вчителю",
+  "finish_waiting": "Роботу збережено, оцінка з’явиться після відновлення зв’язку",
+  "toast_offline": "Немає зв’язку. Відповіді збережено",
+  "toast_offline_pending": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} відповідь на цьому комп’ютері, надішлемо її, щойно повернеться зв’язок",
+        "countPlural=few": "{count} відповіді на цьому комп’ютері, надішлемо їх, щойно повернеться зв’язок",
+        "countPlural=*": "{count} відповідей на цьому комп’ютері, надішлемо їх, щойно повернеться зв’язок"
+      }
+    }
+  ],
+  "toast_offline_none": "Нові відповіді теж збережуться на цьому комп’ютері",
+  "toast_syncing": "Надсилаємо відповіді…",
+  "toast_syncing_pending": "Залишилося: {count}",
+  "toast_online": "Зв’язок відновлено",
+  "toast_all_sent": "Усі відповіді надіслано"
+}
