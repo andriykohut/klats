@@ -2,11 +2,9 @@ import { motion, useReducedMotionConfig } from "motion/react";
 import { CheckboxButton, CheckboxField } from "react-aria-components/Checkbox";
 import { RadioButton, RadioField } from "react-aria-components/RadioGroup";
 import { type RichDoc, RichView } from "../rich/RichView";
+import { BADGE_LETTERS } from "./badges";
 import { popIn } from "./motion";
 import "./student-ui.css";
-
-/** Badge letters for options 1–9, matching the number keys; Ґ is skipped. */
-export const BADGE_LETTERS = ["А", "Б", "В", "Г", "Д", "Е", "Є", "Ж", "З"];
 
 export interface AnswerTileProps {
   /** Option id, the value the surrounding group selects. */

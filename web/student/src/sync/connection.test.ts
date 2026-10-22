@@ -37,9 +37,9 @@ function fakeTransport() {
   return { transport, submit, heartbeat, log };
 }
 
-function setup() {
+function setup(storage = memoryStorage()) {
   const t = fakeTransport();
-  const queue = new AnswerQueue(memoryStorage(), "k", "p1");
+  const queue = new AnswerQueue(storage, "k", "p1");
   const conn = new Connection(t.transport, queue);
   const states: string[] = [];
   conn.onState((state, pending) => states.push(`${state} ${pending}`));
@@ -56,7 +56,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
+
+/** Silences and returns console.error, which the code logs swallowed errors to. */
+const consoleError = () =>
+  vi.spyOn(console, "error").mockImplementation(() => {});
 
 test("goes offline after two failed heartbeats and flushes on recovery", async () => {
   const { conn, queue, heartbeat, submit, log, states } = setup();
@@ -102,6 +107,15 @@ test("retries after 1, 2, 4, 8 and then every 8 s offline, and beats every 5 s o
   expect(heartbeat).toHaveBeenCalledTimes(8);
   await until(41000);
   expect(heartbeat).toHaveBeenCalledTimes(9);
+
+  // A second outage starts the backoff over at 1 s.
+  heartbeat.mockImplementation(offline);
+  await until(51000);
+  expect(heartbeat).toHaveBeenCalledTimes(11);
+  await until(51999);
+  expect(heartbeat).toHaveBeenCalledTimes(11);
+  await until(52000);
+  expect(heartbeat).toHaveBeenCalledTimes(12);
 });
 
 test("chunks submits at 100 changes, each reporting what is left after it", async () => {
@@ -173,7 +187,9 @@ test("rejected changes are acked and never resent", async () => {
 });
 
 test("HTTP errors keep the changes and back off, but never go offline", async () => {
-  const { conn, queue, submit, log, states } = setup();
+  const { conn, queue, submit, heartbeat, log, states } = setup();
+  // The first cycle's submit and heartbeat are both refused.
+  heartbeat.mockRejectedValueOnce(new ApiError(503, "internal"));
   submit
     .mockRejectedValueOnce(new ApiError(503, "internal"))
     .mockRejectedValueOnce(new ApiError(429, "rate_limited"))
@@ -184,13 +200,15 @@ test("HTTP errors keep the changes and back off, but never go offline", async ()
   await until(14999);
   expect(submit).toHaveBeenCalledTimes(4);
   expect(queue.pending()).toHaveLength(1);
+  // Each refused submit is followed by a heartbeat, which counts the change.
+  expect(log.filter((l) => l === "heartbeat 1")).toHaveLength(4);
   await until(15000);
   expect(log.at(-1)).toBe("heartbeat 0");
   expect(states).toEqual(["online 1", "online 0"]);
 });
 
-test("statuses reach onStatus, nulls as undefined, and a kicked 403 as kicked", async () => {
-  const { conn, queue, submit, heartbeat } = setup();
+test("statuses reach onStatus with nulls as undefined", async () => {
+  const { conn, heartbeat } = setup();
   const statuses: Status[] = [];
   conn.onStatus((s) => statuses.push(s));
   const result = { grade: 9, correct: 7, total: 10 };
@@ -205,13 +223,6 @@ test("statuses reach onStatus, nulls as undefined, and a kicked 403 as kicked", 
   expect(statuses).toEqual([
     { state: "ended", remainingMs: undefined, result },
   ]);
-
-  submit.mockRejectedValue(new ApiError(403, "kicked"));
-  queue.set("q1", ["a"]);
-  conn.flush();
-  await until(0);
-  expect(statuses.at(-1)).toEqual({ state: "kicked" });
-  expect(queue.pending()).toHaveLength(1);
 });
 
 test("a request unanswered for 8 s is aborted and counts as a failure", async () => {
@@ -269,7 +280,9 @@ test("after stop it sends nothing and leaves the queue alone", async () => {
   queue.set("q1", ["a"]);
   conn.start();
   await until(0);
+  const drained = conn.drain();
   conn.stop();
+  await expect(drained).resolves.toBe(false);
   answer();
   queue.set("q2", ["b"]);
   conn.flush();
@@ -277,6 +290,28 @@ test("after stop it sends nothing and leaves the queue alone", async () => {
   expect(submit).toHaveBeenCalledTimes(1);
   expect(heartbeat).not.toHaveBeenCalled();
   expect(queue.pending()).toHaveLength(2);
+});
+
+test("a failure after stop reaches no listener", async () => {
+  const { conn, queue, submit, heartbeat, states } = setup();
+  heartbeat.mockImplementationOnce(offline);
+  let fail = () => {};
+  submit.mockImplementationOnce(
+    () =>
+      new Promise((_, reject) => {
+        fail = () => reject(new TypeError("Failed to fetch"));
+      }),
+  );
+  conn.start();
+  await until(0);
+  queue.set("q1", ["a"]);
+  conn.flush();
+  await until(0);
+  conn.stop();
+  // A second failure would mean offline, had it counted.
+  fail();
+  await until(0);
+  expect(states).toEqual(["online 0", "online 1"]);
 });
 
 test("a listener that stops it ends the cycle at once", async () => {
@@ -287,4 +322,133 @@ test("a listener that stops it ends the cycle at once", async () => {
   await until(60000);
   expect(submit).toHaveBeenCalledTimes(1);
   expect(heartbeat).not.toHaveBeenCalled();
+});
+
+test("a kicked device reports it once, then sends nothing more", async () => {
+  const { conn, queue, submit, heartbeat } = setup();
+  const statuses: Status[] = [];
+  conn.onStatus((s) => statuses.push(s));
+  submit.mockRejectedValue(new ApiError(403, "kicked"));
+  queue.set("q1", ["a"]);
+  conn.start();
+  const drained = conn.drain();
+  await until(60000);
+  expect(statuses).toEqual([{ state: "kicked" }]);
+  expect(submit).toHaveBeenCalledTimes(1);
+  expect(heartbeat).not.toHaveBeenCalled();
+  await expect(drained).resolves.toBe(false);
+
+  // A heartbeat answers a kicked device with 200 and the kicked status.
+  const beat = setup();
+  const told = vi.fn();
+  beat.conn.onStatus(told);
+  beat.heartbeat.mockResolvedValue({ state: "kicked" });
+  beat.conn.start();
+  await until(120000);
+  expect(told).toHaveBeenCalledTimes(1);
+  expect(beat.heartbeat).toHaveBeenCalledTimes(1);
+});
+
+test("a throwing listener is logged and never stops syncing", async () => {
+  const error = consoleError();
+  const { conn, queue, submit, heartbeat } = setup();
+  conn.onState(() => {
+    throw new Error("state listener");
+  });
+  const statuses = vi.fn().mockImplementationOnce(() => {
+    throw new Error("status listener");
+  });
+  conn.onStatus(statuses);
+  conn.start();
+  await until(5000);
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(statuses).toHaveBeenCalledTimes(2);
+
+  queue.set("q1", ["a"]);
+  conn.flush();
+  await expect(conn.drain()).resolves.toBe(true);
+  expect(submit).toHaveBeenCalledTimes(1);
+  expect(error).toHaveBeenCalled();
+});
+
+test("a storage write failing during ack loses nothing and stops nothing", async () => {
+  const error = consoleError();
+  const storage = memoryStorage();
+  const { conn, queue, heartbeat } = setup(storage);
+  queue.set("q1", ["a"]);
+  vi.spyOn(storage, "setItem").mockImplementationOnce(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+  conn.start();
+  await until(5000);
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  expect(queue.saveFailed).toBe(true);
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(queue.current("q1")).toEqual(["a"]);
+
+  // The next write saves the whole state again.
+  queue.set("q2", ["b"]);
+  expect(queue.saveFailed).toBe(false);
+  const reloaded = new AnswerQueue(storage, "k", "p1");
+  expect(reloaded.current("q1")).toEqual(["a"]);
+  expect(reloaded.pending().map((c) => c.questionId)).toEqual(["q2"]);
+});
+
+test("a failed or refused submit does not hold the heartbeat back", async () => {
+  const { conn, queue, submit, log } = setup();
+  submit
+    .mockImplementationOnce(offline)
+    .mockRejectedValueOnce(new ApiError(500, "internal"));
+  queue.set("q1", ["a"]);
+  conn.start();
+  await until(0);
+  expect(log).toEqual(["submit 1 left 0", "heartbeat 1"]);
+  await until(5000);
+  expect(log.slice(2)).toEqual(["submit 1 left 0", "heartbeat 1"]);
+  await until(6000);
+  expect(log.slice(4)).toEqual(["submit 1 left 0", "heartbeat 0"]);
+});
+
+test("an empty flush or drain does not put the heartbeat off", async () => {
+  const { conn, heartbeat } = setup();
+  conn.start();
+  for (let at = 4000; at <= 20000; at += 4000) {
+    await until(at);
+    conn.flush();
+    await conn.drain();
+  }
+  expect(heartbeat).toHaveBeenCalledTimes(5);
+});
+
+test("setBase gives up a request to the old address at once, not as a failure", async () => {
+  const { conn, heartbeat, states } = setup();
+  heartbeat
+    .mockImplementationOnce(() => new Promise(() => {}))
+    .mockImplementationOnce(offline);
+  conn.start();
+  await until(1000);
+  conn.setBase("http://10.0.0.5:8080");
+  await until(1000);
+  expect(heartbeat.mock.calls.map((c) => c[0])).toEqual([
+    "",
+    "http://10.0.0.5:8080",
+  ]);
+  expect(heartbeat.mock.calls[0]?.[2].aborted).toBe(true);
+  // One failure, at the new address: still online.
+  expect(states).toEqual(["online 0"]);
+});
+
+test("an error thrown inside a cycle is logged and the next cycle still runs", async () => {
+  const error = consoleError();
+  const { conn, queue, submit } = setup();
+  queue.set("q1", ["a"]);
+  vi.spyOn(queue, "ack").mockImplementationOnce(() => {
+    throw new Error("broken");
+  });
+  conn.start();
+  await until(0);
+  expect(error).toHaveBeenCalledTimes(1);
+  await until(1000);
+  expect(submit).toHaveBeenCalledTimes(2);
+  expect(queue.pending()).toEqual([]);
 });

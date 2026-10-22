@@ -1,8 +1,12 @@
-import { expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { memoryStorage } from "./memory-storage";
 import { AnswerQueue } from "./queue";
 
 const KEY = "klats.answers.p1";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test("seq increments per question and survives reload", () => {
   const storage = memoryStorage();
@@ -80,3 +84,74 @@ test("restore keeps newer local answer", () => {
   expect(reloaded.set("q2", []).seq).toBe(4);
   expect(reloaded.set("q4", []).seq).toBe(6);
 });
+
+test("a fresh device numbers its changes far above the server's", () => {
+  const storage = memoryStorage();
+  const queue = new AnswerQueue(storage, KEY, "p1");
+  queue.restore([
+    { questionId: "q1", optionIds: ["a"], seq: 2 },
+    { questionId: "q4", optionIds: ["d"], seq: 2 },
+  ]);
+  expect(queue.current("q1")).toEqual(["a"]);
+  expect(queue.set("q1", ["b"]).seq).toBe(1_000_003);
+  expect(queue.set("q1", ["c"]).seq).toBe(1_000_004);
+  expect(queue.set("q2", ["c"]).seq).toBe(1_000_001);
+
+  // A reload keeps the gap, and adopting a newer server answer (an old
+  // device's leftover) keeps the question's base.
+  const reloaded = new AnswerQueue(storage, KEY, "p1");
+  expect(reloaded.set("q3", ["x"]).seq).toBe(1_000_001);
+  reloaded.restore([{ questionId: "q4", optionIds: ["y"], seq: 5 }]);
+  expect(reloaded.current("q4")).toEqual(["y"]);
+  expect(reloaded.set("q4", ["z"]).seq).toBe(1_000_003);
+});
+
+test("a moved student's old device cannot overwrite the new one", () => {
+  // Device A synced q1 at seq 2, then answered it offline up to seq 5.
+  const a = new AnswerQueue(memoryStorage(), KEY, "p1");
+  for (let i = 0; i < 5; i++) a.set("q1", [`a${i}`]);
+  // The student is moved to device B, which starts from the server's seq 2.
+  const b = new AnswerQueue(memoryStorage(), KEY, "p1");
+  b.restore([{ questionId: "q1", optionIds: ["a1"], seq: 2 }]);
+  const leftover = a.pending()[0]?.seq ?? 0;
+  expect(leftover).toBe(5);
+  expect(b.set("q1", ["b"]).seq).toBeGreaterThan(leftover);
+});
+
+test("a failed write keeps the answers in memory and is retried on the next", () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  const storage = memoryStorage();
+  const queue = new AnswerQueue(storage, KEY, "p1");
+  const setItem = vi.spyOn(storage, "setItem").mockImplementation(() => {
+    throw new DOMException("full", "QuotaExceededError");
+  });
+  queue.set("q1", ["a"]);
+  queue.set("q2", ["b"]);
+  expect(queue.saveFailed).toBe(true);
+  expect(error).toHaveBeenCalledTimes(1);
+  expect(queue.pending()).toHaveLength(2);
+
+  setItem.mockRestore();
+  queue.set("q3", ["c"]);
+  expect(queue.saveFailed).toBe(false);
+  expect(new AnswerQueue(storage, KEY, "p1").pending()).toHaveLength(3);
+});
+
+test.each([
+  "{not json",
+  "{}",
+  JSON.stringify({ v: 2, floor: 0, answers: [], pending: [] }),
+])(
+  "unreadable stored state %s is set aside and the queue starts fresh",
+  (raw) => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const storage = memoryStorage();
+    storage.setItem(KEY, raw);
+    const queue = new AnswerQueue(storage, KEY, "p1");
+    expect(queue.pending()).toEqual([]);
+    expect(storage.getItem(`${KEY}.bad`)).toBe(raw);
+    expect(error).toHaveBeenCalledTimes(1);
+    queue.restore([]);
+    expect(queue.set("q1", ["a"]).seq).toBe(1_000_001);
+  },
+);

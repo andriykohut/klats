@@ -14,6 +14,8 @@ const BACKOFF_MS = [1000, 2000, 4000, 8000];
 const TIMEOUT_MS = 8000;
 /** Consecutive network failures that mean offline. */
 const OFFLINE_AFTER = 2;
+/** The abort reason of a request {@link Connection.setBase} gives up on. */
+const MOVED = new Error("moved to a new address");
 
 /**
  * What the student sees of the connection, as ConnectionToast takes it:
@@ -59,27 +61,29 @@ export interface Transport {
   ): Promise<Status>;
 }
 
-/** How a pass of requests ended: "refused" is an HTTP error response. */
-type Outcome = "ok" | "failed" | "refused" | "stopped";
-
 /**
  * Sends an {@link AnswerQueue}'s changes to the server and keeps the device's
  * place in the sitting alive with heartbeats.
  *
  * Each cycle submits every pending change in chunks of 100, then heartbeats,
- * then submits what was set during the heartbeat. Cycles run every 5 s while
- * online. Only one request is in flight at a time, so a heartbeat's `pending`
- * counts every unacked change, and a submit's counts those left after it.
+ * then, if both went through, submits what was set during the heartbeat. A
+ * failed or refused submit does not hold the heartbeat back. Cycles run every
+ * 5 s while online, counted from the last pass that sent a request. Only one
+ * request is in flight at a time, so a heartbeat's `pending` counts every
+ * unacked change, and a submit's counts those left after it.
  *
  * A request fails on a network error, or when no response arrives within 8 s,
  * which also aborts it. Two consecutive failures mean offline; then cycles
  * retry after 1, 2, 4 and 8 s, then every 8 s, and the first that gets
  * through runs in the same order, flushing before the heartbeat. An HTTP
- * error response is not a failure: the changes stay queued and the cycle
- * retries on the same backoff, without changing the state. A 403 `kicked` is
- * reported to {@link Connection.onStatus} as the status `kicked`. Acked
- * changes leave the queue, including ones the server rejected, which are
- * never resent.
+ * error response is not a failure: the changes stay queued and cycles retry
+ * on the same backoff, without changing the state. Acked changes leave the
+ * queue, including ones the server rejected, which are never resent.
+ *
+ * A `kicked` status, or a 403 `kicked`, stops the Connection for good: it is
+ * reported once to {@link Connection.onStatus}, waiting drains resolve false
+ * and nothing more is sent. An error thrown by a listener or inside a cycle
+ * is logged with `console.error` and never stops syncing.
  */
 export class Connection {
   private readonly transport: Transport;
@@ -92,6 +96,13 @@ export class Connection {
   private busy = false;
   private want: "none" | "flush" | "cycle" = "none";
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private request: AbortController | undefined;
+  /**
+   * Whether the current pass sent a request, and whether the next cycle backs
+   * off: after an HTTP error response, or an error thrown in the pass.
+   */
+  private sent = false;
+  private refused = false;
   private reported: { state: ConnectionState; pending: number } | undefined;
   private stateListener:
     | ((state: ConnectionState, pending: number) => void)
@@ -114,7 +125,7 @@ export class Connection {
 
   /**
    * Stops all requests. A response still in flight is ignored and leaves the
-   * queue untouched, so another tab can take the queue over. Pending
+   * queue untouched, so another tab can take the queue over. Waiting
    * {@link Connection.drain} calls resolve false.
    */
   stop(): void {
@@ -135,10 +146,12 @@ export class Connection {
 
   /**
    * Points requests at the teacher's new origin, such as
-   * `http://10.0.0.5:8080`, and runs a cycle there at once.
+   * `http://10.0.0.5:8080`. A request in flight to the old one is aborted,
+   * without counting as a failure, and a cycle runs at the new one at once.
    */
   setBase(url: string): void {
     this.base = url;
+    this.request?.abort(MOVED);
     this.kick(true);
   }
 
@@ -179,97 +192,113 @@ export class Connection {
 
   private async run(): Promise<void> {
     this.busy = true;
-    while (this.running && this.want !== "none") {
-      const beat = this.want === "cycle";
-      this.want = "none";
-      clearTimeout(this.timer);
-      const outcome = await this.pass(beat);
-      if (this.running) this.schedule(outcome);
+    try {
+      while (this.running && this.want !== "none") {
+        const beat = this.want === "cycle";
+        this.want = "none";
+        if (beat) clearTimeout(this.timer);
+        this.sent = false;
+        this.refused = false;
+        try {
+          await this.pass(beat);
+        } catch (err) {
+          console.error(err);
+          this.refused = true;
+        }
+        // A pass that sent nothing keeps the heartbeat's deadline.
+        const sched = beat || this.sent || this.refused;
+        if (this.running && sched) this.schedule();
+      }
+    } finally {
+      this.busy = false;
     }
-    this.busy = false;
   }
 
-  private async pass(beat: boolean): Promise<Outcome> {
-    let outcome = await this.flushAll();
-    if (outcome === "ok" && beat) {
-      outcome = await this.heartbeat();
-      if (outcome === "ok") outcome = await this.flushAll();
-    }
-    return outcome;
+  private async pass(beat: boolean): Promise<void> {
+    const flushed = await this.flushAll();
+    if (!beat || this.want === "cycle") return;
+    if ((await this.heartbeat()) && flushed) await this.flushAll();
   }
 
-  private schedule(outcome: Outcome): void {
-    const backoff = outcome === "refused" || this.state === "offline";
-    const delay = backoff
-      ? BACKOFF_MS[Math.min(this.retries++, BACKOFF_MS.length - 1)]
-      : HEARTBEAT_MS;
+  /** Sets the next cycle's timer, unless one is already queued (by setBase). */
+  private schedule(): void {
+    if (this.want === "cycle") return;
+    clearTimeout(this.timer);
+    let delay = HEARTBEAT_MS;
+    if (this.refused || this.state === "offline") {
+      delay = BACKOFF_MS[Math.min(this.retries++, BACKOFF_MS.length - 1)];
+    } else {
+      this.retries = 0;
+    }
     this.timer = setTimeout(() => this.kick(true), delay);
   }
 
-  private async flushAll(): Promise<Outcome> {
+  /** Submits pending changes in chunks; returns whether none is left. */
+  private async flushAll(): Promise<boolean> {
     for (let left = this.queue.pending(); left.length > 0; ) {
       const changes = left.slice(0, CHUNK);
       const req = { changes, pending: left.length - changes.length };
       const res = await this.send((signal) =>
         this.transport.submit(this.base, req, signal),
       );
-      if (typeof res === "string") return res;
+      if (!res) return false;
       this.queue.ack(res.acks);
       this.succeeded();
       this.report(res.status);
       left = this.queue.pending();
     }
-    return "ok";
+    return true;
   }
 
-  private async heartbeat(): Promise<Outcome> {
+  private async heartbeat(): Promise<boolean> {
     const req = { pending: this.queue.pending().length };
     const res = await this.send((signal) =>
       this.transport.heartbeat(this.base, req, signal),
     );
-    if (typeof res === "string") return res;
+    if (!res) return false;
     this.succeeded();
     this.report(res);
-    return "ok";
+    return true;
   }
 
   /**
-   * Runs one request with the timeout. It returns the response, or the
-   * outcome that ends the pass, having counted a failure if it was one.
+   * Runs one request with the timeout. It returns the response, or undefined
+   * when there is none to use: a failure (counted), an HTTP error, a stop, or
+   * an abort by setBase.
    */
-  private async send<T extends object>(
+  private async send<T>(
     call: (signal: AbortSignal) => Promise<T>,
-  ): Promise<T | Outcome> {
-    if (!this.running) return "stopped";
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => {
-        abort.abort();
-        reject(new Error("timed out"));
-      }, TIMEOUT_MS);
+  ): Promise<T | undefined> {
+    if (!this.running) return undefined;
+    this.sent = true;
+    const request = new AbortController();
+    this.request = request;
+    const { signal } = request;
+    const aborted = new Promise<never>((_, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason));
     });
+    const timer = setTimeout(
+      () => request.abort(new Error("timed out")),
+      TIMEOUT_MS,
+    );
     try {
-      const res = await Promise.race([call(abort.signal), timeout]);
-      return this.running ? res : "stopped";
+      const res = await Promise.race([call(signal), aborted]);
+      return this.running ? res : undefined;
     } catch (err) {
-      if (!this.running) return "stopped";
-      if (!(err instanceof ApiError)) {
-        this.failed();
-        return "failed";
-      }
-      if (err.status === 403 && err.code === "kicked") {
+      if (!this.running || signal.reason === MOVED) return undefined;
+      if (!(err instanceof ApiError)) this.failed();
+      else if (err.status === 403 && err.code === "kicked") {
         this.report({ state: "kicked" });
-      }
-      return "refused";
+      } else this.refused = true;
+      return undefined;
     } finally {
       clearTimeout(timer);
+      this.request = undefined;
     }
   }
 
   private succeeded(): void {
     this.failures = 0;
-    this.retries = 0;
     if (this.state === "offline") this.state = "syncing";
     this.emit();
   }
@@ -286,7 +315,7 @@ export class Connection {
     const last = this.reported;
     if (last?.state !== this.state || last.pending !== pending) {
       this.reported = { state: this.state, pending };
-      this.stateListener?.(this.state, pending);
+      safely(this.stateListener, this.state, pending);
     }
     this.settleDrains();
   }
@@ -300,10 +329,23 @@ export class Connection {
   }
 
   private report(s: Status): void {
-    this.statusListener?.({
+    if (s.state === "kicked") this.stop();
+    safely(this.statusListener, {
       state: s.state,
       remainingMs: s.remainingMs ?? undefined,
       result: s.result ?? undefined,
     });
+  }
+}
+
+/** Calls a listener, logging what it throws so it cannot stop syncing. */
+function safely<A extends unknown[]>(
+  listener: ((...args: A) => void) | undefined,
+  ...args: A
+): void {
+  try {
+    listener?.(...args);
+  } catch (err) {
+    console.error(err);
   }
 }

@@ -8,6 +8,12 @@ const noop = () => {};
 const storageEvent = (key: string) =>
   Object.assign(new Event("storage"), { key });
 
+/** A pagehide or pageshow event; `persisted` means the back/forward cache. */
+const pageEvent = (type: string, persisted: boolean) =>
+  Object.assign(new Event(type), { persisted });
+
+const otherTab = () => JSON.stringify({ id: "other-tab", at: Date.now() });
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal("localStorage", memoryStorage());
@@ -17,6 +23,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 test("second tab is refused", () => {
@@ -34,7 +41,7 @@ test("release, or leaving the page, frees the claim at once", () => {
   expect(claimTab("k", noop)).not.toBeNull();
 
   claimTab("p", noop);
-  window.dispatchEvent(new Event("pagehide"));
+  window.dispatchEvent(pageEvent("pagehide", false));
   expect(claimTab("p", noop)).not.toBeNull();
 });
 
@@ -59,11 +66,48 @@ test("a holder told of a takeover stops refreshing", () => {
   window.dispatchEvent(storageEvent("other"));
   expect(lost).not.toHaveBeenCalled();
 
-  const taken = JSON.stringify({ id: "other-tab", at: Date.now() });
+  const taken = otherTab();
   localStorage.setItem("k", taken);
   window.dispatchEvent(storageEvent("k"));
   expect(lost).toHaveBeenCalledTimes(1);
   vi.advanceTimersByTime(10_000);
   expect(localStorage.getItem("k")).toBe(taken);
   expect(lost).toHaveBeenCalledTimes(1);
+});
+
+test("release leaves another tab's lease alone", () => {
+  const release = claimTab("k", noop);
+  const taken = otherTab();
+  localStorage.setItem("k", taken);
+  release?.();
+  expect(localStorage.getItem("k")).toBe(taken);
+});
+
+test("the back/forward cache keeps the claim, and a takeover meanwhile is noticed on return", () => {
+  const lost = vi.fn();
+  claimTab("k", lost);
+  window.dispatchEvent(pageEvent("pagehide", true));
+  expect(claimTab("k", noop)).toBeNull();
+
+  // While the page is cached, its timers stop and another tab takes over.
+  localStorage.setItem("k", otherTab());
+  window.dispatchEvent(pageEvent("pageshow", true));
+  expect(lost).toHaveBeenCalledTimes(1);
+});
+
+test("a lease stamped in the future counts as stale", () => {
+  const ahead = (ms: number) =>
+    JSON.stringify({ id: "other-tab", at: Date.now() + ms });
+  localStorage.setItem("k", ahead(10_000));
+  expect(claimTab("k", noop)).toBeNull();
+  localStorage.setItem("k", ahead(3_600_000));
+  expect(claimTab("k", noop)).not.toBeNull();
+});
+
+test("an unreadable lease is set aside and the claim goes ahead", () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  localStorage.setItem("k", "{oops");
+  expect(claimTab("k", noop)).not.toBeNull();
+  expect(localStorage.getItem("k.bad")).toBe("{oops");
+  expect(error).toHaveBeenCalledTimes(1);
 });

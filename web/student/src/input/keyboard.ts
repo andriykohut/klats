@@ -1,4 +1,4 @@
-import { BADGE_LETTERS } from "@klats/shared/student-ui/AnswerTile.tsx";
+import { BADGE_LETTERS } from "@klats/shared/student-ui/badges.ts";
 
 /**
  * Returns the index of the option a key picks: `1`–`9` and the badge letters
