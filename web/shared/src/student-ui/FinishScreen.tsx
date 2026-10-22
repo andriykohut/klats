@@ -39,8 +39,7 @@ export function FinishScreen({ result }: { result: FinishResult | null }) {
   return (
     <motion.section className="k-sheet k-finish" {...sheet(reduced)}>
       <p className="k-sr-only" role="status">
-        {result &&
-          `${m.finish_grade({ grade: result.grade })}. ${m.finish_correct({ correct: result.correct, total: result.total })}`}
+        {result && m.finish_announce(result)}
       </p>
       <div
         className="k-ring"

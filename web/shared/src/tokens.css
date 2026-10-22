@@ -17,6 +17,8 @@
   --k-radius-sheet: calc(30 * var(--k-px));
   --k-radius-tile: calc(20 * var(--k-px));
   --k-radius-badge: calc(14 * var(--k-px));
+  /* Single-choice badges are round, like a radio; multi-choice ones square. */
+  --k-radius-badge-single: 50%;
   --k-radius-chip: calc(16 * var(--k-px));
 
   /* How far a tile or button stands above its base; pressing sinks it. */
@@ -29,6 +31,8 @@
 
   /* The sheet, badges and popovers. */
   --k-paper: #fff;
+  /* The paper at zero opacity, where a fade over it starts. */
+  --k-paper-clear: rgba(255, 255, 255, 0);
   /* Text on dark fills: a selected tile, the toast, the progress chip. */
   --k-on-dark: #fff;
   --k-on-dark-soft: rgba(255, 255, 255, 0.75);

@@ -3,6 +3,16 @@
   "of_total": "of {total}",
   "answer_single": "One answer",
   "answer_multi": "Several answers",
+  "answers_below": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} more answer below",
+        "countPlural=*": "{count} more answers below"
+      }
+    }
+  ],
   "keys_hint": "{#kbd}{letters}{/kbd} or {#kbd}{digits}{/kbd} pick an answer, {#kbd}Enter{/kbd} moves on",
   "progress_label": "Progress",
   "progress_value": "{answered} of {total} answered",
@@ -15,6 +25,7 @@
   "finish_correct": "Correct: {correct} of {total}",
   "finish_sent": "Result sent to the teacher",
   "finish_waiting": "Your work is saved. The grade will appear once the connection is back",
+  "finish_announce": "Grade {grade} of 12. Correct: {correct} of {total}",
   "toast_offline": "No connection. Your answers are saved",
   "toast_offline_pending": [
     {

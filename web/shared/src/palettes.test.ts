@@ -25,7 +25,11 @@ const PAIRS: [string, (p: Palette) => [string, string], number][] = [
   ["answer mode chip", (p) => [p.sel, p.soft], 4.5],
   ["tile and finish chip text", (p) => [p.ink, p.tile], 4.5],
   ["key caps", (p) => [p.sel, p.tile], 4.5],
-  ["selected tile text", (p) => [WHITE, p.sel], 4.5],
+  [
+    "selected tile text and the more-answers button",
+    (p) => [WHITE, p.sel],
+    4.5,
+  ],
   ["text and check mark on the accent", (p) => [p.ink, p.accent], 4.5],
   ["progress chip and timer text", (p) => [WHITE, p.track], 4.5],
   ["toast title", (p) => [WHITE, p.ink], 4.5],
@@ -35,10 +39,14 @@ const PAIRS: [string, (p: Palette) => [string, string], number][] = [
   ["focus ring on the sheet", (p) => [p.focus, WHITE], 3],
   ["focus ring on the field", (p) => [p.focus, p.field], 3],
   ["focus ring beside a tile", (p) => [p.focus, p.tile], 3],
-  ["answered progress segment", (p) => [p.accent, p.track], 3],
+  [
+    "answered against open: progress segment and question grid cell",
+    (p) => [p.accent, p.track],
+    3,
+  ],
   ["number on an open question grid cell", (p) => [WHITE, p.track], 4.5],
   ["number on an answered question grid cell", (p) => [p.ink, p.accent], 4.5],
-  ["answered against open question grid cell", (p) => [p.accent, p.track], 3],
+  ["single-choice dot on a picked badge", (p) => [p.ink, p.accent], 3],
 ];
 
 test("contrast spans 1 to 21", () => {

@@ -3,6 +3,17 @@
   "of_total": "з {total}",
   "answer_single": "Одна відповідь",
   "answer_multi": "Кілька відповідей",
+  "answers_below": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Ще {count} відповідь нижче",
+        "countPlural=few": "Ще {count} відповіді нижче",
+        "countPlural=*": "Ще {count} відповідей нижче"
+      }
+    }
+  ],
   "keys_hint": "{#kbd}{letters}{/kbd} або {#kbd}{digits}{/kbd} обирають відповідь, {#kbd}Enter{/kbd} переходить далі",
   "progress_label": "Прогрес",
   "progress_value": "Відповідей: {answered} з {total}",
@@ -15,6 +26,7 @@
   "finish_correct": "Правильно: {correct} з {total}",
   "finish_sent": "Результат надіслано вчителю",
   "finish_waiting": "Роботу збережено, оцінка з’явиться після відновлення зв’язку",
+  "finish_announce": "Оцінка {grade} з 12. Правильно: {correct} з {total}",
   "toast_offline": "Немає зв’язку. Відповіді збережено",
   "toast_offline_pending": [
     {
