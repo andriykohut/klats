@@ -7,7 +7,8 @@ import "sync"
 // subscriberBuffer is the per-subscriber queue length.
 const subscriberBuffer = 16
 
-// Event is a notification on a topic (`teacher`, `device:<token>`).
+// Event is a notification on a topic (`teacher`, `device:<token>`,
+// `names:<sittingID>`).
 type Event struct {
 	Topic string
 	Name  string
@@ -26,27 +27,33 @@ func New() *Hub {
 	return &Hub{subs: map[string]map[chan Event]struct{}{}}
 }
 
-// Subscribe returns a channel receiving the events published to topic and a
-// function that unsubscribes and closes the channel. The function is
-// idempotent.
-func (h *Hub) Subscribe(topic string) (<-chan Event, func()) {
+// Subscribe returns a channel receiving the events published to any of
+// topics and a function that unsubscribes from all of them and closes the
+// channel. The function is idempotent.
+func (h *Hub) Subscribe(topics ...string) (<-chan Event, func()) {
 	ch := make(chan Event, subscriberBuffer)
 	h.mu.Lock()
-	if h.subs[topic] == nil {
-		h.subs[topic] = map[chan Event]struct{}{}
+	for _, topic := range topics {
+		if h.subs[topic] == nil {
+			h.subs[topic] = map[chan Event]struct{}{}
+		}
+		h.subs[topic][ch] = struct{}{}
 	}
-	h.subs[topic][ch] = struct{}{}
 	h.mu.Unlock()
 
+	closed := false // guarded by h.mu
 	return ch, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		if _, ok := h.subs[topic][ch]; !ok {
+		if closed {
 			return
 		}
-		delete(h.subs[topic], ch)
-		if len(h.subs[topic]) == 0 {
-			delete(h.subs, topic)
+		closed = true
+		for _, topic := range topics {
+			delete(h.subs[topic], ch)
+			if len(h.subs[topic]) == 0 {
+				delete(h.subs, topic)
+			}
 		}
 		close(ch)
 	}

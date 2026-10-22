@@ -435,6 +435,33 @@ func (e *Engine) publishStatus(device string) {
 	e.hub.Publish(events.Event{Topic: "device:" + device, Name: "status"})
 }
 
+// publishTaken tells the devices choosing a name which class-list students
+// are held in the sitting a, as the "taken" event on topic
+// names:<sittingID> (see [wire.NamesTaken]). A sitting without a class list
+// publishes nothing. The caller holds e.mu.
+func (e *Engine) publishTaken(a *active) {
+	if !a.assignment.ClassID.Valid {
+		return
+	}
+	taken := []string{}
+	for _, p := range a.participants {
+		if p.state != stateKicked {
+			taken = append(taken, p.key)
+		}
+	}
+	e.hub.Publish(events.Event{Topic: "names:" + a.sitting.ID, Name: "taken", Data: wire.NamesTaken{Taken: taken}})
+}
+
+// SittingID returns the id of the running sitting, or "" when none runs.
+func (e *Engine) SittingID() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur == nil {
+		return ""
+	}
+	return e.cur.sitting.ID
+}
+
 // raise stores an event of the sitting and returns its id.
 func (e *Engine) raise(q *db.Queries, sittingID, kind string, params map[string]string, pinned bool) (string, error) {
 	b, err := json.Marshal(params)

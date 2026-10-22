@@ -97,3 +97,21 @@ func TestSubscribersCountsOpenSubscriptions(t *testing.T) {
 		t.Errorf("after unsubscribing = %d", n)
 	}
 }
+
+func TestSubscribeToSeveralTopics(t *testing.T) {
+	h := New()
+	ch, unsub := h.Subscribe("device:x", "names:s")
+	h.Publish(Event{Topic: "device:x", Name: "status"})
+	h.Publish(Event{Topic: "names:s", Name: "taken"})
+	if a, b := <-ch, <-ch; a.Name != "status" || b.Name != "taken" {
+		t.Fatalf("got %q then %q", a.Name, b.Name)
+	}
+	unsub()
+	unsub()
+	if h.Subscribers("device:x")+h.Subscribers("names:s") != 0 {
+		t.Fatal("still subscribed after unsubscribing")
+	}
+	if _, ok := <-ch; ok {
+		t.Fatal("channel not closed")
+	}
+}

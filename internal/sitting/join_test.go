@@ -579,6 +579,64 @@ func TestKickOrMoveResolvesClash(t *testing.T) {
 	}
 }
 
+// takenNow returns the ids of the "taken" event waiting on ch.
+func takenNow(t *testing.T, ch <-chan events.Event) []string {
+	t.Helper()
+	select {
+	case ev := <-ch:
+		if ev.Name != "taken" {
+			t.Fatalf("event %q, want taken", ev.Name)
+		}
+		return ev.Data.(wire.NamesTaken).Taken
+	default:
+		t.Fatal("no taken event")
+		return nil
+	}
+}
+
+func TestPickKickAndMovePublishTheTakenNames(t *testing.T) {
+	e, st, hub := setup(t)
+	info := start(t, e, addClass(t, st, "Петренко Тарас", "Коваль Ольга"))
+	ch, unsub := hub.Subscribe("names:" + info.SittingID)
+	defer unsub()
+	names := join(t, e, info.Code, devA, "10.0.0.107").Names
+	join(t, e, info.Code, devB, "10.0.0.108")
+	join(t, e, info.Code, devC, "10.0.0.109")
+
+	p := pick(t, e, info.Code, devA, wire.PickRequest{StudentID: names[1].StudentID})
+	if got := takenNow(t, ch); !slices.Equal(got, []string{names[1].StudentID}) {
+		t.Errorf("after the pick: %v", got)
+	}
+	pick(t, e, info.Code, devB, wire.PickRequest{StudentID: names[0].StudentID})
+	if got := takenNow(t, ch); len(got) != 2 {
+		t.Errorf("after the second pick: %v", got)
+	}
+	if err := e.Move(p.ID, devC); err != nil {
+		t.Fatal(err)
+	}
+	if got := takenNow(t, ch); len(got) != 2 {
+		t.Errorf("after the move: %v", got)
+	}
+	if err := e.Kick(p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := takenNow(t, ch); !slices.Equal(got, []string{names[0].StudentID}) {
+		t.Errorf("after the kick: %v", got)
+	}
+}
+
+func TestTypedSittingPublishesNoNames(t *testing.T) {
+	e, _, hub := setup(t)
+	info := start(t, e, nil)
+	ch, unsub := hub.Subscribe("names:" + info.SittingID)
+	defer unsub()
+	join(t, e, info.Code, devA, "10.0.0.107")
+	pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Коваль", FirstName: "Ольга"})
+	if received(ch) {
+		t.Error("a typed-name pick published names")
+	}
+}
+
 func TestKickAndMoveErrors(t *testing.T) {
 	e, st, _ := setup(t)
 	if err := e.Kick("nobody"); !errors.Is(err, ErrNotFound) {

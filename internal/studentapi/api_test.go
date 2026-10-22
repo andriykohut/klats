@@ -442,8 +442,14 @@ func TestSPAFallback(t *testing.T) {
 // response headers are in. The caller closes the response body.
 func openStream(t *testing.T, srv *httptest.Server, device string) (*http.Response, context.CancelFunc) {
 	t.Helper()
+	return openEvents(t, srv, "device="+device)
+}
+
+// openEvents is openStream with the query string given whole.
+func openEvents(t *testing.T, srv *httptest.Server, query string) (*http.Response, context.CancelFunc) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?device="+device, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/events?"+query, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		cancel()
@@ -467,6 +473,33 @@ func TestEventsStream(t *testing.T) {
 	n, err := resp.Body.Read(buf)
 	if err != nil || !strings.HasPrefix(string(buf[:n]), "event: status") {
 		t.Errorf("frame = %q, %v", buf[:n], err)
+	}
+}
+
+func TestEventsStreamCarriesTheRunningSittingsTakenNames(t *testing.T) {
+	v := setup(t)
+	srv := httptest.NewServer(v.h)
+	defer srv.Close()
+	id := v.e.SittingID()
+	resp, cancel := openEvents(t, srv, "device="+devA+"&sitting="+id)
+	defer cancel()
+	defer func() { _ = resp.Body.Close() }()
+	other, cancelOther := openEvents(t, srv, "device="+devB+"&sitting=other")
+	defer cancelOther()
+	defer func() { _ = other.Body.Close() }()
+	if n := v.hub.Subscribers("names:other"); n != 0 {
+		t.Errorf("a sitting that does not run has %d subscribers", n)
+	}
+
+	v.hub.Publish(events.Event{Topic: "names:" + id, Name: "taken", Data: wire.NamesTaken{Taken: []string{"s1"}}})
+	buf := make([]byte, 128)
+	n, err := resp.Body.Read(buf)
+	if want := "event: taken\ndata: {\"taken\":[\"s1\"]}\n\n"; err != nil || string(buf[:n]) != want {
+		t.Errorf("frame = %q, %v; want %q", buf[:n], err, want)
+	}
+	v.hub.Publish(events.Event{Topic: "device:" + devA, Name: "status"})
+	if n, err := resp.Body.Read(buf); err != nil || !strings.HasPrefix(string(buf[:n]), "event: status") {
+		t.Errorf("device frame = %q, %v", buf[:n], err)
 	}
 }
 

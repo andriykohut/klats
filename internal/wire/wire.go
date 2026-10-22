@@ -28,6 +28,13 @@ type JoinInfo struct {
 	Language  string      `json:"language"`
 }
 
+// NamesTaken is the "taken" event a device choosing a name gets on its event
+// stream: the ids of the class-list students devices hold in the running
+// sitting.
+type NamesTaken struct {
+	Taken []string `json:"taken"`
+}
+
 // NameEntry is one class-list name. Taken means another device holds it.
 type NameEntry struct {
 	StudentID string `json:"studentId"`

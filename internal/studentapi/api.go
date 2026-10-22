@@ -172,6 +172,8 @@ func (a *api) focus(w http.ResponseWriter, r *http.Request, device string) {
 }
 
 // events streams the "status" hints for the device until the client leaves.
+// With sitting set to the running sitting's id, it also streams that
+// sitting's "taken" names (see [wire.NamesTaken]); another id is ignored.
 func (a *api) events(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("device")
 	if !deviceRE.MatchString(token) {
@@ -185,7 +187,11 @@ func (a *api) events(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer a.closeStream(ip)
-	ch, unsubscribe := a.hub.Subscribe("device:" + token)
+	topics := []string{"device:" + token}
+	if id := r.URL.Query().Get("sitting"); id != "" && id == a.e.SittingID() {
+		topics = append(topics, "names:"+id)
+	}
+	ch, unsubscribe := a.hub.Subscribe(topics...)
 	defer unsubscribe()
 	if err := sse.Stream(w, r, ch, keepAliveTime); err != nil {
 		slog.Warn("studentapi: event stream ended", "err", err)

@@ -95,6 +95,9 @@ func deviceLabel(ip string) string {
 // name to it. Picking the name the device already holds returns the same
 // participant.
 //
+// On a class list, the new set of taken names is published to the devices
+// choosing a name, as the "taken" event on topic names:<sittingID>.
+//
 // When another device holds the name, Pick returns [ErrNameTaken] and raises
 // a pinned name_clash event for the teacher, once per holder and newcomer.
 // Typed names lock per class and ignore letter case. It returns [ErrBadCode]
@@ -174,6 +177,7 @@ func (e *Engine) Pick(code, device string, req wire.PickRequest) (wire.Participa
 		return func() {
 			a.participants = append(a.participants, p)
 			a.status[device] = statusWriting
+			e.publishTaken(a)
 		}, err
 	})
 	if err != nil {
@@ -206,7 +210,8 @@ func (e *Engine) raiseClash(h *participant, newcomer, holderLabel, newcomerLabel
 // participant becomes "kicked": its answers stay stored but no longer count,
 // and the student may pick the name again as a fresh participant. Pending
 // name_clash events over the participant's name are resolved, and their
-// newcomer devices told to refetch. Kicking a kicked participant does nothing.
+// newcomer devices told to refetch; the freed name is published to the devices
+// choosing a name. Kicking a kicked participant does nothing.
 // It returns [ErrNotFound] for an unknown participant.
 func (e *Engine) Kick(participantID string) error {
 	e.mu.Lock()
@@ -230,6 +235,7 @@ func (e *Engine) kick(q *db.Queries, p *participant) (func(), error) {
 		p.state = stateKicked
 		e.cur.status[p.device] = statusKicked
 		e.publishStatus(p.device)
+		e.publishTaken(e.cur)
 		resolved()
 	}, err
 }
@@ -304,6 +310,7 @@ func (e *Engine) move(q *db.Queries, p *participant, to string) (func(), error) 
 		e.cur.status[to] = statusWriting
 		e.publishStatus(from)
 		e.publishStatus(to)
+		e.publishTaken(e.cur)
 		resolved()
 	}, err
 }
