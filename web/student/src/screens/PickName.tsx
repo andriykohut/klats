@@ -12,6 +12,7 @@ import {
   RadioGroup,
 } from "react-aria-components/RadioGroup";
 import { NameTaken, pick, streaming } from "../api";
+import { ApiError } from "../sync/connection";
 import { errorText, Problem, Sheet } from "./ui";
 
 /** How often the list is fetched again while the event stream is closed. */
@@ -22,8 +23,10 @@ const REFRESH_MS = 15_000;
  * free names in the server's order, then «Уже приєднались» with the names
  * other computers hold. The list follows `info` as it changes, sliding
  * names between the groups, but holds a change while a pointer is down on
- * it and keeps keyboard focus on the same name. A held name never starts the
- * test; it says to call the teacher. `onRefresh` fetches the list again; it
+ * it and keeps keyboard focus on the same name. Tapping a held name sends its
+ * pick at once, so the server refuses it with the holding computer's label
+ * and alerts the teacher (or, if the name was freed meanwhile, the student
+ * joins). `onRefresh` fetches the list again; it
  * runs every 15 s and after a refused pick, but only while the event stream
  * that carries the changes is closed.
  */
@@ -98,14 +101,19 @@ export function PickName({
     ? { duration: 0 }
     : { type: "spring" as const, visualDuration: 0.45, bounce: 0.15 };
 
-  const start = async () => {
-    if (!selected || lost) return;
+  /**
+   * Picks the name. For a held name the server refuses with the label of the
+   * computer that holds it and alerts the teacher; a 429 then gets the line
+   * without the label.
+   */
+  const send = async (id: string) => {
     setBusy(true);
     setError(null);
     try {
-      onPicked(await pick(code, { studentId: selected }));
+      onPicked(await pick(code, { studentId: id }));
     } catch (err) {
-      setError(errorText(err));
+      const limited = err instanceof ApiError && err.status === 429;
+      setError(limited && isTaken(id) ? m.pick_taken_plain() : errorText(err));
       setBusy(false);
       if (err instanceof NameTaken && !streaming()) onRefresh();
     }
@@ -170,12 +178,10 @@ export function PickName({
           aria-label={m.pick_title()}
           value={lost ? null : selected}
           onChange={(id) => {
-            if (isTaken(id)) {
-              setError(m.pick_taken_plain());
-              return;
-            }
-            setSelected(id);
-            setError(null);
+            if (!isTaken(id)) {
+              setSelected(id);
+              setError(null);
+            } else if (!busy) void send(id);
           }}
         >
           {free.map(tile)}
@@ -202,7 +208,7 @@ export function PickName({
           type="button"
           className="s-btn"
           disabled={!selected || lost || busy}
-          onClick={start}
+          onClick={() => selected && !lost && send(selected)}
         >
           <span>{m.pick_start()}</span>
         </button>
