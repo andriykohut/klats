@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { m } from "../paraglide/messages.js";
 import { toast } from "./motion";
 import "./student-ui.css";
@@ -8,6 +8,8 @@ export interface ConnectionToastProps {
   state: "online" | "offline" | "syncing";
   /** Answers saved on this computer that the server has not acknowledged. */
   pending: number;
+  /** A link or button at the toast's end, such as a way to a new address. */
+  action?: ReactNode;
 }
 
 /** How long «Зв’язок відновлено» stays up after the connection returns. */
@@ -19,7 +21,11 @@ const RESTORED_MS = 2200;
  * sent. When the state returns to online it says so briefly, then hides.
  * Changes are announced politely to screen readers.
  */
-export function ConnectionToast({ state, pending }: ConnectionToastProps) {
+export function ConnectionToast({
+  state,
+  pending,
+  action,
+}: ConnectionToastProps) {
   const reduced = useReducedMotionConfig();
   const [restored, setRestored] = useState(false);
   const last = useRef(state);
@@ -54,12 +60,17 @@ export function ConnectionToast({ state, pending }: ConnectionToastProps) {
     <div className="k-toast-slot" role="status">
       <AnimatePresence>
         {(state !== "online" || restored) && (
-          <motion.div className="k-toast" {...toast(reduced)}>
+          <motion.div
+            className="k-toast"
+            data-action={action ? true : undefined}
+            {...toast(reduced)}
+          >
             <i className={state === "online" ? "k-dot k-dot-ok" : "k-dot"} />
             <span>
               <span className="k-toast-title">{title}</span>
               {detail && <span className="k-toast-detail">{detail}</span>}
             </span>
+            {action}
           </motion.div>
         )}
       </AnimatePresence>

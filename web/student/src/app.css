@@ -1,0 +1,583 @@
+/*
+ * The student app's frame and the parts of its screens the shared components
+ * do not draw: the top bar over the palette field, the slot the sheets slide
+ * through, chunky buttons and fields, the code cells and the name list. Sizes
+ * are design pixels times --k-px, like student-ui.css.
+ */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--k-field);
+  color: var(--k-ink);
+  font-family: var(--k-font-text);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+}
+
+.s-top {
+  position: absolute;
+  top: calc(26 * var(--k-px));
+  right: calc(44 * var(--k-px));
+  left: calc(44 * var(--k-px));
+  height: calc(44 * var(--k-px));
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--k-px));
+}
+
+.s-title,
+.s-who {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.s-title {
+  color: var(--k-on-field-soft);
+  font-size: max(13px, calc(16 * var(--k-px)));
+}
+
+.s-who {
+  color: var(--k-on-field);
+  font-size: max(13px, calc(15 * var(--k-px)));
+  text-align: right;
+}
+
+.s-brand {
+  flex: 1 1 0;
+  color: var(--k-on-field);
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: max(18px, calc(24 * var(--k-px)));
+  letter-spacing: -0.02em;
+}
+
+.s-top .k-progress {
+  flex: 1.6 1 0;
+}
+
+.s-slot {
+  position: absolute;
+  top: calc(90 * var(--k-px));
+  right: calc(44 * var(--k-px));
+  bottom: calc(30 * var(--k-px));
+  left: calc(44 * var(--k-px));
+}
+
+/* In the strip under the sheet, so it never covers a question. */
+.s-note {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(30 * var(--k-px));
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--k-on-field-soft);
+  font-weight: 600;
+  font-size: max(12px, calc(13 * var(--k-px)));
+}
+
+/* A face that sinks onto its darker base when pressed, like an answer tile. */
+.s-btn {
+  position: relative;
+  flex: none;
+  padding: 0 0 var(--k-depth);
+  border: 0;
+  background: none;
+  color: var(--k-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.s-btn::before {
+  content: "";
+  position: absolute;
+  inset: var(--k-depth) 0 0;
+  border-radius: var(--k-radius-tile);
+  background: var(--k-accent-dark);
+}
+
+.s-btn > span {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(62 * var(--k-px));
+  padding: 0 calc(34 * var(--k-px));
+  border-radius: var(--k-radius-tile);
+  background: var(--k-accent);
+  font-family: var(--k-font-display);
+  font-weight: 700;
+  font-size: max(15px, calc(17 * var(--k-px)));
+  white-space: nowrap;
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+}
+
+/* The quieter choice beside the main one: white, with the tile's edge. */
+.s-btn-quiet::before {
+  background: var(--k-tile-shadow);
+}
+
+.s-btn-quiet > span {
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  background: var(--k-paper);
+  color: var(--k-sel);
+}
+
+.s-btn:hover > span {
+  transform: translateY(calc(-2 * var(--k-px)));
+}
+
+.s-btn:active > span {
+  transform: translateY(calc(var(--k-depth) - var(--k-px)));
+  transition-duration: var(--k-dur-press);
+}
+
+.s-btn:focus-visible {
+  outline: none;
+}
+
+.s-btn:focus-visible > span {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+.s-btn:disabled {
+  cursor: default;
+}
+
+.s-btn:disabled::before {
+  background: var(--k-tile-border);
+}
+
+.s-btn:disabled > span {
+  background: var(--k-tile);
+  color: var(--k-muted);
+  transform: none;
+}
+
+.s-field {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(64 * var(--k-px));
+  padding: 0 calc(20 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-bottom-width: var(--k-depth);
+  border-radius: calc(18 * var(--k-px));
+  background: var(--k-tile);
+  color: var(--k-ink);
+  font-weight: 700;
+  font-size: max(16px, calc(22 * var(--k-px)));
+  outline: none;
+}
+
+.s-field::placeholder {
+  color: var(--k-muted);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.s-field:focus {
+  border-color: var(--k-sel);
+  background: var(--k-paper);
+}
+
+.s-field[aria-invalid="true"] {
+  border-color: var(--k-accent-dark);
+}
+
+.s-lead {
+  max-width: calc(600 * var(--k-px));
+  margin: calc(14 * var(--k-px)) 0 0;
+  color: var(--k-muted);
+  font-weight: 600;
+  font-size: max(16px, calc(20 * var(--k-px)));
+  line-height: 1.4;
+}
+
+.s-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--k-px));
+  margin-top: calc(32 * var(--k-px));
+}
+
+.s-form {
+  display: grid;
+  gap: calc(14 * var(--k-px));
+  max-width: calc(560 * var(--k-px));
+  margin-top: calc(28 * var(--k-px));
+}
+
+.s-form .s-actions {
+  margin-top: calc(10 * var(--k-px));
+}
+
+.s-label {
+  display: grid;
+  gap: calc(6 * var(--k-px));
+  color: var(--k-muted);
+  font-weight: 700;
+  font-size: max(13px, calc(15 * var(--k-px)));
+}
+
+.s-missing {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--k-px));
+  color: var(--k-ink);
+}
+
+.s-problem {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--k-px));
+  width: fit-content;
+  max-width: calc(600 * var(--k-px));
+  margin: calc(20 * var(--k-px)) 0 0;
+  padding: calc(12 * var(--k-px)) calc(16 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-chip);
+  background: var(--k-tile);
+  font-weight: 700;
+  font-size: max(14px, calc(16 * var(--k-px)));
+  line-height: 1.3;
+}
+
+/* A sheet that asks for one thing, its parts centred. */
+.s-prompt {
+  align-items: center;
+  justify-content: center;
+  padding: calc(48 * var(--k-px)) calc(64 * var(--k-px));
+  text-align: center;
+}
+
+.s-display {
+  margin: 0;
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: max(30px, calc(52 * var(--k-px)));
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.s-prompt .s-problem {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.s-prompt .s-form {
+  width: 100%;
+  margin-top: calc(36 * var(--k-px));
+  text-align: left;
+}
+
+.s-prompt .s-form .s-actions {
+  justify-content: space-between;
+}
+
+.s-form .s-problem {
+  margin: 0;
+}
+
+.k-ring .s-icon {
+  width: calc(112 * var(--k-px));
+  height: calc(112 * var(--k-px));
+  transform: none;
+  fill: none;
+  stroke: var(--k-sel);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* One numeric field laid over four cells; each typed digit fills its cell. */
+.s-code {
+  position: relative;
+  display: flex;
+  gap: calc(16 * var(--k-px));
+  width: fit-content;
+  margin-top: calc(40 * var(--k-px));
+  padding-bottom: var(--k-depth);
+}
+
+.s-code input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  border: 0;
+  caret-color: transparent;
+  font-size: 16px;
+  cursor: text;
+}
+
+.s-cell {
+  position: relative;
+  box-sizing: border-box;
+  width: calc(116 * var(--k-px));
+  height: calc(140 * var(--k-px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  box-shadow: 0 var(--k-depth) 0 var(--k-tile-shadow);
+  color: var(--k-on-dark);
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: calc(72 * var(--k-px));
+}
+
+/* The filled colour, faded in over the empty cell. */
+.s-cell::before {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--k-px));
+  border-radius: inherit;
+  background: var(--k-sel);
+  box-shadow: 0 var(--k-depth) 0 var(--k-sel-dark);
+  opacity: 0;
+  transition: opacity var(--k-dur-fast);
+}
+
+.s-cell[data-filled]::before {
+  opacity: 1;
+}
+
+.s-digit {
+  position: relative;
+}
+
+/* Where the next digit goes: a ring and a blinking caret. */
+.s-code[data-focused] .s-cell[data-current] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+.s-code[data-focused] .s-cell[data-current]:not([data-filled])::after {
+  content: "";
+  width: calc(4 * var(--k-px));
+  height: calc(64 * var(--k-px));
+  border-radius: 2px;
+  background: var(--k-sel);
+  animation: s-caret 1s steps(1) infinite;
+}
+
+.s-code[data-error] .s-cell::before {
+  background: var(--k-accent-dark);
+  box-shadow: 0 var(--k-depth) 0 var(--k-ink);
+}
+
+@keyframes s-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.s-open {
+  display: grid;
+  gap: calc(12 * var(--k-px) - var(--k-depth));
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(26 * var(--k-px));
+}
+
+.s-open .k-tile {
+  width: 100%;
+  margin: 0;
+  padding: 0 0 var(--k-depth);
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.s-open .k-face {
+  min-height: calc(70 * var(--k-px));
+  font-size: max(16px, calc(18 * var(--k-px)));
+}
+
+.s-open-label {
+  display: block;
+  font-weight: 800;
+}
+
+.s-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  color: var(--k-muted);
+  font-weight: 600;
+  font-size: max(14px, calc(16 * var(--k-px)));
+}
+
+.s-excerpt p {
+  display: inline;
+  margin: 0;
+}
+
+.s-excerpt p + p::before {
+  content: " ";
+}
+
+.s-pick {
+  display: flex;
+  flex-direction: column;
+}
+
+.s-pick-head {
+  display: flex;
+  align-items: center;
+  gap: calc(24 * var(--k-px));
+  padding: calc(40 * var(--k-px)) calc(44 * var(--k-px)) 0;
+}
+
+.s-h1 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--k-font-display);
+  font-weight: 700;
+  font-size: max(24px, calc(36 * var(--k-px)));
+  line-height: 1.15;
+}
+
+.s-search {
+  flex: none;
+  width: calc(340 * var(--k-px));
+}
+
+/* Names fade out at the cut edge; the last row scrolls clear of the fade. */
+.s-names-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: calc(24 * var(--k-px)) calc(44 * var(--k-px)) var(--k-cue-height);
+  mask-image: linear-gradient(
+    #000 calc(100% - var(--k-cue-height)),
+    transparent
+  );
+}
+
+.s-names {
+  display: grid;
+  grid-template-columns: repeat(
+      auto-fill,
+      minmax(calc(300 * var(--k-px)), 1fr)
+    );
+  gap: calc(14 * var(--k-px) - var(--k-depth)) calc(14 * var(--k-px));
+}
+
+.s-names .k-face {
+  min-height: calc(62 * var(--k-px));
+  gap: calc(12 * var(--k-px));
+  padding: calc(8 * var(--k-px)) calc(16 * var(--k-px));
+  font-size: max(16px, calc(19 * var(--k-px)));
+}
+
+.s-names .k-badge {
+  width: calc(32 * var(--k-px));
+  height: calc(32 * var(--k-px));
+}
+
+.s-names .k-badge-dot {
+  width: calc(12 * var(--k-px));
+  height: calc(12 * var(--k-px));
+}
+
+/* A name another computer holds: flat, dashed and out of reach. */
+.s-names .k-tile[data-disabled] {
+  cursor: default;
+}
+
+.s-names .k-tile[data-disabled]::before {
+  opacity: 0;
+}
+
+.s-names .k-tile[data-disabled] .k-face {
+  border-style: dashed;
+  background: var(--k-paper);
+  color: var(--k-muted);
+  transform: translateY(var(--k-depth));
+}
+
+.s-taken {
+  flex: none;
+  padding: calc(4 * var(--k-px)) calc(10 * var(--k-px));
+  border-radius: 999px;
+  background: var(--k-soft);
+  color: var(--k-muted);
+  font-weight: 700;
+  font-size: max(12px, calc(13 * var(--k-px)));
+}
+
+.s-empty {
+  margin: calc(24 * var(--k-px)) 0;
+  color: var(--k-muted);
+  font-weight: 600;
+  font-size: max(16px, calc(18 * var(--k-px)));
+}
+
+.s-foot {
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--k-px));
+  padding: 0 calc(44 * var(--k-px)) calc(32 * var(--k-px));
+}
+
+.s-foot .s-problem {
+  margin: 0;
+}
+
+.s-foot .s-btn:last-child {
+  margin-left: auto;
+}
+
+.s-toast-link {
+  padding: calc(8 * var(--k-px)) calc(14 * var(--k-px));
+  border: 0;
+  border-radius: calc(10 * var(--k-px));
+  background: var(--k-on-dark);
+  color: var(--k-ink);
+  font-weight: 800;
+  font-size: max(13px, calc(14 * var(--k-px)));
+  cursor: pointer;
+}
+
+.s-toast-link:focus-visible {
+  outline: 3px solid var(--k-accent);
+  outline-offset: 2px;
+}
+
+/* biome-ignore-start lint/complexity/noImportantStyles: reduced motion must beat every timing here */
+@media (prefers-reduced-motion: reduce) {
+  .s-btn > span,
+  .s-cell::before,
+  .s-cell::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: see above */

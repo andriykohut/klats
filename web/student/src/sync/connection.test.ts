@@ -537,3 +537,37 @@ test("a submit that fails between cycles does not put the next cycle off", async
   expect(submit).toHaveBeenCalledTimes(2);
   expect(heartbeat).toHaveBeenCalledTimes(2);
 });
+
+test("heartbeatNow beats at once, never beside another request, and resets the 5 s wait", async () => {
+  const { conn, heartbeat } = setup();
+  conn.start();
+  await until(1000);
+  conn.heartbeatNow();
+  await until(1000);
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  await until(5999);
+  expect(heartbeat).toHaveBeenCalledTimes(2);
+  await until(6000);
+  expect(heartbeat).toHaveBeenCalledTimes(3);
+
+  let answer: (s: Status) => void = () => {};
+  heartbeat.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+  );
+  await until(11000);
+  conn.heartbeatNow();
+  conn.heartbeatNow();
+  await until(11500);
+  expect(heartbeat).toHaveBeenCalledTimes(4);
+  answer(WRITING);
+  await until(11500);
+  expect(heartbeat).toHaveBeenCalledTimes(5);
+
+  conn.stop();
+  conn.heartbeatNow();
+  await until(30000);
+  expect(heartbeat).toHaveBeenCalledTimes(5);
+});

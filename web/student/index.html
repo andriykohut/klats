@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Клац</title>
+    <link
+      rel="preload"
+      href="../shared/src/fonts/manrope/manrope-cyrillic.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="../shared/src/fonts/manrope/manrope-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div id="old" hidden>
+      <div
+        style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; background: #0c6b66; color: #fff; font: 600 20px/1.4 'Segoe UI', system-ui, sans-serif; text-align: center"
+      >
+        <p style="margin: 0; font-size: 28px; font-weight: 700">
+          Цей браузер застарий. Відкрийте тест у Chrome або Firefox.
+        </p>
+        <p style="margin: 0; opacity: 0.8">
+          This browser is too old. Open the test in Chrome or Firefox.
+        </p>
+      </div>
+    </div>
+    <script>
+      // Plain ES5, so it runs where the app cannot: browsers below the floor
+      // (see shared browsers.ts) lack these, and get the notice instead.
+      if (![].findLast || typeof structuredClone !== "function") {
+        document.getElementById("old").hidden = false;
+      }
+    </script>
+    <noscript>
+      <p>Цей браузер застарий. Відкрийте тест у Chrome або Firefox.</p>
+      <p>This browser is too old. Open the test in Chrome or Firefox.</p>
+    </noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

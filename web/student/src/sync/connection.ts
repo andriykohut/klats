@@ -161,6 +161,15 @@ export class Connection {
   }
 
   /**
+   * Runs a cycle now instead of at the next 5 s tick, such as when the server
+   * hints that the device's status changed. A cycle in flight finishes first,
+   * so requests never overlap. Does nothing once stopped.
+   */
+  heartbeatNow(): void {
+    this.kick(true);
+  }
+
+  /**
    * Resolves true once no change is left unacked (at once if none is), and
    * false if the connection is offline or stops first. It submits pending
    * changes now if it can.

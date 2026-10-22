@@ -8,12 +8,12 @@ export MACOSX_DEPLOYMENT_TARGET := 13.0
 export CGO_LDFLAGS := $(or $(CGO_LDFLAGS),-O2 -g) -mmacosx-version-min=13.0
 endif
 
-.PHONY: build check lint test typecheck web gen e2e dev
+.PHONY: build check lint test typecheck size web gen e2e dev
 
 build:
 	go build ./cmd/klats
 
-check: lint test typecheck
+check: lint test typecheck size
 
 lint:
 	$(GOLANGCI_LINT) run
@@ -28,6 +28,16 @@ typecheck:
 
 web:
 	cd web && pnpm install && pnpm -r --if-present build
+
+# The student app's JS, gzipped, must stay within 350 KB: thirty lab PCs load
+# it at once over the school network. Checked only when a build exists.
+STUDENT_JS_BUDGET = 358400
+
+size:
+	@if [ ! -f web/student/dist/index.html ]; then echo "size: no student build, skipped"; exit 0; fi; \
+	total=0; for f in web/student/dist/assets/*.js; do total=$$((total + $$(gzip -c "$$f" | wc -c))); done; \
+	echo "size: student JS is $$total bytes gzipped (budget $(STUDENT_JS_BUDGET))"; \
+	if [ $$total -gt $(STUDENT_JS_BUDGET) ]; then echo "size: student JS is over the 350 KB gzip budget"; exit 1; fi
 
 gen:
 	go tool sqlc generate

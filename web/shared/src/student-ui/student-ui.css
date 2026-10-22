@@ -811,6 +811,20 @@
   line-height: 1.25;
 }
 
+/*
+ * A toast with an action is wider, so the action sits beside the text and the
+ * toast stays as short as one without.
+ */
+.k-toast[data-action] {
+  max-width: min(94vw, calc(760 * var(--k-px)));
+}
+
+.k-toast[data-action] > :last-child {
+  flex: none;
+  margin-left: auto;
+  pointer-events: auto;
+}
+
 /* Tight lines keep a three-line toast on the top bar, clear of the sheet. */
 .k-toast-detail {
   display: block;
