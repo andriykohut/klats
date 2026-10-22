@@ -1,41 +1,105 @@
-import type { JoinInfo, Participant } from "@klats/shared/generated/wire.ts";
+import type {
+  JoinInfo,
+  NameEntry,
+  Participant,
+} from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useState } from "react";
+import { motion, useReducedMotionConfig } from "motion/react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   RadioButton,
   RadioField,
   RadioGroup,
 } from "react-aria-components/RadioGroup";
-import { pick } from "../api";
+import { NameTaken, pick, streaming } from "../api";
 import { errorText, Problem, Sheet } from "./ui";
 
+/** How often the list is fetched again while the event stream is closed. */
+const REFRESH_MS = 15_000;
+
 /**
- * The class list as name tiles, in the server's order, with a filter field
- * for long lists. Names another computer holds are disabled and marked
- * «вже в тесті». The student picks a name, then starts the test with it.
+ * The class list as name tiles, with a filter field for long lists: the
+ * free names in the server's order, then «Уже приєднались» with the names
+ * other computers hold. The list follows `info` as it changes, sliding
+ * names between the groups, but holds a change while a pointer is down on
+ * it and keeps keyboard focus on the same name. A held name never starts the
+ * test; it says to call the teacher. `onRefresh` fetches the list again; it
+ * runs every 15 s and after a refused pick, but only while the event stream
+ * that carries the changes is closed.
  */
 export function PickName({
   code,
   info,
   onPicked,
+  onRefresh,
   onBack,
 }: {
   code: string;
   info: JoinInfo;
   onPicked: (p: Participant) => void;
+  onRefresh: () => void;
   onBack: () => void;
 }) {
+  const reduced = useReducedMotionConfig();
+  const [names, setNames] = useState(info.names);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
+  const pressing = useRef(false);
+  const held = useRef<NameEntry[] | null>(null);
+  const focused = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (pressing.current) held.current = info.names;
+    else setNames(info.names);
+  }, [info.names]);
+
+  useEffect(() => {
+    const release = () => {
+      pressing.current = false;
+      if (held.current) setNames(held.current);
+      held.current = null;
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!streaming()) onRefresh();
+    }, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [onRefresh]);
+
+  // A name moving to the other group is re-inserted, which drops its focus.
+  useLayoutEffect(() => {
+    const id = focused.current;
+    if (!id || list.current?.contains(document.activeElement)) return;
+    list.current
+      ?.querySelector<HTMLElement>(`[data-student="${CSS.escape(id)}"] input`)
+      ?.focus({ preventScroll: true });
+  }, [names]);
+
   const q = query.trim().toLocaleLowerCase("uk");
-  const shown = info.names.filter((n) =>
-    n.name.toLocaleLowerCase("uk").includes(q),
-  );
+  const shown = names.filter((n) => n.name.toLocaleLowerCase("uk").includes(q));
+  const free = shown.filter((n) => !n.taken);
+  const taken = shown.filter((n) => n.taken);
+  const isTaken = (id: string | null) =>
+    names.some((n) => n.studentId === id && n.taken);
+  // Someone else took the picked name since.
+  const lost = isTaken(selected);
+  const move = reduced
+    ? { duration: 0 }
+    : { type: "spring" as const, visualDuration: 0.45, bounce: 0.15 };
 
   const start = async () => {
-    if (!selected) return;
+    if (!selected || lost) return;
     setBusy(true);
     setError(null);
     try {
@@ -43,8 +107,31 @@ export function PickName({
     } catch (err) {
       setError(errorText(err));
       setBusy(false);
+      if (err instanceof NameTaken && !streaming()) onRefresh();
     }
   };
+
+  const tile = (n: NameEntry) => (
+    <motion.div
+      key={n.studentId}
+      layout="position"
+      transition={move}
+      className="k-tile-wrap"
+      data-student={n.studentId}
+      data-taken={n.taken || undefined}
+    >
+      <RadioField value={n.studentId} className="k-tile-field">
+        <RadioButton className="k-tile">
+          <span className="k-face">
+            <span className="k-badge k-badge-single" aria-hidden="true">
+              <span className="k-badge-dot" />
+            </span>
+            <span className="k-tile-text">{n.name}</span>
+          </span>
+        </RadioButton>
+      </RadioField>
+    </motion.div>
+  );
 
   return (
     <Sheet className="s-pick">
@@ -59,46 +146,62 @@ export function PickName({
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      <div className="s-names-scroll">
+      <motion.div
+        className="s-names-scroll"
+        layoutScroll
+        ref={list}
+        // Capture: React Aria stops a pressed tile's pointerdown from bubbling.
+        onPointerDownCapture={() => {
+          pressing.current = true;
+        }}
+        onFocus={(e) => {
+          focused.current =
+            (e.target as Element)
+              .closest("[data-student]")
+              ?.getAttribute("data-student") ?? null;
+        }}
+        onBlur={(e) => {
+          const to = e.relatedTarget as Node | null;
+          if (to && !list.current?.contains(to)) focused.current = null;
+        }}
+      >
         <RadioGroup
           className="s-names"
           aria-label={m.pick_title()}
-          value={selected}
+          value={lost ? null : selected}
           onChange={(id) => {
+            if (isTaken(id)) {
+              setError(m.pick_taken_plain());
+              return;
+            }
             setSelected(id);
             setError(null);
           }}
         >
-          {shown.map((n) => (
-            <RadioField
-              key={n.studentId}
-              value={n.studentId}
-              isDisabled={n.taken}
-              className="k-tile-field"
+          {free.map(tile)}
+          {taken.length > 0 && (
+            <motion.p
+              key="taken"
+              layout="position"
+              transition={move}
+              className="s-names-head"
             >
-              <RadioButton className="k-tile">
-                <span className="k-face">
-                  <span className="k-badge k-badge-single" aria-hidden="true">
-                    <span className="k-badge-dot" />
-                  </span>
-                  <span className="k-tile-text">{n.name}</span>
-                  {n.taken && <span className="s-taken">{m.pick_taken()}</span>}
-                </span>
-              </RadioButton>
-            </RadioField>
-          ))}
+              {m.pick_joined()}
+            </motion.p>
+          )}
+          {taken.map(tile)}
         </RadioGroup>
         {shown.length === 0 && <p className="s-empty">{m.pick_none()}</p>}
-      </div>
+      </motion.div>
       <div className="s-foot">
         <button type="button" className="s-btn s-btn-quiet" onClick={onBack}>
           <span>{m.back()}</span>
         </button>
-        {error && <Problem>{error}</Problem>}
+        {(error || lost) && <Problem>{error ?? m.pick_taken_plain()}</Problem>}
         <button
           type="button"
           className="s-btn"
-          disabled={!selected || busy}
+          disabled={!selected || lost || busy}
           onClick={start}
         >
           <span>{m.pick_start()}</span>

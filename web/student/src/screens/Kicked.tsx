@@ -15,11 +15,14 @@ export function Kicked({ onPick }: { onPick: () => void }) {
   );
 }
 
-/** The teacher moved the student's test to another computer. */
-export function Moved() {
+/**
+ * The teacher moved the student's test to another computer. It says the
+ * answers are saved only once `saved`, when the server holds them all.
+ */
+export function Moved({ saved }: { saved: boolean }) {
   return (
     <Notice icon={ICONS.moved} title={m.moved_title()}>
-      <p className="s-lead">{m.moved_text()}</p>
+      {saved && <p className="s-lead">{m.moved_text()}</p>}
     </Notice>
   );
 }

@@ -1,6 +1,7 @@
 import type {
   FinishResult,
   JoinInfo,
+  NamesTaken,
   Participant,
   Status,
   TestResponse,
@@ -131,18 +132,37 @@ let stream: EventSource | undefined;
 
 /**
  * Opens the device's event stream at `base`, closing any earlier one, and
- * calls `onStatus` on each hint that the device's status changed. The stream
- * is closed for good on its first error: the server refuses more than 64
- * streams per address with a 429, after which EventSource never retries, and
- * the 5 s heartbeat reports every status anyway.
+ * calls `onStatus` on each hint that the device's status changed. With
+ * `names`, it also streams the taken names of that class-list sitting to
+ * `names.onTaken`, as the ids of the students devices hold.
+ *
+ * The stream is closed for good on its first error: the server refuses more
+ * than 64 streams per address with a 429, after which EventSource never
+ * retries, and the 5 s heartbeat reports every status anyway.
  */
-export function listen(onStatus: () => void): void {
+export function listen(
+  onStatus: () => void,
+  names?: { sitting: string; onTaken: (taken: string[]) => void },
+): void {
   stream?.close();
-  const es = new EventSource(`${base}/api/events?device=${device()}`);
+  const sitting = names ? `&sitting=${encodeURIComponent(names.sitting)}` : "";
+  const es = new EventSource(`${base}/api/events?device=${device()}${sitting}`);
   es.addEventListener("status", onStatus);
-  es.onerror = () => es.close();
+  if (names) {
+    es.addEventListener("taken", (e) => {
+      const data: Partial<NamesTaken> = JSON.parse(e.data);
+      if (Array.isArray(data.taken)) names.onTaken(data.taken);
+    });
+  }
+  es.onerror = () => {
+    es.close();
+    if (stream === es) stream = undefined;
+  };
   stream = es;
 }
+
+/** Whether the event stream is open or opening, so its events can arrive. */
+export const streaming = () => stream !== undefined;
 
 /**
  * Returns the teacher's address typed by a student as an origin,

@@ -43,7 +43,7 @@ export function Review({
               {answered}
             </div>
             <div className="k-of" aria-hidden="true">
-              {m.of_total({ total })}
+              {m.review_answered({ count: answered, total })}
             </div>
             <span className="k-sr-only">
               {m.progress_value({ answered, total })}

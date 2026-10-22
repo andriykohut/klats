@@ -53,8 +53,7 @@
   "pick_title": "Choose your name",
   "pick_search": "Search",
   "pick_none": "No one found",
-  "pick_taken": "already in the test",
-  "pick_name_taken": "This name is already in use on {label}. Call your teacher.",
+  "pick_name_taken": "This name is already in use on computer {label}. Call your teacher.",
   "pick_start": "Start the test",
   "typed_title": "What’s your name?",
   "typed_surname": "Surname",
@@ -85,5 +84,23 @@
   "address_label": "Teacher’s address",
   "address_bad": "That doesn’t look like an address. Copy it from the board, for example 10.0.0.5:8080.",
   "address_connect": "Connect",
-  "address_cancel": "Cancel"
+  "address_cancel": "Cancel",
+  "pick_taken_plain": "This name is already in use. Call your teacher.",
+  "pick_joined": "Already joined",
+  "error_unreachable": "Couldn’t connect to the teacher’s computer",
+  "error_retry": "Try again",
+  "review_answered": [
+    {
+      "declarations": [
+        "input count",
+        "input total",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "answer of {total}",
+        "countPlural=*": "answers of {total}"
+      }
+    }
+  ]
 }

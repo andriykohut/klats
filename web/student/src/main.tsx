@@ -24,6 +24,7 @@ import { Fragment, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import * as api from "./api";
 import { watchFocus } from "./input/focus";
+import { route } from "./route";
 import { AddressChanged } from "./screens/AddressChanged";
 import { JoinCode } from "./screens/JoinCode";
 import { Kicked, Moved } from "./screens/Kicked";
@@ -32,6 +33,7 @@ import { PickName } from "./screens/PickName";
 import { Review } from "./screens/Review";
 import { TakeTest } from "./screens/TakeTest";
 import { TypedName } from "./screens/TypedName";
+import { Unreachable } from "./screens/Unreachable";
 import { ApiError, Connection, type ConnectionState } from "./sync/connection";
 import { AnswerQueue } from "./sync/queue";
 import { readStored } from "./sync/storage";
@@ -56,6 +58,7 @@ type Screen =
   | { name: "kicked" }
   | { name: "moved" }
   | { name: "otherTab" }
+  | { name: "unreachable" }
   | { name: "address"; back: Screen };
 
 interface State {
@@ -72,11 +75,15 @@ interface State {
   net: { state: ConnectionState; pending: number };
   saveFailed: boolean;
   result: FinishResult | null;
+  /** On the moved screen: the server holds every change this device made. */
+  drained: boolean;
 }
 
 /** What survives a reload, under `klats.participant`. */
 interface Saved {
   id: string;
+  /** The join code, for picking a name again after a kick. */
+  code: string;
   name: string;
   title: string;
   palette: string;
@@ -90,6 +97,7 @@ const isSaved = (v: unknown): v is Saved => {
   const s = v as Saved | null;
   return (
     typeof s?.id === "string" &&
+    typeof s.code === "string" &&
     typeof s.name === "string" &&
     typeof s.title === "string" &&
     typeof s.palette === "string" &&
@@ -108,6 +116,7 @@ let state: State = {
   net: { state: "online", pending: 0 },
   saveFailed: false,
   result: null,
+  drained: false,
 };
 const listeners = new Set<() => void>();
 
@@ -131,8 +140,10 @@ function save(patch: Partial<Saved>): void {
 /** The participant whose answers sync; null whenever no Connection runs. */
 let session: { queue: AnswerQueue; conn: Connection } | null = null;
 let unwatch: (() => void) | null = null;
-/** The join code, for picking a name again after a kick. */
+/** The join code of this session; see {@link rejoin} for after a reload. */
 let joinCode = "";
+/** The class-list sitting whose taken names the event stream carries. */
+let namesSitting = "";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // shortcut: each participant's queue stays in localStorage after the test
@@ -158,7 +169,12 @@ function setLang(lang: string): void {
   if (!isLocale(lang)) return;
   setLocale(lang, { reload: false });
   document.documentElement.lang = lang;
-  localStorage.setItem(LANG, lang);
+  document.title = m.app_name();
+  try {
+    localStorage.setItem(LANG, lang);
+  } catch {
+    // Full storage: the next boot starts in the default language.
+  }
   update({ lang });
 }
 
@@ -214,9 +230,21 @@ async function resume(name?: string): Promise<void> {
   }
   const { participantId: id, test } = res;
   if (saved?.id !== id) {
-    saved = { id, name: name ?? "", title: "", palette: "", index: 0 };
+    saved = {
+      id,
+      code: "",
+      name: name ?? "",
+      title: "",
+      palette: "",
+      index: 0,
+    };
   }
-  save({ title: test.title, palette: test.palette, ...(name && { name }) });
+  save({
+    title: test.title,
+    palette: test.palette,
+    ...(name && { name }),
+    ...(joinCode && { code: joinCode }),
+  });
   // shortcut: the test lives in memory only; a reload needs the teacher's
   // server anyway (no service worker on plain HTTP). Revisit if offline
   // reloads become possible.
@@ -239,36 +267,29 @@ async function resume(name?: string): Promise<void> {
 
 /** Moves the app to where the server's status for this device says it is. */
 async function follow(st: Status): Promise<void> {
-  const at = state.screen.name;
-  if (at === "otherTab") return;
-  switch (st.state) {
-    case "writing":
-      if (!session) await resume();
-      return;
-    case "finished":
-    case "ended":
+  const step = route(st, state.screen.name, session !== null);
+  switch (step.to) {
+    case "resume":
+      return resume();
+    case "finish":
       // A result means the server holds every answer it will grade.
-      if (st.result) {
+      if (step.result) {
         end();
-        update({ result: st.result });
+        update({ result: step.result });
       }
-      if (at !== "finish") show({ name: "finish" });
-      return;
+      return show({ name: "finish" });
     case "kicked":
       end();
       return show({ name: "kicked" });
     case "moved":
-      if (at !== "moved") {
-        show({ name: "moved" });
-        void stopWhenDrained();
-      }
-      return;
-    default:
+      update({ drained: false });
+      show({ name: "moved" });
+      return stopWhenDrained();
+    case "names":
+      return refreshNames();
+    case "join":
       end();
-      if (at === "pick") await rejoin();
-      else if (at !== "join" && at !== "typed") {
-        show({ name: "join", code: "" });
-      }
+      return show({ name: "join", code: "" });
   }
 }
 
@@ -279,21 +300,68 @@ async function follow(st: Status): Promise<void> {
 async function stopWhenDrained(): Promise<void> {
   const s = session;
   while (s && session === s && !(await s.conn.drain())) await sleep(5000);
-  if (s && session === s) end();
+  if (s && session !== s) return;
+  end();
+  update({ drained: true });
 }
 
-/** Asks the server for the class list again and shows it, or the code. */
+/**
+ * Shows the class list again for the join code of this session, or after a
+ * reload the remembered one or the page's `?code=`; with no code, or when the
+ * join fails, it shows the code screen.
+ */
 async function rejoin(): Promise<void> {
+  const code =
+    joinCode ||
+    saved?.code ||
+    new URLSearchParams(location.search).get("code") ||
+    "";
   try {
-    joined(joinCode, await api.join(joinCode));
+    joined(code, await api.join(code));
   } catch {
     show({ name: "join", code: "" });
   }
 }
 
+/** Fetches the class list again and shows it, if the student still chooses. */
+async function refreshNames(): Promise<void> {
+  try {
+    const info = await api.join(joinCode);
+    if (state.screen.name === "pick") {
+      show({ name: "pick", code: joinCode, info });
+    }
+  } catch {
+    // A 429 or a failure skips this refresh; the next one comes.
+  }
+}
+
+/** Marks the names other devices hold, as the event stream reports them. */
+function onTaken(taken: string[]): void {
+  const screen = state.screen;
+  if (screen.name !== "pick") return;
+  const held = new Set(taken);
+  const names = screen.info.names.map((n) => ({
+    ...n,
+    taken: held.has(n.studentId),
+  }));
+  show({ ...screen, info: { ...screen.info, names } });
+}
+
+/** Opens the event stream, with the taken names while there is a class list. */
+function openStream(): void {
+  api.listen(
+    onHint,
+    namesSitting ? { sitting: namesSitting, onTaken } : undefined,
+  );
+}
+
 function joined(code: string, info: JoinInfo): void {
   joinCode = code;
   setLang(info.language);
+  if (info.mode === "list" && info.sittingId !== namesSitting) {
+    namesSitting = info.sittingId;
+    openStream();
+  }
   show(
     info.mode === "list"
       ? { name: "pick", code, info }
@@ -358,7 +426,7 @@ function onHint(): void {
 function changeAddress(url: string, back: Screen): void {
   api.setBase(url);
   session?.conn.setBase(url);
-  api.listen(onHint);
+  openStream();
   show(back);
 }
 
@@ -367,22 +435,31 @@ function lostTab(): void {
   show({ name: "otherTab" });
 }
 
-/**
- * Starts the app: claims the tab, then asks the server where this device
- * stands, sending what a reload left in the queue, and goes there.
- */
+/** Starts the app: claims the tab, then finds where this device stands. */
 async function boot(): Promise<void> {
   setLang(localStorage.getItem(LANG) ?? "uk");
   paint("teal");
   if (!claimTab("klats.tab", lostTab)) return show({ name: "otherTab" });
-  api.listen(onHint);
+  openStream();
+  await locate();
+}
+
+/**
+ * Asks the server where this device stands, sending what a reload left in
+ * the queue, and goes there. When the server cannot be reached it says so,
+ * with a way to try again.
+ */
+async function locate(): Promise<void> {
+  show({ name: "boot" });
   const queue =
     saved && new AnswerQueue(localStorage, queueKey(saved.id), saved.id);
   const pending = queue ? queue.pending().length : 0;
-  const [st] = await Promise.all([
-    retry(() => api.heartbeat(pending)),
-    fonts(),
-  ]);
+  let st: Status;
+  try {
+    [st] = await Promise.all([api.heartbeat(pending), fonts()]);
+  } catch {
+    return show({ name: "unreachable" });
+  }
   if (saved && ["finished", "ended", "moved"].includes(st.state)) {
     paint(saved.palette);
     update({ title: saved.title, name: saved.name });
@@ -435,6 +512,7 @@ function App() {
           code={screen.code}
           info={screen.info}
           onPicked={picked}
+          onRefresh={refreshNames}
           onBack={() => show({ name: "join", code: "" })}
         />
       );
@@ -485,10 +563,13 @@ function App() {
       content = <Kicked key="kicked" onPick={rejoin} />;
       break;
     case "moved":
-      content = <Moved key="moved" />;
+      content = <Moved key="moved" saved={s.drained} />;
       break;
     case "otherTab":
       content = <OtherTab key="otherTab" />;
+      break;
+    case "unreachable":
+      content = <Unreachable key="unreachable" onRetry={locate} />;
       break;
     case "address":
       content = (
@@ -509,12 +590,12 @@ function App() {
         ) : (
           <div className="s-brand">{m.app_name()}</div>
         )}
-        {test && (screen.name === "test" || screen.name === "review") && (
+        {test && screen.name === "test" && (
           <Progress
             answered={test.questions.map(
               (q) => (s.answers[q.id]?.length ?? 0) > 0,
             )}
-            current={screen.name === "test" ? s.index : -1}
+            current={s.index}
             onJump={go}
           />
         )}
@@ -549,8 +630,8 @@ function App() {
   );
 }
 
-// The old-browser notice in index.html is showing: this browser lacks what
-// the app needs, so it never starts.
+// Mounts only while the old-browser notice in index.html stays hidden: a
+// browser below the floor gets the notice instead of the app.
 if (document.getElementById("old")?.hidden) {
   createRoot(document.getElementById("root") as HTMLElement).render(
     <MotionConfig reducedMotion="user">

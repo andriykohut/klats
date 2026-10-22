@@ -397,6 +397,15 @@ input {
   }
 }
 
+/* The unanswered list fades out at the cut edge, like the names. */
+.s-review .k-sheet-scroll {
+  padding-bottom: var(--k-cue-height);
+  mask-image: linear-gradient(
+    #000 calc(100% - var(--k-cue-height)),
+    transparent
+  );
+}
+
 .s-open {
   display: grid;
   gap: calc(12 * var(--k-px) - var(--k-depth));
@@ -507,30 +516,25 @@ input {
   height: calc(12 * var(--k-px));
 }
 
-/* A name another computer holds: flat, dashed and out of reach. */
-.s-names .k-tile[data-disabled] {
-  cursor: default;
-}
-
-.s-names .k-tile[data-disabled]::before {
+/* Names other computers hold: flat, dashed and dimmed, under their heading. */
+.s-names [data-taken] .k-tile::before {
   opacity: 0;
 }
 
-.s-names .k-tile[data-disabled] .k-face {
+.s-names [data-taken] .k-tile .k-face {
   border-style: dashed;
   background: var(--k-paper);
   color: var(--k-muted);
   transform: translateY(var(--k-depth));
 }
 
-.s-taken {
-  flex: none;
-  padding: calc(4 * var(--k-px)) calc(10 * var(--k-px));
-  border-radius: 999px;
-  background: var(--k-soft);
+.s-names-head {
+  grid-column: 1 / -1;
+  margin: calc(18 * var(--k-px)) 0 calc(4 * var(--k-px));
   color: var(--k-muted);
-  font-weight: 700;
-  font-size: max(12px, calc(13 * var(--k-px)));
+  font-family: var(--k-font-display);
+  font-weight: 600;
+  font-size: max(14px, calc(17 * var(--k-px)));
 }
 
 .s-empty {

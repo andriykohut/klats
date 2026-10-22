@@ -55,8 +55,7 @@
   "pick_title": "Оберіть своє ім’я",
   "pick_search": "Пошук",
   "pick_none": "Нікого не знайдено",
-  "pick_taken": "вже в тесті",
-  "pick_name_taken": "Це ім’я вже використовується на {label}. Покличте вчителя.",
+  "pick_name_taken": "Це ім’я вже використовується на комп’ютері {label}. Покличте вчителя.",
   "pick_start": "Почати тест",
   "typed_title": "Як вас звати?",
   "typed_surname": "Прізвище",
@@ -87,5 +86,24 @@
   "address_label": "Адреса вчителя",
   "address_bad": "Це не схоже на адресу. Перепишіть її з дошки, наприклад 10.0.0.5:8080.",
   "address_connect": "Підключитися",
-  "address_cancel": "Скасувати"
+  "address_cancel": "Скасувати",
+  "pick_taken_plain": "Це ім’я вже використовується. Покличте вчителя.",
+  "pick_joined": "Уже приєднались",
+  "error_unreachable": "Не вдалося з’єднатися з комп’ютером учителя",
+  "error_retry": "Спробувати ще раз",
+  "review_answered": [
+    {
+      "declarations": [
+        "input count",
+        "input total",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "відповідь з {total}",
+        "countPlural=few": "відповіді з {total}",
+        "countPlural=*": "відповідей з {total}"
+      }
+    }
+  ]
 }
