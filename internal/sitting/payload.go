@@ -10,11 +10,19 @@ import (
 	"klats/internal/wire"
 )
 
+// moveSeqStride is how far the seq base rises with each move of a
+// participant. A device numbers its answer changes above the base it got at
+// its last resume, so the device a participant was moved to outranks every
+// change the old device still holds, as long as fewer than a million changes
+// are made to one question between two moves.
+const moveSeqStride = 1_000_000
+
 // Resume returns what the device needs to start or resume writing: the test
 // (without correct answers or points; questions keep their order, and the
 // options of a question with ShuffleOptions are shuffled in an order fixed per
 // device), the answers stored for the device's participant, that
-// participant's id and the device's status. It returns
+// participant's id, its seq base (moves × 1,000,000) and the device's status.
+// It returns
 // [ErrKicked] if the teacher sent the device back to the name picker and
 // [ErrNotJoined] unless the device writes as a participant in the running
 // sitting.
@@ -37,7 +45,9 @@ func (e *Engine) Resume(device string) (wire.TestResponse, error) {
 		e.mu.Unlock()
 		return wire.TestResponse{}, err
 	}
-	res := wire.TestResponse{ParticipantID: p.id, Test: studentTest(e.cur.test, device), Status: e.status(device)}
+	res := wire.TestResponse{
+		ParticipantID: p.id, Test: studentTest(e.cur.test, device), SeqBase: p.moves * moveSeqStride, Status: e.status(device),
+	}
 	e.mu.Unlock()
 
 	rows, err := e.st.Q().ListParticipantAnswers(ctx, res.ParticipantID)

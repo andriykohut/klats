@@ -710,3 +710,40 @@ func TestRestartReportsUnreadableSitting(t *testing.T) {
 		t.Fatalf("New = %v, %v; want an error", e, err)
 	}
 }
+
+func TestMovesRaiseTheSeqBase(t *testing.T) {
+	e, st, hub := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	join(t, e, info.Code, devB, "10.0.0.2")
+	seqBase := func(e *Engine, device string) int64 {
+		t.Helper()
+		res, err := e.Resume(device)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res.SeqBase
+	}
+
+	if got := seqBase(e, devA); got != 0 {
+		t.Errorf("before any move: seqBase = %d, want 0", got)
+	}
+	if err := e.Move(p.ID, devB); err != nil {
+		t.Fatal(err)
+	}
+	if got := seqBase(e, devB); got != 1_000_000 {
+		t.Errorf("after one move: seqBase = %d, want 1000000", got)
+	}
+	// Moves back to a device used before count too: A → B → A → B is 3.
+	for _, to := range []string{devA, devB} {
+		if err := e.Move(p.ID, to); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := seqBase(e, devB); got != 3_000_000 {
+		t.Errorf("after three moves: seqBase = %d, want 3000000", got)
+	}
+	if got := seqBase(newEngine(t, st, hub), devB); got != 3_000_000 {
+		t.Errorf("after a restart: seqBase = %d, want 3000000", got)
+	}
+}

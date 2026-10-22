@@ -137,6 +137,7 @@ type participant struct {
 	joinedAt   int64
 	finishedAt int64               // 0 until finished
 	switches   int                 // window switches
+	moves      int64               // times moved to another device
 	answers    map[string][]string // question id → selected option ids
 	late       map[string]bool     // question ids answered after the end
 	overrides  map[string]float64  // question id → points set by the teacher
@@ -205,7 +206,7 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		}
 		a.participants = append(a.participants, &participant{
 			id: r.ID, key: key, name: r.DisplayName, class: r.TypedClass.String, device: r.DeviceToken, state: r.State,
-			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches),
+			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches), moves: r.Moves,
 			answers: map[string][]string{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: now,
 		})
 	}

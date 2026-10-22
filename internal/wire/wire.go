@@ -89,11 +89,15 @@ type StoredAnswer struct {
 
 // TestResponse is what a student device loads to start or resume writing: the
 // test, the answers already stored, its participant id (carried by every
-// [AnswerChange]) and its current status.
+// [AnswerChange]) and its current status. SeqBase is the seq every answer
+// change from the device must exceed: it rises by a million each time the
+// teacher moves the participant to another device, so the new device's
+// changes outrank those its old device still holds.
 type TestResponse struct {
 	ParticipantID string         `json:"participantId"`
 	Test          StudentTest    `json:"test"`
 	Answers       []StoredAnswer `json:"answers"`
+	SeqBase       int64          `json:"seqBase"`
 	Status        Status         `json:"status"`
 }
 

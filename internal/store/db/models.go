@@ -77,6 +77,7 @@ type Participant struct {
 	FinishedAt     sql.NullInt64
 	FinishedBy     sql.NullString
 	WindowSwitches int64
+	Moves          int64
 }
 
 type Sitting struct {

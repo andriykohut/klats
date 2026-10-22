@@ -39,6 +39,9 @@ UPDATE participants SET state = ? WHERE id = ?;
 -- name: SetParticipantDevice :exec
 UPDATE participants SET device_token = ? WHERE id = ?;
 
+-- name: AddParticipantMove :exec
+UPDATE participants SET moves = moves + 1 WHERE id = ?;
+
 -- name: InsertMovedDevice :exec
 INSERT OR IGNORE INTO moved_devices (device_token, participant_id) VALUES (?, ?);
 

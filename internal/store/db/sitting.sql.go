@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const addParticipantMove = `-- name: AddParticipantMove :exec
+UPDATE participants SET moves = moves + 1 WHERE id = ?
+`
+
+func (q *Queries) AddParticipantMove(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, addParticipantMove, id)
+	return err
+}
+
 const changeSeen = `-- name: ChangeSeen :one
 SELECT EXISTS (SELECT 1 FROM answers WHERE change_id = ?)
 `
@@ -137,7 +146,7 @@ func (q *Queries) GetLatestSitting(ctx context.Context) (Sitting, error) {
 }
 
 const getParticipant = `-- name: GetParticipant :one
-SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches FROM participants WHERE id = ?
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves FROM participants WHERE id = ?
 `
 
 func (q *Queries) GetParticipant(ctx context.Context, id string) (Participant, error) {
@@ -156,6 +165,7 @@ func (q *Queries) GetParticipant(ctx context.Context, id string) (Participant, e
 		&i.FinishedAt,
 		&i.FinishedBy,
 		&i.WindowSwitches,
+		&i.Moves,
 	)
 	return i, err
 }
@@ -624,7 +634,7 @@ func (q *Queries) ListParticipantAnswers(ctx context.Context, participantID stri
 }
 
 const listParticipants = `-- name: ListParticipants :many
-SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
 `
 
 func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Participant, error) {
@@ -649,6 +659,7 @@ func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Par
 			&i.FinishedAt,
 			&i.FinishedBy,
 			&i.WindowSwitches,
+			&i.Moves,
 		); err != nil {
 			return nil, err
 		}

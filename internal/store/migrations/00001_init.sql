@@ -59,7 +59,8 @@ CREATE TABLE participants (
     joined_at       INTEGER NOT NULL,
     finished_at     INTEGER,
     finished_by     TEXT CHECK (finished_by IN ('student', 'end', 'end_synced')),
-    window_switches INTEGER NOT NULL DEFAULT 0
+    window_switches INTEGER NOT NULL DEFAULT 0,
+    moves           INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX participants_sitting ON participants (sitting_id);
 
