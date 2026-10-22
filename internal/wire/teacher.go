@@ -119,12 +119,15 @@ type ExportResult struct {
 
 // NetworkInfo describes the address students use. Candidates are the
 // addresses the teacher can choose from; Address is empty when there are none.
-// URL is empty too, and Port 0, while the student server is not running.
+// Port is the student server's port. While the server is not running, URL is
+// empty, Port is the saved port and Error says why: "port_busy" when the saved
+// port could not be bound.
 type NetworkInfo struct {
 	Candidates []string `json:"candidates"`
 	Address    string   `json:"address"`
 	URL        string   `json:"url"`
 	Port       int      `json:"port"`
+	Error      string   `json:"error,omitempty"`
 }
 
 // NetworkRequest chooses the address students use.
@@ -134,7 +137,8 @@ type NetworkRequest struct {
 
 // SettingsInfo holds the program settings. A changed Port applies at the next
 // launch; RestartRequired is set while the saved Port differs from the port
-// the student server runs on. It is ignored in requests.
+// the student server runs on, and always while that server is not running. It
+// is ignored in requests.
 type SettingsInfo struct {
 	Port            int    `json:"port"`
 	Language        string `json:"language"`

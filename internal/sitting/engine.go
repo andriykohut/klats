@@ -285,6 +285,14 @@ func (e *Engine) DeviceStatus(token string) string {
 	return e.cur.status[token]
 }
 
+// Active reports whether a sitting is running, including one resumed at
+// start-up. An ended sitting is not active.
+func (e *Engine) Active() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.cur != nil
+}
+
 // SetLanguage sets the language student pages use ("uk" or "en"), sent in
 // [wire.JoinInfo]. The default is "uk".
 func (e *Engine) SetLanguage(lang string) {

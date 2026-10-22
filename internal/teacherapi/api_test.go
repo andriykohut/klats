@@ -730,7 +730,7 @@ func TestExportWriteFailure(t *testing.T) {
 func TestNetwork(t *testing.T) {
 	v := setup(t, false)
 	n := decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil))
-	if n.Address != "192.168.1.20" || n.URL != "http://192.168.1.20:8080" || n.Port != 8080 || len(n.Candidates) != 2 {
+	if n.Address != "192.168.1.20" || n.URL != "http://192.168.1.20:8080" || n.Port != 8080 || len(n.Candidates) != 2 || n.Error != "" {
 		t.Errorf("network = %+v", n)
 	}
 	for _, bad := range []string{"8.8.8.8", "", "not-an-ip", "127.0.0.1"} {
@@ -799,13 +799,33 @@ func TestLANPortIsTheRunningServer(t *testing.T) {
 		t.Errorf("settings = %+v", s)
 	}
 
-	// No LAN server: no port to differ from.
+	// No LAN server: the saved port shows, and only a restart can start the server.
 	v = setup(t, false, func(d *Deps) { d.LANPort = 0 })
-	if n = decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Port != 0 || n.URL != "" || n.Address != "192.168.1.20" {
+	if n = decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Port != 8080 || n.URL != "" || n.Address != "192.168.1.20" || n.Error != "" {
 		t.Errorf("network = %+v", n)
 	}
-	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); s.RestartRequired {
+	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); !s.RestartRequired {
 		t.Errorf("settings = %+v", s)
+	}
+}
+
+func TestNetworkReportsBusyPort(t *testing.T) {
+	v := setup(t, false, func(d *Deps) {
+		d.LANPort = 0
+		d.LANError = func() string { return "port_busy" }
+	})
+	w := v.do("GET", "/api/network", nil)
+	if n := decodeBody[wire.NetworkInfo](t, w); n.Error != "port_busy" || n.Port != 8080 || n.URL != "" {
+		t.Errorf("network = %+v", n)
+	}
+	// The teacher picks another port; it takes effect at the next launch.
+	w = v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 8090, Language: "uk"})
+	wantStatus(t, w, 200)
+	if s := decodeBody[wire.SettingsInfo](t, w); s.Port != 8090 || !s.RestartRequired {
+		t.Errorf("settings = %+v", s)
+	}
+	if n := decodeBody[wire.NetworkInfo](t, v.do("GET", "/api/network", nil)); n.Error != "port_busy" || n.Port != 8090 {
+		t.Errorf("network after the change = %+v", n)
 	}
 }
 

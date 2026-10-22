@@ -173,6 +173,26 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	}
 }
 
+func TestActiveWhileSittingRuns(t *testing.T) {
+	e, st, hub := setup(t)
+	if e.Active() {
+		t.Fatal("active before any sitting")
+	}
+	start(t, e, nil)
+	if !e.Active() {
+		t.Fatal("not active after Start")
+	}
+	if !newEngine(t, st, hub).Active() {
+		t.Error("a resumed sitting is not active")
+	}
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	if e.Active() || newEngine(t, st, hub).Active() {
+		t.Error("active after End")
+	}
+}
+
 func TestOverrideChangesResults(t *testing.T) {
 	clk := newClock()
 	e, st, _ := setupAt(t, clk)

@@ -69,6 +69,9 @@ type Deps struct {
 	// running. It can differ from Settings.Port, for example under a -port
 	// override, and a saved port takes effect only at the next launch.
 	LANPort int
+	// LANError returns why the student server is not running, such as
+	// "port_busy", or "" when it runs; nil means it runs.
+	LANError func() string
 	// Settings holds the saved settings. The handler copies it, and owns the
 	// saved settings from then on.
 	Settings *config.Settings
@@ -88,6 +91,7 @@ type api struct {
 	ifaces  func() []lan.Iface
 	dialogs Dialogs
 	lanPort int
+	lanErr  func() string
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -101,10 +105,13 @@ type api struct {
 func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, token: d.Token, port: d.Port, dataDir: d.DataDir,
-		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, settings: *d.Settings,
+		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
 	}
 	if a.ifaces == nil {
 		a.ifaces = lan.System
+	}
+	if a.lanErr == nil {
+		a.lanErr = func() string { return "" }
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/tests", a.listTests)
@@ -712,7 +719,7 @@ func contentDisposition(name string) string {
 
 // networkInfo describes the address students use. The caller holds a.mu.
 func (a *api) networkInfo(cands []netip.Addr) wire.NetworkInfo {
-	info := wire.NetworkInfo{Candidates: make([]string, len(cands)), Port: a.lanPort}
+	info := wire.NetworkInfo{Candidates: make([]string, len(cands)), Port: cmp.Or(a.lanPort, a.settings.Port), Error: a.lanErr()}
 	for i, c := range cands {
 		info.Candidates[i] = c.String()
 	}
@@ -768,7 +775,7 @@ func containsAddr(addrs []netip.Addr, a netip.Addr) bool {
 func (a *api) settingsInfo() wire.SettingsInfo {
 	return wire.SettingsInfo{
 		Port: a.settings.Port, Language: a.settings.Language,
-		RestartRequired: a.lanPort != 0 && a.settings.Port != a.lanPort,
+		RestartRequired: a.settings.Port != a.lanPort,
 	}
 }
 

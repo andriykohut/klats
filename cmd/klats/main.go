@@ -1,0 +1,321 @@
+// Command klats is the teacher's program: it serves the student app on the
+// LAN, the teacher API on 127.0.0.1, and opens the teacher window. With -dev it
+// opens no window and prints the addresses instead, for development and the
+// end-to-end tests.
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"io/fs"
+	"log/slog"
+	"net"
+	"net/http"
+	"net/netip"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"sync"
+	"syscall"
+	"time"
+
+	"klats/internal/config"
+	"klats/internal/events"
+	"klats/internal/lan"
+	"klats/internal/power"
+	"klats/internal/sitting"
+	"klats/internal/store"
+	"klats/internal/studentapi"
+	"klats/internal/teacherapi"
+	webui "klats/web"
+)
+
+const (
+	maxLogBytes   = 5 << 20
+	snapshotsKeep = 10
+	shutdownTime  = 3 * time.Second
+)
+
+// studentUI is the built student app; tests swap it for a stand-in.
+var studentUI = webui.Student
+
+// errUsage reports bad flags, which the flag package has already printed.
+var errUsage = errors.New("usage")
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// After the first signal, a second one kills the program at once.
+	context.AfterFunc(ctx, stop)
+	os.Exit(code(run(ctx, os.Args[1:], os.Stdout, os.Stderr)))
+}
+
+func code(err error) int {
+	switch {
+	case err == nil:
+		return 0
+	case errors.Is(err, errUsage):
+		return 2
+	default:
+		fmt.Fprintln(os.Stderr, "klats:", err)
+		return 1
+	}
+}
+
+// run serves until ctx is done or, without -dev, until the window quits, then
+// shuts the servers down. With -dev it prints the student, LAN and teacher
+// addresses to stdout, one per line. Logs go to stderr and to the data
+// folder's logs/klats.log.
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
+	flags := flag.NewFlagSet("klats", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	dataFlag := flags.String("data", "", "data folder (default: the per-user app-data folder)")
+	dev := flags.Bool("dev", false, "open no window; print the addresses")
+	portFlag := flags.Int("port", 0, "student server port for this run, not saved; 0 picks a free one")
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return errUsage
+	}
+	portSet := false
+	flags.Visit(func(f *flag.Flag) { portSet = portSet || f.Name == "port" })
+
+	dataDir := *dataFlag
+	if dataDir == "" {
+		d, err := config.DataDir()
+		if err != nil {
+			return err
+		}
+		dataDir = d
+	} else if err := os.MkdirAll(dataDir, 0o700); err != nil {
+		return err
+	}
+
+	logFile, err := openLog(dataDir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = logFile.Close() }()
+	prevLog := slog.Default()
+	defer slog.SetDefault(prevLog)
+	// The file comes first: a GUI build on Windows has no stderr, and
+	// MultiWriter stops at the first failing writer.
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.MultiWriter(logFile, stderr), nil)))
+	defer func() {
+		if err != nil {
+			slog.Error("klats stopped on an error", "err", err)
+		}
+	}()
+
+	settings, err := config.Load(dataDir)
+	if err != nil {
+		return err
+	}
+	st, err := store.Open(filepath.Join(dataDir, "klats.db"))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	snapshotDaily(st, dataDir)
+
+	hub := events.New()
+	eng, err := sitting.New(st, hub, time.Now)
+	if err != nil {
+		return err
+	}
+	eng.SetLanguage(settings.Language)
+	eng.SetSnapshotDir(dataDir)
+
+	var lanL net.Listener
+	var lanErr string
+	if portSet {
+		lanL, err = net.Listen("tcp", ":"+strconv.Itoa(*portFlag))
+	} else {
+		firstRun := settings.Port == 0
+		lanL, err = lan.Listen(&settings, runtime.GOOS)
+		if err == nil && firstRun {
+			if err := config.Save(dataDir, settings); err != nil {
+				slog.Error("the chosen student port is not saved", "port", settings.Port, "err", err)
+			}
+		}
+	}
+	var busy lan.ErrPortBusy
+	if errors.As(err, &busy) {
+		slog.Error("student server not started; choose another port in the settings", "err", err)
+		lanErr, err = "port_busy", nil
+	}
+	if err != nil {
+		return err
+	}
+	lanPort := 0
+	if lanL != nil {
+		// Shutdown closes it too; this covers the early returns.
+		defer func() { _ = lanL.Close() }()
+		lanPort = lanL.Addr().(*net.TCPAddr).Port
+	}
+
+	teacherL, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	teacherPort := teacherL.Addr().(*net.TCPAddr).Port
+	token := teacherapi.NewToken()
+	var dialogs teacherapi.Dialogs
+	if !*dev {
+		dialogs = saveDialogs()
+	}
+	teacher := teacherapi.Handler(teacherapi.Deps{
+		Store: st, Engine: eng, Hub: hub, Assets: webui.Teacher, Token: token, Port: teacherPort,
+		DataDir: dataDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
+		Dialogs: dialogs,
+	})
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	servers := []*http.Server{serve(ctx, teacherL, teacher)}
+	if lanL != nil {
+		servers = append(servers, serve(ctx, lanL, studentapi.Handler(eng, hub, studentUI)))
+	}
+	var wg sync.WaitGroup
+	wg.Go(func() { tick(ctx, eng) })
+	wg.Go(func() { watchAddresses(ctx, hub) })
+	stop := sync.OnceFunc(func() {
+		cancel()
+		wg.Wait()
+		sctx, scancel := context.WithTimeout(context.Background(), shutdownTime)
+		defer scancel()
+		for _, s := range servers {
+			if err := s.Shutdown(sctx); err != nil {
+				slog.Warn("server shutdown", "err", err)
+			}
+		}
+		slog.Info("klats stopped")
+	})
+	defer stop()
+
+	teacherURL := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", teacherPort, token)
+	slog.Info("klats started", "data", dataDir, "studentPort", lanPort, "teacher", teacherURL)
+	if *dev {
+		student, lanURL := "none", "none"
+		if lanL != nil {
+			student = fmt.Sprintf("http://127.0.0.1:%d", lanPort)
+			if addr, ok := lan.Choose(lan.Candidates(lan.System()), settings.Address); ok {
+				lanURL = lan.URL(addr, lanPort)
+			}
+		}
+		if _, err := fmt.Fprintf(stdout, "student %s\nlan %s\nteacher %s\n", student, lanURL, teacherURL); err != nil {
+			return err
+		}
+		<-ctx.Done()
+		return nil
+	}
+	return runDesktop(ctx, teacherURL, func() string {
+		s, _ := config.Load(dataDir) // the teacher API saves language changes
+		return s.Language
+	}, eng.Active, stop)
+}
+
+// serve starts an HTTP server on l. Requests see ctx, so open event streams
+// end when it is done; there is no write timeout, which would cut them.
+func serve(ctx context.Context, l net.Listener, h http.Handler) *http.Server {
+	s := &http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
+	}
+	go func() {
+		if err := s.Serve(l); !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("server stopped", "addr", l.Addr(), "err", err)
+		}
+	}()
+	return s
+}
+
+// tick runs the engine's offline check every 2 s and keeps the computer awake
+// while a sitting runs, until ctx is done.
+func tick(ctx context.Context, eng *sitting.Engine) {
+	t := time.NewTicker(2 * time.Second)
+	defer t.Stop()
+	var release func()
+	defer func() {
+		if release != nil {
+			release()
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		eng.Tick()
+		switch active := eng.Active(); {
+		case active && release == nil:
+			r, err := power.Inhibit("Тест триває")
+			if err != nil {
+				slog.Warn("keep-awake failed; the computer may sleep during the test", "err", err)
+				r = func() {}
+			}
+			release = r
+		case !active && release != nil:
+			release()
+			release = nil
+		}
+	}
+}
+
+// watchAddresses tells the teacher app when the LAN addresses change, until
+// ctx is done.
+func watchAddresses(ctx context.Context, hub *events.Hub) {
+	strs := func(as []netip.Addr) []string {
+		out := make([]string, len(as))
+		for i, a := range as {
+			out[i] = a.String()
+		}
+		return out
+	}
+	lan.Watch(ctx, 10*time.Second, func() []netip.Addr { return lan.Candidates(lan.System()) }, func(old, new []netip.Addr) {
+		data := map[string][]string{"old": strs(old), "new": strs(new)}
+		slog.Info("LAN addresses changed", "old", data["old"], "new", data["new"])
+		hub.Publish(events.Event{Topic: "teacher", Name: "address_changed", Data: data})
+	})
+}
+
+// snapshotDaily snapshots the database into dataDir/snapshots unless a file
+// there was modified today, local time. A failure is logged.
+func snapshotDaily(st *store.Store, dataDir string) {
+	today := time.Now().Format(time.DateOnly)
+	entries, _ := os.ReadDir(filepath.Join(dataDir, "snapshots"))
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && info.ModTime().Format(time.DateOnly) == today {
+			return
+		}
+	}
+	if err := st.Snapshot(dataDir, snapshotsKeep); err != nil {
+		slog.Error("daily snapshot", "err", err)
+	}
+}
+
+// openLog opens dataDir/logs/klats.log for appending. A log over maxLogBytes
+// is first renamed to klats.log.1, replacing the previous one.
+func openLog(dataDir string) (*os.File, error) {
+	dir := filepath.Join(dataDir, "logs")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(dir, "klats.log")
+	if info, err := os.Stat(path); err == nil && info.Size() > maxLogBytes {
+		if err := os.Rename(path, path+".1"); err != nil {
+			return nil, err
+		}
+	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+}
