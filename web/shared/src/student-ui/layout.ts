@@ -1,5 +1,9 @@
-/** Width of one progress segment plus its gap, in design pixels (see tokens.css). */
-export const SEGMENT_PITCH = 46;
+/**
+ * Progress segment geometry in design pixels (see `--k-px` in tokens.css).
+ * Progress passes both to its stylesheet, so they are set only here.
+ */
+export const SEGMENT_WIDTH = 40;
+export const SEGMENT_GAP = 6;
 
 /**
  * Returns how to lay out answer tiles: a 2×2 `grid` only when there are at most
@@ -14,12 +18,15 @@ export function chooseLayout(
 }
 
 /**
- * Returns `segments` when `total` progress segments fit in `width` (in design
- * pixels, see {@link SEGMENT_PITCH}), and `compact` otherwise.
+ * Returns `segments` when `total` progress segments, each
+ * {@link SEGMENT_WIDTH} plus {@link SEGMENT_GAP}, fit in `width` design
+ * pixels, and `compact` otherwise.
  */
 export function progressMode(
   total: number,
   width: number,
 ): "segments" | "compact" {
-  return total * SEGMENT_PITCH <= width ? "segments" : "compact";
+  return total * (SEGMENT_WIDTH + SEGMENT_GAP) <= width
+    ? "segments"
+    : "compact";
 }

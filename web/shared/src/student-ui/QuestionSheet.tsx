@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotionConfig } from "motion/react";
 import {
   type ReactNode,
   useEffect,
@@ -10,6 +10,7 @@ import {
 import { CheckboxGroup } from "react-aria-components/CheckboxGroup";
 import { RadioGroup } from "react-aria-components/RadioGroup";
 import { m } from "../paraglide/messages.js";
+import type { MessagePart } from "../paraglide/runtime.js";
 import { type RichDoc, RichView } from "../rich/RichView";
 import { AnswerTile, BADGE_LETTERS, TileFace } from "./AnswerTile";
 import { chooseLayout } from "./layout";
@@ -40,13 +41,19 @@ export interface QuestionSheetProps {
  */
 export function QuestionSheet(props: QuestionSheetProps) {
   const { number, total, text, options, multi, selected, onChange } = props;
+  const reduced = useReducedMotionConfig();
   const textId = useId();
-  const answersRef = useRef<HTMLDivElement>(null);
+  const chipId = useId();
   const measureRef = useRef<HTMLDivElement>(null);
+  // State rather than a ref, so the width observer follows the group when
+  // `multi` swaps RadioGroup and CheckboxGroup.
+  const [answers, setAnswers] = useState<HTMLDivElement | null>(null);
   const [layout, setLayout] = useState<"grid" | "rows">("grid");
   const [measuring, setMeasuring] = useState(true);
+  const optionsKey = JSON.stringify(options);
 
-  useLayoutEffect(() => setMeasuring(true), [options]);
+  // Keyed on content, so a caller rebuilding the array costs no remeasure.
+  useLayoutEffect(() => setMeasuring(true), [optionsKey]);
 
   useLayoutEffect(() => {
     const box = measureRef.current;
@@ -60,10 +67,9 @@ export function QuestionSheet(props: QuestionSheetProps) {
     );
     setLayout(chooseLayout(options.length, lines));
     setMeasuring(false);
-  }, [measuring, options]);
+  }, [measuring, options.length]);
 
   useEffect(() => {
-    const answers = answersRef.current;
     if (!answers) return;
     let width = answers.offsetWidth;
     const ro = new ResizeObserver(() => {
@@ -78,7 +84,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
       ro.disconnect();
       document.fonts.removeEventListener("loadingdone", remeasure);
     };
-  }, []);
+  }, [answers]);
 
   const tiles = options.map((o, i) => (
     <AnswerTile
@@ -90,14 +96,15 @@ export function QuestionSheet(props: QuestionSheetProps) {
     />
   ));
   const group = {
-    ref: answersRef,
+    ref: setAnswers,
     className: `k-answers k-answers-${layout}`,
     "aria-labelledby": textId,
+    "aria-describedby": chipId,
   };
   const keys = Math.min(options.length, BADGE_LETTERS.length);
 
   return (
-    <motion.section className="k-sheet" {...sheet}>
+    <motion.section className="k-sheet" {...sheet(reduced)}>
       <div className="k-sheet-scroll">
         <div>
           <div className={number >= 10 ? "k-num k-num-small" : "k-num"}>
@@ -106,7 +113,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
           <div className="k-of">{m.of_total({ total })}</div>
         </div>
         <div className="k-sheet-body">
-          <span className="k-chip">
+          <span className="k-chip" id={chipId}>
             {multi ? m.answer_multi() : m.answer_single()}
           </span>
           <div className="k-qtext" id={textId}>
@@ -142,11 +149,12 @@ export function QuestionSheet(props: QuestionSheetProps) {
       <div className="k-sheet-foot">
         {keys > 0 && (
           <div className="k-keys">
-            <kbd>
-              {BADGE_LETTERS[0]}–{BADGE_LETTERS[keys - 1]}
-            </kbd>{" "}
-            {m.keys_or()} <kbd>1–{keys}</kbd> {m.keys_choose()} <kbd>Enter</kbd>{" "}
-            {m.keys_next()}
+            {withKbd(
+              m.keys_hint.parts({
+                letters: `${BADGE_LETTERS[0]}–${BADGE_LETTERS[keys - 1]}`,
+                digits: `1–${keys}`,
+              }),
+            )}
           </div>
         )}
         <div className="k-actions">{props.children}</div>
@@ -159,3 +167,20 @@ const ONE_LINE: RichDoc = {
   type: "doc",
   content: [{ type: "paragraph", content: [{ type: "text", text: "А" }] }],
 };
+
+/** Renders message parts, turning each {#kbd}…{/kbd} span into a key cap. */
+function withKbd(parts: MessagePart[]): ReactNode[] {
+  const out: ReactNode[] = [];
+  let key: string | null = null;
+  parts.forEach((part, i) => {
+    if (part.type === "markup-start") key = "";
+    else if (part.type === "markup-end") {
+      out.push(<kbd key={i}>{key}</kbd>);
+      key = null;
+    } else if (part.type === "text") {
+      if (key === null) out.push(part.value);
+      else key += part.value;
+    }
+  });
+  return out;
+}

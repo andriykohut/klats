@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotionConfig } from "motion/react";
 import { CheckboxButton, CheckboxField } from "react-aria-components/Checkbox";
 import { RadioButton, RadioField } from "react-aria-components/RadioGroup";
 import { type RichDoc, RichView } from "../rich/RichView";
@@ -24,9 +24,13 @@ export interface AnswerTileProps {
  * ninth get their number as the badge.
  */
 export function AnswerTile({ id, index, content, multi }: AnswerTileProps) {
+  const reduced = useReducedMotionConfig();
   const face = <TileFace index={index} content={content} />;
   return (
-    <motion.div className="k-tile-wrap" {...popIn(0.22 + index * 0.06)}>
+    <motion.div
+      className="k-tile-wrap"
+      {...popIn(0.22 + index * 0.06, reduced)}
+    >
       {multi ? (
         <CheckboxField value={id} className="k-tile-field">
           <CheckboxButton className="k-tile">{face}</CheckboxButton>

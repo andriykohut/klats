@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { m } from "../paraglide/messages.js";
 import { toast } from "./motion";
@@ -20,6 +20,7 @@ const RESTORED_MS = 2200;
  * Changes are announced politely to screen readers.
  */
 export function ConnectionToast({ state, pending }: ConnectionToastProps) {
+  const reduced = useReducedMotionConfig();
   const [restored, setRestored] = useState(false);
   const last = useRef(state);
 
@@ -53,7 +54,7 @@ export function ConnectionToast({ state, pending }: ConnectionToastProps) {
     <div className="k-toast-slot" role="status">
       <AnimatePresence>
         {(state !== "online" || restored) && (
-          <motion.div className="k-toast" {...toast}>
+          <motion.div className="k-toast" {...toast(reduced)}>
             <i className={state === "online" ? "k-dot k-dot-ok" : "k-dot"} />
             <span>
               <span className="k-toast-title">{title}</span>

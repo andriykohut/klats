@@ -17,7 +17,8 @@ const SCALE = 12;
  * The finish sheet. With a result, the grade counts up inside a ring that
  * fills to grade / 12, beside how many answers were correct. With `null`
  * (answers still waiting to sync, so the server has not graded them) it shows
- * a waiting ring and says the grade will follow, and never a grade.
+ * a waiting ring and says the grade will follow, and never a grade. A grade
+ * that arrives later is announced politely to screen readers.
  */
 export function FinishScreen({ result }: { result: FinishResult | null }) {
   const reduced = useReducedMotionConfig();
@@ -31,12 +32,16 @@ export function FinishScreen({ result }: { result: FinishResult | null }) {
       grade.set(target);
       return;
     }
-    const run = animate(grade, target, countUp);
+    const run = animate(grade, target, countUp(false));
     return () => run.stop();
   }, [grade, target, reduced]);
 
   return (
-    <motion.section className="k-sheet k-finish" {...sheet}>
+    <motion.section className="k-sheet k-finish" {...sheet(reduced)}>
+      <p className="k-sr-only" role="status">
+        {result &&
+          `${m.finish_grade({ grade: result.grade })}. ${m.finish_correct({ correct: result.correct, total: result.total })}`}
+      </p>
       <div
         className="k-ring"
         role="img"
@@ -55,7 +60,7 @@ export function FinishScreen({ result }: { result: FinishResult | null }) {
               r="100"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: result.grade / SCALE }}
-              transition={reduced ? { duration: 0 } : countUp}
+              transition={countUp(reduced)}
             />
           ) : (
             <circle
@@ -79,19 +84,19 @@ export function FinishScreen({ result }: { result: FinishResult | null }) {
         <div className="k-finish-chips">
           {result ? (
             <>
-              <motion.span className="k-fchip" {...popIn(0.9)}>
+              <motion.span className="k-fchip" {...popIn(0.9, reduced)}>
                 {m.finish_correct({
                   correct: result.correct,
                   total: result.total,
                 })}
               </motion.span>
-              <motion.span className="k-fchip" {...popIn(0.99)}>
+              <motion.span className="k-fchip" {...popIn(0.99, reduced)}>
                 <i className="k-dot k-dot-ok" />
                 {m.finish_sent()}
               </motion.span>
             </>
           ) : (
-            <motion.span className="k-fchip" {...popIn(0.9)}>
+            <motion.span className="k-fchip" {...popIn(0.9, reduced)}>
               <i className="k-dot" />
               {m.finish_waiting()}
             </motion.span>

@@ -6,19 +6,24 @@
     "./*": "./src/*"
   },
   "scripts": {
+    "build": "pnpm i18n",
     "i18n": "paraglide-js compile --project ../messages/project.inlang --outdir ./src/paraglide",
     "test": "vitest run",
     "typecheck": "pnpm i18n && tsc --noEmit"
   },
   "dependencies": {
     "motion": "14.5.0",
-    "react": "19.3.1",
-    "react-aria-components": "1.22.1",
-    "react-dom": "19.3.1"
+    "react-aria-components": "1.22.1"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "2.29.1",
     "@types/react": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "vitest": "5.0.5"
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

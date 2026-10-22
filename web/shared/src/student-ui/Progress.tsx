@@ -1,10 +1,10 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components/Button";
 import { Dialog, DialogTrigger } from "react-aria-components/Dialog";
 import { Popover } from "react-aria-components/Popover";
 import { ProgressBar } from "react-aria-components/ProgressBar";
 import { m } from "../paraglide/messages.js";
-import { progressMode, SEGMENT_PITCH } from "./layout";
+import { progressMode, SEGMENT_GAP, SEGMENT_WIDTH } from "./layout";
 import "./student-ui.css";
 
 export interface ProgressProps {
@@ -25,16 +25,16 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
   const total = answered.length;
   const done = answered.filter(Boolean).length;
   const rootRef = useRef<HTMLDivElement>(null);
-  const pitchRef = useRef<HTMLSpanElement>(null);
+  const unitRef = useRef<HTMLSpanElement>(null);
   const [mode, setMode] = useState<"segments" | "compact">("segments");
 
   useLayoutEffect(() => {
     const root = rootRef.current;
-    const pitch = pitchRef.current;
-    if (!root || !pitch) return;
-    // The hidden pitch element is one segment wide in screen pixels.
+    const unit = unitRef.current;
+    if (!root || !unit) return;
     const update = () => {
-      const scale = pitch.getBoundingClientRect().width / SEGMENT_PITCH;
+      // The probe is 100 design pixels wide.
+      const scale = unit.getBoundingClientRect().width / 100;
       setMode(progressMode(total, root.clientWidth / scale));
     };
     update();
@@ -55,8 +55,8 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
   });
 
   return (
-    <div className="k-progress" ref={rootRef}>
-      <span className="k-seg-pitch" ref={pitchRef} aria-hidden="true" />
+    <div className="k-progress" ref={rootRef} style={GEOMETRY}>
+      <span className="k-unit-probe" ref={unitRef} aria-hidden="true" />
       <ProgressBar
         className="k-sr-only"
         aria-label={m.progress_label()}
@@ -84,7 +84,7 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
         <DialogTrigger>
           <Button
             className="k-prog-chip"
-            aria-label={`${current + 1} / ${total}. ${m.progress_all()}`}
+            aria-label={m.progress_chip({ current: current + 1, total })}
           >
             {current + 1} / {total}
           </Button>
@@ -113,3 +113,8 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
     </div>
   );
 }
+
+const GEOMETRY = {
+  "--k-seg-width": SEGMENT_WIDTH,
+  "--k-seg-gap": SEGMENT_GAP,
+} as CSSProperties;
