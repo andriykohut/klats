@@ -31,6 +31,8 @@ const read = (name: string) => readStored(localStorage, name, isLease);
  * can after 15 s without a refresh (a crashed tab, or one whose timers the
  * browser throttles), the holder stops refreshing and calls `onLost` once;
  * the caller must then stop sending and stop writing the answer queue.
+ * A lease that cannot be written is logged once per run of failures and
+ * never throws: the claim still succeeds.
  */
 export function claimTab(
   name: string,
@@ -42,8 +44,19 @@ export function claimTab(
   if (held && Math.abs(Date.now() - held.at) < STALE_MS) return null;
 
   const id = crypto.getRandomValues(new Uint32Array(2)).join("-");
-  const write = () =>
-    localStorage.setItem(name, JSON.stringify({ id, at: Date.now() }));
+  let failing = false;
+  // A lease that cannot be written (full storage, a private window) must not
+  // keep the student from the test: this tab holds on regardless, and a
+  // second sender is harmless, as submits are idempotent by changeId.
+  const write = () => {
+    try {
+      localStorage.setItem(name, JSON.stringify({ id, at: Date.now() }));
+      failing = false;
+    } catch (err) {
+      if (!failing) console.error("The tab lease could not be saved", err);
+      failing = true;
+    }
+  };
   const stop = () => {
     clearInterval(timer);
     window.removeEventListener("storage", onStorage);
