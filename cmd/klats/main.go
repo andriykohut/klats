@@ -41,8 +41,15 @@ const (
 	shutdownTime  = 3 * time.Second
 )
 
-// studentUI is the built student app; tests swap it for a stand-in.
-var studentUI = webui.Student
+// Tests swap these for stand-ins: the built student app, the shell, the
+// keep-awake call, the first-run student listener and the tick period.
+var (
+	studentUI = webui.Student
+	openShell = newShell
+	inhibit   = power.Inhibit
+	listenLAN = func(s *config.Settings) (net.Listener, error) { return lan.Listen(s, runtime.GOOS) }
+	tickEvery = 2 * time.Second
+)
 
 // errUsage reports bad flags, which the flag package has already printed.
 var errUsage = errors.New("usage")
@@ -73,9 +80,9 @@ func code(err error) int {
 }
 
 // run serves until ctx is done or, without -dev, until the window quits, then
-// shuts the servers down. With -dev it prints the student, LAN and teacher
-// addresses to stdout, one per line. Logs go to stderr and to the data
-// folder's logs/klats.log.
+// shuts the servers down and closes the database. With -dev it prints the
+// student, LAN and teacher addresses to stdout, one per line. Logs go to
+// stderr and to the data folder's logs/klats.log.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
 	flags := flag.NewFlagSet("klats", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -111,11 +118,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		stop func()
 	)
 	if !*dev {
-		language := func() string {
-			s, _ := config.Load(dataDir) // the teacher API saves language changes
-			return s.Language
-		}
-		sh, err = newShell(language, func() bool { return eng.Active() }, func() { stop() })
+		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, func() { stop() })
 		if err != nil {
 			return err
 		}
@@ -145,6 +148,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	if err != nil {
 		return err
 	}
+	// stop closes the store; this covers the returns before stop exists.
 	defer func() { _ = st.Close() }()
 	snapshotDaily(st, dataDir)
 
@@ -162,7 +166,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		lanL, err = net.Listen("tcp", ":"+strconv.Itoa(*portFlag))
 	} else {
 		firstRun := settings.Port == 0
-		lanL, err = lan.Listen(&settings, runtime.GOOS)
+		lanL, err = listenLAN(&settings)
 		if err == nil && firstRun {
 			if err := config.Save(dataDir, settings); err != nil {
 				slog.Error("the chosen student port is not saved", "port", settings.Port, "err", err)
@@ -202,22 +206,31 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	servers := []*http.Server{serve(ctx, teacherL, teacher)}
+	reqCtx, cancelReq := context.WithCancel(ctx)
+	defer cancelReq()
+	servers := []*http.Server{serve(reqCtx, teacherL, teacher)}
 	if lanL != nil {
-		servers = append(servers, serve(ctx, lanL, studentapi.Handler(eng, hub, studentUI)))
+		servers = append(servers, serve(reqCtx, lanL, studentapi.Handler(eng, hub, studentUI)))
 	}
 	var wg sync.WaitGroup
 	wg.Go(func() { tick(ctx, eng) })
 	wg.Go(func() { watchAddresses(ctx, hub) })
+	// Wails' OnShutdown calls stop, and on macOS the process exits right
+	// after, so no cleanup is left to defer. A failed step is logged and
+	// does not skip the next.
 	stop = sync.OnceFunc(func() {
-		cancel()
-		wg.Wait()
+		cancelReq() // ends the open event streams, which Shutdown would wait for
 		sctx, scancel := context.WithTimeout(context.Background(), shutdownTime)
 		defer scancel()
 		for _, s := range servers {
 			if err := s.Shutdown(sctx); err != nil {
 				slog.Warn("server shutdown", "err", err)
 			}
+		}
+		cancel()
+		wg.Wait() // the tick loop releases keep-awake as it exits
+		if err := st.Close(); err != nil {
+			slog.Error("closing the database", "err", err)
 		}
 		slog.Info("klats stopped")
 	})
@@ -243,6 +256,33 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	return sh.Run(ctx, teacherURL)
 }
 
+// savedLanguage returns a function that reads the UI language from the
+// settings, which the teacher API rewrites. When the file cannot be read it
+// logs the error once and returns the last language it read.
+func savedLanguage(dataDir string) func() string {
+	var (
+		mu     sync.Mutex
+		last   string
+		logged bool
+	)
+	return func() string {
+		s, err := config.Load(dataDir)
+		mu.Lock()
+		defer mu.Unlock()
+		switch {
+		case err == nil:
+			last = s.Language
+		case !logged:
+			logged = true
+			slog.Error("settings unreadable; keeping the last language", "err", err)
+		}
+		if last == "" {
+			last = s.Language // Load's default on a first failure
+		}
+		return last
+	}
+}
+
 // serve starts an HTTP server on l. Requests see ctx, so open event streams
 // end when it is done; there is no write timeout, which would cut them.
 func serve(ctx context.Context, l net.Listener, h http.Handler) *http.Server {
@@ -263,7 +303,7 @@ func serve(ctx context.Context, l net.Listener, h http.Handler) *http.Server {
 // tick runs the engine's offline check every 2 s and keeps the computer awake
 // while a sitting runs, until ctx is done.
 func tick(ctx context.Context, eng *sitting.Engine) {
-	t := time.NewTicker(2 * time.Second)
+	t := time.NewTicker(tickEvery)
 	defer t.Stop()
 	var release func()
 	defer func() {
@@ -280,7 +320,7 @@ func tick(ctx context.Context, eng *sitting.Engine) {
 		eng.Tick()
 		switch active := eng.Active(); {
 		case active && release == nil:
-			r, err := power.Inhibit("Тест триває")
+			r, err := inhibit("Тест триває")
 			if err != nil {
 				slog.Warn("keep-awake failed; the computer may sleep during the test", "err", err)
 				r = func() {}

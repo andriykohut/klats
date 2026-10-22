@@ -46,6 +46,7 @@ type App struct {
 	win       *application.WebviewWindow
 	o         Options
 	confirmed atomic.Bool // quit without asking
+	asking    atomic.Bool // the quit question is showing
 	started   atomic.Bool
 }
 
@@ -59,6 +60,9 @@ func New(o Options) *App {
 	a.app = application.New(application.Options{
 		Name: t.title,
 		Icon: icon,
+		// Wails reads its logger in goroutines started inside application.New,
+		// so it is set here; the program installs its log after New.
+		Logger: slog.New(defaultHandler{}),
 		// The ctx given to Run carries the program's signals.
 		DisableDefaultSignalHandler: true,
 		SingleInstance: &application.SingleInstanceOptions{
@@ -89,8 +93,6 @@ func New(o Options) *App {
 // show it again or to quit, which asks first. Quitting does not end the
 // sitting: it resumes at the next launch.
 func (a *App) Run(ctx context.Context, teacherURL string) error {
-	// The program sets up its log after New.
-	a.app.Logger = slog.Default()
 	a.win.SetURL(teacherURL)
 	// Both goroutines call into Wails, which is ready only once the app runs.
 	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
@@ -140,16 +142,21 @@ func (a *App) shouldQuit() bool {
 }
 
 // askQuit asks the teacher to confirm quitting during a sitting, in front of
-// the window, and quits if they do.
+// the window, and quits if they do. While the question is showing, another
+// request only brings the window forward.
 func (a *App) askQuit() {
-	t := textsFor(a.o.Language())
 	a.show() // the window may be hidden, and the question is attached to it
+	if !a.asking.CompareAndSwap(false, true) {
+		return
+	}
+	t := textsFor(a.o.Language())
 	d := a.app.Dialog.Question().SetTitle(t.title).SetMessage(t.quitAsk).AttachToWindow(a.win)
 	d.AddButton(t.quit).OnClick(func() {
+		a.asking.Store(false)
 		a.confirmed.Store(true)
 		a.app.Quit()
 	})
-	d.SetCancelButton(d.AddButton(t.cancel))
+	d.SetCancelButton(d.AddButton(t.cancel).OnClick(func() { a.asking.Store(false) }))
 	d.Show()
 }
 
@@ -214,4 +221,24 @@ func (d dialogs) SaveFile(defaultName string) (string, error) {
 		return "", nil
 	}
 	return path, err
+}
+
+// defaultHandler logs through whichever slog default is current, so Wails'
+// own messages reach the program's log once it is set up.
+type defaultHandler struct{}
+
+func (defaultHandler) Enabled(ctx context.Context, l slog.Level) bool {
+	return slog.Default().Handler().Enabled(ctx, l)
+}
+
+func (defaultHandler) Handle(ctx context.Context, r slog.Record) error {
+	return slog.Default().Handler().Handle(ctx, r)
+}
+
+func (defaultHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return slog.Default().Handler().WithAttrs(attrs)
+}
+
+func (defaultHandler) WithGroup(name string) slog.Handler {
+	return slog.Default().Handler().WithGroup(name)
 }
