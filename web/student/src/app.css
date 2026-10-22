@@ -477,14 +477,20 @@ input {
   width: calc(340 * var(--k-px));
 }
 
-/* Names fade out at the cut edge; the last row scrolls clear of the fade. */
+/*
+ * Names fade out at both cut edges; the first and last rows scroll clear of
+ * the fades, which lie over the list's padding.
+ */
 .s-names-scroll {
+  --s-fade-top: calc(28 * var(--k-px));
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: calc(24 * var(--k-px)) calc(44 * var(--k-px)) var(--k-cue-height);
+  padding: var(--s-fade-top) calc(44 * var(--k-px)) var(--k-cue-height);
   mask-image: linear-gradient(
+    transparent,
+    #000 var(--s-fade-top),
     #000 calc(100% - var(--k-cue-height)),
     transparent
   );
@@ -528,9 +534,17 @@ input {
   transform: translateY(var(--k-depth));
 }
 
+.s-names button.k-tile {
+  width: 100%;
+  margin: 0;
+  padding: 0 0 var(--k-depth);
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
 .s-names-head {
-  grid-column: 1 / -1;
-  margin: calc(18 * var(--k-px)) 0 calc(4 * var(--k-px));
+  margin: calc(22 * var(--k-px)) 0 calc(10 * var(--k-px));
   color: var(--k-muted);
   font-family: var(--k-font-display);
   font-weight: 600;

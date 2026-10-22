@@ -473,6 +473,12 @@ async function locate(): Promise<void> {
   } else await follow(st);
 }
 
+/** Tries the server again; the event stream closed when it was not there. */
+function tryAgain(): Promise<void> {
+  openStream();
+  return locate();
+}
+
 /**
  * Loads the text and display fonts, so the first sheet measures its answers
  * in them. It gives up after 1.5 s and draws with the fallbacks.
@@ -569,7 +575,7 @@ function App() {
       content = <OtherTab key="otherTab" />;
       break;
     case "unreachable":
-      content = <Unreachable key="unreachable" onRetry={locate} />;
+      content = <Unreachable key="unreachable" onRetry={tryAgain} />;
       break;
     case "address":
       content = (
