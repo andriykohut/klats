@@ -685,10 +685,12 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, wire.ExportResult{Path: path})
 }
 
-// clearStale clears the assignment's export_stale flag if its results are
-// still the ones res holds.
+// clearStale records that the assignment was exported, and clears its
+// export_stale flag if its results are still the ones res holds.
 func (a *api) clearStale(r *http.Request, res wire.AssignmentResults) error {
-	return a.st.Q().ClearExportStale(r.Context(), db.ClearExportStaleParams{ID: res.AssignmentID, ResultsRev: res.ResultsRev})
+	return a.st.Q().ClearExportStale(r.Context(), db.ClearExportStaleParams{
+		ExportedAt: sql.NullInt64{Int64: time.Now().UnixMilli(), Valid: true}, ResultsRev: res.ResultsRev, ID: res.AssignmentID,
+	})
 }
 
 // replaceFile writes the file at path through a temporary file in the same

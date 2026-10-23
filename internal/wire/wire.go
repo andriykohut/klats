@@ -228,12 +228,15 @@ type LiveRow struct {
 }
 
 // AssignmentResults are the graded results of every sitting of an
-// assignment, kicked participants left out. ExportStale means results changed
-// after the last Excel export.
+// assignment, kicked participants left out. Exported is set once an Excel
+// export was written. ExportStale means results changed after the last
+// export, or, before the first one, since the assignment started; only both
+// together mean an exported file is out of date.
 type AssignmentResults struct {
 	AssignmentID string           `json:"assignmentId"`
 	TestTitle    string           `json:"testTitle"`
 	ClassName    string           `json:"className"`
+	Exported     bool             `json:"exported"`
 	ExportStale  bool             `json:"exportStale"`
 	ResultsRev   int64            `json:"resultsRev"`
 	Questions    []ResultQuestion `json:"questions"`

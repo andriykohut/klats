@@ -27,7 +27,8 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		return wire.AssignmentResults{}, err
 	}
 	out := wire.AssignmentResults{
-		AssignmentID: asg.ID, TestTitle: t.Title, ClassName: asg.ClassName.String, ExportStale: asg.ExportStale == 1, ResultsRev: asg.ResultsRev,
+		AssignmentID: asg.ID, TestTitle: t.Title, ClassName: asg.ClassName.String,
+		Exported: asg.ExportedAt.Valid, ExportStale: asg.ExportStale == 1, ResultsRev: asg.ResultsRev,
 		Questions: []wire.ResultQuestion{}, Rows: []wire.ResultRow{},
 	}
 	full := make([]int, len(t.Questions))

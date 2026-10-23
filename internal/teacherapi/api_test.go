@@ -892,3 +892,47 @@ func TestQR(t *testing.T) {
 	wantError(t, v.do("GET", "/api/qr?text="+strings.Repeat("a", 513), nil), 400, "invalid")
 	wantStatus(t, v.do("GET", "/api/qr?text="+strings.Repeat("a", 512), nil), 200)
 }
+
+// The UI says «Експорт застарів» while Exported and ExportStale are both set:
+// never before the first export, after an export once an answer is stored,
+// and no more after the next export. Both export paths record the export.
+func TestExportedFlag(t *testing.T) {
+	for _, withDialogs := range []bool{false, true} {
+		v := setup(t, withDialogs)
+		if withDialogs {
+			v.dialogs.path = filepath.Join(v.dir, "out.xlsx")
+		}
+		asg := v.startSitting(t)
+		code := decodeBody[wire.LiveSnapshot](t, v.do("GET", "/api/sittings/current", nil)).Sitting.Code
+		if _, err := v.e.Join(code, "dev1", "10.0.0.5"); err != nil {
+			t.Fatal(err)
+		}
+		p, err := v.e.Pick(code, "dev1", wire.PickRequest{Surname: "Учень", FirstName: "А"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		answer := func(seq int64, option string) {
+			t.Helper()
+			ch := wire.AnswerChange{ChangeID: fmt.Sprintf("c%d", seq), ParticipantID: p.ID, QuestionID: "q1", OptionIDs: []string{option}, Seq: seq}
+			if _, err := v.e.Submit("dev1", []wire.AnswerChange{ch}, 0); err != nil {
+				t.Fatal(err)
+			}
+		}
+		flags := func(when string, exported, stale bool) {
+			t.Helper()
+			res := decodeBody[wire.AssignmentResults](t, v.do("GET", "/api/assignments/"+asg+"/results", nil))
+			if res.Exported != exported || res.ExportStale != stale {
+				t.Errorf("dialogs %v, %s: exported %v, stale %v; want %v, %v", withDialogs, when, res.Exported, res.ExportStale, exported, stale)
+			}
+		}
+
+		answer(1, "o0")
+		flags("before any export", false, true)
+		wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 200)
+		flags("after the export", true, false)
+		answer(2, "o1")
+		flags("after an answer stored since", true, true)
+		wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 200)
+		flags("after the next export", true, false)
+	}
+}

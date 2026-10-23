@@ -145,7 +145,11 @@ SELECT a.id,
 FROM assignments a
 ORDER BY a.created_at DESC, a.rowid DESC;
 
--- ClearExportStale clears the flag only if no result changed since the export
--- read results_rev, so a change made while the file was written stays stale.
+-- ClearExportStale records a finished export at exported_at and clears the
+-- flag only if no result changed since the export read results_rev, so a
+-- change made while the file was written stays stale.
 -- name: ClearExportStale :exec
-UPDATE assignments SET export_stale = 0 WHERE id = ? AND results_rev = ?;
+UPDATE assignments
+SET exported_at  = sqlc.arg(exported_at),
+    export_stale = CASE WHEN results_rev = sqlc.arg(results_rev) THEN 0 ELSE export_stale END
+WHERE id = sqlc.arg(id);

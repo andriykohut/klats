@@ -29,7 +29,8 @@ CREATE TABLE assignments (
     class_name    TEXT,
     created_at    INTEGER NOT NULL,
     export_stale  INTEGER NOT NULL DEFAULT 0,
-    results_rev   INTEGER NOT NULL DEFAULT 0
+    results_rev   INTEGER NOT NULL DEFAULT 0,
+    exported_at   INTEGER
 );
 
 CREATE TABLE sittings (

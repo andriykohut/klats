@@ -27,6 +27,7 @@ type Assignment struct {
 	CreatedAt    int64
 	ExportStale  int64
 	ResultsRev   int64
+	ExportedAt   sql.NullInt64
 }
 
 type Class struct {
