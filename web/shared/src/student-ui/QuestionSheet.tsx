@@ -19,6 +19,7 @@ import { BADGE_LETTERS } from "./badges";
 import { chooseLayout, countBelow, nextDensity } from "./layout";
 import { popIn, sheet } from "./motion";
 import "./student-ui.css";
+import "./QuestionSheet.css";
 
 export interface QuestionSheetProps {
   /** Question number, from 1. */

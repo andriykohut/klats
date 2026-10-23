@@ -10,6 +10,7 @@ import type { FinishResult } from "../generated/wire";
 import { m } from "../paraglide/messages.js";
 import { countUp, popIn, sheet } from "./motion";
 import "./student-ui.css";
+import "./FinishScreen.css";
 
 const SCALE = 12;
 

@@ -1,0 +1,163 @@
+.k-progress {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 100 design pixels wide, so Progress can convert screen pixels back. */
+.k-unit-probe {
+  position: absolute;
+  width: calc(100 * var(--k-px));
+  height: 0;
+  visibility: hidden;
+}
+
+/* Progress sets --k-seg-width and --k-seg-gap, in design pixels. */
+.k-segs {
+  display: flex;
+  gap: calc(var(--k-seg-gap) * var(--k-px));
+}
+
+.k-seg {
+  margin: 0;
+  padding: calc(10 * var(--k-px)) 0;
+  border: 0;
+  border-radius: calc(6 * var(--k-px));
+  background: none;
+  cursor: pointer;
+}
+
+.k-seg:focus-visible,
+.k-prog-chip[data-focus-visible],
+.k-qcell:focus-visible {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-seg-bar {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  width: calc(var(--k-seg-width) * var(--k-px));
+  height: calc(10 * var(--k-px));
+  overflow: hidden;
+  border-radius: calc(5 * var(--k-px));
+  background: var(--k-track);
+  transition: transform var(--k-dur-state) var(--k-ease-spring);
+}
+
+.k-seg-bar::before,
+.k-seg-bar i {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.k-seg-bar::before {
+  background: var(--k-track-current);
+  opacity: 0;
+  transition: opacity var(--k-dur-state);
+}
+
+.k-seg-bar i {
+  background: var(--k-accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform var(--k-dur-fill) var(--k-ease-fill);
+}
+
+.k-seg[data-current] .k-seg-bar {
+  transform: scaleY(1.4);
+}
+
+/* Not under the fill, where its edge would fringe the accent. */
+.k-seg[data-current]:not([data-on]) .k-seg-bar::before {
+  opacity: 1;
+}
+
+.k-seg[data-on] .k-seg-bar i {
+  transform: none;
+}
+
+/* Under the fill the track stops 1px short, so its edge can't show. */
+.k-seg[data-on] .k-seg-bar {
+  padding: 1px;
+  background-clip: content-box;
+}
+
+.k-prog-chip {
+  padding: calc(9 * var(--k-px)) calc(14 * var(--k-px));
+  border: 0;
+  border-radius: calc(12 * var(--k-px));
+  background: var(--k-track);
+  color: var(--k-on-dark);
+  font-family: var(--k-font-display);
+  font-weight: 500;
+  font-size: max(13px, calc(15 * var(--k-px)));
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+}
+
+.k-prog-chip[data-pressed] {
+  transform: scale(0.95);
+}
+
+.k-pop {
+  padding: calc(16 * var(--k-px));
+  border-radius: var(--k-radius-tile);
+  background: var(--k-paper);
+  box-shadow: var(--k-shadow-float);
+}
+
+.k-pop[data-entering] {
+  animation: k-pop-in var(--k-dur-pop-in) var(--k-ease-out);
+}
+
+.k-pop[data-exiting] {
+  animation: k-pop-in var(--k-dur-pop-out) ease-in reverse;
+}
+
+@keyframes k-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+.k-qgrid {
+  display: grid;
+  grid-template-columns: repeat(10, calc(44 * var(--k-px)));
+  gap: calc(8 * var(--k-px));
+  outline: none;
+}
+
+/* Grid cells use the progress strip's colours: track open, accent answered. */
+.k-qcell {
+  box-sizing: border-box;
+  height: calc(44 * var(--k-px));
+  padding: 0;
+  border: 0;
+  border-radius: calc(12 * var(--k-px));
+  background: var(--k-track);
+  color: var(--k-on-dark);
+  font-family: var(--k-font-display);
+  font-weight: 600;
+  font-size: max(13px, calc(15 * var(--k-px)));
+  cursor: pointer;
+}
+
+.k-qcell[data-on] {
+  background: var(--k-accent);
+  color: var(--k-ink);
+}
+
+/* A ring outside the cell, on the white popover, whatever the cell's fill. */
+.k-qcell[data-current] {
+  box-shadow:
+    0 0 0 calc(2 * var(--k-px)) var(--k-paper),
+    0 0 0 calc(5 * var(--k-px)) var(--k-sel);
+}

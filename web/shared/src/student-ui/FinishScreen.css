@@ -1,0 +1,100 @@
+.k-finish {
+  display: grid;
+  grid-template-columns: calc(340 * var(--k-px)) minmax(0, 1fr);
+  align-items: center;
+  padding: calc(48 * var(--k-px)) calc(64 * var(--k-px));
+}
+
+.k-ring {
+  position: relative;
+  width: calc(260 * var(--k-px));
+  height: calc(260 * var(--k-px));
+}
+
+.k-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.k-ring circle {
+  fill: none;
+  stroke-width: 20;
+}
+
+.k-ring-track {
+  stroke: var(--k-soft);
+}
+
+.k-ring-fill,
+.k-ring-wait {
+  stroke: var(--k-accent);
+  stroke-linecap: round;
+}
+
+.k-ring-wait {
+  stroke-dasharray: 0.2 0.8;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: k-spin var(--k-dur-spin) linear infinite;
+}
+
+@keyframes k-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.k-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.k-grade {
+  color: var(--k-sel);
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: calc(100 * var(--k-px));
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-grade-of {
+  margin-top: calc(8 * var(--k-px));
+  color: var(--k-muted);
+  font-family: var(--k-font-display);
+  font-weight: 500;
+  font-size: max(14px, calc(20 * var(--k-px)));
+}
+
+.k-finish-title {
+  margin: 0;
+  font-family: var(--k-font-display);
+  font-weight: 700;
+  font-size: max(28px, calc(40 * var(--k-px)));
+  line-height: 1.15;
+}
+
+.k-finish-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(12 * var(--k-px));
+  margin-top: calc(28 * var(--k-px));
+}
+
+.k-fchip {
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--k-px));
+  padding: calc(14 * var(--k-px)) calc(18 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-chip);
+  background: var(--k-tile);
+  font-weight: 700;
+  font-size: max(15px, calc(18 * var(--k-px)));
+}

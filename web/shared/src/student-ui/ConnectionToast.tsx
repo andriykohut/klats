@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { m } from "../paraglide/messages.js";
 import { toast } from "./motion";
 import "./student-ui.css";
+import "./ConnectionToast.css";
 
 export interface ConnectionToastProps {
   state: "online" | "offline" | "syncing";

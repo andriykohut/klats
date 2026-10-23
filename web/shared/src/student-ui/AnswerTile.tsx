@@ -5,6 +5,7 @@ import { type RichDoc, RichView } from "../rich/RichView";
 import { BADGE_LETTERS } from "./badges";
 import { popIn } from "./motion";
 import "./student-ui.css";
+import "./AnswerTile.css";
 
 export interface AnswerTileProps {
   /** Option id, the value the surrounding group selects. */

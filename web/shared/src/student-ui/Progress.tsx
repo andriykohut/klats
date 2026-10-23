@@ -6,6 +6,7 @@ import { ProgressBar } from "react-aria-components/ProgressBar";
 import { m } from "../paraglide/messages.js";
 import { progressMode, SEGMENT_GAP, SEGMENT_WIDTH } from "./layout";
 import "./student-ui.css";
+import "./Progress.css";
 
 export interface ProgressProps {
   /** Whether each question has an answer; its length is the question count. */

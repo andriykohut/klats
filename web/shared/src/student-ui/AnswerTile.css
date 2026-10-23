@@ -1,0 +1,191 @@
+.k-tile-wrap,
+.k-tile-field,
+.k-tile {
+  display: flex;
+  flex-direction: column;
+}
+
+.k-tile-field,
+.k-tile,
+.k-face {
+  flex: 1;
+}
+
+.k-tile {
+  position: relative;
+  padding-bottom: var(--k-depth);
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The tile's base, which shows below the face; ::after is the selected one. */
+.k-tile::before,
+.k-tile::after {
+  content: "";
+  position: absolute;
+  top: var(--k-depth);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile-shadow);
+}
+
+.k-tile::after {
+  background: var(--k-sel-dark);
+  opacity: 0;
+  transition: opacity var(--k-dur-fast);
+}
+
+.k-face {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: calc(16 * var(--k-px));
+  min-height: calc(84 * var(--k-px));
+  padding: calc(12 * var(--k-px)) calc(20 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  color: var(--k-ink);
+  font-weight: 600;
+  font-size: max(16px, calc(20 * var(--k-px)));
+  line-height: 1.35;
+  text-align: left;
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+}
+
+/* The selected colour, over the border too. */
+.k-face::before {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--k-px));
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--k-sel);
+  opacity: 0;
+  transition: opacity var(--k-dur-fast);
+}
+
+.k-tile[data-hovered] .k-face {
+  transform: translateY(calc(-2 * var(--k-px)));
+}
+
+.k-tile[data-pressed] .k-face {
+  transform: translateY(calc(var(--k-depth) - var(--k-px)));
+  transition-duration: var(--k-dur-press);
+}
+
+.k-tile[data-selected] .k-face {
+  color: var(--k-on-dark);
+}
+
+.k-tile[data-selected]::after,
+.k-tile[data-selected] .k-face::before {
+  opacity: 1;
+}
+
+.k-tile[data-focus-visible] .k-face {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+.k-tile-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.k-badge {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: calc(44 * var(--k-px));
+  height: calc(44 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-badge);
+  background: var(--k-paper);
+  color: var(--k-sel);
+  font-family: var(--k-font-display);
+  font-weight: 700;
+  font-size: max(14px, calc(17 * var(--k-px)));
+}
+
+.k-badge::before {
+  content: "";
+  position: absolute;
+  inset: calc(-2 * var(--k-px));
+  border-radius: inherit;
+  background: var(--k-accent);
+  opacity: 0;
+  transition: opacity var(--k-dur-fast);
+}
+
+.k-badge-single {
+  border-radius: var(--k-radius-badge-single);
+}
+
+.k-badge-letter,
+.k-badge-check,
+.k-badge-dot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform var(--k-dur-badge) var(--k-ease-spring),
+    opacity var(--k-dur-fast);
+}
+
+.k-badge-check {
+  width: calc(24 * var(--k-px));
+  height: calc(24 * var(--k-px));
+  margin: auto;
+  opacity: 0;
+  transform: scale(0) rotate(-40deg);
+}
+
+.k-badge-dot {
+  width: calc(14 * var(--k-px));
+  height: calc(14 * var(--k-px));
+  margin: auto;
+  border-radius: 50%;
+  background: var(--k-ink);
+  opacity: 0;
+  transform: scale(0);
+}
+
+.k-badge-check path {
+  fill: none;
+  stroke: var(--k-ink);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--k-dur-state) var(--k-ease-out);
+}
+
+.k-tile[data-selected] .k-badge::before,
+.k-tile[data-selected] .k-badge-check,
+.k-tile[data-selected] .k-badge-dot {
+  opacity: 1;
+}
+
+.k-tile[data-selected] .k-badge-check,
+.k-tile[data-selected] .k-badge-dot {
+  transform: none;
+}
+
+.k-tile[data-selected] .k-badge-check path {
+  stroke-dashoffset: 0;
+}
+
+.k-tile[data-selected] .k-badge-letter {
+  opacity: 0;
+  transform: scale(0);
+}
