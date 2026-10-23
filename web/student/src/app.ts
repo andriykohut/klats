@@ -458,11 +458,28 @@ async function locate(): Promise<void> {
     sync(saved.id);
   }
   if (st.state === "unjoined") {
+    if (queue && pending > 0) await deliver(queue);
     show({
       name: "join",
       code: new URLSearchParams(location.search).get("code") ?? "",
     });
   } else await follow(st);
+}
+
+/**
+ * Sends what a reload left in the queue of a participant this device no
+ * longer writes as, such as after the next sitting started, since the server
+ * still takes late answers for an older sitting. It gives up after 10 s, and
+ * whatever is left stays stored for the next boot.
+ */
+async function deliver(queue: AnswerQueue): Promise<void> {
+  const conn = new Connection(api.transport, queue);
+  session = { queue, conn };
+  conn.start();
+  // The drain never settles while submits are refused, and settles as
+  // offline only after two network failures, up to 21 s with timeouts.
+  await Promise.race([conn.drain(), sleep(10_000)]);
+  end();
 }
 
 /** Tries the server again; the event stream closed when it was not there. */

@@ -246,7 +246,9 @@ anyway: a second sender is harmless, because changes are idempotent.
 **Offline, nothing is lost and the student keeps going.**
 - **On the device:**
   - The queue is saved to localStorage after every change, so a reload or a
-    crash loses nothing.
+    crash loses nothing. A boot that finds the device in no sitting, as
+    after the next sitting has started, sends what the queue holds for up
+    to 10 s before the code screen; anything left waits for the next boot.
   - The connection counts as offline after two failed requests in a row.
     It then retries after 1, 2, 4 and 8 s, then every 8 s.
   - On reconnect, it sends the queue before it heartbeats, so the server
