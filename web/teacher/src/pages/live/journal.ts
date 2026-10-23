@@ -59,3 +59,23 @@ export function formatPoints(points: number, locale: string): string {
     points,
   );
 }
+
+/** The top grade of the scale every test is graded on in this version. */
+export const SCALE_MAX = 12;
+
+/**
+ * Formats the moment `at` (unix ms) in `locale` with `options`, adding the
+ * year when it differs from the year of `now`: a school year spans two.
+ */
+export function formatDate(
+  at: number,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+  now = Date.now(),
+): string {
+  const other = new Date(at).getFullYear() !== new Date(now).getFullYear();
+  return new Intl.DateTimeFormat(
+    locale,
+    other ? { ...options, year: "numeric" } : options,
+  ).format(at);
+}

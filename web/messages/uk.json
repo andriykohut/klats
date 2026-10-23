@@ -414,7 +414,7 @@
   "ev_online_synced": "{name} знову на зв’язку. Надійшло відповідей, збережених під час розриву: {count}.",
   "ev_switch": "{name} переходить в інше вікно.",
   "ev_switch_again": "{name} знову переходить в інше вікно, уже {count}-й раз.",
-  "ev_finished": "{name} завершує тест",
+  "ev_finished": "{name} завершує тест: {#b}{grade} з {max}{/b}",
   "ev_late": "{name} надсилає відповіді після завершення тесту: {count}.",
   "ev_unknown": "Подія в тесті",
   "board_open": "Відкрийте в браузері",
@@ -456,5 +456,7 @@
   "detail_picked": "Обрано",
   "detail_correct": "Правильна",
   "detail_no_answer": "Без відповіді",
-  "detail_clear": "Скинути"
+  "detail_clear": "Скинути",
+  "ev_finished_hidden": "{name} завершує тест.",
+  "detail_score": "Бали: {earned} з {max}"
 }

@@ -5,6 +5,8 @@ import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
 import { busy, useResolveEvent } from "../../api/queries";
 import { cooldown } from "../../cooldown";
+import { withBold } from "../../ui/withBold";
+import { SCALE_MAX } from "./journal";
 
 type Tone = "red" | "tang" | "mint" | undefined;
 
@@ -142,16 +144,16 @@ function describe(
     case "finished":
       return {
         tone: "mint",
-        text: hidden ? (
-          `${m.ev_finished({ name })}.`
-        ) : (
-          <>
-            {m.ev_finished({ name })}:{" "}
-            <b className="l-ev-grade">
-              {p.grade} {m.of_total({ total: 12 })}
-            </b>
-          </>
-        ),
+        text: hidden
+          ? m.ev_finished_hidden({ name })
+          : withBold(
+              m.ev_finished.parts({
+                name,
+                grade: p.grade ?? "",
+                max: SCALE_MAX,
+              }),
+              "l-ev-grade",
+            ),
       };
     case "late_answers":
       return { tone: "tang", text: m.ev_late({ name, count: p.count ?? "" }) };

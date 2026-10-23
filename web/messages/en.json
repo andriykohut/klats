@@ -388,7 +388,7 @@
   "ev_online_synced": "{name} is back online. Answers saved during the outage that arrived: {count}.",
   "ev_switch": "{name} switches to another window.",
   "ev_switch_again": "{name} switches to another window again, time {count}.",
-  "ev_finished": "{name} finishes the test",
+  "ev_finished": "{name} finishes the test: {#b}{grade} of {max}{/b}",
   "ev_late": "{name} sends answers after the test ended: {count}.",
   "ev_unknown": "Test event",
   "board_open": "Open in the browser",
@@ -429,5 +429,7 @@
   "detail_picked": "Chosen",
   "detail_correct": "Correct",
   "detail_no_answer": "Not answered",
-  "detail_clear": "Reset"
+  "detail_clear": "Reset",
+  "ev_finished_hidden": "{name} finishes the test.",
+  "detail_score": "Points: {earned} of {max}"
 }

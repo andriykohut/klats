@@ -1,6 +1,5 @@
 import { m } from "@klats/shared/paraglide/messages.js";
-import type { MessagePart } from "@klats/shared/paraglide/runtime.js";
-import { type ReactNode, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   Button,
   Dialog,
@@ -12,6 +11,7 @@ import {
   TextField,
 } from "react-aria-components";
 import { Icon } from "../../ui/icons";
+import { withBold } from "../../ui/withBold";
 import { type PastedQuestion, parsePasted } from "./pasteParse";
 
 /**
@@ -109,17 +109,4 @@ function PasteForm({ onAdd }: { onAdd: (qs: PastedQuestion[]) => void }) {
       </div>
     </>
   );
-}
-
-/** Renders message parts, bolding each {#b}…{/b} span. */
-function withBold(parts: MessagePart[]): ReactNode[] {
-  let bold = false;
-  return parts.map((part, i) => {
-    if (part.type === "markup-start") bold = true;
-    else if (part.type === "markup-end") bold = false;
-    else if (part.type === "text") {
-      return bold ? <b key={i}>{part.value}</b> : part.value;
-    }
-    return null;
-  });
 }

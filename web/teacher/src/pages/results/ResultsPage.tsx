@@ -12,21 +12,26 @@ import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
 import { notify } from "../../ui/Toasts";
 import {
+  type CellState,
   type JournalCell,
   type JournalColumn,
   JournalTable,
 } from "../live/JournalTable";
-import { band, formatPoints } from "../live/journal";
+import { band, formatDate, formatPoints } from "../live/journal";
 import { StudentDetail } from "./StudentDetail";
 import "./results.css";
 
-const RESULTS_LEGEND = () => [
-  { state: "full", label: m.legend_full() },
-  { state: "partial", label: m.legend_partial() },
-  { state: "zero", label: m.legend_zero() },
-  { state: "overridden", label: m.legend_overridden() },
-  { state: "late", label: m.legend_late() },
-];
+const RESULTS_LEGEND = () =>
+  [
+    { swatch: { state: "full" }, label: m.legend_full() },
+    { swatch: { state: "partial" }, label: m.legend_partial() },
+    { swatch: { state: "zero" }, label: m.legend_zero() },
+    {
+      swatch: { state: "empty", overridden: true },
+      label: m.legend_overridden(),
+    },
+    { swatch: { state: "empty", late: true }, label: m.legend_late() },
+  ] as const;
 
 /** Formats seconds as m:ss, or «—» for a participant who has not finished. */
 const duration = (sec: number) =>
@@ -47,17 +52,11 @@ export function ResultsPage() {
   const res = results.data;
   if (!res) return null;
   const locale = getLocale();
-  const day = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "short",
-  });
   const first = Math.min(...res.rows.map((r) => r.sittingDate));
   const about = [
     res.className || m.results_no_class(),
     res.rows.length > 0 &&
-      new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(
-        first,
-      ),
+      formatDate(first, locale, { day: "numeric", month: "long" }),
     m.classes_students({ count: res.rows.length }),
   ]
     .filter(Boolean)
@@ -69,7 +68,7 @@ export function ResultsPage() {
     { head: m.col_points(), width: 82, className: "r-col-num" },
     { head: m.col_grade(), width: 64, className: "j-grade" },
     { head: m.col_time(), width: 64, className: "r-col-num" },
-    { head: m.col_date(), width: 90, flex: true },
+    { head: m.col_date(), width: 110 },
   ];
 
   return (
@@ -84,7 +83,7 @@ export function ResultsPage() {
           <p>{about}</p>
         </div>
         <div className="r-export">
-          {res.exportStale && (
+          {res.exported && res.exportStale && (
             <span className="j-chip r-stale" data-tone="tang">
               {m.results_stale()}
             </span>
@@ -101,7 +100,9 @@ export function ResultsPage() {
             : []
         }
         after={after}
-        pct={res.questions.map((q) => q.correctPct)}
+        pct={res.questions.map((q) =>
+          res.rows.length > 0 ? q.correctPct : null,
+        )}
         footLabel={m.live_class_correct()}
         barLabel={(t) =>
           m.live_bar({ correct: t.good, wrong: t.bad, left: t.left })
@@ -135,7 +136,10 @@ export function ResultsPage() {
               {duration(r.durationSec)}
             </td>,
             <td key="date" className="j-device">
-              {day.format(r.sittingDate)}
+              {formatDate(r.sittingDate, locale, {
+                day: "numeric",
+                month: "short",
+              })}
             </td>,
           ],
         }))}
@@ -153,8 +157,8 @@ export function ResultsPage() {
 
 /**
  * The cells of a row: full, partial or zero points for an answered or
- * overridden question, empty for an unanswered one, with the points inside;
- * an override or a late answer marks the corner.
+ * overridden question, empty for an unanswered one, with the points inside,
+ * and the marks of an override and of a late answer.
  */
 function cellsOf(
   res: AssignmentResults,
@@ -165,18 +169,15 @@ function cellsOf(
     const got = r.points[i];
     const overridden = r.overridden.includes(q.id);
     const answered = q.id in r.answers || overridden;
-    let state = "empty";
+    let state: CellState = "empty";
     if (Math.abs(got - q.points) < 1e-9) state = "full";
     else if (got > 0) state = "partial";
     else if (answered) state = "zero";
     return {
       state,
       text: answered ? pts(got) : "",
-      mark: overridden
-        ? "overridden"
-        : r.late.includes(q.id)
-          ? "late"
-          : undefined,
+      overridden,
+      late: r.late.includes(q.id),
     };
   });
 }

@@ -20,7 +20,7 @@ import {
 } from "react-aria-components";
 import { busy, useSetOverride } from "../../api/queries";
 import { Icon } from "../../ui/icons";
-import { band, formatPoints } from "../live/journal";
+import { band, formatDate, formatPoints } from "../live/journal";
 
 /**
  * One student's answers, in a panel over the right of the results: each
@@ -40,12 +40,6 @@ export function StudentDetail(props: {
   if (!row) return null;
   const locale = getLocale();
   const pts = (n: number) => formatPoints(n, locale);
-  const when = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
   return (
     <ModalOverlay
       isOpen
@@ -65,8 +59,16 @@ export function StudentDetail(props: {
                 <p>
                   {[
                     row.className,
-                    when.format(row.sittingDate),
-                    `${m.col_points()}: ${pts(row.earned)} ${m.of_total({ total: pts(row.max) })}`,
+                    formatDate(row.sittingDate, locale, {
+                      day: "numeric",
+                      month: "long",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    m.detail_score({
+                      earned: pts(row.earned),
+                      max: pts(row.max),
+                    }),
                   ]
                     .filter(Boolean)
                     .join(" · ")}

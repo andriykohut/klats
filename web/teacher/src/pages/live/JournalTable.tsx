@@ -3,26 +3,37 @@ import type { CSSProperties, ReactNode } from "react";
 import { COMPACT_AFTER, tally } from "./journal";
 import "./journal.css";
 
-/**
- * A column beside the question cells. `width` is in px; the one `flex`
- * column takes the space left over, with `width` as its least.
- */
+/** A column beside the question cells, `width` px wide. */
 export interface JournalColumn {
   head: ReactNode;
   width: number;
-  flex?: boolean;
   className?: string;
 }
 
 /**
- * One question cell. `state` picks its colour: "correct", "wrong",
- * "current", "empty" and "answered" (live), or "full", "partial", "zero" and
- * "empty" (results). `text` is drawn inside, `mark` adds a corner sign.
+ * What a question cell shows: "correct", "wrong", "current", "empty" and
+ * "answered" (live, the last while names are hidden), or "full", "partial",
+ * "zero" and "empty" (results).
+ */
+export type CellState =
+  | "correct"
+  | "wrong"
+  | "current"
+  | "empty"
+  | "answered"
+  | "full"
+  | "partial"
+  | "zero";
+
+/**
+ * One question cell: `state` picks its colour and `text` is drawn inside. An
+ * override puts a dot on its corner and a late answer outlines it.
  */
 export interface JournalCell {
-  state: string;
+  state: CellState;
   text?: string;
-  mark?: "overridden" | "late";
+  overridden?: boolean;
+  late?: boolean;
 }
 
 /** A student's row: the name cell, the cells, and the columns around them. */
@@ -38,9 +49,10 @@ export interface JournalRow {
 const NUMBER_WIDTH = 34;
 const NAME_WIDTH = 220;
 
-/** Compact bars draw no current cell and no corner marks, so their legend leaves them out. */
-const shown = (compact: boolean) => (l: { state: string }) =>
-  !compact || !["current", "overridden", "late"].includes(l.state);
+/** Compact bars draw no current cell and no marks, so their legend leaves them out. */
+const shown = (compact: boolean) => (l: { swatch: JournalCell }) =>
+  !compact ||
+  (l.swatch.state !== "current" && !l.swatch.overridden && !l.swatch.late);
 
 const low = (p: number | null) => (p !== null && p < 60) || undefined;
 
@@ -57,8 +69,9 @@ const MIN_CELL = 8;
  * (`pct`, null while nobody answered), those under 60% highlighted. Above
  * {@link COMPACT_AFTER} questions each row's cells become one bar split into
  * full, fewer and no points, labelled by `barLabel`. `tools` and `legend`
- * fill the strip above the head. The "results" variant draws taller cells
- * with the points inside.
+ * (a sample cell beside each label) fill the strip above the head. Space
+ * left over goes to an empty last column, so every column stays near the
+ * name. The "results" variant draws taller cells with the points inside.
  */
 export function JournalTable(props: {
   variant?: "results";
@@ -70,7 +83,7 @@ export function JournalTable(props: {
   footLabel: string;
   barLabel: (t: ReturnType<typeof tally>) => string;
   tools?: ReactNode;
-  legend: { state: string; label: string }[];
+  legend: readonly { swatch: JournalCell; label: string }[];
 }) {
   const n = props.questions;
   const compact = n > COMPACT_AFTER;
@@ -83,7 +96,7 @@ export function JournalTable(props: {
   const numbered = (i: number) =>
     n <= NUMBERED_EVERY || i === 0 || (i + 1) % 5 === 0;
   const sideCol = (c: JournalColumn, i: number) => (
-    <col key={i} style={c.flex ? undefined : { width: c.width }} />
+    <col key={i} style={{ width: c.width }} />
   );
 
   return (
@@ -92,8 +105,8 @@ export function JournalTable(props: {
         {props.tools}
         <ul className="j-legend">
           {props.legend.filter(shown(compact)).map((l) => (
-            <li key={l.state}>
-              <span className="j-cell" data-state={l.state} />
+            <li key={l.label}>
+              <Cell cell={l.swatch} />
               {l.label}
             </li>
           ))}
@@ -117,6 +130,7 @@ export function JournalTable(props: {
               ))
             )}
             {props.after.map(sideCol)}
+            <col />
           </colgroup>
           <thead>
             <tr>
@@ -141,6 +155,7 @@ export function JournalTable(props: {
                   {c.head}
                 </th>
               ))}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -156,17 +171,12 @@ export function JournalTable(props: {
                 ) : (
                   r.cells.map((c, q) => (
                     <td key={q} className="j-q">
-                      <span
-                        className="j-cell"
-                        data-state={c.state}
-                        data-mark={c.mark}
-                      >
-                        {c.text}
-                      </span>
+                      <Cell cell={c} />
                     </td>
                   ))
                 )}
                 {r.after}
+                <td />
               </tr>
             ))}
           </tbody>
@@ -184,7 +194,7 @@ export function JournalTable(props: {
                 </td>
               ) : (
                 props.pct.map((p, q) => (
-                  <td key={q} className="j-q">
+                  <td key={q} className="j-q j-q-pct">
                     {n <= PCT_AS_TEXT ? (
                       <span className="j-pct" data-low={low(p)}>
                         {p === null ? "—" : `${p}%`}
@@ -195,12 +205,25 @@ export function JournalTable(props: {
                   </td>
                 ))
               )}
-              <td colSpan={props.after.length} />
+              <td colSpan={props.after.length + 1} />
             </tr>
           </tfoot>
         </table>
       </div>
     </div>
+  );
+}
+
+function Cell({ cell }: { cell: JournalCell }) {
+  return (
+    <span
+      className="j-cell"
+      data-state={cell.state}
+      data-overridden={cell.overridden || undefined}
+      data-late={cell.late || undefined}
+    >
+      {cell.text}
+    </span>
   );
 }
 

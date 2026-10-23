@@ -1,5 +1,12 @@
 import { expect, test } from "vitest";
-import { band, formatPoints, initials, shortName, tally } from "./journal";
+import {
+  band,
+  formatDate,
+  formatPoints,
+  initials,
+  shortName,
+  tally,
+} from "./journal";
 
 test("initials keep the first letter of every part of a name", () => {
   expect(initials("Шевченко Олег")).toBe("Ш. О.");
@@ -53,4 +60,14 @@ test("points show up to two decimals in the UI language", () => {
   expect(formatPoints(0.5, "uk")).toBe("0,5");
   expect(formatPoints(2 / 3, "uk")).toBe("0,67");
   expect(formatPoints(1.5, "en")).toBe("1.5");
+});
+
+test("a date names its year only when it is not this year's", () => {
+  const now = new Date(2026, 9, 23).getTime();
+  const day = { day: "numeric", month: "long" } as const;
+  const thisYear = formatDate(new Date(2026, 0, 12).getTime(), "uk", day, now);
+  const lastYear = formatDate(new Date(2025, 0, 12).getTime(), "uk", day, now);
+  expect(thisYear).toBe("12 січня");
+  expect(lastYear).toContain("2025");
+  expect(lastYear).toContain("12 січня");
 });

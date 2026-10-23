@@ -26,8 +26,8 @@ import * as api from "./client";
 /*
  * Query keys: ["tests"] and ["tests", id], ["classes"] and ["classes", id],
  * ["live"], ["assignments"], ["results", id], ["network"], ["settings"],
- * ["parse", text]. The event stream (events.ts) invalidates ["live"],
- * ["assignments"] and ["results"].
+ * ["parse", text]. The event stream (events.ts) invalidates ["live"] and the
+ * results of the live view's assignment.
  */
 
 /** How long a deleted test can be brought back before the DELETE is sent. */
@@ -261,13 +261,15 @@ export const useResults = (id: string) =>
 /**
  * Sets or clears an override on assignment `id`; the reply replaces the
  * cached results, so the grade changes at once. Overrides run one at a time,
- * in the order they were made, so a slower reply never overwrites a newer one.
+ * in the order they were made, so a slower reply never overwrites a newer one;
+ * a results fetch in flight is cancelled first for the same reason.
  */
 export function useSetOverride(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationKey: ["override"],
     scope: { id: `override-${id}` },
+    onMutate: () => qc.cancelQueries({ queryKey: ["results", id] }),
     mutationFn: (req: OverrideRequest) => api.setOverride(id, req),
     onSuccess: (res) => {
       qc.setQueryData(["results", id], res);

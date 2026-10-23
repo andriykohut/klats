@@ -202,8 +202,7 @@
 }
 
 /* An override marks the cell's corner with a dot, a late answer outlines it. */
-.j-cell[data-mark="overridden"]::after,
-.j-legend .j-cell[data-state="overridden"]::after {
+.j-cell[data-overridden]::after {
   content: "";
   position: absolute;
   top: -3px;
@@ -215,12 +214,11 @@
   background: var(--k-ink);
 }
 
-.j-legend .j-cell[data-state="overridden"] {
+.j-legend .j-cell[data-overridden] {
   position: relative;
 }
 
-.j-cell[data-mark="late"],
-.j-legend .j-cell[data-state="late"] {
+.j-cell[data-late] {
   outline: 2px dashed var(--k-accent-dark);
   outline-offset: 1px;
 }

@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useAssignments } from "../../api/queries";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
-import { band, formatPoints } from "../live/journal";
+import { band, formatDate, formatPoints } from "../live/journal";
 import "../live/journal.css";
 import "./results.css";
 
@@ -14,12 +14,13 @@ export function AssignmentsPage() {
   if (list.isError) return <LoadError onRetry={() => list.refetch()} />;
   if (!list.data) return null;
   const locale = getLocale();
-  const when = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const when = (at: number) =>
+    formatDate(at, locale, {
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   if (list.data.length === 0) {
     return (
       <div className="t-page">
@@ -52,7 +53,7 @@ export function AssignmentsPage() {
               <span className="r-item-meta">
                 {[
                   a.className || m.results_no_class(),
-                  when.format(a.createdAt),
+                  when(a.createdAt),
                   m.classes_students({ count: a.participants }),
                 ].join(" · ")}
               </span>

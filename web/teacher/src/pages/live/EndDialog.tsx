@@ -41,13 +41,16 @@ export function EndDialog({
               isPending={end.isPending}
               onPress={() => {
                 if (busy("endSitting")) return;
-                end.mutate(undefined, {
-                  onSuccess: () =>
+                // mutateAsync settles even once the ended live view has
+                // unmounted this dialog; the query cache reports a failure.
+                end.mutateAsync().then(
+                  () =>
                     navigate({
                       to: "/assignments/$id",
                       params: { id: assignmentId },
                     }),
-                });
+                  () => {},
+                );
               }}
             >
               {m.end_confirm()}

@@ -280,6 +280,12 @@
   background: var(--j-tint-clash);
 }
 
+/* A percent may spill a pixel past a narrow column rather than be cut. */
+.j-table .j-q-pct {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .j-pct {
   color: var(--k-ink);
   font-size: 11px;
