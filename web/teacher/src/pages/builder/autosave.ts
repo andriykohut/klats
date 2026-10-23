@@ -73,6 +73,9 @@ export function autosave<T, R>(opts: {
         dirty = true;
       }
       busy = false;
+      // shortcut: a save the server refuses (400, such as lists nested past
+      // rich's depth limit) is retried like a dropped connection, forever;
+      // say what to fix if that shows up in real use.
       failures++;
       onState("retrying");
       settle(err ?? new Error("save failed"));

@@ -122,6 +122,8 @@ function Builder({ doc }: { doc: TestDoc }) {
     return () => document.body.classList.remove("b-body");
   }, []);
 
+  // shortcut: closing the window within 400 ms of an edit drops that edit;
+  // leaving the page saves it. Save on pagehide too if teachers lose edits that way.
   useEffect(() => {
     saver.start();
     return () => {
