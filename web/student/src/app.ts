@@ -424,14 +424,21 @@ export function changeAddress(url: string, back: Screen): void {
 
 function lostTab(): void {
   end();
-  show({ name: "otherTab" });
+  void boot();
 }
 
-/** Starts the app: claims the tab, then finds where this device stands. */
+/**
+ * Starts the app: claims the tab, then finds where this device stands. While
+ * another tab holds the claim it shows a notice and tries again every 5 s,
+ * so a tab that crashed or was closed hands the test over.
+ */
 export async function boot(): Promise<void> {
   setLang(localStorage.getItem(LANG) ?? "uk");
   paint("teal");
-  if (!claimTab("klats.tab", lostTab)) return show({ name: "otherTab" });
+  while (!claimTab("klats.tab", lostTab)) {
+    show({ name: "otherTab" });
+    await sleep(5000);
+  }
   openStream();
   await locate();
 }

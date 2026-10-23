@@ -21,6 +21,7 @@ import {
 import { NameTaken, pick, streaming } from "../api";
 import { ApiError } from "../sync/connection";
 import { errorText, Problem, Sheet } from "./ui";
+import "@klats/shared/student-ui/AnswerTile.css";
 
 /** How often the list is fetched again while the event stream is closed. */
 const REFRESH_MS = 15_000;

@@ -31,3 +31,22 @@ test("a student joins by the code, answers three questions and finishes", async 
     teacher.getByText(new RegExp(`^1\\s*${m.live_finished()}$`)),
   ).toBeVisible();
 });
+
+test("a second tab waits, and takes the test over once the first is closed", async ({
+  klats,
+}) => {
+  const { code } = await klats.start();
+  const first = await klats.computer();
+  await joinAs(first, klats, code, CLASS[0]);
+
+  const second = await first.context().newPage();
+  await second.goto(klats.student);
+  await expect(second.getByText(m.other_tab_title())).toBeVisible();
+  // The waiting tab tries the claim every 5 s. Chromium's close releases the
+  // lease; Firefox's skips pagehide, as a crash does, so the lease must first
+  // go 15 s without a refresh.
+  await first.close();
+  await expect(second.getByRole("button", { name: m.test_skip() })).toBeVisible(
+    { timeout: 25_000 },
+  );
+});

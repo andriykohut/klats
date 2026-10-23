@@ -239,8 +239,9 @@ view in case an event was missed.
 **One tab writes, through a lease.** Two tabs of one browser share the
 device token and the queue's storage, and two writers would fight over both.
 The first tab holds a lease in localStorage, refreshed every 5 s. Another
-tab shows a notice and sends nothing, unless the lease has gone 15 s without
-a refresh (a crashed tab). If the lease can't be stored, the tab carries on
+tab shows a notice and sends nothing. It tries again every 5 s, and takes
+over once the lease is released, when the first tab closes, or has gone 15 s
+without a refresh (a crashed tab). If the lease can't be stored, the tab carries on
 anyway: a second sender is harmless, because changes are idempotent.
 
 **Offline, nothing is lost and the student keeps going.**

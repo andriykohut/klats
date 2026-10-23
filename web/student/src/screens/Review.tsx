@@ -5,6 +5,8 @@ import { popIn } from "@klats/shared/student-ui/motion.ts";
 import { motion, useReducedMotionConfig } from "motion/react";
 import { Button } from "react-aria-components/Button";
 import { Sheet } from "./ui";
+import "@klats/shared/student-ui/AnswerTile.css";
+import "@klats/shared/student-ui/QuestionSheet.css";
 
 /**
  * The last stop before finishing: how many questions have an answer, and the
