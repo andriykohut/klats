@@ -6,7 +6,9 @@ package demo
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -20,7 +22,13 @@ import (
 	"klats/internal/wire"
 )
 
-const className = "7-Б"
+// The class and the test have fixed ids, so a later run in the same data
+// folder finds them instead of storing them again.
+const (
+	className = "7-Б"
+	classID   = "demo-class"
+	testID    = "demo-test"
+)
 
 var students = []string{
 	"Бойко Назар", "Бондаренко Олена", "Гнатюк Ігор", "Гончаренко Ірина",
@@ -84,15 +92,16 @@ func sampleTest(id string) testfmt.Test {
 	}}
 }
 
-// Seed stores class 7-Б of 25 students and a six-question sample test, then
-// starts a sitting of that test for the class and returns it. If a sitting
-// already runs, it stores nothing and returns [sitting.ErrSittingActive].
+// Seed starts a sitting of the six-question sample test for class 7-Б, of 25
+// students, and returns it. It stores the class and the test first, unless an
+// earlier run in the same data folder did. If a sitting already runs, demo or
+// not, it stores and starts nothing and returns that sitting.
 func Seed(st *store.Store, eng *sitting.Engine) (wire.SittingInfo, error) {
 	if eng.Active() {
-		return wire.SittingInfo{}, sitting.ErrSittingActive
+		live, err := eng.Live()
+		return live.Sitting, err
 	}
 	ctx := context.Background()
-	classID, testID := store.NewID(), store.NewID()
 	// Decode validates the test and makes its rich text canonical, as a save
 	// through the teacher API does.
 	raw, err := json.Marshal(sampleTest(testID))
@@ -109,19 +118,27 @@ func Seed(st *store.Store, eng *sitting.Engine) (wire.SittingInfo, error) {
 	}
 	now := time.Now().UnixMilli()
 	err = st.Tx(ctx, func(q *db.Queries) error {
-		if err := q.InsertClass(ctx, db.InsertClassParams{ID: classID, Name: className, CreatedAt: now}); err != nil {
-			return err
-		}
-		for _, name := range students {
-			p := db.InsertStudentParams{ID: store.NewID(), ClassID: classID, Name: name, SortKey: roster.SortKey(name)}
-			if err := q.InsertStudent(ctx, p); err != nil {
+		if _, err := q.GetClass(ctx, classID); errors.Is(err, sql.ErrNoRows) {
+			if err := q.InsertClass(ctx, db.InsertClassParams{ID: classID, Name: className, CreatedAt: now}); err != nil {
 				return err
 			}
+			for _, name := range students {
+				p := db.InsertStudentParams{ID: store.NewID(), ClassID: classID, Name: name, SortKey: roster.SortKey(name)}
+				if err := q.InsertStudent(ctx, p); err != nil {
+					return err
+				}
+			}
+		} else if err != nil {
+			return err
+		}
+		if _, err := q.GetTest(ctx, testID); !errors.Is(err, sql.ErrNoRows) {
+			return err
 		}
 		return q.InsertTest(ctx, db.InsertTestParams{ID: testID, Title: t.Title, Doc: string(doc), CreatedAt: now, UpdatedAt: now})
 	})
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}
-	return eng.Start(testID, &classID)
+	class := classID
+	return eng.Start(testID, &class)
 }

@@ -236,6 +236,7 @@ func TestDevModeServes(t *testing.T) {
 
 // -demo needs -dev. It runs a sitting of the sample class in a temporary data
 // folder that is gone after the run, and the student line carries its code.
+// With -data, a second run reuses the sitting the first left running.
 func TestDemo(t *testing.T) {
 	stubs(t)
 	var stderr bytes.Buffer
@@ -255,6 +256,18 @@ func TestDemo(t *testing.T) {
 	d.stop(t)
 	if entries, _ := os.ReadDir(tmp); len(entries) > 0 {
 		t.Errorf("the run left %v in the temporary folder", entries)
+	}
+
+	// With -data, a second run prints the sitting the first one left running.
+	dataDir := t.TempDir()
+	first := startDev(t, dataDir, "-demo", "-port", "0")
+	first.stop(t)
+	again := startDev(t, dataDir, "-demo", "-port", "0")
+	again.stop(t)
+	_, code1, _ := strings.Cut(first.lines["student"], "/?code=")
+	_, code2, _ := strings.Cut(again.lines["student"], "/?code=")
+	if code1 == "" || code2 != code1 {
+		t.Errorf("join codes %q then %q, want the first sitting's on both runs", code1, code2)
 	}
 }
 
