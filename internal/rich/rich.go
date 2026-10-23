@@ -102,9 +102,21 @@ func nodeSet(base []string, more ...string) map[string]bool {
 	return set
 }
 
-// childNodes lists the only children a node may hold. Leaves map to an empty
-// set.
+var (
+	inlineNodes = nodeSet(nil, "text", "hardBreak", "math", "gap")
+	blockNodes  = nodeSet(nil, "paragraph", "bulletList", "orderedList", "codeBlock", "table", "image", "audio")
+)
+
+// childNodes lists the only children a node may hold, on top of what the mode
+// permits. Together with needsChild it is the editor's content model: a
+// document Parse accepts loads in the editor without losing a node. Leaves map
+// to an empty set.
 var childNodes = map[string]map[string]bool{
+	"doc":         blockNodes,
+	"paragraph":   inlineNodes,
+	"bulletList":  {"listItem": true},
+	"orderedList": {"listItem": true},
+	"listItem":    blockNodes,
 	"codeBlock":   {"text": true},
 	"table":       {"tableRow": true},
 	"tableRow":    {"tableHeader": true, "tableCell": true},
@@ -115,6 +127,9 @@ var childNodes = map[string]map[string]bool{
 	"math":        {},
 	"gap":         {},
 }
+
+// needsChild lists the nodes the editor cannot hold empty.
+var needsChild = map[string]bool{"table": true, "tableRow": true}
 
 var allowedKeys = map[string]bool{"type": true, "attrs": true, "text": true, "marks": true, "content": true}
 
@@ -127,10 +142,12 @@ var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": tr
 // duplicates) at every level, and attrs keys other than src, w, h, latex, id,
 // colspan and rowspan. It also rejects nodes and marks the mode does not
 // permit, attrs a node type does not take or whose values are out of range,
-// children a node may not hold (table, row and cell nesting, and unmarked text
-// only in a codeBlock), repeated gap ids, text and LaTeX totalling more than
-// 20,000 runes, and nesting deeper than 8 levels below the doc node. Every
-// error wraps [ErrInvalid].
+// children a node may not hold (inline nodes only in a paragraph, block nodes
+// only in the doc, list items and cells, table, row and cell nesting, and
+// unmarked text only in a codeBlock), a table or row with no children,
+// repeated gap ids, text and LaTeX totalling more than 20,000 runes, and
+// nesting deeper than 8 levels below the doc node. Every error wraps
+// [ErrInvalid].
 //
 // The key check keeps Go and JavaScript reading the same bytes the same way:
 // encoding/json would otherwise match keys case-insensitively and let the last
@@ -256,6 +273,9 @@ func (c *checker) checkNodes(nodes []Node, parent string, depth int) error {
 		}
 		if err := c.checkAttrs(n); err != nil {
 			return err
+		}
+		if needsChild[n.Type] && len(n.Content) == 0 {
+			return fmt.Errorf("%s node is empty", n.Type)
 		}
 		if err := c.checkNodes(n.Content, n.Type, depth+1); err != nil {
 			return err

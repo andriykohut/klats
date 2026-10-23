@@ -6,6 +6,7 @@ import type {
   ClassSummary,
   ExportResult,
   LiveSnapshot,
+  MediaResult,
   NetworkInfo,
   OverrideRequest,
   SaveResult,
@@ -68,8 +69,12 @@ async function send(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.ok) return res;
+  throw await apiError(res);
+}
+
+async function apiError(res: Response): Promise<ApiError> {
   const data = await res.json().catch(() => ({}));
-  throw new ApiError(res.status, String(data.error ?? ""), data.problems);
+  return new ApiError(res.status, String(data.error ?? ""), data.problems);
 }
 
 const id = encodeURIComponent;
@@ -85,6 +90,18 @@ export const saveTest = (testId: string, test: Test) =>
   call<SaveResult>("PUT", `/api/tests/${id(testId)}`, test);
 export const deleteTest = (testId: string) =>
   call<void>("DELETE", `/api/tests/${id(testId)}`);
+
+/**
+ * Stores an image or audio file and resolves to its media name. The server
+ * sniffs the type from the bytes: a file it does not know rejects with an
+ * ApiError of status 415 ("unsupported"), one over the size cap with 413
+ * ("too_large").
+ */
+export async function postMedia(file: Blob): Promise<string> {
+  const res = await fetch("/api/media", { method: "POST", body: file });
+  if (!res.ok) throw await apiError(res);
+  return ((await res.json()) as MediaResult).name;
+}
 
 export const listClasses = () => call<ClassSummary[]>("GET", "/api/classes");
 /** Creates a class; the reply lists the students in Ukrainian order. */

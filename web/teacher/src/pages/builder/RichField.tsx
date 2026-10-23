@@ -8,6 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@tiptap/extension-table";
+import { Selection } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import {
   type Editor,
   EditorContent,
@@ -15,14 +17,18 @@ import {
   useEditorState,
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { type KeyboardEvent, useLayoutEffect } from "react";
+import { type KeyboardEvent, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
+import { addImage, mediaMessage, uploadMedia } from "./media";
 import { oneParagraph, textDoc, toStored } from "./model";
+import { AudioNode } from "./rich/AudioNode";
+import { ImageNode } from "./rich/ImageNode";
 
 /*
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
- * code; Subscript, Superscript and the table nodes are added beside it.
+ * code; Subscript, Superscript, the table nodes and, in block fields, the
+ * image and audio nodes are added beside it.
  * Pasted content is parsed against this schema, so headings, quotes, links
  * and the like arrive as plain paragraphs and text. Undo, the drop cursor
  * and the gap cursor stay: they add no nodes.
@@ -60,6 +66,8 @@ const BLOCK_EXTENSIONS = [
   Subscript,
   Superscript,
   ...TABLE_EXTENSIONS,
+  ImageNode,
+  AudioNode,
 ];
 const INLINE_EXTENSIONS = [
   StarterKit.configure(INLINE),
@@ -108,6 +116,22 @@ const TABLE_EDITS = [
   { key: "deleteTable", label: m.rich_table_delete, glyph: "×" },
 ] as const;
 
+/** Toolbar buttons that add a file; only block fields have them. */
+const MEDIA = [
+  {
+    kind: "image",
+    label: m.rich_image,
+    glyph: "▣",
+    accept: "image/*",
+  },
+  {
+    kind: "audio",
+    label: m.rich_audio,
+    glyph: "♪",
+    accept: ".mp3,.m4a,.ogg,.wav",
+  },
+] as const;
+
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
 /**
@@ -123,8 +147,12 @@ const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
  * and Mod-E. A block field's toolbar also has a code block and a 3×3 table;
  * while the caret is in a table it adds buttons to add or delete a row or
  * column and to delete the table. Table cells hold paragraphs only, and cells
- * are never merged or split here. Each time `focus` changes to a number other than 0, the field takes focus
- * with the caret at the end.
+ * are never merged or split here. A block field also takes images and audio:
+ * its toolbar has an image and an audio button, and an image file pasted or
+ * dropped into it is uploaded and inserted at the caret or drop point. The
+ * node goes in only after the upload succeeds; a failure shows a message under
+ * the field until the next edit or upload. Each time `focus` changes to a
+ * number other than 0, the field takes focus with the caret at the end.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -138,6 +166,26 @@ export function RichField(props: {
 }) {
   const inline = props.inline ?? false;
   const focus = props.focus ?? 0;
+  const [error, setError] = useState("");
+
+  const add = async (view: EditorView, files: File[]) => {
+    setError("");
+    for (const file of files) {
+      try {
+        if (
+          file.type.startsWith("audio/") ||
+          /\.(mp3|m4a|ogg|wav)$/i.test(file.name)
+        ) {
+          insertMedia(view, "audio", { src: await uploadMedia(file) });
+        } else {
+          insertMedia(view, "image", { ...(await addImage(file)) });
+        }
+      } catch (err) {
+        setError(mediaMessage(err));
+        return;
+      }
+    }
+  };
 
   const editor = useEditor({
     immediatelyRender: true,
@@ -155,9 +203,40 @@ export function RichField(props: {
       transformPasted: inline
         ? (slice, view) => oneParagraph(slice, view.state.schema)
         : undefined,
+      // A screenshot or copied picture has no text; a copy from a document
+      // carries both, and the text is what the teacher meant.
+      handlePaste: inline
+        ? undefined
+        : (view, event) => {
+            const data = event.clipboardData;
+            const files = [...(data?.files ?? [])];
+            if (!files.length || data?.getData("text/plain")) return false;
+            event.preventDefault();
+            void add(view, files);
+            return true;
+          },
+      handleDrop: inline
+        ? undefined
+        : (view, event, _slice, moved) => {
+            const files = [...(event.dataTransfer?.files ?? [])];
+            if (moved || !files.length) return false;
+            event.preventDefault();
+            const at = view.posAtCoords({
+              left: event.clientX,
+              top: event.clientY,
+            });
+            if (at) {
+              const $at = view.state.doc.resolve(at.pos);
+              view.dispatch(view.state.tr.setSelection(Selection.near($at)));
+            }
+            void add(view, files);
+            return true;
+          },
     },
-    onUpdate: ({ editor }) =>
-      props.onChange(toStored(editor.getJSON()) as RichDoc),
+    onUpdate: ({ editor }) => {
+      setError("");
+      props.onChange(toStored(editor.getJSON()) as RichDoc);
+    },
   });
 
   useLayoutEffect(() => {
@@ -205,6 +284,11 @@ export function RichField(props: {
       onKeyDownCapture={inline ? onKey : undefined}
     >
       <EditorContent editor={editor} />
+      {error && (
+        <p className="b-rich-err" role="alert">
+          {error}
+        </p>
+      )}
       {state.empty && (
         <span className="b-rich-ph" aria-hidden="true">
           {props.placeholder}
@@ -246,6 +330,29 @@ export function RichField(props: {
               {b.glyph}
             </button>
           ))}
+        {!inline &&
+          MEDIA.map((b) => (
+            <label
+              key={b.kind}
+              className="b-rich-btn"
+              data-mark={b.kind}
+              title={b.label()}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              {b.glyph}
+              <input
+                type="file"
+                hidden
+                aria-label={b.label()}
+                accept={b.accept}
+                onChange={(e) => {
+                  const files = [...(e.target.files ?? [])];
+                  e.target.value = "";
+                  void add(editor.view, files);
+                }}
+              />
+            </label>
+          ))}
         {state.table &&
           TABLE_EDITS.map((b) => (
             <button
@@ -265,6 +372,31 @@ export function RichField(props: {
       </div>
     </div>
   );
+}
+
+/**
+ * Inserts a media block at the selection, splitting the paragraph the caret is
+ * in. A block that would end the document gets an empty paragraph after it,
+ * the only place to continue typing below it.
+ */
+function insertMedia(
+  view: EditorView,
+  type: "image" | "audio",
+  attrs: Record<string, unknown>,
+): void {
+  if (view.isDestroyed) return;
+  const { schema } = view.state;
+  const tr = view.state.tr.replaceSelectionWith(
+    schema.nodes[type].create(attrs),
+  );
+  if (MEDIA.some((b) => b.kind === tr.doc.lastChild?.type.name)) {
+    tr.insert(tr.doc.content.size, schema.nodes.paragraph.create());
+  }
+  // The insertion leaves the block selected; the caret belongs below it.
+  const below = Selection.findFrom(tr.doc.resolve(tr.selection.to), 1, true);
+  if (below) tr.setSelection(below);
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
 }
 
 function toggle(editor: Editor, mark: (typeof MARKS)[number]["mark"]): void {

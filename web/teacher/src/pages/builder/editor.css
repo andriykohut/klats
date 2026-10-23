@@ -453,6 +453,60 @@
   color: var(--k-sel-dark);
 }
 
+label.b-rich-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.b-rich-err {
+  margin: 6px 2px 0;
+  color: var(--t-red);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* An image or audio block: the picture or player, with a × at its corner. */
+.b-media {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0;
+  border-radius: 8px;
+}
+
+.b-media.ProseMirror-selectednode {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.b-media-img {
+  display: block;
+  width: min(100%, var(--img-w, 100%), calc(240px * var(--img-r, 1)));
+  height: auto;
+  border-radius: 8px;
+}
+
+.b-media-x {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid var(--t-line);
+  border-radius: 50%;
+  background: var(--k-paper);
+  color: var(--t-red);
+  font: 800 15px / 1 var(--k-font-text);
+  cursor: pointer;
+}
+
+.b-media-x:hover {
+  background: var(--t-red-soft);
+}
+
 /* Options */
 
 .b-opts {
@@ -554,6 +608,47 @@
 .b-opt:hover .b-opt-del,
 .b-opt-del[data-focus-visible] {
   opacity: 1;
+}
+
+.t-icon-btn.b-opt-img {
+  width: 32px;
+  height: 32px;
+}
+
+.t-icon-btn.b-opt-img:hover {
+  background: var(--t-hover);
+  color: var(--k-ink);
+}
+
+.t-icon-btn.b-opt-img .t-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.b-opt-pic {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.b-opt-thumb {
+  display: block;
+  height: 36px;
+  width: auto;
+  max-width: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.t-icon-btn.b-opt-pic-x {
+  width: 24px;
+  height: 24px;
+}
+
+.t-icon-btn.b-opt-pic-x .t-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.6;
 }
 
 .t-btn.b-add-opt {

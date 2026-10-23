@@ -50,11 +50,14 @@ function wav(seconds = 1): Buffer {
   return Buffer.concat([head, samples]);
 }
 
-const text = (...content: unknown[]) => ({
+/** A paragraph of `line`, then the image or audio block `media`. */
+const text = (line: string, media: unknown) => ({
   type: "doc",
-  content: [{ type: "paragraph", content }],
+  content: [
+    { type: "paragraph", content: [{ type: "text", text: line }] },
+    media,
+  ],
 });
-const words = (s: string) => ({ type: "text", text: s });
 
 test("images and audio are shown after the network drops", async ({
   klats,
@@ -63,12 +66,12 @@ test("images and audio are shown after the network drops", async ({
   const sound = await klats.upload(wav());
 
   const q1 = question("q1", "Що на малюнку?", ["Сіре", "*Прямокутник"]);
-  q1.text = text(words("Що на малюнку? "), {
+  q1.text = text("Що на малюнку? ", {
     type: "image",
     attrs: { src: picture, w: WIDTH, h: HEIGHT },
   });
   const q2 = question("q2", "Що ви чуєте?", ["Тишу", "*Нічого"]);
-  q2.text = text(words("Що ви чуєте? "), {
+  q2.text = text("Що ви чуєте? ", {
     type: "audio",
     attrs: { src: sound },
   });
@@ -125,7 +128,7 @@ test("a picture's box is reserved before it loads, so the sheet already knows it
     "П’ять",
     "Шість",
   ]);
-  q.text = text(words("Що на малюнку?"), {
+  q.text = text("Що на малюнку?", {
     type: "image",
     attrs: { src: picture, w: 640, h: 360 },
   });
@@ -147,7 +150,7 @@ test("a recording that is playing from the network is not cut off when its prelo
 }) => {
   const sound = await klats.upload(wav(5));
   const q = question("q1", "Що ви чуєте?", ["Тишу", "*Нічого"]);
-  q.text = text(words("Що ви чуєте? "), {
+  q.text = text("Що ви чуєте? ", {
     type: "audio",
     attrs: { src: sound },
   });

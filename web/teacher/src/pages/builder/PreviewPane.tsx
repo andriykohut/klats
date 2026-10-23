@@ -118,7 +118,11 @@ function Stage({
               number={index + 1}
               total={total}
               text={q.text}
-              options={q.options.map((o) => ({ id: o.id, content: o.content }))}
+              options={q.options.map((o) => ({
+                id: o.id,
+                content: o.content,
+                image: o.image,
+              }))}
               multi={q.type === "multi"}
               selected={[]}
               onChange={() => {}}

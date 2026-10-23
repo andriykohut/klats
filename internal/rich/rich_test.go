@@ -421,3 +421,33 @@ func TestParseRoundTripsAttrs(t *testing.T) {
 		t.Fatalf("got %s\nwant %s", out, raw)
 	}
 }
+
+func TestParseContentModel(t *testing.T) {
+	img := `{"type":"image","attrs":{"src":"` + hex64 + `.png","w":8,"h":6}}`
+	audio := `{"type":"audio","attrs":{"src":"` + hex64 + `.mp3"}}`
+	row := `{"type":"tableRow","content":[{"type":"tableCell","content":[{"type":"paragraph"}]}]}`
+	item := func(inner string) string { return `{"type":"listItem","content":[` + inner + `]}` }
+
+	for name, raw := range map[string]string{
+		"paragraph > image": para(img),
+		"paragraph > table": para(`{"type":"table","content":[` + row + `]}`),
+		"doc > tableRow":    doc(row),
+		"doc > tableCell":   doc(`{"type":"tableCell","content":[{"type":"paragraph"}]}`),
+		"doc > text":        doc(`{"type":"text","text":"x"}`),
+		"doc > hardBreak":   doc(`{"type":"hardBreak"}`),
+		"doc > math":        doc(`{"type":"math","attrs":{"latex":"x"}}`),
+		"doc > listItem":    doc(item(`{"type":"paragraph"}`)),
+		"empty table":       doc(`{"type":"table"}`),
+		"empty tableRow":    doc(`{"type":"table","content":[{"type":"tableRow"}]}`),
+		"bulletList > para": doc(`{"type":"bulletList","content":[{"type":"paragraph"}]}`),
+		"cell > image":      doc(`{"type":"table","content":[{"type":"tableRow","content":[{"type":"tableCell","content":[` + img + `]}]}]}`),
+		"listItem > text":   doc(`{"type":"bulletList","content":[` + item(`{"type":"text","text":"x"}`) + `]}`),
+	} {
+		t.Run(name, func(t *testing.T) { rejects(t, raw, Block) })
+	}
+	rejects(t, doc(`{"type":"gap","attrs":{"id":"g"}}`), Gapped)
+
+	accepts(t, doc(`{"type":"bulletList","content":[`+item(`{"type":"paragraph"},`+img+`,`+audio)+`]}`), Block)
+	accepts(t, doc(`{"type":"orderedList","content":[`+item(`{"type":"paragraph"},{"type":"table","content":[`+row+`]}`)+`]}`), Block)
+	accepts(t, doc(`{"type":"paragraph","content":[{"type":"hardBreak"},{"type":"math","attrs":{"latex":"x"}}]},`+img+`,`+audio), Block)
+}

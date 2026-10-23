@@ -1,5 +1,6 @@
 import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
+import { MediaImage } from "@klats/shared/rich/RichView.tsx";
 import { BADGE_LETTERS } from "@klats/shared/student-ui/badges.ts";
 import { useState } from "react";
 import {
@@ -16,6 +17,7 @@ import {
 } from "react-aria-components";
 import { cooldown } from "../../cooldown";
 import { Icon } from "../../ui/icons";
+import { addImage, mediaMessage } from "./media";
 import { MAX_POINTS, MIN_POINTS, newOption, plainText } from "./model";
 import { RichField } from "./RichField";
 
@@ -26,8 +28,9 @@ export const letter = (i: number) => BADGE_LETTERS[i] ?? String(i + 1);
  * Edits one single- or multi-answer question: its type, points, answer
  * shuffling, text, options and, for multi, the scoring rule. Every edit goes
  * through `onChange` as a function of the newest question. Removing an option
- * goes through `onRemoveOption`, which owns the undo. The question text takes
- * focus when `focusText` is not 0.
+ * goes through `onRemoveOption`, which owns the undo. Each option can carry
+ * one picture: its row has a button that uploads one, and a thumbnail with a
+ * × that removes it. The question text takes focus when `focusText` is not 0.
  */
 export function ChoiceEditor(props: {
   question: Question;
@@ -43,9 +46,24 @@ export function ChoiceEditor(props: {
   // Shared by the option × buttons, like each list's delete buttons.
   const [mayDelete] = useState(() => cooldown());
   const focusOn = (id: string) => setFocus((f) => ({ id, n: f.n + 1 }));
+  const [imageError, setImageError] = useState("");
 
   const setOptions = (fn: (os: Option[]) => Option[]) =>
     onChange((x) => ({ ...x, options: fn(x.options) }));
+
+  const setImage = (id: string, image: Option["image"]) =>
+    setOptions((os) => os.map((x) => (x.id === id ? { ...x, image } : x)));
+
+  // The picture is set only once it is uploaded, so a failure leaves the row as it was.
+  const pickImage = async (id: string, file: File | undefined) => {
+    if (!file) return;
+    setImageError("");
+    try {
+      setImage(id, await addImage(file));
+    } catch (err) {
+      setImageError(mediaMessage(err));
+    }
+  };
 
   const addAfter = (index: number) => {
     const o = newOption();
@@ -203,6 +221,43 @@ export function ChoiceEditor(props: {
               onEnter={() => enterFrom(i)}
               onEmptyBackspace={() => remove(i, true)}
             />
+            {o.image && (
+              <span className="b-opt-pic">
+                <MediaImage
+                  src={o.image.src}
+                  w={o.image.w}
+                  h={o.image.h}
+                  className="b-opt-thumb"
+                />
+                <Button
+                  className="t-icon-btn b-opt-pic-x"
+                  data-variant="danger"
+                  aria-label={m.builder_answer_image_remove({
+                    letter: letter(i),
+                  })}
+                  onPress={() => setImage(o.id, undefined)}
+                >
+                  <Icon name="close" />
+                </Button>
+              </span>
+            )}
+            <label
+              className="t-icon-btn b-opt-img"
+              title={m.builder_answer_image({ letter: letter(i) })}
+            >
+              <Icon name="image" />
+              <input
+                type="file"
+                hidden
+                aria-label={m.builder_answer_image({ letter: letter(i) })}
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  void pickImage(o.id, file);
+                }}
+              />
+            </label>
             <Button
               className="t-icon-btn b-opt-del"
               data-variant="danger"
@@ -214,6 +269,11 @@ export function ChoiceEditor(props: {
           </li>
         ))}
       </ul>
+      {imageError && (
+        <p className="b-rich-err" role="alert">
+          {imageError}
+        </p>
+      )}
       <Button
         className="t-btn b-add-opt"
         data-variant="dashed"
