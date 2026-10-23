@@ -219,5 +219,121 @@
   "classes_not_saved": "{name}: changes not saved",
   "classes_back": "Go back",
   "classes_paste_failed": "Could not read the list. Try again.",
-  "banner_port_restart": "Restart Klats to use port {port}"
+  "banner_port_restart": "Restart Klats to use port {port}",
+  "builder_title_label": "Test title",
+  "builder_saved": "Saved",
+  "builder_saving": "Saving…",
+  "builder_retrying": "Not saved — retrying…",
+  "builder_palette": "Colours for students",
+  "palette_teal": "Teal",
+  "palette_grape": "Grape",
+  "palette_coral": "Coral",
+  "palette_lavender": "Lavender",
+  "palette_classic": "Classic",
+  "builder_soon": "Coming soon",
+  "builder_start": "Start test",
+  "builder_questions": "Questions",
+  "builder_count_questions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question",
+        "countPlural=*": "{count} questions"
+      }
+    }
+  ],
+  "builder_count_points": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} point",
+        "countPlural=*": "{count} points"
+      }
+    }
+  ],
+  "builder_add_question": "Add question",
+  "builder_paste": "Paste from text",
+  "builder_new_question": "New question",
+  "builder_item_problem": "Has a problem",
+  "builder_type_label": "Question type",
+  "builder_points_less": "Fewer points",
+  "builder_points_more": "More points",
+  "builder_shuffle": "Shuffle answers",
+  "builder_delete_question": "Delete question",
+  "builder_question_text": "Question text",
+  "builder_question_placeholder": "For example: How many bits are in a byte?",
+  "builder_answers": "Answers",
+  "builder_answers_single_hint": "mark the correct one",
+  "builder_answers_multi_hint": "mark every correct one",
+  "builder_answer_placeholder": "Answer {letter}",
+  "builder_answer_correct": "Answer {letter} is correct",
+  "builder_answer_delete": "Delete answer {letter}",
+  "builder_add_answer": "Add answer",
+  "builder_grading": "Scoring",
+  "builder_partial": "Partial credit",
+  "builder_all_or_nothing": "All or nothing",
+  "builder_partial_hint": "The points are split between the correct answers. Each wrong tick takes a share away.",
+  "builder_all_hint": "Points only when every correct answer is ticked and no wrong one.",
+  "builder_empty_title": "Add the first question",
+  "builder_empty_text": "Press “Add question”, or paste ready questions from Word or another document.",
+  "builder_question_deleted": "Question {number} deleted",
+  "builder_answer_deleted": "Answer {letter} deleted",
+  "rich_toolbar": "Formatting",
+  "rich_bold": "Bold",
+  "rich_italic": "Italic",
+  "rich_subscript": "Subscript",
+  "rich_superscript": "Superscript",
+  "builder_preview": "What students will see",
+  "builder_preview_hide": "Hide",
+  "builder_preview_show": "Show what students will see",
+  "builder_preview_student": "Ivan Petrenko",
+  "checks_title": "Checks",
+  "checks_ok_title": "Checks: all good",
+  "checks_ok": "Every question has text and correct answers.",
+  "problem_no_text": "Question {number} has no text.",
+  "problem_no_correct": "Question {number}: mark at least one correct answer.",
+  "problem_too_few_options": "Question {number}: add at least two answers.",
+  "problem_single_many_correct": "Question {number} takes one answer, but {count} are marked correct.",
+  "problem_make_multi": "Make it multiple answers",
+  "problem_empty_option": "Question {number}: an answer is empty.",
+  "problem_weak_partial": "Question {number}: with partial credit, ticking everything still scores. Add wrong answers or choose “All or nothing”.",
+  "types_title": "Which question to add?",
+  "types_text": "You can change the type later; the answers stay.",
+  "type_single_desc": "The student picks one answer",
+  "type_multi_desc": "The student ticks every correct answer",
+  "paste_text": "Copy questions from Word or another document. Number each question and letter its answers a), b), c). Mark the correct ones with an asterisk *.",
+  "paste_placeholder": "1. How many bits are in a byte?\na) 4\n*b) 8\nc) 16",
+  "paste_label": "Questions with answers",
+  "paste_found": "Questions recognised: {#b}{count}{/b}",
+  "paste_none": "No questions found. Check the numbers and the answer letters.",
+  "paste_add": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Add {count} question",
+        "countPlural=*": "Add {count} questions"
+      }
+    }
+  ],
+  "paste_added": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Added {count} question",
+        "countPlural=*": "Added {count} questions"
+      }
+    }
+  ],
+  "start_text": "Which class? Students will find themselves on its list.",
+  "start_no_list": "No list",
+  "start_no_list_desc": "Students type their surname, first name and class",
+  "start_go": "Start",
+  "start_problems": "Fix these first:",
+  "start_active": "Another test is running. End it to start this one.",
+  "start_open_live": "Open the running test",
+  "start_save_failed": "Could not save the test. Try again."
 }

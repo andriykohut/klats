@@ -227,5 +227,139 @@
   "classes_not_saved": "{name}: зміни не збережено",
   "classes_back": "Повернутися",
   "classes_paste_failed": "Не вдалося прочитати список. Спробуйте ще раз.",
-  "banner_port_restart": "Перезапустіть Клац, щоб застосувати порт {port}"
+  "banner_port_restart": "Перезапустіть Клац, щоб застосувати порт {port}",
+  "builder_title_label": "Назва тесту",
+  "builder_saved": "Збережено",
+  "builder_saving": "Зберігається…",
+  "builder_retrying": "Не збережено — повторюємо…",
+  "builder_palette": "Кольори для учнів",
+  "palette_teal": "Бірюза",
+  "palette_grape": "Виноград",
+  "palette_coral": "Корал",
+  "palette_lavender": "Лаванда",
+  "palette_classic": "Класика",
+  "builder_soon": "Скоро",
+  "builder_start": "Почати тест",
+  "builder_questions": "Питання",
+  "builder_count_questions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} питання",
+        "countPlural=few": "{count} питання",
+        "countPlural=*": "{count} питань"
+      }
+    }
+  ],
+  "builder_count_points": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} бал",
+        "countPlural=few": "{count} бали",
+        "countPlural=*": "{count} балів"
+      }
+    }
+  ],
+  "builder_add_question": "Додати питання",
+  "builder_paste": "Вставити з тексту",
+  "builder_new_question": "Нове питання",
+  "builder_item_problem": "Є помилка",
+  "builder_type_label": "Тип питання",
+  "builder_points_less": "Менше балів",
+  "builder_points_more": "Більше балів",
+  "builder_shuffle": "Перемішувати відповіді",
+  "builder_delete_question": "Видалити питання",
+  "builder_question_text": "Текст питання",
+  "builder_question_placeholder": "Наприклад: Скільки біт в одному байті?",
+  "builder_answers": "Відповіді",
+  "builder_answers_single_hint": "позначте одну правильну",
+  "builder_answers_multi_hint": "позначте всі правильні",
+  "builder_answer_placeholder": "Відповідь {letter}",
+  "builder_answer_correct": "Відповідь {letter} правильна",
+  "builder_answer_delete": "Видалити відповідь {letter}",
+  "builder_add_answer": "Додати відповідь",
+  "builder_grading": "Оцінювання",
+  "builder_partial": "Частковий бал",
+  "builder_all_or_nothing": "Усе або нічого",
+  "builder_partial_hint": "Бал ділиться між правильними відповідями. За кожну зайву позначку частка знімається.",
+  "builder_all_hint": "Бал лише тоді, коли позначено всі правильні відповіді й жодної зайвої.",
+  "builder_empty_title": "Додайте перше питання",
+  "builder_empty_text": "Натисніть «Додати питання» або вставте готові питання з Word чи іншого документа.",
+  "builder_question_deleted": "Питання {number} видалено",
+  "builder_answer_deleted": "Відповідь {letter} видалено",
+  "rich_toolbar": "Форматування",
+  "rich_bold": "Жирний",
+  "rich_italic": "Курсив",
+  "rich_subscript": "Нижній індекс",
+  "rich_superscript": "Верхній індекс",
+  "builder_preview": "Так це побачать учні",
+  "builder_preview_hide": "Сховати",
+  "builder_preview_show": "Показати, як побачать учні",
+  "builder_preview_student": "Петренко Іван",
+  "checks_title": "Перевірка",
+  "checks_ok_title": "Перевірка: усе гаразд",
+  "checks_ok": "Усі питання мають текст і правильні відповіді.",
+  "problem_no_text": "Питання {number} без тексту.",
+  "problem_no_correct": "Питання {number}: позначте хоча б одну правильну відповідь.",
+  "problem_too_few_options": "Питання {number}: потрібно щонайменше дві відповіді.",
+  "problem_single_many_correct": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number} з однією відповіддю, а позначено {count} правильну.",
+        "countPlural=few": "Питання {number} з однією відповіддю, а позначено {count} правильні.",
+        "countPlural=*": "Питання {number} з однією відповіддю, а позначено {count} правильних."
+      }
+    }
+  ],
+  "problem_make_multi": "Зробити кілька відповідей",
+  "problem_empty_option": "Питання {number}: є порожня відповідь.",
+  "problem_weak_partial": "Питання {number}: з частковим балом учень отримає бал, навіть позначивши все. Додайте неправильних відповідей або оберіть «Усе або нічого».",
+  "types_title": "Яке питання додати?",
+  "types_text": "Тип можна змінити й потім, відповіді збережуться.",
+  "type_single_desc": "Учень обирає один варіант",
+  "type_multi_desc": "Учень позначає всі правильні варіанти",
+  "paste_text": "Скопіюйте питання з Word чи іншого документа. Кожне питання з номером, відповіді з літерами а), б), в). Позначте правильні зірочкою *.",
+  "paste_placeholder": "1. Скільки біт в одному байті?\nа) 4\n*б) 8\nв) 16",
+  "paste_label": "Питання з відповідями",
+  "paste_found": "Розпізнано питань: {#b}{count}{/b}",
+  "paste_none": "Питань не знайдено. Перевірте нумерацію та літери відповідей.",
+  "paste_add": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Додати {count} питання",
+        "countPlural=few": "Додати {count} питання",
+        "countPlural=*": "Додати {count} питань"
+      }
+    }
+  ],
+  "paste_added": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Додано {count} питання",
+        "countPlural=few": "Додано {count} питання",
+        "countPlural=*": "Додано {count} питань"
+      }
+    }
+  ],
+  "start_text": "Для якого класу? Учні знайдуть себе в його списку.",
+  "start_no_list": "Без списку",
+  "start_no_list_desc": "Учні самі вписують прізвище, ім’я та клас",
+  "start_go": "Почати",
+  "start_problems": "Спершу виправте:",
+  "start_active": "Уже триває інший тест. Завершіть його, щоб почати цей.",
+  "start_open_live": "Відкрити тест, що триває",
+  "start_save_failed": "Не вдалося зберегти тест. Спробуйте ще раз."
 }

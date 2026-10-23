@@ -1,0 +1,91 @@
+import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
+import type { RichDoc, RichNode } from "@klats/shared/rich/RichView.tsx";
+import type { PastedQuestion } from "./pasteParse";
+
+/*
+ * The builder's pieces of a test document: new questions and options, and the
+ * rich-text shapes the server stores (internal/rich).
+ */
+
+/** The points a question can carry, as internal/testfmt allows. */
+export const MIN_POINTS = 1;
+export const MAX_POINTS = 12;
+
+/** Editor JSON as TipTap produces it: any node, possibly with attrs. */
+export interface EditorNode {
+  type?: string;
+  text?: string;
+  marks?: { type: string }[];
+  content?: EditorNode[];
+}
+
+/**
+ * Returns `node` with only the keys internal/rich accepts: type, text, the
+ * mark types and non-empty content. Attributes go, so an ordered list always
+ * starts at 1.
+ */
+export function toStored(node: EditorNode): RichNode {
+  const out: RichNode = { type: node.type ?? "" };
+  if (node.text !== undefined) out.text = node.text;
+  if (node.marks?.length) out.marks = node.marks.map((m) => ({ type: m.type }));
+  if (node.content?.length) out.content = node.content.map(toStored);
+  return out;
+}
+
+/** Returns a document holding `text` as one paragraph, or one empty paragraph. */
+export function textDoc(text: string): RichDoc {
+  return {
+    type: "doc",
+    content: [
+      text
+        ? { type: "paragraph", content: [{ type: "text", text }] }
+        : { type: "paragraph" },
+    ],
+  };
+}
+
+/** Returns the document's text on one line, formatting dropped. */
+export function plainText(doc: RichDoc): string {
+  return flat(doc).replace(/\s+/g, " ").trim();
+}
+
+function flat(n: RichNode | RichDoc): string {
+  if (n.type === "text") return (n as RichNode).text ?? "";
+  if (n.type === "hardBreak") return " ";
+  const inner = (n.content ?? []).map(flat);
+  return inner.join(n.type === "paragraph" ? "" : " ");
+}
+
+const ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+/** Returns a random 16-character id for a question or option. */
+export function newId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => ID_CHARS[b % ID_CHARS.length]).join("");
+}
+
+export function newOption(text = "", correct = false): Option {
+  return { id: newId(), content: textDoc(text), correct };
+}
+
+/** Returns an empty question of `type` with two empty options. */
+export function newQuestion(type: "single" | "multi"): Question {
+  return {
+    id: newId(),
+    type,
+    text: textDoc(""),
+    points: MIN_POINTS,
+    shuffleOptions: true,
+    partial: true,
+    options: [newOption(), newOption()],
+  };
+}
+
+/** Turns parsed paste into questions, each worth one point. */
+export function fromPasted(pasted: PastedQuestion[]): Question[] {
+  return pasted.map((p) => ({
+    ...newQuestion(p.type),
+    text: textDoc(p.text),
+    options: p.options.map((o) => newOption(o.text, o.correct)),
+  }));
+}

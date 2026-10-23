@@ -87,7 +87,9 @@ export function useCreateTest() {
 
 /**
  * Saves test `id`. On success the cached TestDoc takes the saved test, its
- * problems and savedAt, and the library list refetches when next shown.
+ * problems and savedAt, and the library list refetches when next shown. A
+ * failure shows no toast: the builder's saved indicator reports it and
+ * retries.
  */
 export function useSaveTest(id: string) {
   const qc = useQueryClient();
@@ -100,6 +102,7 @@ export function useSaveTest(id: string) {
       );
       return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
     },
+    onError: () => {},
   });
 }
 

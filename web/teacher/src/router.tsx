@@ -8,6 +8,7 @@ import {
 import { Fragment } from "react";
 import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
+import { BuilderPage } from "./pages/builder/BuilderPage";
 import { ClassesPage } from "./pages/ClassesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestsPage } from "./pages/TestsPage";
@@ -60,7 +61,7 @@ function Shell() {
   );
 }
 
-/** Stands in for the pages that the builder and live view tasks add. */
+/** Stands in for the pages that the live view task adds. */
 function Placeholder() {
   return (
     <div className="t-page">
@@ -83,9 +84,9 @@ export const testsRoute = createRoute({
   component: TestsPage,
 });
 export const testRoute = createRoute({
-  getParentRoute: () => shell,
+  getParentRoute: () => root,
   path: "/tests/$id",
-  component: Placeholder,
+  component: BuilderPage,
 });
 export const classesRoute = createRoute({
   getParentRoute: () => shell,
@@ -115,9 +116,9 @@ export const settingsRoute = createRoute({
 
 export const router = createRouter({
   routeTree: root.addChildren([
+    testRoute,
     shell.addChildren([
       testsRoute,
-      testRoute,
       classesRoute,
       liveRoute,
       assignmentsRoute,

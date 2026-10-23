@@ -1,0 +1,351 @@
+import type { Question, Test } from "@klats/shared/generated/testfmt.ts";
+import type { SaveResult, TestDoc } from "@klats/shared/generated/wire.ts";
+import { PALETTES, type PaletteId } from "@klats/shared/palettes.ts";
+import { m } from "@klats/shared/paraglide/messages.js";
+import { Link, useParams } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import {
+  Button,
+  Input,
+  Label,
+  RadioButton,
+  RadioField,
+  RadioGroup,
+  TextField,
+} from "react-aria-components";
+import { UNDO_MS, useSaveTest, useTest } from "../../api/queries";
+import { cooldown } from "../../cooldown";
+import { Icon } from "../../ui/icons";
+import { LoadError } from "../../ui/LoadError";
+import { notify, toasts } from "../../ui/Toasts";
+import { autosave, type SaveState } from "./autosave";
+import { Checks } from "./Checks";
+import { ChoiceEditor, letter } from "./ChoiceEditor";
+import { fromPasted, newQuestion } from "./model";
+import { PasteDialog } from "./PasteDialog";
+import { PreviewPane } from "./PreviewPane";
+import { QuestionList } from "./QuestionList";
+import { StartDialog } from "./StartDialog";
+import { TypePicker } from "./TypePicker";
+import "./builder.css";
+
+const PALETTE_NAMES: Record<PaletteId, () => string> = {
+  teal: m.palette_teal,
+  grape: m.palette_grape,
+  coral: m.palette_coral,
+  lavender: m.palette_lavender,
+  classic: m.palette_classic,
+};
+
+const SAVE_TEXT: Record<SaveState, () => string> = {
+  saved: m.builder_saved,
+  saving: m.builder_saving,
+  retrying: m.builder_retrying,
+};
+
+/** Where the teacher's choice to show or hide the preview is kept. */
+const PREVIEW_KEY = "klats.builder.preview";
+
+/** The preview starts open on screens 1440 px wide and up, unless the teacher chose. */
+function previewOpen(): boolean {
+  try {
+    const kept = localStorage.getItem(PREVIEW_KEY);
+    if (kept) return kept === "open";
+  } catch {}
+  return window.innerWidth >= 1440;
+}
+
+function keepPreview(open: boolean): void {
+  try {
+    localStorage.setItem(PREVIEW_KEY, open ? "open" : "closed");
+  } catch {}
+}
+
+/** The builder at /tests/$id. It brings its own top bar. */
+export function BuilderPage() {
+  const { id } = useParams({ from: "/tests/$id" });
+  const doc = useTest(id);
+  if (doc.isError) {
+    return (
+      <div className="b-app">
+        <header className="b-bar">
+          <BackLink />
+        </header>
+        <LoadError onRetry={() => doc.refetch()} />
+      </div>
+    );
+  }
+  if (!doc.data) return null;
+  return <Builder key={id} doc={doc.data} />;
+}
+
+function BackLink() {
+  return (
+    <Link to="/" className="b-back">
+      <Icon name="back" />
+      {m.nav_tests()}
+    </Link>
+  );
+}
+
+/**
+ * The test being edited. It is read from `doc` once; from then on this
+ * component holds the test, and every edit autosaves the whole of it (see
+ * {@link autosave}). Leaving saves what is pending. Deleting a question or an
+ * option takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
+ * that puts it back where it was.
+ */
+function Builder({ doc }: { doc: TestDoc }) {
+  const save = useSaveTest(doc.id);
+  const [test, setTest] = useState(doc.test);
+  // The newest test, for edits made before React renders the last one.
+  const latest = useRef(doc.test);
+  const [problems, setProblems] = useState(doc.problems);
+  const [status, setStatus] = useState<SaveState>("saved");
+  const [selected, setSelected] = useState(doc.test.questions[0]?.id ?? "");
+  // A question just added, whose text takes focus.
+  const [fresh, setFresh] = useState("");
+  const [open, setOpen] = useState(previewOpen);
+  // The next question's trash takes the place of the deleted one's.
+  const [mayDelete] = useState(() => cooldown());
+  const [saver] = useState(() =>
+    autosave<Test, SaveResult>({
+      save: save.mutateAsync,
+      onSaved: (r) => setProblems(r.problems),
+      onState: setStatus,
+    }),
+  );
+  const undoToasts = useRef<string[]>([]);
+
+  useEffect(() => {
+    document.body.classList.add("b-body");
+    return () => document.body.classList.remove("b-body");
+  }, []);
+
+  useEffect(() => {
+    saver.start();
+    return () => {
+      saver.stop();
+      for (const key of undoToasts.current) toasts.close(key);
+    };
+  }, [saver]);
+
+  const update = (fn: (t: Test) => Test) => {
+    const next = fn(latest.current);
+    latest.current = next;
+    setTest(next);
+    saver.change(next);
+  };
+
+  const updateQuestion = (id: string, fn: (q: Question) => Question) =>
+    update((t) => ({
+      ...t,
+      questions: t.questions.map((q) => (q.id === id ? fn(q) : q)),
+    }));
+
+  const select = (id: string) => {
+    setSelected(id);
+    setFresh("");
+  };
+
+  /** Puts `qs` after the selected question and selects the first of them. */
+  const insert = (qs: Question[]) => {
+    const all = latest.current.questions;
+    const at = all.findIndex((q) => q.id === selected) + 1 || all.length;
+    update((t) => ({
+      ...t,
+      questions: [...t.questions.slice(0, at), ...qs, ...t.questions.slice(at)],
+    }));
+    select(qs[0].id);
+  };
+
+  const offerUndo = (text: string, restore: () => void) => {
+    let done = false;
+    const key = toasts.add(
+      {
+        text,
+        action: {
+          label: m.action_undo(),
+          onAction: () => {
+            if (done) return;
+            done = true;
+            toasts.close(key);
+            restore();
+          },
+        },
+      },
+      { timeout: UNDO_MS },
+    );
+    undoToasts.current.push(key);
+  };
+
+  const removeQuestion = (id: string) => {
+    const all = latest.current.questions;
+    const index = all.findIndex((q) => q.id === id);
+    if (index < 0) return;
+    const gone = all[index];
+    update((t) => ({
+      ...t,
+      questions: t.questions.filter((q) => q.id !== id),
+    }));
+    select(all[index + 1]?.id ?? all[index - 1]?.id ?? "");
+    offerUndo(m.builder_question_deleted({ number: index + 1 }), () => {
+      update((t) => ({ ...t, questions: insertAt(t.questions, index, gone) }));
+      select(gone.id);
+    });
+  };
+
+  const removeOption = (questionId: string, optionId: string) => {
+    const q = latest.current.questions.find((x) => x.id === questionId);
+    const index = q?.options.findIndex((o) => o.id === optionId) ?? -1;
+    if (!q || index < 0) return;
+    const gone = q.options[index];
+    updateQuestion(questionId, (x) => ({
+      ...x,
+      options: x.options.filter((o) => o.id !== optionId),
+    }));
+    offerUndo(m.builder_answer_deleted({ letter: letter(index) }), () => {
+      updateQuestion(questionId, (x) => ({
+        ...x,
+        options: insertAt(x.options, index, gone),
+      }));
+      select(questionId);
+    });
+  };
+
+  const toggle = (next: boolean) => {
+    setOpen(next);
+    keepPreview(next);
+  };
+
+  const found = test.questions.findIndex((q) => q.id === selected);
+  const index = found < 0 ? 0 : found;
+  const question = test.questions[index];
+  const errors = new Set(
+    problems.filter((p) => p.severity === "error").map((p) => p.questionId),
+  );
+  const palette = test.palette in PALETTES ? test.palette : "teal";
+
+  return (
+    <div className="b-app">
+      <header className="b-bar">
+        <BackLink />
+        <div className="b-ttl">
+          <TextField
+            className="b-title"
+            aria-label={m.builder_title_label()}
+            value={test.title}
+            onChange={(title) => update((t) => ({ ...t, title }))}
+            onBlur={() => {
+              if (!latest.current.title.trim()) {
+                update((t) => ({ ...t, title: m.tests_new() }));
+              }
+            }}
+          >
+            <Input />
+          </TextField>
+          <span className="b-saved" data-state={status}>
+            <i className="b-saved-dot" aria-hidden="true" />
+            {SAVE_TEXT[status]()}
+          </span>
+        </div>
+        <RadioGroup
+          className="b-pal"
+          orientation="horizontal"
+          value={palette}
+          onChange={(p) => update((t) => ({ ...t, palette: p }))}
+        >
+          <Label>{m.builder_palette()}</Label>
+          <div className="b-sws">
+            {(Object.keys(PALETTES) as PaletteId[]).map((id) => (
+              <RadioField key={id} value={id}>
+                <RadioButton className="b-sw">
+                  <i
+                    className="b-sw-half"
+                    style={{ background: PALETTES[id].field }}
+                  />
+                  <i
+                    className="b-sw-half"
+                    style={{ background: PALETTES[id].accent }}
+                  />
+                  <span className="b-sr">{PALETTE_NAMES[id]()}</span>
+                </RadioButton>
+              </RadioField>
+            ))}
+          </div>
+        </RadioGroup>
+        <span title={m.builder_soon()}>
+          <Button className="b-btn-l" isDisabled>
+            {m.nav_settings()}
+          </Button>
+        </span>
+        <StartDialog
+          isDisabled={test.questions.length === 0}
+          testId={doc.id}
+          questions={test.questions}
+          problems={problems}
+          flush={saver.flush}
+          onGoTo={select}
+        />
+      </header>
+      <div className="b-cols" data-preview={open ? "open" : "closed"}>
+        <QuestionList
+          questions={test.questions}
+          selected={question?.id ?? ""}
+          errors={errors}
+          onSelect={select}
+        >
+          <TypePicker
+            onPick={(type) => {
+              const q = newQuestion(type);
+              insert([q]);
+              setFresh(q.id);
+            }}
+          />
+          <PasteDialog
+            onAdd={(found) => {
+              insert(fromPasted(found));
+              notify(m.paste_added({ count: found.length }));
+            }}
+          />
+        </QuestionList>
+        <main className="t-panel b-ed">
+          {question ? (
+            <ChoiceEditor
+              key={question.id}
+              question={question}
+              focusText={fresh === question.id ? 1 : 0}
+              onChange={(fn) => updateQuestion(question.id, fn)}
+              onDelete={() => mayDelete() && removeQuestion(question.id)}
+              onRemoveOption={(optionId) => removeOption(question.id, optionId)}
+            />
+          ) : (
+            <div className="b-ed-empty">
+              <span className="t-mark t-mark-big" aria-hidden="true">
+                <Icon name="plus" />
+              </span>
+              <h2>{m.builder_empty_title()}</h2>
+              <p>{m.builder_empty_text()}</p>
+            </div>
+          )}
+        </main>
+        <PreviewPane test={test} index={index} open={open} onToggle={toggle}>
+          <Checks
+            problems={problems}
+            questions={test.questions}
+            onSelect={select}
+            onMakeMulti={(id) => {
+              updateQuestion(id, (q) => ({ ...q, type: "multi" }));
+              select(id);
+            }}
+          />
+        </PreviewPane>
+      </div>
+    </div>
+  );
+}
+
+function insertAt<T>(items: T[], index: number, item: T): T[] {
+  const at = Math.min(index, items.length);
+  return [...items.slice(0, at), item, ...items.slice(at)];
+}
