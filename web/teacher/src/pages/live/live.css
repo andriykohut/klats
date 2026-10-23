@@ -1,0 +1,453 @@
+/*
+ * The live view: its own teal bar, the summary line, the journal beside the
+ * events panel, the end question under its button, and the board view over
+ * everything. The journal itself is in journal.css.
+ */
+:root {
+  --l-ev: #f5f8f8;
+  --l-ghost-line: rgba(255, 255, 255, 0.35);
+}
+
+.l-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--t-bg);
+}
+
+/* The bar */
+
+.l-bar {
+  flex: none;
+  height: var(--t-bar-height);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px 0 20px;
+  background: var(--k-field);
+  color: var(--k-on-field);
+}
+
+.l-home {
+  outline: none;
+}
+
+.l-home:focus-visible,
+.l-bar a:focus-visible,
+.l-bar [data-focus-visible] {
+  outline: 3px solid var(--k-on-field);
+  outline-offset: 2px;
+}
+
+.l-title {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.l-title b {
+  display: block;
+  overflow: hidden;
+  font: 600 17px var(--k-font-display);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.l-title span {
+  display: block;
+  margin-top: 3px;
+  color: var(--k-on-field-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.l-code {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--t-radius-btn);
+  background: var(--k-sel-dark);
+}
+
+.l-code small {
+  color: var(--k-on-field-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.l-code strong {
+  color: var(--k-accent);
+  font: 700 22px var(--k-font-display);
+  letter-spacing: 0.06em;
+}
+
+.l-ghost {
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--l-ghost-line);
+  border-radius: var(--t-radius-small);
+  background: transparent;
+  color: var(--k-on-field);
+  font: 700 14px var(--k-font-text);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--k-dur-fast) var(--k-ease-out);
+}
+
+.l-ghost[data-hovered] {
+  background: var(--t-bar-hover);
+}
+
+.l-ghost[data-focus-visible] {
+  outline: 3px solid var(--k-accent);
+  outline-offset: 2px;
+}
+
+.l-ended {
+  color: var(--k-on-field-soft);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* The end question, under «Завершити тест» */
+
+.l-end {
+  width: 340px;
+  box-sizing: border-box;
+  padding: 18px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-row);
+  background: var(--k-paper);
+  box-shadow: 0 24px 50px -18px rgba(5, 40, 38, 0.45);
+  outline: none;
+  transform-origin: 90% 0;
+}
+
+.l-end[data-entering] {
+  animation: t-rise var(--k-dur-state) var(--k-ease-spring);
+}
+
+.l-end[data-exiting] {
+  pointer-events: none;
+  animation: t-fade var(--k-dur-fast) var(--k-ease-out) reverse;
+}
+
+.l-end-dialog {
+  outline: none;
+}
+
+.l-end-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.l-end-dialog p {
+  margin: 8px 0 16px;
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.l-end-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.l-end-actions .t-btn {
+  height: 42px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+/* The summary line */
+
+.l-sum {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 36px;
+  padding: 18px 28px 16px;
+}
+
+.l-stat {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--k-muted);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.l-stat b {
+  color: var(--k-ink);
+  font: 700 26px var(--k-font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.l-stat[data-tone="offline"] b {
+  color: var(--k-accent-dark);
+}
+
+.l-wait {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The journal and the events */
+
+.l-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 23vw, 380px);
+  gap: 20px;
+  padding: 0 28px 24px;
+}
+
+.l-events {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px 8px;
+  border-radius: var(--t-radius-row);
+}
+
+.l-events h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.l-events ol {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.l-events-none {
+  margin: 0;
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.l-ev {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: var(--t-radius-field);
+  background: var(--l-ev);
+  animation: t-drop var(--k-dur-state) var(--k-ease-out);
+}
+
+.l-ev[data-tone="red"] {
+  background: var(--t-red-soft);
+}
+
+.l-ev[data-tone="tang"] {
+  background: var(--t-tang-soft);
+}
+
+.l-ev[data-tone="mint"] {
+  background: var(--j-mint-soft);
+}
+
+.l-ev-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--k-muted);
+}
+
+.l-ev[data-tone="red"] .l-ev-dot {
+  background: var(--t-red);
+}
+
+.l-ev[data-tone="tang"] .l-ev-dot {
+  background: var(--k-accent);
+}
+
+.l-ev[data-tone="mint"] .l-ev-dot {
+  background: var(--j-mint);
+}
+
+.l-ev p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.l-ev-grade {
+  white-space: nowrap;
+}
+
+.l-ev time {
+  display: block;
+  margin-top: 3px;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.l-ev-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.l-ev-act {
+  height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid var(--t-red);
+  border-radius: var(--t-radius-segment);
+  background: var(--k-paper);
+  color: var(--t-red);
+  font: 800 13px var(--k-font-text);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--k-dur-fast) var(--k-ease-out),
+    color var(--k-dur-fast) var(--k-ease-out);
+}
+
+.l-ev-act[data-hovered] {
+  background: var(--t-red);
+  color: var(--k-on-dark);
+}
+
+.l-ev-act[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.l-rename .t-field {
+  margin-bottom: 22px;
+}
+
+/* The board view */
+
+.l-board-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--k-sel-dark);
+}
+
+.l-board-scrim[data-entering] {
+  animation: t-fade var(--k-dur-state) var(--k-ease-out);
+}
+
+.l-board-scrim[data-exiting] {
+  animation: t-fade var(--k-dur-fast) var(--k-ease-out) reverse;
+}
+
+.l-board,
+.l-board-dialog {
+  height: 100%;
+  outline: none;
+}
+
+.l-board-dialog {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6vw;
+  padding: 0 7.5vw;
+  box-sizing: border-box;
+  color: var(--k-on-field);
+}
+
+.l-board-close {
+  position: absolute;
+  top: 26px;
+  right: 30px;
+}
+
+.l-board-big {
+  flex: 1;
+  min-width: 0;
+  animation: t-page-in var(--k-dur-fill) var(--k-ease-out);
+}
+
+.l-board-big small {
+  display: block;
+  color: var(--k-on-field-soft);
+  font-size: clamp(20px, 1.8vw, 34px);
+  font-weight: 700;
+}
+
+/* Sized so the longest address with its port, 20 characters, fits one line. */
+.l-board-addr {
+  margin: 10px 0 7vh;
+  font: 700 clamp(32px, 4vw, 84px) / 1.1 var(--k-font-display);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.l-board-none {
+  margin: 0 0 7vh;
+  font: 600 clamp(24px, 2.2vw, 40px) / 1.3 var(--k-font-display);
+}
+
+.l-board-code {
+  margin: 10px 0 0;
+  color: var(--k-accent);
+  font: 800 clamp(110px, 11.8vw, 230px) / 1 var(--k-font-display);
+  letter-spacing: 0.06em;
+}
+
+.l-board-qr {
+  flex: none;
+  margin: 0;
+  animation: t-pop var(--k-dur-fill) var(--k-ease-spring);
+}
+
+.l-board-qr img {
+  display: block;
+  width: clamp(260px, 23vw, 440px);
+  height: auto;
+  box-sizing: border-box;
+  padding: 18px;
+  border-radius: var(--t-radius-card);
+  background: var(--k-paper);
+  image-rendering: pixelated;
+}
+
+.l-board-qr figcaption {
+  margin-top: 16px;
+  color: var(--k-on-field-soft);
+  font-size: clamp(18px, 1.4vw, 26px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.l-board-done {
+  position: absolute;
+  left: 7.5vw;
+  bottom: 6vh;
+  margin: 0;
+  color: var(--k-on-field-soft);
+  font: 600 clamp(20px, 1.8vw, 34px) var(--k-font-display);
+}

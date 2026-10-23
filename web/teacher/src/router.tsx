@@ -10,6 +10,9 @@ import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
 import { BuilderPage } from "./pages/builder/BuilderPage";
 import { ClassesPage } from "./pages/ClassesPage";
+import { LivePage } from "./pages/live/LivePage";
+import { AssignmentsPage } from "./pages/results/AssignmentsPage";
+import { ResultsPage } from "./pages/results/ResultsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestsPage } from "./pages/TestsPage";
 import { Banners } from "./ui/Banners";
@@ -61,15 +64,6 @@ function Shell() {
   );
 }
 
-/** Stands in for the pages that the live view task adds. */
-function Placeholder() {
-  return (
-    <div className="t-page">
-      <p className="t-placeholder">{m.page_coming()}</p>
-    </div>
-  );
-}
-
 const root = createRootRoute({ component: Root });
 
 const shell = createRoute({
@@ -94,19 +88,19 @@ export const classesRoute = createRoute({
   component: ClassesPage,
 });
 export const liveRoute = createRoute({
-  getParentRoute: () => shell,
+  getParentRoute: () => root,
   path: "/live",
-  component: Placeholder,
+  component: LivePage,
 });
 export const assignmentsRoute = createRoute({
   getParentRoute: () => shell,
   path: "/assignments",
-  component: Placeholder,
+  component: AssignmentsPage,
 });
 export const assignmentRoute = createRoute({
   getParentRoute: () => shell,
   path: "/assignments/$id",
-  component: Placeholder,
+  component: ResultsPage,
 });
 export const settingsRoute = createRoute({
   getParentRoute: () => shell,
@@ -117,10 +111,10 @@ export const settingsRoute = createRoute({
 export const router = createRouter({
   routeTree: root.addChildren([
     testRoute,
+    liveRoute,
     shell.addChildren([
       testsRoute,
       classesRoute,
-      liveRoute,
       assignmentsRoute,
       assignmentRoute,
       settingsRoute,

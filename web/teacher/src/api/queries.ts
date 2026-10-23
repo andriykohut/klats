@@ -1,6 +1,7 @@
 import type { Test } from "@klats/shared/generated/testfmt.ts";
 import type {
   Class,
+  OverrideRequest,
   SettingsInfo,
   TestDoc,
   TestSummary,
@@ -25,7 +26,8 @@ import * as api from "./client";
 /*
  * Query keys: ["tests"] and ["tests", id], ["classes"] and ["classes", id],
  * ["live"], ["assignments"], ["results", id], ["network"], ["settings"],
- * ["parse", text]. The event stream (events.ts) invalidates ["live"].
+ * ["parse", text]. The event stream (events.ts) invalidates ["live"],
+ * ["assignments"] and ["results"].
  */
 
 /** How long a deleted test can be brought back before the DELETE is sent. */
@@ -209,11 +211,91 @@ export function useDeleteClass() {
 export const useLive = () =>
   useQuery({ queryKey: ["live"], queryFn: api.live });
 
+/**
+ * Ends the running sitting. The live view and the results list refetch.
+ * Key: "endSitting".
+ */
+export function useEndSitting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["endSitting"],
+    mutationFn: api.endSitting,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assignments"] });
+      return qc.invalidateQueries({ queryKey: ["live"] });
+    },
+  });
+}
+
+/** A live-view action: the live view refetches once it is done. */
+function useLiveAction<T>(key: string, fn: (vars: T) => Promise<void>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: [key],
+    mutationFn: fn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["live"] }),
+  });
+}
+
+/** Kicks a participant by id. Key: "kick". */
+export const useKick = () => useLiveAction("kick", api.kick);
+
+/** Answers a pinned event. Key: "resolve". */
+export const useResolveEvent = () =>
+  useLiveAction("resolve", (v: { id: string; action: string }) =>
+    api.resolveEvent(v.id, v.action),
+  );
+
+/** Renames a device. Key: "renameDevice". */
+export const useRenameDevice = () =>
+  useLiveAction("renameDevice", (v: { token: string; label: string }) =>
+    api.renameDevice(v.token, v.label),
+  );
+
 export const useAssignments = () =>
   useQuery({ queryKey: ["assignments"], queryFn: api.listAssignments });
 
 export const useResults = (id: string) =>
   useQuery({ queryKey: ["results", id], queryFn: () => api.results(id) });
+
+/**
+ * Sets or clears an override on assignment `id`; the reply replaces the
+ * cached results, so the grade changes at once. Overrides run one at a time,
+ * in the order they were made, so a slower reply never overwrites a newer one.
+ */
+export function useSetOverride(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["override"],
+    scope: { id: `override-${id}` },
+    mutationFn: (req: OverrideRequest) => api.setOverride(id, req),
+    onSuccess: (res) => {
+      qc.setQueryData(["results", id], res);
+      return qc.invalidateQueries({ queryKey: ["assignments"] });
+    },
+  });
+}
+
+/**
+ * Exports assignment `id` to Excel (see {@link api.exportResults}); the
+ * results refetch, as a finished export clears «Експорт застарів». A file
+ * that cannot be written gets its own error toast. Key: "export".
+ */
+export function useExport(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["export"],
+    mutationFn: () => api.exportResults(id),
+    onError: (err) =>
+      notify(
+        err instanceof api.ApiError && err.code === "write_failed"
+          ? m.results_write_failed()
+          : m.error_server(),
+        true,
+      ),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["results", id] }),
+  });
+}
 
 export const useNetwork = () =>
   useQuery({ queryKey: ["network"], queryFn: api.getNetwork });

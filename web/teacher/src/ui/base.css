@@ -389,13 +389,6 @@ h2 {
   stroke-width: 2.6;
 }
 
-.t-placeholder {
-  margin: 80px 0 0;
-  text-align: center;
-  color: var(--k-muted);
-  font: 600 20px var(--k-font-display);
-}
-
 .t-locked {
   height: 100%;
   display: flex;
@@ -469,6 +462,7 @@ h2 {
   background: var(--k-paper);
   color: var(--k-ink);
   font: 800 15px var(--k-font-text);
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   outline: none;

@@ -155,12 +155,13 @@ export const setOverride = (assignmentId: string, req: OverrideRequest) =>
  * Exports the results workbook. In the desktop app the teacher picks the file
  * in a save dialog: it resolves to where it was saved, or to null when the
  * dialog was cancelled. Without the desktop window (`klats -dev`) it resolves
- * to the workbook itself. A file that cannot be replaced, such as one open in
- * Excel, rejects with code "write_failed".
+ * to the workbook itself, named as the server names the download. A file that
+ * cannot be replaced, such as one open in Excel, rejects with code
+ * "write_failed".
  */
 export async function exportResults(
   assignmentId: string,
-): Promise<ExportResult | Blob | null> {
+): Promise<ExportResult | File | null> {
   const res = await send(
     "POST",
     `/api/assignments/${id(assignmentId)}/export`,
@@ -170,7 +171,13 @@ export async function exportResults(
   if (res.headers.get("Content-Type")?.startsWith("application/json")) {
     return res.json();
   }
-  return res.blob();
+  const name = /filename\*=UTF-8''([^;]+)/.exec(
+    res.headers.get("Content-Disposition") ?? "",
+  );
+  return new File(
+    [await res.blob()],
+    name ? decodeURIComponent(name[1]) : "results.xlsx",
+  );
 }
 
 export const getNetwork = () => call<NetworkInfo>("GET", "/api/network");

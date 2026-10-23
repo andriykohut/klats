@@ -1,0 +1,507 @@
+/*
+ * «Результати»: the list of assignments, one assignment's journal with the
+ * export, and the panel with a student's answers over the right edge.
+ */
+
+/* The list */
+
+.r-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.r-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px 14px 20px;
+  background: var(--k-paper);
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-row);
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+  animation: t-page-in var(--k-dur-state) var(--k-ease-out);
+}
+
+.r-item:hover {
+  border-color: var(--t-line-strong);
+  box-shadow: 0 var(--t-depth) 0 var(--k-tile-shadow);
+  transform: translateY(-2px);
+}
+
+.r-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.r-item-title {
+  overflow: hidden;
+  color: var(--k-ink);
+  font-size: 17px;
+  font-weight: 800;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+}
+
+/* The title's link covers the whole row. */
+.r-item-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--t-radius-row);
+}
+
+.r-item-title:focus-visible::after {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.r-item-meta {
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.r-avg {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.r-avg b {
+  min-width: 52px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: var(--t-radius-field);
+  background: var(--j-chip);
+  color: var(--k-muted);
+  font: 700 17px var(--k-font-display);
+}
+
+.r-avg b[data-band="hi"] {
+  background: var(--j-mint-soft);
+  color: var(--j-mint-ink);
+}
+
+.r-avg b[data-band="mid"] {
+  background: var(--k-soft);
+  color: var(--k-sel-dark);
+}
+
+.r-avg b[data-band="lo"] {
+  background: var(--t-tang-soft);
+  color: var(--k-accent-dark);
+}
+
+.r-avg b[data-band="min"] {
+  background: var(--t-red-soft);
+  color: var(--t-red);
+}
+
+/* One assignment */
+
+.r-page {
+  max-width: none;
+  padding: 20px 28px 24px;
+}
+
+.r-page .t-page-head {
+  margin-bottom: 16px;
+}
+
+.r-head {
+  min-width: 0;
+}
+
+.r-head h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.r-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 6px -4px;
+  padding: 2px 6px 2px 2px;
+  border-radius: var(--t-radius-link);
+  color: var(--k-field);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  outline: none;
+}
+
+.r-back .t-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.6;
+}
+
+.r-back:focus-visible {
+  outline: var(--t-focus);
+}
+
+.r-export {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.r-stale {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.r-page .j-panel {
+  flex: 1;
+}
+
+.j-table[data-variant="results"] .j-cell {
+  max-width: 32px;
+  height: 18px;
+  position: relative;
+  font: 800 10px / 18px var(--k-font-text);
+  overflow: visible;
+}
+
+.j-table[data-variant="results"] tbody tr {
+  position: relative;
+}
+
+.j-table[data-variant="results"] tbody tr:hover td {
+  background: var(--j-row-hover);
+}
+
+.j-table .r-col-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.j-table th.r-col-num {
+  text-align: right;
+}
+
+/* An override marks the cell's corner with a dot, a late answer outlines it. */
+.j-cell[data-mark="overridden"]::after,
+.j-legend .j-cell[data-state="overridden"]::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--k-paper);
+  border-radius: 50%;
+  background: var(--k-ink);
+}
+
+.j-legend .j-cell[data-state="overridden"] {
+  position: relative;
+}
+
+.j-cell[data-mark="late"],
+.j-legend .j-cell[data-state="late"] {
+  outline: 2px dashed var(--k-accent-dark);
+  outline-offset: 1px;
+}
+
+.r-open {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+
+/* The name's button covers the whole row, cells included, so a click
+   anywhere opens it; the sticky head stays above it. */
+.r-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.r-open[data-focus-visible]::after {
+  outline: var(--t-focus);
+  outline-offset: -3px;
+}
+
+/* A student's answers */
+
+.r-scrim {
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+.r-drawer {
+  width: min(620px, 92vw);
+  height: 100%;
+  outline: none;
+}
+
+.r-drawer[data-entering] {
+  animation: r-slide var(--k-dur-state) var(--k-ease-out);
+}
+
+.r-drawer[data-exiting] {
+  animation: r-slide var(--k-dur-fast) var(--k-ease-out) reverse;
+}
+
+@keyframes r-slide {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.r-detail {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--t-bg);
+  box-shadow: var(--t-shadow-dialog);
+  outline: none;
+}
+
+.r-detail-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 20px 18px 24px;
+  background: var(--k-paper);
+  border-bottom: 1.5px solid var(--t-line);
+}
+
+.r-detail-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.r-detail-head h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.r-detail-head p {
+  margin: 4px 0 0;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.r-detail-grade {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  border-radius: 50%;
+  font-size: 22px;
+}
+
+.r-qs {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 20px 28px 24px;
+  overflow: auto;
+  list-style: none;
+}
+
+.r-q {
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  background: var(--k-paper);
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-row);
+}
+
+.r-q-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.r-q-head b {
+  color: var(--k-field);
+  font: 600 14px var(--k-font-display);
+}
+
+.r-q-text {
+  margin: 8px 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.r-q-text p,
+.r-opt-text p {
+  margin: 0;
+}
+
+.r-opts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.r-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1.5px solid var(--t-hair);
+  border-radius: var(--t-radius-small);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.r-opt[data-correct] {
+  border-color: var(--j-mint);
+  background: var(--j-mint-soft);
+}
+
+.r-opt[data-chosen]:not([data-correct]) {
+  border-color: var(--k-accent);
+  background: var(--t-tang-soft);
+}
+
+.r-mark {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2px solid var(--t-line-strong);
+  border-radius: 50%;
+  background: var(--k-paper);
+  color: var(--k-on-field);
+}
+
+.r-mark[data-type="multi"] {
+  border-radius: 6px;
+}
+
+.r-opt[data-chosen] .r-mark {
+  border-color: var(--k-field);
+  background: var(--k-field);
+}
+
+.r-mark .t-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.r-opt-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.r-tag {
+  flex: none;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.r-opt[data-chosen]:not([data-correct]) .r-tag {
+  color: var(--k-accent-dark);
+}
+
+.r-tag[data-tone="ok"] {
+  color: var(--j-mint-ink);
+}
+
+.r-none {
+  margin: 10px 0 0;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.r-points {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.r-points-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.r-points-field label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.r-points-field input {
+  width: 64px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-field);
+  background: var(--k-paper);
+  color: var(--k-ink);
+  font: 700 16px var(--k-font-display);
+  text-align: center;
+  outline: none;
+}
+
+.r-points-field input[data-hovered] {
+  border-color: var(--t-line-strong);
+}
+
+.r-points-field input[data-focused] {
+  border-color: var(--k-field);
+  box-shadow: 0 0 0 3px var(--k-soft);
+}
+
+.r-reset {
+  height: 36px;
+  margin-left: auto;
+  padding: 0 14px;
+  font-size: 14px;
+}

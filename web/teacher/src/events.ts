@@ -5,7 +5,8 @@ import { setFlags } from "./flags";
 
 /**
  * Follows the teacher event stream until the returned function is called.
- * A "live" event refetches the live view. "address_changed" refetches the
+ * A "live" event refetches the live view and the results shown, which late
+ * answers and the end of a sitting change. "address_changed" refetches the
  * network info and raises the address banner if the students' URL differs
  * from the one held before; the server reports any change to the candidate
  * addresses, even one that leaves the chosen URL as it was. EventSource
@@ -14,8 +15,11 @@ import { setFlags } from "./flags";
  */
 export function subscribeTeacherEvents(queryClient: QueryClient): () => void {
   const es = new EventSource("/api/events");
-  const refetchLive = () =>
-    queryClient.invalidateQueries({ queryKey: ["live"] });
+  const refetchLive = () => {
+    for (const key of ["live", "assignments", "results"]) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  };
   es.addEventListener("open", refetchLive);
   es.addEventListener("live", refetchLive);
   es.addEventListener("address_changed", () => {

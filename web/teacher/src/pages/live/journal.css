@@ -1,0 +1,452 @@
+/*
+ * The class journal, shared by the live view and the results: a white panel
+ * with a strip of tools and the legend, then a table whose head and footer
+ * stay put while the rows scroll. The panel is a size container, so the
+ * question columns share out whatever width it has (JournalTable sets them
+ * in cqw).
+ */
+:root {
+  --j-hair: #edf2f1;
+  --j-empty: #f0f4f3;
+  --j-chip: #eef3f2;
+  --j-mint: #1fb984;
+  --j-mint-soft: #e1f6ee;
+  --j-mint-ink: #0f7a55;
+  --j-tint-offline: #fff9f2;
+  --j-tint-clash: #fff6f5;
+  --j-row-hover: #f6f9f9;
+}
+
+.j-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--k-paper);
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-row);
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.j-strip {
+  flex: none;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1.5px solid var(--t-line);
+}
+
+.j-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.j-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.j-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.j-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.j-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 38px;
+  padding: 0 8px;
+  background: var(--k-paper);
+  border-bottom: 1.5px solid var(--t-line);
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.j-table td {
+  height: 23px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--j-hair);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--k-dur-state) var(--k-ease-out);
+}
+
+.j-table .j-n {
+  padding: 0 4px 0 0;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.j-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.j-device {
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.j-table .j-q {
+  padding: 0 1px;
+  text-align: center;
+}
+
+.j-table th.j-q {
+  padding: 0;
+  overflow: visible;
+}
+
+.j-table[data-compact] .j-q {
+  padding: 0 12px 0 6px;
+  text-align: left;
+}
+
+.j-cell {
+  display: block;
+  width: calc(100% - 6px);
+  max-width: 24px;
+  height: 14px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: var(--j-empty);
+  transition: background-color var(--k-dur-state) var(--k-ease-out);
+}
+
+.j-cell[data-state="correct"],
+.j-cell[data-state="full"] {
+  background: var(--k-field);
+  color: var(--k-on-field);
+}
+
+.j-cell[data-state="wrong"],
+.j-cell[data-state="zero"] {
+  background: var(--k-accent);
+}
+
+.j-cell[data-state="partial"] {
+  background: var(--t-tang-soft);
+  box-shadow: inset 0 0 0 1.5px var(--k-accent);
+}
+
+.j-cell[data-state="answered"] {
+  background: var(--t-line-strong);
+}
+
+.j-cell[data-state="current"] {
+  background: var(--k-paper);
+  border: 2px solid var(--k-field);
+}
+
+.j-legend .j-cell {
+  width: 14px;
+  height: 10px;
+  margin: 0;
+  border-radius: 3px;
+}
+
+.j-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.j-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--j-chip);
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.j-chip[data-tone="mint"] {
+  background: var(--j-mint-soft);
+  color: var(--j-mint-ink);
+}
+
+.j-chip[data-tone="tang"] {
+  background: var(--t-tang-soft);
+  color: var(--k-accent-dark);
+}
+
+.j-chip[data-tone="red"] {
+  background: var(--t-red-soft);
+  color: var(--t-red);
+}
+
+.j-table .j-grade {
+  text-align: center;
+}
+
+.j-gr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  font: 700 12px var(--k-font-display);
+  animation: t-pop var(--k-dur-fill) var(--k-ease-spring);
+}
+
+.j-gr[data-band="hi"] {
+  background: var(--j-mint-soft);
+  color: var(--j-mint-ink);
+}
+
+.j-gr[data-band="mid"] {
+  background: var(--k-soft);
+  color: var(--k-sel-dark);
+}
+
+.j-gr[data-band="lo"] {
+  background: var(--t-tang-soft);
+  color: var(--k-accent-dark);
+}
+
+.j-gr[data-band="min"] {
+  background: var(--t-red-soft);
+  color: var(--t-red);
+}
+
+.j-table .j-act {
+  padding: 0;
+  overflow: visible;
+  text-align: center;
+}
+
+.j-menu-btn {
+  width: 30px;
+  height: 22px;
+  vertical-align: middle;
+}
+
+.j-menu-btn .t-icon {
+  stroke-width: 3.4;
+}
+
+.j-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  height: 34px;
+  background: var(--k-paper);
+  border-top: 1.5px solid var(--t-line);
+  border-bottom: 0;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.j-table tbody tr[data-tone="offline"] td {
+  background: var(--j-tint-offline);
+}
+
+.j-table tbody tr[data-tone="clash"] td {
+  background: var(--j-tint-clash);
+}
+
+.j-pct {
+  color: var(--k-ink);
+  font-size: 11px;
+}
+
+.j-pct[data-low] {
+  color: var(--k-accent-dark);
+}
+
+.j-bar {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+}
+
+.j-bar i {
+  flex-basis: 0;
+  border-radius: 4px;
+}
+
+.j-bar i[data-state="good"] {
+  background: var(--k-field);
+}
+
+.j-bar i[data-state="bad"] {
+  background: var(--k-accent);
+}
+
+.j-bar i[data-state="answered"] {
+  background: var(--t-line-strong);
+}
+
+.j-bar i[data-state="left"] {
+  background: var(--j-empty);
+}
+
+/* A question's percent as a small bar, filled from the bottom. */
+.j-mini {
+  position: relative;
+  display: inline-block;
+  width: min(10px, 80%);
+  height: 18px;
+  vertical-align: middle;
+  border-radius: 3px;
+  background: var(--j-empty);
+  overflow: hidden;
+}
+
+.j-mini i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--k-field);
+  transform: translateY(calc(100% - var(--j-pct)));
+  transition: transform var(--k-dur-fill) var(--k-ease-out);
+}
+
+.j-mini[data-low] i {
+  background: var(--k-accent);
+}
+
+.j-hist {
+  display: flex;
+  gap: 2px;
+}
+
+.j-hist .j-mini {
+  flex: 1;
+  width: auto;
+}
+
+/* The hide-names switch in the strip. */
+.j-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.j-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--t-line-strong);
+}
+
+.j-switch-track::before,
+.j-switch-track::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+}
+
+.j-switch-track::before {
+  inset: 0;
+  background: var(--k-field);
+  opacity: 0;
+  transition: opacity var(--k-dur-state) var(--k-ease-out);
+}
+
+.j-switch-track::after {
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--k-paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform var(--k-dur-state) var(--k-ease-spring);
+}
+
+.j-switch-btn[data-selected] .j-switch-track::before {
+  opacity: 1;
+}
+
+.j-switch-btn[data-selected] .j-switch-track::after {
+  transform: translateX(14px);
+}
+
+.j-switch-btn[data-focus-visible] .j-switch-track {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+/* The row menu. */
+.j-menu-pop {
+  min-width: 220px;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-box);
+  background: var(--k-paper);
+  box-shadow: var(--t-shadow-toast);
+  outline: none;
+}
+
+.j-menu-pop[data-entering] {
+  animation: t-drop var(--k-dur-fast) var(--k-ease-out);
+}
+
+.j-menu {
+  outline: none;
+}
+
+.j-menu-item {
+  padding: 9px 12px;
+  border-radius: var(--t-radius-small);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
+.j-menu-item[data-focused] {
+  background: var(--t-hover);
+}
+
+.j-menu-danger {
+  color: var(--t-red);
+}
+
+.j-menu-danger[data-focused] {
+  background: var(--t-red-soft);
+}

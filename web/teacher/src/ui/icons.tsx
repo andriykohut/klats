@@ -23,6 +23,8 @@ const PATHS = {
     "M12 5a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 1 0 0-5z",
   multi:
     "M8 5h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3zM8.5 12l2.5 2.5 4.5-5",
+  more: "M5.5 12h.01M12 12h.01M18.5 12h.01",
+  download: "M12 4v11M7 10l5 5 5-5M5 20h14",
 } as const;
 
 export function Icon({ name }: { name: keyof typeof PATHS }) {
