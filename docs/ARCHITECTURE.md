@@ -92,6 +92,7 @@ design follows from where it runs:
 | `internal/grading` | Scores single- and multiple-choice answers, and turns points into the 12-point grade. |
 | `internal/httpx` | JSON replies, capped body decoding and the single-page-app file server, shared by both APIs. |
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
+| `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |
 | `internal/power` | Keeps the computer awake while a sitting runs, using each OS's own mechanism. |
 | `internal/rich` | Validates rich text, a strict subset of ProseMirror JSON. It is the single trust boundary for formatted text. |
 | `internal/roster` | Cleans class lists pasted from a spreadsheet, and sorts and tells apart names with Ukrainian collation. |
@@ -293,6 +294,8 @@ Students may have the address bookmarked.
 - **The student API is the only thing on the LAN, and it trusts nothing.**
   - Device tokens must match their format.
   - Bodies are capped at 256 KiB.
+  - Media files are served only for the running test (or the last ended
+    one), so a student cannot fetch the files of other tests.
   - Joins and picks are rate limited per device token (10 a minute) and
     per IP address or IPv6 /64 (300 a minute, enough for a class behind one
     NAT).
@@ -310,7 +313,13 @@ Students may have the address bookmarked.
   The window opens `/?t=<token>`. That one request sets the token as an
   HttpOnly, SameSite=Strict cookie and redirects to `/`. A bearer header
   works too, for the Vite dev proxy and the end-to-end tests. Bodies are
-  capped at 4 MiB.
+  capped at 4 MiB, and media uploads at 10 MiB.
+- **Uploads are sniffed and capped.** The media store decides a file's type
+  from its leading bytes, never from the name or header the client sent.
+  Only JPEG, PNG, GIF, WebP, MP3, M4A, Ogg and WAV are kept; SVG, HTML and
+  anything else is refused. Images are capped at 5 MiB and audio at 10 MiB.
+  Files are served by their content-hash name only, with the type the store
+  chose and `nosniff`.
 - **Correct answers never reach students.**
   - The test a device loads has no correct flags and no points.
   - Grading happens only on the server.
@@ -360,8 +369,8 @@ current webview.
   - `~/Library/Application Support/Klats` on macOS;
   - `$XDG_DATA_HOME/klats` (by default `~/.local/share/klats`) elsewhere.
 
-  It holds `klats.db`, `settings.json`, `snapshots/` and `logs/klats.log`
-  (the log is rotated at 5 MB). A damaged `settings.json` is logged, and the
+  It holds `klats.db`, `settings.json`, `media/`, `snapshots/` and
+  `logs/klats.log` (the log is rotated at 5 MB). A damaged `settings.json` is logged, and the
   program starts with the defaults.
 - **SQLite** through modernc.org/sqlite, which is pure Go, so the database
   needs no cgo. It runs in WAL mode with foreign keys, over a single
@@ -375,6 +384,11 @@ current webview.
 - **The engine writes through.** It keeps the running sitting in memory,
   behind one mutex. Every change is written to SQLite in a transaction, and
   only then applied in memory and reported as done.
+- **Media files.** `media/<sha256>.<ext>` holds the images and audio of
+  tests. A name is the hash of the bytes, so a file never changes and
+  uploading it again stores nothing new. Writes go to a temporary file that
+  is then renamed, so a crash leaves no half-written file. Nothing deletes
+  media yet.
 - **A test snapshot per assignment.** Starting a sitting copies the test
   into `assignments.test_snapshot`. Grading, the live view, results and late
   answers all use that copy. Editing or deleting the test afterwards changes

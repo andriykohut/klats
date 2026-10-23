@@ -28,6 +28,7 @@ import (
 	"klats/internal/demo"
 	"klats/internal/events"
 	"klats/internal/lan"
+	"klats/internal/media"
 	"klats/internal/power"
 	"klats/internal/sitting"
 	"klats/internal/store"
@@ -174,6 +175,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	defer func() { _ = st.Close() }()
 	snapshotDaily(st, dataDir)
 
+	ms, err := media.Open(filepath.Join(dataDir, "media"))
+	if err != nil {
+		return err
+	}
 	hub := events.New()
 	eng, err = sitting.New(st, hub, time.Now)
 	if err != nil {
@@ -229,7 +234,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		dialogs = sh.Dialogs()
 	}
 	teacher := teacherapi.Handler(teacherapi.Deps{
-		Store: st, Engine: eng, Hub: hub, Assets: webui.Teacher, Token: token, Port: teacherPort,
+		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
 		DataDir: dataDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
 		Dialogs: dialogs,
 	})
@@ -240,7 +245,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	defer cancelReq()
 	servers := []*http.Server{serve(reqCtx, teacherL, teacher)}
 	if lanL != nil {
-		servers = append(servers, serve(reqCtx, lanL, studentapi.Handler(eng, hub, studentUI)))
+		servers = append(servers, serve(reqCtx, lanL, studentapi.Handler(eng, hub, studentUI, ms)))
 	}
 	var wg sync.WaitGroup
 	wg.Go(func() { tick(ctx, eng) })

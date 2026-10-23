@@ -122,6 +122,7 @@ type StudentQuestion struct {
 type StudentOption struct {
 	ID      string          `json:"id"`
 	Content json.RawMessage `json:"content"`
+	Image   *testfmt.Image  `json:"image,omitempty"`
 }
 
 // Event is an entry in the teacher's events panel. The teacher UI renders its

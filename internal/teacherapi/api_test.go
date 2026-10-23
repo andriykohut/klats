@@ -22,6 +22,7 @@ import (
 	"klats/internal/config"
 	"klats/internal/events"
 	"klats/internal/lan"
+	"klats/internal/media"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/store/db"
@@ -84,8 +85,12 @@ func setup(t *testing.T, withDialogs bool, tweak ...func(*Deps)) *env {
 		t.Fatal(err)
 	}
 	v := &env{st: st, e: e, hub: hub, dir: dir}
+	ms, err := media.Open(filepath.Join(dir, "media"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	d := Deps{
-		Store: st, Engine: e, Hub: hub, Token: token, Port: port, DataDir: dir,
+		Store: st, Engine: e, Hub: hub, Media: ms, Token: token, Port: port, DataDir: dir,
 		Assets:   fstest.MapFS{"index.html": {Data: []byte("<html>teacher</html>")}},
 		Settings: &config.Settings{Port: 8080, Language: "uk"}, LANPort: 8080,
 		Interfaces: func() []lan.Iface {

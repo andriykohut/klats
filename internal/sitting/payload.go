@@ -69,7 +69,7 @@ func studentTest(t testfmt.Test, device string) wire.StudentTest {
 	for i, q := range t.Questions {
 		opts := make([]wire.StudentOption, len(q.Options))
 		for j, o := range q.Options {
-			opts[j] = wire.StudentOption{ID: o.ID, Content: o.Content}
+			opts[j] = wire.StudentOption{ID: o.ID, Content: o.Content, Image: o.Image}
 		}
 		if q.ShuffleOptions {
 			h := fnv.New64a()

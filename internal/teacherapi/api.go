@@ -18,6 +18,7 @@ import (
 	"klats/internal/events"
 	"klats/internal/httpx"
 	"klats/internal/lan"
+	"klats/internal/media"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/testfmt"
@@ -46,6 +47,7 @@ type Deps struct {
 	Store  *store.Store
 	Engine *sitting.Engine
 	Hub    *events.Hub
+	Media  *media.Store
 	Assets fs.FS // the built teacher app
 	Token  string
 	Port   int // this API's own port, for the Host and Origin checks
@@ -71,6 +73,7 @@ type api struct {
 	st      *store.Store
 	eng     *sitting.Engine
 	hub     *events.Hub
+	media   *media.Store
 	token   string
 	port    int
 	dataDir string
@@ -90,7 +93,7 @@ type api struct {
 // cut the event stream.
 func Handler(d Deps) http.Handler {
 	a := &api{
-		st: d.Store, eng: d.Engine, hub: d.Hub, token: d.Token, port: d.Port, dataDir: d.DataDir,
+		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
 	}
 	if a.ifaces == nil {
@@ -125,6 +128,9 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/assignments/{id}/results", a.results)
 	mux.HandleFunc("PUT /api/assignments/{id}/overrides", a.override)
 	mux.HandleFunc("POST /api/assignments/{id}/export", a.export)
+
+	mux.HandleFunc("POST /api/media", a.putMedia)
+	mux.HandleFunc("GET /api/media/{name}", a.getMedia)
 
 	mux.HandleFunc("GET /api/network", a.getNetwork)
 	mux.HandleFunc("PUT /api/network", a.putNetwork)

@@ -19,6 +19,7 @@ import (
 
 	"klats/internal/events"
 	"klats/internal/httpx"
+	"klats/internal/media"
 	"klats/internal/sitting"
 	"klats/internal/sse"
 	"klats/internal/wire"
@@ -38,10 +39,11 @@ const (
 var deviceRE = regexp.MustCompile(`^[a-z2-7]{22,64}$`)
 
 type api struct {
-	e    *sitting.Engine
-	hub  *events.Hub
-	spa  http.Handler
-	rate *limiter
+	e     *sitting.Engine
+	hub   *events.Hub
+	media *media.Store
+	spa   http.Handler
+	rate  *limiter
 
 	streamsMu sync.Mutex
 	streams   map[string]int // client IP → open event streams
@@ -51,12 +53,12 @@ type api struct {
 // student web app from assets, falling back to its index.html. It does not
 // build a server: the caller sets the timeouts, and must not set a write
 // timeout, which would cut the event streams.
-func Handler(e *sitting.Engine, hub *events.Hub, assets fs.FS) http.Handler {
-	return newHandler(e, hub, assets, time.Now)
+func Handler(e *sitting.Engine, hub *events.Hub, assets fs.FS, ms *media.Store) http.Handler {
+	return newHandler(e, hub, assets, ms, time.Now)
 }
 
-func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, now func() time.Time) http.Handler {
-	a := &api{e: e, hub: hub, spa: httpx.SPA(assets), rate: newLimiter(now), streams: map[string]int{}}
+func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, ms *media.Store, now func() time.Time) http.Handler {
+	a := &api{e: e, hub: hub, media: ms, spa: httpx.SPA(assets), rate: newLimiter(now), streams: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/join", a.device(a.join))
 	mux.HandleFunc("POST /api/pick", a.device(a.pick))
@@ -65,6 +67,7 @@ func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, now func() tim
 	mux.HandleFunc("POST /api/heartbeat", a.device(a.heartbeat))
 	mux.HandleFunc("POST /api/finish", a.device(a.finish))
 	mux.HandleFunc("POST /api/focus", a.device(a.focus))
+	mux.HandleFunc("GET /api/media/{name}", a.serveMedia)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("/", a.static)
 	return a.apiMiddleware(mux)

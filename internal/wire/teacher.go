@@ -150,3 +150,8 @@ type SettingsInfo struct {
 	Language        string `json:"language"`
 	RestartRequired bool   `json:"restartRequired"`
 }
+
+// MediaResult answers an upload with the name the file is stored under.
+type MediaResult struct {
+	Name string `json:"name"`
+}

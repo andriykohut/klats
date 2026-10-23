@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"klats/internal/events"
+	"klats/internal/media"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/store/db"
@@ -72,16 +73,30 @@ func (f *fakeNow) add(d time.Duration) {
 // on test "t1" (q1 single choice, q2 multi choice).
 func setup(t *testing.T) *env {
 	t.Helper()
+	return setupWith(t, nil)
+}
+
+// setupWith is setup with tweak applied to the test before the sitting starts.
+func setupWith(t *testing.T, tweak func(*testfmt.Test, *media.Store)) *env {
+	t.Helper()
+	ms, err := media.Open(filepath.Join(t.TempDir(), "media"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	st, err := store.Open(filepath.Join(t.TempDir(), "klats.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
 	opts := []testfmt.Option{{ID: "o0", Content: rich("так"), Correct: true}, {ID: "o1", Content: rich("ні")}}
-	doc, err := json.Marshal(testfmt.Test{ID: "t1", Version: 1, Title: "Дроби", Palette: "teal", Questions: []testfmt.Question{
+	tst := testfmt.Test{ID: "t1", Version: 1, Title: "Дроби", Palette: "teal", Questions: []testfmt.Question{
 		{ID: "q1", Type: "single", Text: rich("Скільки?"), Points: 2, Options: opts},
 		{ID: "q2", Type: "multi", Text: rich("Оберіть"), Points: 3, Options: opts},
-	}})
+	}}
+	if tweak != nil {
+		tweak(&tst, ms)
+	}
+	doc, err := json.Marshal(tst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +113,7 @@ func setup(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &env{st: st, e: e, hub: hub, h: newHandler(e, hub, assets, now.Now), code: info.Code, now: now}
+	return &env{st: st, e: e, hub: hub, h: newHandler(e, hub, assets, ms, now.Now), code: info.Code, now: now}
 }
 
 // do sends the request to the handler from remote address 10.0.0.5:4000.

@@ -35,12 +35,21 @@ type Option struct {
 	ID      string          `json:"id"`
 	Content json.RawMessage `json:"content"`
 	Correct bool            `json:"correct"`
+	Image   *Image          `json:"image,omitempty"`
+}
+
+// Image is a picture shown with an option: a media name and its size in pixels.
+type Image struct {
+	Src string `json:"src"`
+	W   int    `json:"w"`
+	H   int    `json:"h"`
 }
 
 const (
 	DefaultPalette = "teal"
 	minPoints      = 1
 	maxPoints      = 12
+	maxImageSide   = 10000
 )
 
 var palettes = []string{DefaultPalette, "grape", "coral", "lavender", "classic"}
@@ -86,9 +95,42 @@ func Decode(raw []byte) (Test, error) {
 			if o.Content, err = canonical(o.Content, rich.Inline); err != nil {
 				return Test{}, fmt.Errorf("testfmt: question %q option %q: %w", q.ID, o.ID, err)
 			}
+			if im := o.Image; im != nil && (rich.MediaKind(im.Src) != "image" || im.W < 1 || im.W > maxImageSide || im.H < 1 || im.H > maxImageSide) {
+				return Test{}, fmt.Errorf("testfmt: question %q option %q: invalid image", q.ID, o.ID)
+			}
 		}
 	}
 	return t, nil
+}
+
+// Media returns the name of every image and audio file the test uses, in
+// question order, without repeats: those in question text, in option content
+// and in option images.
+func (t Test) Media() []string {
+	var out []string
+	add := func(name string) {
+		if !slices.Contains(out, name) {
+			out = append(out, name)
+		}
+	}
+	addDoc := func(raw json.RawMessage, mode rich.Mode) {
+		// A field that does not parse names no media.
+		if doc, err := rich.Parse(raw, mode); err == nil {
+			for _, name := range doc.Media() {
+				add(name)
+			}
+		}
+	}
+	for _, q := range t.Questions {
+		addDoc(q.Text, rich.Block)
+		for _, o := range q.Options {
+			addDoc(o.Content, rich.Inline)
+			if o.Image != nil {
+				add(o.Image.Src)
+			}
+		}
+	}
+	return out
 }
 
 // emptyDoc is the canonical form of a rich field with no content, including a

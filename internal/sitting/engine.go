@@ -9,6 +9,7 @@
 package sitting
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -119,7 +120,8 @@ type Engine struct {
 type active struct {
 	sitting      db.Sitting
 	assignment   db.Assignment
-	test         testfmt.Test // the snapshot taken at start
+	test         testfmt.Test    // the snapshot taken at start
+	media        map[string]bool // the names in test, see [testfmt.Test.Media]
 	participants []*participant
 	status       map[string]string   // device token → its last status; absent means unjoined
 	movedFrom    map[string][]string // device token → ids of the participants moved off it
@@ -271,7 +273,11 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 }
 
 func newActive(s db.Sitting, asg db.Assignment, t testfmt.Test) *active {
-	return &active{sitting: s, assignment: asg, test: t, status: map[string]string{}, movedFrom: map[string][]string{}, clashes: map[string]clash{}}
+	media := map[string]bool{}
+	for _, name := range t.Media() {
+		media[name] = true
+	}
+	return &active{sitting: s, assignment: asg, test: t, media: media, status: map[string]string{}, movedFrom: map[string][]string{}, clashes: map[string]clash{}}
 }
 
 // DeviceStatus returns the device's status in the running sitting: "writing"
@@ -292,6 +298,15 @@ func (e *Engine) Active() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.cur != nil
+}
+
+// HasMedia reports whether the media file name is used by the test of the
+// running sitting or, while none runs, of the last ended one.
+func (e *Engine) HasMedia(name string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	a := cmp.Or(e.cur, e.ended)
+	return a != nil && a.media[name]
 }
 
 // SetLanguage sets the language student pages use ("uk" or "en"), sent in
