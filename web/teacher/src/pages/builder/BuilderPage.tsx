@@ -28,6 +28,11 @@ import { QuestionList } from "./QuestionList";
 import { StartDialog } from "./StartDialog";
 import { TypePicker } from "./TypePicker";
 import "./builder.css";
+import "./topbar.css";
+import "./list.css";
+import "./editor.css";
+import "./preview.css";
+import "./dialogs.css";
 
 const PALETTE_NAMES: Record<PaletteId, () => string> = {
   teal: m.palette_teal,

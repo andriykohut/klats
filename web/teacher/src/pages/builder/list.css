@@ -1,0 +1,136 @@
+.b-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.b-lh {
+  padding: 18px 18px 10px;
+}
+
+.b-lh h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.b-lh span {
+  display: block;
+  margin-top: 4px;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.b-qs {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 10px;
+  outline: none;
+}
+
+.b-qi {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1.5px solid transparent;
+  border-radius: var(--t-radius-field);
+  cursor: pointer;
+  outline: none;
+}
+
+.b-qi[data-hovered] {
+  background: var(--t-hover);
+}
+
+.b-qi[data-selected] {
+  background: var(--k-soft);
+  border-color: var(--k-tile-shadow);
+}
+
+.b-qi[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: -3px;
+}
+
+.b-qi-n {
+  width: 20px;
+  flex: none;
+  padding-top: 4px;
+  color: var(--k-muted);
+  font: 700 13px var(--k-font-display);
+}
+
+.b-qi[data-selected] .b-qi-n {
+  color: var(--k-field);
+}
+
+.b-qi[data-selected] .b-ic {
+  background: var(--k-paper);
+}
+
+.b-qi-tx {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Blocks run on as one line of text, marks kept, so two lines show the start. */
+.b-qi-tx :is(p, ul, ol, li) {
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+
+.b-qi-tx :is(p, li) + :is(p, li)::before,
+.b-qi-tx * + :is(ul, ol)::before {
+  content: " ";
+}
+
+.b-qi-tx[data-empty] {
+  color: var(--b-faint);
+  font-style: italic;
+}
+
+.b-qi-pt {
+  padding-top: 2px;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.b-qi-warn {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  margin: 6px -4px 0 0;
+  border-radius: 50%;
+  background: var(--t-red);
+  box-shadow: 0 0 0 3px var(--k-paper);
+  animation: t-pop var(--k-dur-state) var(--k-ease-spring);
+}
+
+.b-lf {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1.5px solid var(--t-hair);
+}
+
+.t-btn.b-add {
+  height: 48px;
+}
+
+.t-btn.b-paste-btn {
+  height: 40px;
+  font-weight: 700;
+  font-size: 14px;
+}

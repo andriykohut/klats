@@ -1,0 +1,246 @@
+.b-pv {
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.b-pv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.b-pv-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.t-btn.b-pv-show {
+  width: 100%;
+  height: 40px;
+  font-size: 14px;
+}
+
+.b-mini {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--t-radius-field);
+  box-shadow: 0 0 0 1.5px var(--t-line);
+  background: var(--k-field);
+}
+
+.b-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 720px;
+  container-type: size;
+  transform-origin: 0 0;
+  background: var(--k-field);
+  color: var(--k-ink);
+  font-family: var(--k-font-text);
+  transition: background-color var(--k-dur-state) var(--k-ease-out);
+}
+
+.b-s-top {
+  position: absolute;
+  top: 26px;
+  right: 44px;
+  left: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.b-s-title,
+.b-s-who {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.b-s-title {
+  color: var(--k-on-field-soft);
+  font-size: 16px;
+}
+
+.b-s-who {
+  color: var(--k-on-field);
+  font-size: 15px;
+  text-align: right;
+}
+
+.b-s-prog {
+  flex: 1.6 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.b-s-seg {
+  flex: 0 1 40px;
+  min-width: 2px;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--k-track);
+}
+
+.b-s-seg[data-state="done"] {
+  background: var(--k-accent);
+}
+
+.b-s-seg[data-state="current"] {
+  background: var(--k-track-current);
+}
+
+.b-s-slot {
+  position: absolute;
+  top: 90px;
+  right: 44px;
+  bottom: 30px;
+  left: 44px;
+}
+
+/* The student's Skip and Next, drawn as they look with nothing chosen. */
+.b-s-btn {
+  position: relative;
+  flex: none;
+  padding-bottom: var(--k-depth);
+}
+
+.b-s-btn::before {
+  content: "";
+  position: absolute;
+  inset: var(--k-depth) 0 0;
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile-border);
+}
+
+.b-s-face {
+  position: relative;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  padding: 0 34px;
+  box-sizing: border-box;
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  color: var(--k-muted);
+  font: 700 17px var(--k-font-display);
+  white-space: nowrap;
+}
+
+.b-s-btn[data-quiet]::before {
+  background: var(--k-tile-shadow);
+}
+
+.b-s-btn[data-quiet] .b-s-face {
+  border: 2px solid var(--k-tile-border);
+  background: var(--k-paper);
+  color: var(--k-sel);
+}
+
+.b-checks {
+  margin-top: 20px;
+}
+
+.b-checks h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.b-checks ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.b-tip {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: var(--t-radius-field);
+  background: var(--t-hover);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  animation: b-opt-in var(--k-dur-badge) var(--k-ease-spring);
+}
+
+.b-tip::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: none;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--k-field);
+}
+
+.b-tip[data-severity="error"] {
+  background: var(--t-red-soft);
+}
+
+.b-tip[data-severity="error"]::before {
+  background: var(--t-red);
+}
+
+.b-tip[data-severity="warning"] {
+  background: var(--t-tang-soft);
+}
+
+.b-tip[data-severity="warning"]::before {
+  background: var(--k-accent);
+}
+
+.b-tip-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: var(--t-radius-link);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.b-tip-link:hover,
+.b-tip-link[data-hovered] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.b-tip-link:focus-visible,
+.b-tip-link[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.b-tip-fix {
+  display: block;
+  margin-top: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--t-radius-segment);
+  background: var(--k-paper);
+  color: var(--k-ink);
+  font: 800 13px var(--k-font-text);
+  box-shadow: var(--t-shadow-seg);
+  cursor: pointer;
+  outline: none;
+}
