@@ -1,25 +1,41 @@
+Klats (Клац) — програма для шкільного тестування. Інструкції українською з'являться на сайті проєкту.
+
 # Klats
 
-Klats — відкрита програма для шкільного тестування. Вчитель запускає
-настільну програму на своєму комп'ютері, складає тести та проводить їх у
-класі: учні відкривають сторінку в браузері на власних пристроях у шкільній
-мережі, без облікових записів і без доступу до інтернету.
+Klats is a free, open-source app for running tests in school computer labs.
+The teacher builds tests and runs them from one program on their own
+computer, and students take them in any browser on the lab PCs, over the
+school's local network, with no accounts, no internet and nothing to
+install. Answers survive network drops and restarts, and the teacher
+watches the class live and gets graded results.
 
-Програма складається з вчительської частини на Go та двох вебзастосунків на
-React: для учнів і для вчителя. Результати й оцінки зберігаються локально на
-комп'ютері вчителя. Телеметрії немає, мережевий трафік не виходить за межі
-локальної мережі.
+**Status:** milestone 1, pre-release. The core loop works end to end, with
+single- and multiple-choice questions. There are no installers yet.
 
-## Збірка
+## Quick start
 
-Потрібні Go 1.27.3, Node.js 26.12.1 та pnpm 12.14.0.
+You need Go 1.27.3, Node.js 26.12.1 and pnpm 12.14.0. On Linux, the desktop
+window also needs GTK 4 and WebKitGTK 6.0 (see
+[CONTRIBUTING.md](docs/CONTRIBUTING.md)).
 
 ```sh
-make web build
+make gen web build   # the web apps, then the klats binary
+make demo            # a sample lesson to try
 ```
 
-Перевірки (лінтери, тести, типи): `make check`.
+`make demo` prints a student address with the join code, and a teacher
+address. Open each in a browser.
 
-## Ліцензія
+## Learn more
 
-GPL-3.0, див. файл [LICENSE](LICENSE).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how Klats fits together,
+  and why.
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md): setup, the make targets
+  and the conventions.
+- [ROADMAP.md](ROADMAP.md): what comes next.
+- [docs/manual-test.md](docs/manual-test.md): the checks run on real
+  machines before each release.
+
+## Licence
+
+GPL-3.0. See [LICENSE](LICENSE).

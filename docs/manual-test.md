@@ -10,9 +10,13 @@ result (pass, or what went wrong) in the release pull request.
 ## Before you start
 
 - **Builds.** Run `make gen web` first.
-  - Windows teacher app: `GOOS=windows GOARCH=amd64 go build -ldflags
-    "-H windowsgui" ./cmd/klats` gives `klats.exe`, which opens no console
-    window. It builds on any OS, as the Windows shell needs no cgo.
+  - Windows teacher app, on any OS (the Windows shell needs no cgo):
+
+    ```sh
+    GOOS=windows GOARCH=amd64 go build -ldflags "-H windowsgui" ./cmd/klats
+    ```
+
+    This gives `klats.exe`, which opens no console window.
   - Linux teacher app: on the Linux machine, install `libgtk-4-dev` and
     `libwebkitgtk-6.0-dev`, then run `make build`.
 - **Data.** In the teacher app, make class «7-Б» with five students, and a
