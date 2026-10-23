@@ -33,7 +33,7 @@ Each type reuses the sync, grading and results paths that M1 proved.
 
 - **Test settings:**
   - time limits;
-  - shuffling;
+  - shuffling questions;
   - grading scales;
   - what students see at the end;
   - a forward-only mode.

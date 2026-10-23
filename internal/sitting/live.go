@@ -138,11 +138,10 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 // End ends the running sitting: participants still writing are finished as
 // they stand, unanswered questions scoring zero, pending name_clash events are
 // resolved, and every device of the sitting is told. Students who were
-// offline may still deliver answers, see
-// [Engine.Submit]; [Engine.Live] shows the ended sitting until the next one
-// starts. When a snapshot directory is set, End then snapshots the
-// database; a failed snapshot is logged and does not fail End. It returns
-// [ErrNotFound] when no sitting runs.
+// offline may still deliver answers, see [Engine.Submit]; [Engine.Live] shows
+// the ended sitting until the next one starts. When a snapshot directory is
+// set, End then snapshots the database; a failed snapshot is logged and does
+// not fail End. It returns [ErrNotFound] when no sitting runs.
 func (e *Engine) End() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

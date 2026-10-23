@@ -261,11 +261,10 @@ func (e *Engine) resolveClashes(q *db.Queries, ids []string) (func(), error) {
 // Move hands the participant over to the device toDevice, which continues
 // from the answers already stored. Every move, back to an earlier device
 // too, counts towards the seq base [Engine.Resume] reports. The old device
-// is recorded as moved, and
-// pending name_clash events over the participant's name are resolved as in
-// [Engine.Kick]. It returns [ErrNotFound] for an unknown participant or
-// device, and [ErrInvalid] if the participant is kicked or toDevice writes as
-// someone else.
+// is recorded as moved, and pending name_clash events over the participant's
+// name are resolved as in [Engine.Kick]. It returns [ErrNotFound] for an
+// unknown participant or device, and [ErrInvalid] if the participant is
+// kicked or toDevice writes as someone else.
 func (e *Engine) Move(participantID, toDevice string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

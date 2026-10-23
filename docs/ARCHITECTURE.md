@@ -225,9 +225,13 @@ moved or unjoined. The event stream carries two hints:
 - `taken`, while a student chooses a name, lists the names other devices
   hold, and goes straight into the name list.
 
-The app must work with no stream at all: statuses still come with the
-heartbeat, and the name list fetches the class list again every 15 s while
-the stream is closed. There are three reasons it must:
+The app must work with no stream at all. While a test syncs, statuses still
+come with the heartbeat. The name list has no heartbeat: while the stream is
+closed it fetches the class list again every 15 s, and a computer waiting
+after a name clash learns that the teacher moved the student to it only when
+the student taps the name again. The server answers that pick idempotently
+with the moved participant, and the test opens. There are three reasons it
+must:
 - antivirus web shields on lab PCs sometimes stall streams;
 - the server allows 64 streams per IP address, and a school behind one NAT
   can reach that;

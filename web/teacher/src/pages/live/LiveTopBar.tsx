@@ -53,7 +53,7 @@ export function LiveTopBar(props: {
               {m.live_show_board()}
             </Button>
           </div>
-          {/* shortcut: no time remaining here, as M1 tests have no time limit; show it beside the end button once tests can have one. */}
+          {/* shortcut: no time remaining here, as tests in this version have no time limit; show it beside the end button once tests can have one. */}
           <EndDialog writing={props.writing} assignmentId={s.assignmentId} />
         </>
       )}

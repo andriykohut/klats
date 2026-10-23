@@ -22,10 +22,9 @@ const moveSeqStride = 1_000_000
 // options of a question with ShuffleOptions are shuffled in an order fixed per
 // device), the answers stored for the device's participant, that
 // participant's id, its seq base (moves × 1,000,000) and the device's status.
-// It returns
-// [ErrKicked] if the teacher sent the device back to the name picker and
-// [ErrNotJoined] unless the device writes as a participant in the running
-// sitting.
+// It returns [ErrKicked] if the teacher sent the device back to the name
+// picker and [ErrNotJoined] unless the device writes as a participant in the
+// running sitting.
 func (e *Engine) Resume(device string) (wire.TestResponse, error) {
 	e.mu.Lock()
 	if e.cur == nil {

@@ -84,8 +84,8 @@ func code(err error) int {
 // student, LAN and teacher addresses to stdout, one per line. With -demo too,
 // it first starts the sample lesson, or finds the sitting already running
 // (see [demo.Seed]), in a temporary data folder removed on exit unless -data
-// names one, and the student addresses carry its join code. Logs go to stderr and to the data folder's
-// logs/klats.log.
+// names one, and the student addresses carry its join code. Logs go to stderr
+// and to the data folder's logs/klats.log.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
 	flags := flag.NewFlagSet("klats", flag.ContinueOnError)
 	flags.SetOutput(stderr)

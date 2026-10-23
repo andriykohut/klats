@@ -189,10 +189,10 @@ type FinishResult struct {
 
 // LiveSnapshot is the teacher's live view of the running sitting or, until
 // the next one starts, of the last ended one. Kicked participants are left
-// out. QuestionPct has one entry per question: the
-// percent of answers to it that score full points, or nil while nobody has
-// answered it. Events lists the pinned events waiting for a decision, then the
-// 20 newest others, newest first.
+// out. QuestionPct has one entry per question: the percent of answers to it
+// that score full points, or nil while nobody has answered it. Events lists
+// the pinned events waiting for a decision, then the 20 newest others, newest
+// first.
 type LiveSnapshot struct {
 	Sitting     SittingInfo `json:"sitting"`
 	Counts      Counts      `json:"counts"`
