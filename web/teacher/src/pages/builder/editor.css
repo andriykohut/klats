@@ -303,6 +303,56 @@
   font-weight: 800;
 }
 
+.b-rich-input .tableWrapper {
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+.b-rich-input table {
+  border-collapse: collapse;
+  font-size: 16px;
+}
+
+.b-rich-input :is(th, td) {
+  min-width: 64px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--t-line-strong);
+  text-align: left;
+  vertical-align: top;
+}
+
+.b-rich-input th {
+  background: var(--k-soft);
+}
+
+.b-rich-input .selectedCell {
+  background: var(--t-hover);
+}
+
+.b-rich-input code {
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: var(--k-soft);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+.b-rich-input pre {
+  margin: 8px 0;
+  padding: 8px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--k-soft);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.b-rich-input pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}
+
 /* Indices keep the line height, so a row with H₂O is as tall as one without. */
 .b-rich-input :is(sub, sup),
 .b-qi-tx :is(sub, sup) {

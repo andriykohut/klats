@@ -1,5 +1,9 @@
 import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
-import type { RichDoc, RichNode } from "@klats/shared/rich/RichView.tsx";
+import type {
+  RichAttrs,
+  RichDoc,
+  RichNode,
+} from "@klats/shared/rich/RichView.tsx";
 import { Fragment, type Node, type Schema, Slice } from "@tiptap/pm/model";
 import type { PastedQuestion } from "./pasteParse";
 
@@ -15,18 +19,41 @@ export const MAX_POINTS = 12;
 /** Editor JSON as TipTap produces it: any node, possibly with attrs. */
 export interface EditorNode {
   type?: string;
+  attrs?: Record<string, unknown>;
   text?: string;
   marks?: { type: string }[];
   content?: EditorNode[];
 }
 
 /**
+ * The attrs internal/rich accepts, by node type. A node type not listed here
+ * is stored without attrs.
+ */
+export const STORED_ATTRS: Record<string, (keyof RichAttrs)[]> = {
+  image: ["src", "w", "h"],
+  audio: ["src"],
+  math: ["latex"],
+  gap: ["id"],
+  tableHeader: ["colspan", "rowspan"],
+  tableCell: ["colspan", "rowspan"],
+};
+
+/**
  * Returns `node` with only the keys internal/rich accepts: type, text, the
- * mark types and non-empty content. Attributes go, so an ordered list always
- * starts at 1.
+ * mark types, non-empty content, and for the node types in
+ * {@link STORED_ATTRS} their listed attrs. Null attrs and spans of 1 are
+ * dropped, as is every attr of other nodes (so an ordered list always starts
+ * at 1 and a table has no column widths).
  */
 export function toStored(node: EditorNode): RichNode {
   const out: RichNode = { type: node.type ?? "" };
+  const attrs: Record<string, unknown> = {};
+  for (const key of STORED_ATTRS[out.type] ?? []) {
+    const v = node.attrs?.[key];
+    const span = key === "colspan" || key === "rowspan";
+    if (v != null && !(span && v === 1)) attrs[key] = v;
+  }
+  if (Object.keys(attrs).length) out.attrs = attrs as RichAttrs;
   if (node.text !== undefined) out.text = node.text;
   if (node.marks?.length) out.marks = node.marks.map((m) => ({ type: m.type }));
   if (node.content?.length) out.content = node.content.map(toStored);

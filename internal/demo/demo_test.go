@@ -32,8 +32,8 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	if !eng.Active() || eng.SittingID() != info.SittingID {
 		t.Fatalf("sitting %q is not the running one", info.SittingID)
 	}
-	if info.ClassName != "7-Б" || info.QuestionCount != 6 {
-		t.Errorf("sitting of class %q with %d questions, want 7-Б with 6", info.ClassName, info.QuestionCount)
+	if info.ClassName != "7-Б" || info.QuestionCount != 7 {
+		t.Errorf("sitting of class %q with %d questions, want 7-Б with 7", info.ClassName, info.QuestionCount)
 	}
 
 	join, err := eng.Join(info.Code, strings.Repeat("a", 26), "10.0.0.5")
@@ -65,6 +65,11 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	for _, mark := range []string{"bold", "subscript", "superscript"} {
 		if !strings.Contains(tests[0].Doc, `{"type":"`+mark+`"}`) {
 			t.Errorf("no %s text in the sample test", mark)
+		}
+	}
+	for _, node := range []string{"table", "tableHeader", "codeBlock"} {
+		if !strings.Contains(tests[0].Doc, `"type":"`+node+`"`) {
+			t.Errorf("no %s in the sample test", node)
 		}
 	}
 }

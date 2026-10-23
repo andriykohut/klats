@@ -3,6 +3,12 @@ import type { RichDoc } from "@klats/shared/rich/RichView.tsx";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import {
+  Table,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "@tiptap/extension-table";
+import {
   type Editor,
   EditorContent,
   useEditor,
@@ -15,15 +21,14 @@ import { oneParagraph, textDoc, toStored } from "./model";
 
 /*
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
- * hardBreak, the two lists and listItem, with bold and italic; Subscript and
- * Superscript are added beside it. Pasted content is parsed against this
- * schema, so headings, quotes, links and the like arrive as plain paragraphs
- * and text. Undo, the drop cursor and the gap cursor stay: they add no nodes.
+ * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
+ * code; Subscript, Superscript and the table nodes are added beside it.
+ * Pasted content is parsed against this schema, so headings, quotes, links
+ * and the like arrive as plain paragraphs and text. Undo, the drop cursor
+ * and the gap cursor stay: they add no nodes.
  */
 const BLOCK = {
   blockquote: false,
-  code: false,
-  codeBlock: false,
   heading: false,
   horizontalRule: false,
   link: false,
@@ -32,16 +37,30 @@ const BLOCK = {
   trailingNode: false,
 } as const;
 
-/** The inline schema of an answer option: no lists. */
+/** The inline schema of an answer option: no lists, no code blocks. */
 const INLINE = {
   ...BLOCK,
+  codeBlock: false,
   bulletList: false,
   orderedList: false,
   listItem: false,
   listKeymap: false,
 } as const;
 
-const BLOCK_EXTENSIONS = [StarterKit.configure(BLOCK), Subscript, Superscript];
+// Table cells hold paragraphs only, as internal/rich requires.
+const TABLE_EXTENSIONS = [
+  Table.configure({ resizable: false }),
+  TableRow,
+  TableHeader.extend({ content: "paragraph+" }),
+  TableCell.extend({ content: "paragraph+" }),
+];
+
+const BLOCK_EXTENSIONS = [
+  StarterKit.configure(BLOCK),
+  Subscript,
+  Superscript,
+  ...TABLE_EXTENSIONS,
+];
 const INLINE_EXTENSIONS = [
   StarterKit.configure(INLINE),
   Subscript,
@@ -53,6 +72,40 @@ const MARKS = [
   { mark: "italic", label: m.rich_italic, keys: "I", glyph: "I" },
   { mark: "subscript", label: m.rich_subscript, keys: ",", glyph: "x₂" },
   { mark: "superscript", label: m.rich_superscript, keys: ".", glyph: "x²" },
+  { mark: "code", label: m.rich_code, keys: "E", glyph: "‹›" },
+] as const;
+
+/** Toolbar buttons that edit blocks; only block fields have them. */
+const BLOCKS = [
+  {
+    key: "codeBlock",
+    label: m.rich_code_block,
+    glyph: "{ }",
+    run: (editor: Editor) => editor.chain().focus().toggleCodeBlock().run(),
+  },
+  {
+    key: "table",
+    label: m.rich_table,
+    glyph: "▦",
+    run: insertTable,
+  },
+] as const;
+
+/** Toolbar buttons that edit the table holding the caret. */
+const TABLE_EDITS = [
+  {
+    key: "addRowAfter",
+    label: m.rich_row_below,
+    glyph: "↓+",
+  },
+  {
+    key: "addColumnAfter",
+    label: m.rich_col_right,
+    glyph: "→+",
+  },
+  { key: "deleteRow", label: m.rich_row_delete, glyph: "↓−" },
+  { key: "deleteColumn", label: m.rich_col_delete, glyph: "→−" },
+  { key: "deleteTable", label: m.rich_table_delete, glyph: "×" },
 ] as const;
 
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
@@ -65,9 +118,12 @@ const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
  * `inline` makes it an answer option: one paragraph (a paste is joined into
  * it with hard breaks), no lists, Enter calls `onEnter`, and Backspace in an
  * empty field calls `onEmptyBackspace`; a held key calls them once. A small
- * toolbar with bold, italic, subscript and superscript floats over the field
- * while it has focus; the same marks are on Mod-B, Mod-I, Mod-, and Mod-. .
- * Each time `focus` changes to a number other than 0, the field takes focus
+ * toolbar with bold, italic, subscript, superscript and code floats over the
+ * field while it has focus; the same marks are on Mod-B, Mod-I, Mod-, Mod-.
+ * and Mod-E. A block field's toolbar also has a code block and a 3×3 table;
+ * while the caret is in a table it adds buttons to add or delete a row or
+ * column and to delete the table. Table cells hold paragraphs only, and cells
+ * are never merged or split here. Each time `focus` changes to a number other than 0, the field takes focus
  * with the caret at the end.
  */
 export function RichField(props: {
@@ -119,6 +175,9 @@ export function RichField(props: {
       italic: e.isActive("italic"),
       subscript: e.isActive("subscript"),
       superscript: e.isActive("superscript"),
+      code: e.isActive("code"),
+      codeBlock: e.isActive("codeBlock"),
+      table: e.isActive("table"),
     }),
   });
 
@@ -170,6 +229,39 @@ export function RichField(props: {
             {b.glyph}
           </button>
         ))}
+        {!inline &&
+          BLOCKS.map((b) => (
+            <button
+              key={b.key}
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark={b.key}
+              aria-pressed={b.key === "codeBlock" ? state.codeBlock : undefined}
+              aria-label={b.label()}
+              title={b.label()}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => b.run(editor)}
+            >
+              {b.glyph}
+            </button>
+          ))}
+        {state.table &&
+          TABLE_EDITS.map((b) => (
+            <button
+              key={b.key}
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark={b.key}
+              aria-label={b.label()}
+              title={b.label()}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editor.chain().focus()[b.key]().run()}
+            >
+              {b.glyph}
+            </button>
+          ))}
       </div>
     </div>
   );
@@ -180,5 +272,25 @@ function toggle(editor: Editor, mark: (typeof MARKS)[number]["mark"]): void {
   if (mark === "bold") chain.toggleBold().run();
   else if (mark === "italic") chain.toggleItalic().run();
   else if (mark === "subscript") chain.toggleSubscript().run();
-  else chain.toggleSuperscript().run();
+  else if (mark === "superscript") chain.toggleSuperscript().run();
+  else chain.toggleCode().run();
+}
+
+/**
+ * Inserts a 3×3 table with a header row at the caret. A table that would end
+ * the document gets an empty paragraph after it, the only place to continue
+ * typing below it.
+ */
+function insertTable(editor: Editor): void {
+  editor
+    .chain()
+    .focus()
+    .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+    .command(({ tr, state }) => {
+      if (tr.doc.lastChild?.type.name === "table") {
+        tr.insert(tr.doc.content.size, state.schema.nodes.paragraph.create());
+      }
+      return true;
+    })
+    .run();
 }

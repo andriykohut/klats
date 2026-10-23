@@ -59,6 +59,37 @@ func para(runs ...rich.Node) json.RawMessage {
 	return b
 }
 
+// doc returns a document of the blocks.
+func doc(blocks ...rich.Node) json.RawMessage {
+	b, err := json.Marshal(rich.Doc{Type: "doc", Content: blocks})
+	if err != nil {
+		panic(err) // rich.Doc always marshals
+	}
+	return b
+}
+
+// table returns a table of rows of cells; the first row is the header.
+func table(rows ...[]string) rich.Node {
+	t := rich.Node{Type: "table"}
+	for i, row := range rows {
+		tr := rich.Node{Type: "tableRow"}
+		for _, cell := range row {
+			kind := "tableCell"
+			if i == 0 {
+				kind = "tableHeader"
+			}
+			tr.Content = append(tr.Content, rich.Node{Type: kind, Content: []rich.Node{{Type: "paragraph", Content: []rich.Node{plain(cell)}}}})
+		}
+		t.Content = append(t.Content, tr)
+	}
+	return t
+}
+
+// codeBlock returns a block of source text.
+func codeBlock(src string) rich.Node {
+	return rich.Node{Type: "codeBlock", Content: []rich.Node{plain(src)}}
+}
+
 // choice returns a question worth points. The options at the indexes in
 // correct are the right ones, and more than one makes it a multiple-choice
 // question with partial credit.
@@ -73,8 +104,8 @@ func choice(id string, points int, text json.RawMessage, correct []int, options 
 	return q
 }
 
-// sampleTest is six questions, single and multiple choice, with bold, sub- and
-// superscript text.
+// sampleTest is seven questions, single and multiple choice, with bold, sub-
+// and superscript text, and a table and a code block in the last.
 func sampleTest(id string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
@@ -89,10 +120,15 @@ func sampleTest(id string) testfmt.Test {
 			para(plain("2")), para(plain("7")), para(plain("9")), para(plain("13")), para(plain("15"))),
 		choice("q6", 1, para(plain("Яка площа квадрата зі стороною 3 см?")), []int{1},
 			para(plain("6 см"), sup("2")), para(plain("9 см"), sup("2")), para(plain("12 см"), sup("2"))),
+		choice("q7", 1, doc(
+			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Скористайтеся таблицею. Що виведе програма?")}},
+			table([]string{"Рік", "Подія"}, []string{"1991", "Незалежність"}, []string{"1996", "Конституція"}),
+			codeBlock("year = 1991\nprint(year + 5)")), []int{1},
+			para(plain("1991")), para(plain("1996")), para(plain("2001"))),
 	}}
 }
 
-// Seed starts a sitting of the six-question sample test for class 7-Б, of 25
+// Seed starts a sitting of the seven-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
 // earlier run in the same data folder did. If a sitting already runs, demo or
 // not, it stores and starts nothing and returns that sitting.

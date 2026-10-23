@@ -1,16 +1,30 @@
 import { Fragment, type ReactNode } from "react";
+import "./rich.css";
 
-/** A text style. Known types: bold, italic, subscript, superscript. */
+/** A text style. Known types: bold, italic, subscript, superscript, code. */
 export interface RichMark {
   type: string;
 }
 
+/** The attributes a node can carry; each node type uses a fixed subset. */
+export interface RichAttrs {
+  src?: string;
+  w?: number;
+  h?: number;
+  latex?: string;
+  id?: string;
+  colspan?: number;
+  rowspan?: number;
+}
+
 /**
  * A node of a rich-text document. Known types: paragraph, text, hardBreak,
- * bulletList, orderedList, listItem. Only text nodes carry text and marks.
+ * bulletList, orderedList, listItem, codeBlock, table, tableRow, tableHeader,
+ * tableCell. Only text nodes carry text and marks.
  */
 export interface RichNode {
   type: string;
+  attrs?: RichAttrs;
   text?: string;
   marks?: RichMark[];
   content?: RichNode[];
@@ -50,6 +64,42 @@ function renderNode(node: RichNode, key: number): ReactNode {
       return <ol key={key}>{children}</ol>;
     case "listItem":
       return <li key={key}>{children}</li>;
+    case "codeBlock":
+      return (
+        <pre key={key} className="k-pre">
+          <code>{children}</code>
+        </pre>
+      );
+    case "table":
+      return (
+        <div key={key} className="k-table">
+          <table>
+            <tbody>{children}</tbody>
+          </table>
+        </div>
+      );
+    case "tableRow":
+      return <tr key={key}>{children}</tr>;
+    case "tableHeader":
+      return (
+        <th
+          key={key}
+          colSpan={node.attrs?.colspan}
+          rowSpan={node.attrs?.rowspan}
+        >
+          {children}
+        </th>
+      );
+    case "tableCell":
+      return (
+        <td
+          key={key}
+          colSpan={node.attrs?.colspan}
+          rowSpan={node.attrs?.rowspan}
+        >
+          {children}
+        </td>
+      );
     default:
       return <Fragment key={key}>{children ?? node.text}</Fragment>;
   }
@@ -65,6 +115,8 @@ function applyMark(inner: ReactNode, mark: RichMark): ReactNode {
       return <sub>{inner}</sub>;
     case "superscript":
       return <sup>{inner}</sup>;
+    case "code":
+      return <code className="k-code">{inner}</code>;
     default:
       return inner;
   }

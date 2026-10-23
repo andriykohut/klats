@@ -1,0 +1,58 @@
+/* Code and tables as RichView renders them, inside whatever text size the host sets. */
+.k-table {
+  max-width: 100%;
+  margin: 0.5em 0;
+  /* A wide table scrolls inside the sheet instead of widening it. */
+  overflow-x: auto;
+}
+
+.k-table table {
+  border-collapse: collapse;
+  font-size: 0.8em;
+}
+
+.k-table :is(th, td) {
+  padding: 0.3em 0.7em;
+  border: 1.5px solid var(--k-tile-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.k-table th {
+  background: var(--k-soft);
+}
+
+.k-table p {
+  margin: 0;
+}
+
+.k-code,
+.k-pre {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+
+.k-code {
+  padding: 0.05em 0.3em;
+  border-radius: 0.25em;
+  background: var(--k-soft);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.k-pre {
+  max-width: 100%;
+  margin: 0.5em 0;
+  padding: 0.5em 0.8em;
+  overflow-x: auto;
+  border-radius: 0.4em;
+  background: var(--k-soft);
+  font-size: 0.8em;
+  line-height: 1.4;
+  white-space: pre;
+}
+
+.k-pre code {
+  padding: 0;
+  background: none;
+  font-size: inherit;
+}

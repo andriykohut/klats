@@ -63,6 +63,54 @@ test("toStored keeps only the keys the server allows", () => {
   });
 });
 
+test("toStored keeps table spans and drops widths", () => {
+  const cell = (type: string, attrs: Record<string, unknown>) => ({
+    type,
+    attrs,
+    content: [{ type: "paragraph", attrs: { textAlign: "left" } }],
+  });
+  const editor = {
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              cell("tableHeader", { colspan: 2, rowspan: 1, colwidth: [120] }),
+              cell("tableCell", { colspan: 1, rowspan: 1, colwidth: null }),
+            ],
+          },
+        ],
+      },
+      { type: "codeBlock", attrs: { language: null } },
+    ],
+  };
+  expect(toStored(editor)).toEqual({
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              {
+                type: "tableHeader",
+                attrs: { colspan: 2 },
+                content: [{ type: "paragraph" }],
+              },
+              { type: "tableCell", content: [{ type: "paragraph" }] },
+            ],
+          },
+        ],
+      },
+      { type: "codeBlock" },
+    ],
+  });
+});
+
 test("textDoc wraps plain text in one paragraph", () => {
   expect(textDoc("8")).toEqual({
     type: "doc",
