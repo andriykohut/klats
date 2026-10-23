@@ -108,6 +108,7 @@
   "action_save": "Save",
   "action_undo": "Undo",
   "load_failed": "Could not load the data.",
+  "test_too_new": "This test was made by a newer version of Klats. Update the program.",
   "auth_open_from_app": "Open Klats from the desktop app.",
   "nav_label": "Sections",
   "nav_tests": "My tests",

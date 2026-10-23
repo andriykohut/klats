@@ -195,3 +195,21 @@ func TestMarshalOfParsedDocRoundTrips(t *testing.T) {
 		t.Fatalf("marshal not stable: %s vs %s", out, out2)
 	}
 }
+
+func TestParseDropsEmptyTextNodes(t *testing.T) {
+	raw := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":""},{"type":"text","text":"a"}]},` +
+		`{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"","marks":[{"type":"bold"}]}]}]}]}]}`
+	doc, err := Parse([]byte(raw), Block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"a"}]},` +
+		`{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph"}]}]}]}`
+	if string(out) != want {
+		t.Fatalf("canonical form\n%s\nwant\n%s", out, want)
+	}
+}

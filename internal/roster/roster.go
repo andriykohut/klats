@@ -18,12 +18,15 @@ import (
 var (
 	apostrophes = strings.NewReplacer("'", "’", "ʼ", "’", "`", "’", "‘", "’", "′", "’")
 	rowNumber   = regexp.MustCompile(`^(\d+\.?|№)$`)
+	numbered    = regexp.MustCompile(`^\d+[.)]\s*`)
 )
 
 // ParsePaste returns the normalised student names found in pasted text, one per
 // line. Tab-separated cells are joined with a space after dropping a leading
-// row number (digits, optionally with a dot, or «№»). Blank lines and header
-// lines whose first cell is «№» or «ПІБ» are skipped.
+// row number (digits, optionally with a dot, or «№»), and numbering at the
+// start of the name («1. », «1) », «1.») is dropped too. Blank lines and
+// header lines whose first cell starts with «№» (as «№ з/п») or is «ПІБ» are
+// skipped.
 func ParsePaste(text string) []string {
 	var names []string
 	for line := range strings.Lines(text) {
@@ -33,13 +36,13 @@ func ParsePaste(text string) []string {
 				cells = append(cells, c)
 			}
 		}
-		if len(cells) == 0 || cells[0] == "№" || cells[0] == "ПІБ" {
+		if len(cells) == 0 || strings.HasPrefix(cells[0], "№") || cells[0] == "ПІБ" {
 			continue
 		}
 		if rowNumber.MatchString(cells[0]) {
 			cells = cells[1:]
 		}
-		if name := Normalize(strings.Join(cells, " ")); name != "" {
+		if name := Normalize(numbered.ReplaceAllString(strings.Join(cells, " "), "")); name != "" {
 			names = append(names, name)
 		}
 	}

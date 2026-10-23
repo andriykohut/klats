@@ -312,6 +312,24 @@ func TestPutTestReturnsProblems(t *testing.T) {
 	}
 }
 
+func TestTestOfNewerVersion(t *testing.T) {
+	v := setup(t, false)
+	id := v.saveTest(t, goodTest(""))
+	newer := goodTest(id)
+	newer.Version = 2
+	wantError(t, v.do("PUT", "/api/tests/"+id, newer), 422, "test_too_new")
+
+	// One stored by a newer program, as an import might bring.
+	doc, err := json.Marshal(newer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.st.Q().UpdateTest(context.Background(), db.UpdateTestParams{ID: id, Title: newer.Title, Doc: string(doc), UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	wantError(t, v.do("GET", "/api/tests/"+id, nil), 422, "test_too_new")
+}
+
 func TestStartBlockedByProblems(t *testing.T) {
 	v := setup(t, false)
 	bad := goodTest("")

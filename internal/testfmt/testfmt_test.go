@@ -1,7 +1,9 @@
 package testfmt
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -124,6 +126,13 @@ func TestHasBlockingOnlyForErrors(t *testing.T) {
 func TestDecodeRejectsUnknownPalette(t *testing.T) {
 	if _, err := Decode(testJSON("pink", "single", 1, false, "Q", opt{"a", true}, opt{"b", false})); err == nil {
 		t.Fatal("want error")
+	}
+}
+
+func TestDecodeRejectsNewerVersion(t *testing.T) {
+	raw := bytes.Replace(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}), []byte(`"version":1`), []byte(`"version":2`), 1)
+	if _, err := Decode(raw); !errors.Is(err, ErrTooNew) {
+		t.Fatalf("err = %v, want ErrTooNew", err)
 	}
 }
 

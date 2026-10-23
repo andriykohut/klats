@@ -70,7 +70,8 @@ var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": tr
 // The key check keeps Go and JavaScript reading the same bytes the same way:
 // encoding/json would otherwise match keys case-insensitively and let the last
 // duplicate win. Callers persist json.Marshal of the returned Doc, which is
-// canonical, rather than raw.
+// canonical, rather than raw. The returned Doc leaves out empty text nodes,
+// at every level.
 func Parse(raw []byte, mode Mode) (Doc, error) {
 	keys := json.NewDecoder(bytes.NewReader(raw))
 	if err := checkKeys(keys); err != nil {
@@ -92,7 +93,23 @@ func Parse(raw []byte, mode Mode) (Doc, error) {
 	if err := checkNodes(doc.Content, mode, 1, &runes); err != nil {
 		return Doc{}, fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
+	doc.Content = withoutEmptyText(doc.Content)
 	return doc, nil
+}
+
+// withoutEmptyText returns nodes without their empty text nodes, at every
+// level, reusing the slices. ProseMirror forbids empty text nodes, and TipTap
+// warns when it loads one.
+func withoutEmptyText(nodes []Node) []Node {
+	out := nodes[:0]
+	for _, n := range nodes {
+		if n.Type == "text" && n.Text == "" {
+			continue
+		}
+		n.Content = withoutEmptyText(n.Content)
+		out = append(out, n)
+	}
+	return out
 }
 
 // checkKeys consumes one JSON value from dec, failing on any object key that is

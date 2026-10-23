@@ -13,6 +13,7 @@ import {
   RadioGroup,
   TextField,
 } from "react-aria-components";
+import { ApiError } from "../../api/client";
 import { UNDO_MS, useSaveTest, useTest } from "../../api/queries";
 import { cooldown } from "../../cooldown";
 import { Icon } from "../../ui/icons";
@@ -77,12 +78,17 @@ export function BuilderPage() {
   const { id } = useParams({ from: "/tests/$id" });
   const doc = useTest(id);
   if (doc.isError) {
+    const tooNew =
+      doc.error instanceof ApiError && doc.error.code === "test_too_new";
     return (
       <div className="b-app">
         <header className="b-bar">
           <BackLink />
         </header>
-        <LoadError onRetry={() => doc.refetch()} />
+        <LoadError
+          onRetry={() => doc.refetch()}
+          text={tooNew ? m.test_too_new() : undefined}
+        />
       </div>
     );
   }

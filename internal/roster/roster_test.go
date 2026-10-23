@@ -21,6 +21,20 @@ func TestParsePasteSkipsHeaderPIB(t *testing.T) {
 	}
 }
 
+func TestParsePasteNumberedLists(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"1. Іванов Петро", "Іванов Петро"},
+		{"12) Іванов Петро", "Іванов Петро"},
+		{"1.Іванов Петро", "Іванов Петро"},
+		{"1)\tІванов\tПетро", "Іванов Петро"},
+		{"№ з/п\tПрізвище, ім’я\n1\tІванов Петро", "Іванов Петро"},
+	} {
+		if got := ParsePaste(c.in); !slices.Equal(got, []string{c.want}) {
+			t.Errorf("ParsePaste(%q) = %q, want [%q]", c.in, got, c.want)
+		}
+	}
+}
+
 func TestParsePastePlainLines(t *testing.T) {
 	got := ParsePaste("Мороз Назар\n\n  Бойко Андрій ")
 	want := []string{"Мороз Назар", "Бойко Андрій"}

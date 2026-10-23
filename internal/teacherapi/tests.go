@@ -3,6 +3,7 @@ package teacherapi
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -103,6 +104,10 @@ func (a *api) putTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, err := testfmt.Decode(raw)
+	if errors.Is(err, testfmt.ErrTooNew) {
+		fail(w, r, err)
+		return
+	}
 	if err != nil {
 		httpx.Error(w, http.StatusBadRequest, "invalid")
 		return

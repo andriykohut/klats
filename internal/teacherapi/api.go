@@ -20,6 +20,7 @@ import (
 	"klats/internal/lan"
 	"klats/internal/sitting"
 	"klats/internal/store"
+	"klats/internal/testfmt"
 )
 
 const (
@@ -152,6 +153,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusBadRequest, "invalid")
 	case errors.Is(err, sitting.ErrNotFound), errors.Is(err, sql.ErrNoRows):
 		httpx.Error(w, http.StatusNotFound, "not_found")
+	case errors.Is(err, testfmt.ErrTooNew):
+		httpx.Error(w, http.StatusUnprocessableEntity, "test_too_new")
 	default:
 		slog.Error("teacherapi: request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		httpx.Error(w, http.StatusInternalServerError, "internal")

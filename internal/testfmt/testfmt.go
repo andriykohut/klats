@@ -5,6 +5,7 @@ package testfmt
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -44,15 +45,23 @@ const (
 
 var palettes = []string{DefaultPalette, "grape", "coral", "lavender", "classic"}
 
-// Decode parses and validates a test document. An empty palette becomes
-// DefaultPalette. Every rich-text field is replaced by the canonical JSON of
-// its parsed rich.Doc (a missing or null field becomes an empty document), so callers persist the result rather than the input.
-// Content problems such as a missing correct option are not errors here; see
-// Test.Problems.
+// ErrTooNew is returned by [Decode] for a test whose version is above 1, the
+// only format this program reads: a newer program made it.
+var ErrTooNew = errors.New("testfmt: test made by a newer version")
+
+// Decode parses and validates a test document, returning [ErrTooNew] for a
+// version above 1. An empty palette becomes DefaultPalette. Every rich-text
+// field is replaced by the canonical JSON of its parsed rich.Doc (a missing or
+// null field becomes an empty document), so callers persist the result rather
+// than the input. Content problems such as a missing correct option are not
+// errors here; see Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test
 	if err := json.Unmarshal(raw, &t); err != nil {
 		return Test{}, fmt.Errorf("testfmt: %w", err)
+	}
+	if t.Version > 1 {
+		return Test{}, fmt.Errorf("%w: version %d", ErrTooNew, t.Version)
 	}
 	if t.Palette == "" {
 		t.Palette = DefaultPalette
