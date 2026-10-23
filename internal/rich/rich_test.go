@@ -395,6 +395,20 @@ func TestMediaKind(t *testing.T) {
 	}
 }
 
+func TestParseRejectsEmptyAttrsOnPlainNodes(t *testing.T) {
+	for name, raw := range map[string]string{
+		"paragraph":      `{"type":"doc","content":[{"type":"paragraph","attrs":{}}]}`,
+		"paragraph zero": `{"type":"doc","content":[{"type":"paragraph","attrs":{"colspan":0}}]}`,
+		"text":           para(`{"type":"text","text":"x","attrs":{"src":null}}`),
+		"listItem":       `{"type":"doc","content":[{"type":"bulletList","attrs":{},"content":[{"type":"listItem","attrs":{}}]}]}`,
+		"hardBreak":      para(`{"type":"hardBreak","attrs":{}}`),
+		"codeBlock":      doc(`{"type":"codeBlock","attrs":{}}`),
+		"table":          doc(`{"type":"table","attrs":{}}`),
+	} {
+		t.Run(name, func(t *testing.T) { rejects(t, raw, Block) })
+	}
+}
+
 func TestParseRoundTripsAttrs(t *testing.T) {
 	raw := doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":8,"h":6}},` +
 		`{"type":"paragraph","content":[{"type":"math","attrs":{"latex":"x"}}]}`)

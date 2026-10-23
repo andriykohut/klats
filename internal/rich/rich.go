@@ -321,6 +321,8 @@ func (c *checker) checkAttrs(n Node) error {
 			return fmt.Errorf("colspan and rowspan must be 1 to %d", maxSpan)
 		}
 		a.Colspan, a.Rowspan = 0, 0
+	default:
+		return fmt.Errorf("%s node takes no attrs", n.Type)
 	}
 	if a != (Attrs{}) {
 		return fmt.Errorf("%s node has attrs it does not take", n.Type)
