@@ -32,7 +32,7 @@ type delivery struct {
 	a        *active
 	p        *participant
 	question string
-	options  []string
+	answer   testfmt.Answer
 }
 
 // Submit stores the device's answer changes and returns their acks with the
@@ -99,10 +99,10 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 		if err != nil {
 			return nil, err
 		}
-		var options []string
+		var answer testfmt.Answer
 		ok := p != nil
 		if ok {
-			options, ok = checkChange(a.test, c)
+			answer, ok = checkChange(a.test, c)
 		}
 		if !ok {
 			*rejected++
@@ -118,7 +118,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 		if seen {
 			continue
 		}
-		b, err := json.Marshal(options)
+		b, err := json.Marshal(answer)
 		if err != nil {
 			return nil, err
 		}
@@ -127,14 +127,14 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 			late = 1
 		}
 		n, err := q.UpsertAnswer(ctx, db.UpsertAnswerParams{
-			ParticipantID: p.id, QuestionID: c.QuestionID, OptionIds: string(b), Seq: c.Seq,
+			ParticipantID: p.id, QuestionID: c.QuestionID, Value: string(b), Seq: c.Seq,
 			ChangeID: c.ChangeID, ReceivedAt: e.now().UnixMilli(), Late: late,
 		})
 		if err != nil {
 			return nil, err
 		}
 		if n > 0 {
-			stored = append(stored, delivery{a, p, c.QuestionID, options})
+			stored = append(stored, delivery{a, p, c.QuestionID, answer})
 		}
 	}
 
@@ -166,7 +166,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 	}
 	return func() {
 		for _, d := range stored {
-			d.p.answers[d.question] = d.options
+			d.p.answers[d.question] = d.answer
 			d.p.late[d.question] = d.a.sitting.EndedAt.Valid
 			if d.p.offline {
 				d.p.synced++
@@ -210,25 +210,26 @@ func (e *Engine) writer(q *db.Queries, loaded map[string]*active, device, partic
 	return a, p, nil
 }
 
-// checkChange returns the change's option ids with repeats dropped, and
+// checkChange returns the change's answer cleaned for the question, and
 // whether the change is well formed for the test: a change id of 1 to 64
-// bytes, a seq of at least 1, and a question of the test with at most 20
-// option ids, all of that question.
-func checkChange(t testfmt.Test, c wire.AnswerChange) ([]string, bool) {
+// bytes, a seq of at least 1, and a question of the test. A choice question
+// keeps only the answer's items, which must be at most 20 option ids of the
+// question, repeats dropped; its other fields are discarded.
+func checkChange(t testfmt.Test, c wire.AnswerChange) (testfmt.Answer, bool) {
 	i := slices.IndexFunc(t.Questions, func(q testfmt.Question) bool { return q.ID == c.QuestionID })
-	if c.ChangeID == "" || len(c.ChangeID) > maxChangeID || c.Seq < 1 || i < 0 || len(c.OptionIDs) > maxPicks {
-		return nil, false
+	if c.ChangeID == "" || len(c.ChangeID) > maxChangeID || c.Seq < 1 || i < 0 || len(c.Answer.Items) > maxPicks {
+		return testfmt.Answer{}, false
 	}
-	options := []string{}
-	for _, id := range c.OptionIDs {
+	var items []string
+	for _, id := range c.Answer.Items {
 		if !slices.ContainsFunc(t.Questions[i].Options, func(o testfmt.Option) bool { return o.ID == id }) {
-			return nil, false
+			return testfmt.Answer{}, false
 		}
-		if !slices.Contains(options, id) {
-			options = append(options, id)
+		if !slices.Contains(items, id) {
+			items = append(items, id)
 		}
 	}
-	return options, true
+	return testfmt.Answer{Items: items}, true
 }
 
 // touch records a request from the device: the participant it writes as in

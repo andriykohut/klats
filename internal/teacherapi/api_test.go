@@ -944,7 +944,7 @@ func TestExportedFlag(t *testing.T) {
 		}
 		answer := func(seq int64, option string) {
 			t.Helper()
-			ch := wire.AnswerChange{ChangeID: fmt.Sprintf("c%d", seq), ParticipantID: p.ID, QuestionID: "q1", OptionIDs: []string{option}, Seq: seq}
+			ch := wire.AnswerChange{ChangeID: fmt.Sprintf("c%d", seq), ParticipantID: p.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{option}}, Seq: seq}
 			if _, err := v.e.Submit("dev1", []wire.AnswerChange{ch}, 0); err != nil {
 				t.Fatal(err)
 			}

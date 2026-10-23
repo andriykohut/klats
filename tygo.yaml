@@ -3,7 +3,9 @@ packages:
     output_path: "web/shared/src/generated/testfmt.ts"
   - path: "klats/internal/wire"
     output_path: "web/shared/src/generated/wire.ts"
-    frontmatter: "import type { Problem, Test } from './testfmt';"
+    frontmatter: "import type { Answer, Point, Problem, Test } from './testfmt';"
     type_mappings:
       testfmt.Test: "Test"
       testfmt.Problem: "Problem"
+      testfmt.Answer: "Answer"
+      testfmt.Point: "Point"

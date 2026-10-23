@@ -92,10 +92,10 @@ SELECT EXISTS (SELECT 1 FROM answers WHERE change_id = ?);
 -- UpsertAnswer stores the answer unless one with an equal or higher seq is
 -- stored; it then affects no row.
 -- name: UpsertAnswer :execrows
-INSERT INTO answers (participant_id, question_id, option_ids, seq, change_id, received_at, late)
+INSERT INTO answers (participant_id, question_id, value, seq, change_id, received_at, late)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (participant_id, question_id) DO UPDATE SET
-    option_ids = excluded.option_ids, seq = excluded.seq, change_id = excluded.change_id,
+    value = excluded.value, seq = excluded.seq, change_id = excluded.change_id,
     received_at = excluded.received_at, late = excluded.late
 WHERE excluded.seq > answers.seq;
 

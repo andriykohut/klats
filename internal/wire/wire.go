@@ -3,7 +3,11 @@
 // field carries a camelCase tag. Times are unix milliseconds.
 package wire
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"klats/internal/testfmt"
+)
 
 // SittingInfo describes a sitting to the teacher. ClassName is empty when the
 // sitting has no class list. Ended is set once the teacher ended it.
@@ -89,9 +93,9 @@ type StudentTest struct {
 // StoredAnswer is an answer the server holds for a participant. Seq is the
 // highest sequence number stored for the question.
 type StoredAnswer struct {
-	QuestionID string   `json:"questionId"`
-	OptionIDs  []string `json:"optionIds"`
-	Seq        int64    `json:"seq"`
+	QuestionID string         `json:"questionId"`
+	Answer     testfmt.Answer `json:"answer"`
+	Seq        int64          `json:"seq"`
 }
 
 // TestResponse is what a student device loads to start or resume writing: the
@@ -149,11 +153,11 @@ type HeartbeatRequest struct {
 // highest Seq wins. It carries no client time: ordering and late flags use
 // only Seq and the server clock.
 type AnswerChange struct {
-	ChangeID      string   `json:"changeId"`
-	ParticipantID string   `json:"participantId"`
-	QuestionID    string   `json:"questionId"`
-	OptionIDs     []string `json:"optionIds"`
-	Seq           int64    `json:"seq"`
+	ChangeID      string         `json:"changeId"`
+	ParticipantID string         `json:"participantId"`
+	QuestionID    string         `json:"questionId"`
+	Answer        testfmt.Answer `json:"answer"`
+	Seq           int64          `json:"seq"`
 }
 
 // SubmitResult answers a batch of changes. Acks lists every change id the
@@ -270,20 +274,20 @@ type ResultOption struct {
 // ids of the overridden questions. Writing is set while the participant is
 // still writing in the running sitting, and DurationSec is 0 until they
 // finish. SittingDate is when the participant's sitting started.
-// Answers maps question id to the selected option ids, for answered questions;
+// Answers maps question id to the answer, for answered questions;
 // Late lists the questions whose answer arrived after the sitting ended.
 type ResultRow struct {
-	ParticipantID string              `json:"participantId"`
-	Name          string              `json:"name"`
-	ClassName     string              `json:"className"`
-	Points        []float64           `json:"points"`
-	Earned        float64             `json:"earned"`
-	Max           float64             `json:"max"`
-	Grade         int                 `json:"grade"`
-	Writing       bool                `json:"writing"`
-	DurationSec   int                 `json:"durationSec"`
-	SittingDate   int64               `json:"sittingDate"`
-	Answers       map[string][]string `json:"answers"`
-	Overridden    []string            `json:"overridden"`
-	Late          []string            `json:"late"`
+	ParticipantID string                    `json:"participantId"`
+	Name          string                    `json:"name"`
+	ClassName     string                    `json:"className"`
+	Points        []float64                 `json:"points"`
+	Earned        float64                   `json:"earned"`
+	Max           float64                   `json:"max"`
+	Grade         int                       `json:"grade"`
+	Writing       bool                      `json:"writing"`
+	DurationSec   int                       `json:"durationSec"`
+	SittingDate   int64                     `json:"sittingDate"`
+	Answers       map[string]testfmt.Answer `json:"answers"`
+	Overridden    []string                  `json:"overridden"`
+	Late          []string                  `json:"late"`
 }

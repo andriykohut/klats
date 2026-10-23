@@ -186,7 +186,7 @@ func TestJoinPickTestFlow(t *testing.T) {
 		t.Errorf("test = %+v", res)
 	}
 
-	ch := wire.AnswerChange{ChangeID: "c1", ParticipantID: p.ID, QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1}
+	ch := wire.AnswerChange{ChangeID: "c1", ParticipantID: p.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o0"}}, Seq: 1}
 	w = v.do("POST", "/api/answers", devA, wire.SubmitRequest{Changes: []wire.AnswerChange{ch}})
 	wantStatus(t, w, 200)
 	if sr := decodeBody[wire.SubmitResult](t, w); len(sr.Acks) != 1 || sr.Acks[0] != "c1" || sr.Rejected != 0 {
@@ -194,7 +194,7 @@ func TestJoinPickTestFlow(t *testing.T) {
 	}
 
 	res = decodeBody[wire.TestResponse](t, v.do("GET", "/api/test", devA, nil))
-	if len(res.Answers) != 1 || res.Answers[0].QuestionID != "q1" || res.Answers[0].Seq != 1 || res.Answers[0].OptionIDs[0] != "o0" {
+	if len(res.Answers) != 1 || res.Answers[0].QuestionID != "q1" || res.Answers[0].Seq != 1 || res.Answers[0].Answer.Items[0] != "o0" {
 		t.Errorf("stored answers = %+v", res.Answers)
 	}
 
@@ -382,12 +382,12 @@ func TestTestResponseIsOwnAnswersOnly(t *testing.T) {
 	submit := func(device string, c wire.AnswerChange) {
 		wantStatus(t, v.do("POST", "/api/answers", device, wire.SubmitRequest{Changes: []wire.AnswerChange{c}}), 200)
 	}
-	submit(devA, wire.AnswerChange{ChangeID: "a1", ParticipantID: a.ID, QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1})
-	submit(devB, wire.AnswerChange{ChangeID: "b1", ParticipantID: b.ID, QuestionID: "q1", OptionIDs: []string{"o1"}, Seq: 1})
-	submit(devB, wire.AnswerChange{ChangeID: "b2", ParticipantID: b.ID, QuestionID: "q2", OptionIDs: []string{"o0", "o1"}, Seq: 1})
+	submit(devA, wire.AnswerChange{ChangeID: "a1", ParticipantID: a.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o0"}}, Seq: 1})
+	submit(devB, wire.AnswerChange{ChangeID: "b1", ParticipantID: b.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o1"}}, Seq: 1})
+	submit(devB, wire.AnswerChange{ChangeID: "b2", ParticipantID: b.ID, QuestionID: "q2", Answer: testfmt.Answer{Items: []string{"o0", "o1"}}, Seq: 1})
 
 	res := decodeBody[wire.TestResponse](t, v.do("GET", "/api/test", devA, nil))
-	want := []wire.StoredAnswer{{QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1}}
+	want := []wire.StoredAnswer{{QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o0"}}, Seq: 1}}
 	if !reflect.DeepEqual(res.Answers, want) {
 		t.Errorf("A's answers = %+v, want %+v", res.Answers, want)
 	}

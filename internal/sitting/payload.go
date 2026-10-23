@@ -55,11 +55,11 @@ func (e *Engine) Resume(device string) (wire.TestResponse, error) {
 	}
 	res.Answers = make([]wire.StoredAnswer, 0, len(rows))
 	for _, r := range rows {
-		var options []string
-		if err := json.Unmarshal([]byte(r.OptionIds), &options); err != nil {
+		var value testfmt.Answer
+		if err := json.Unmarshal([]byte(r.Value), &value); err != nil {
 			return wire.TestResponse{}, err
 		}
-		res.Answers = append(res.Answers, wire.StoredAnswer{QuestionID: r.QuestionID, OptionIDs: options, Seq: r.Seq})
+		res.Answers = append(res.Answers, wire.StoredAnswer{QuestionID: r.QuestionID, Answer: value, Seq: r.Seq})
 	}
 	return res, nil
 }

@@ -87,7 +87,7 @@ test("answers queued offline before the end land when the computer comes back du
       async () => {
         const { rows } = await klats.results(assignmentId);
         const row = rows.find((r) => r.name === name);
-        return { q3: row?.answers[q3.id], late: row?.late };
+        return { q3: row?.answers[q3.id]?.items, late: row?.late };
       },
       { timeout: 15_000 },
     )

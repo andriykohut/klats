@@ -27,37 +27,37 @@ func near(t *testing.T, got, want float64) {
 }
 
 func TestScoreMultiPartialTickAll(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), []string{"a", "b", "c", "d"}), 2.0/3)
+	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"a", "b", "c", "d"}}), 2.0/3)
 }
 
 func TestScoreMultiPartialOneWrong(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), []string{"a", "b", "d"}), 1.0/3)
+	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"a", "b", "d"}}), 1.0/3)
 }
 
 func TestScoreMultiPartialFloorsAtZero(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), []string{"d"}), 0)
+	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"d"}}), 0)
 }
 
 func TestScoreMultiAllOrNothing(t *testing.T) {
 	m := q("multi", false, "a", "b")
-	near(t, Score(m, []string{"b", "a"}), 1)
-	near(t, Score(m, []string{"a"}), 0)
-	near(t, Score(m, []string{"a", "b", "c"}), 0)
+	near(t, Score(m, testfmt.Answer{Items: []string{"b", "a"}}), 1)
+	near(t, Score(m, testfmt.Answer{Items: []string{"a"}}), 0)
+	near(t, Score(m, testfmt.Answer{Items: []string{"a", "b", "c"}}), 0)
 }
 
 func TestScoreSingle(t *testing.T) {
 	s := q("single", false, "a")
-	near(t, Score(s, []string{"a"}), 1)
-	near(t, Score(s, []string{"b"}), 0)
-	near(t, Score(s, []string{"a", "b"}), 0)
-	near(t, Score(s, nil), 0)
+	near(t, Score(s, testfmt.Answer{Items: []string{"a"}}), 1)
+	near(t, Score(s, testfmt.Answer{Items: []string{"b"}}), 0)
+	near(t, Score(s, testfmt.Answer{Items: []string{"a", "b"}}), 0)
+	near(t, Score(s, testfmt.Answer{}), 0)
 }
 
 func TestScoreIgnoresUnknownAndDuplicateIDs(t *testing.T) {
-	near(t, Score(q("single", false, "a"), []string{"a", "zzz"}), 1)
-	near(t, Score(q("single", false, "a"), []string{"a", "a"}), 1)
-	near(t, Score(q("multi", false, "a", "b"), []string{"a", "a"}), 0)
-	near(t, Score(q("multi", true, "a", "b"), []string{"a", "a"}), 0.5)
+	near(t, Score(q("single", false, "a"), testfmt.Answer{Items: []string{"a", "zzz"}}), 1)
+	near(t, Score(q("single", false, "a"), testfmt.Answer{Items: []string{"a", "a"}}), 1)
+	near(t, Score(q("multi", false, "a", "b"), testfmt.Answer{Items: []string{"a", "a"}}), 0)
+	near(t, Score(q("multi", true, "a", "b"), testfmt.Answer{Items: []string{"a", "a"}}), 0.5)
 }
 
 func TestTotalOverrideReplacesScore(t *testing.T) {
@@ -66,7 +66,7 @@ func TestTotalOverrideReplacesScore(t *testing.T) {
 	q2.Points, q3.Points = 2, 2
 	test := testfmt.Test{Questions: []testfmt.Question{q1, q2, q3}}
 
-	r := Total(test, map[string][]string{"q1": {"a"}, "q2": {"b"}}, map[string]float64{"q2": 0.5, "q3": 2})
+	r := Total(test, map[string]testfmt.Answer{"q1": {Items: []string{"a"}}, "q2": {Items: []string{"b"}}}, map[string]float64{"q2": 0.5, "q3": 2})
 
 	near(t, r.Earned, 3.5)
 	near(t, r.Max, 5)

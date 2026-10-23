@@ -1,3 +1,4 @@
+import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type {
   FinishResult,
   JoinInfo,
@@ -54,7 +55,7 @@ interface State {
   /** The question on screen, from 0. */
   index: number;
   /** The picked option ids per question id, as the queue holds them. */
-  answers: Record<string, string[]>;
+  answers: Record<string, Answer>;
   net: { state: ConnectionState; pending: number };
   saveFailed: boolean;
   result: FinishResult | null;
@@ -248,7 +249,7 @@ async function resume(name?: string): Promise<void> {
     name: saved?.name ?? "",
     index: Math.min(saved?.index ?? 0, test.questions.length - 1),
     answers: Object.fromEntries(
-      test.questions.map((q) => [q.id, queue.current(q.id) ?? []]),
+      test.questions.map((q) => [q.id, queue.current(q.id) ?? {}]),
     ),
     saveFailed: queue.saveFailed,
     result: null,
@@ -365,12 +366,12 @@ export function picked(p: Participant): Promise<void> {
   return resume(p.name);
 }
 
-export function answer(questionId: string, optionIds: string[]): void {
+export function answer(questionId: string, a: Answer): void {
   if (!session) return;
-  session.queue.set(questionId, optionIds);
+  session.queue.set(questionId, a);
   session.conn.flush();
   update({
-    answers: { ...state.answers, [questionId]: optionIds },
+    answers: { ...state.answers, [questionId]: a },
     saveFailed: session.queue.saveFailed,
   });
   save({ index: state.index });

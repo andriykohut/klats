@@ -1,3 +1,5 @@
+import { isAnswered } from "@klats/shared/answers.ts";
+import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type { StudentTest } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { RichView } from "@klats/shared/rich/RichView.tsx";
@@ -21,7 +23,7 @@ export function Review({
   onFinish,
 }: {
   test: StudentTest;
-  answers: Record<string, string[]>;
+  answers: Record<string, Answer>;
   onGo: (index: number) => void;
   onBack: () => void;
   onFinish: () => void;
@@ -29,7 +31,7 @@ export function Review({
   const reduced = useReducedMotionConfig();
   const total = test.questions.length;
   const open = test.questions.flatMap((q, i) =>
-    answers[q.id]?.length ? [] : [{ q, i }],
+    isAnswered(answers[q.id]) ? [] : [{ q, i }],
   );
   const answered = total - open.length;
 

@@ -78,7 +78,7 @@ func enter(t *testing.T, e *Engine, code, device, surname string) wire.Participa
 
 // change returns p's change of the answer to question, with a fresh change id.
 func change(p wire.Participant, question string, seq int64, options ...string) wire.AnswerChange {
-	return wire.AnswerChange{ChangeID: store.NewID(), ParticipantID: p.ID, QuestionID: question, OptionIDs: options, Seq: seq}
+	return wire.AnswerChange{ChangeID: store.NewID(), ParticipantID: p.ID, QuestionID: question, Answer: testfmt.Answer{Items: options}, Seq: seq}
 }
 
 // submit sends the changes as a device that holds no others.
@@ -163,10 +163,10 @@ func TestSubmitKeepsHighestSeq(t *testing.T) {
 	if len(res.Acks) != 3 || res.Rejected != 0 {
 		t.Errorf("result = %+v, want 3 acks and none rejected", res)
 	}
-	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 3 || a.OptionIds != `["o1"]` {
+	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 3 || a.Value != `{"items":["o1"]}` {
 		t.Errorf("q1 = %+v, want seq 3's options", a)
 	}
-	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Seq != 2 || a.OptionIds != `["o0","o1"]` {
+	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Seq != 2 || a.Value != `{"items":["o0","o1"]}` {
 		t.Errorf("q2 = %+v, want seq 2's options", a)
 	}
 	if res.Status.State != "writing" || res.Status.Result != nil || res.Status.RemainingMs != nil {
@@ -182,12 +182,12 @@ func TestSubmitDuplicateChangeIDAckedOnce(t *testing.T) {
 	c := change(p, "q1", 1, "o0")
 	submit(t, e, devA, c)
 	again := c
-	again.Seq, again.OptionIDs = 2, []string{"o1"}
+	again.Seq, again.Answer = 2, testfmt.Answer{Items: []string{"o1"}}
 	res := submit(t, e, devA, again, again)
 	if !slices.Equal(res.Acks, []string{c.ChangeID, c.ChangeID}) || res.Rejected != 0 {
 		t.Errorf("result = %+v, want both repeats acked", res)
 	}
-	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.OptionIds != `["o0"]` || a.ChangeID != c.ChangeID {
+	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.Value != `{"items":["o0"]}` || a.ChangeID != c.ChangeID {
 		t.Errorf("q1 = %+v, want the first delivery only", a)
 	}
 }
@@ -203,9 +203,9 @@ func TestSubmitRejectsInvalidChanges(t *testing.T) {
 		change(p, "q1", 1, "o5"),                                 // an option of q2
 		change(p, "q1", 0, "o0"),                                 // seq below 1
 		change(p, "q2", 1, slices.Repeat([]string{"o0"}, 21)...), // too many option ids
-		{ParticipantID: p.ID, QuestionID: "q1", OptionIDs: []string{"o0"}, Seq: 1}, // no change id
-		change(wire.Participant{ID: "nobody"}, "q1", 1, "o0"),                      // unknown participant
-		change(other, "q1", 1, "o0"),                                               // another device's participant
+		{ParticipantID: p.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o0"}}, Seq: 1}, // no change id
+		change(wire.Participant{ID: "nobody"}, "q1", 1, "o0"),                                          // unknown participant
+		change(other, "q1", 1, "o0"),                                                                   // another device's participant
 	}
 	res := submit(t, e, devA, bad...)
 	if len(res.Acks) != len(bad) || res.Rejected != len(bad) {
@@ -216,8 +216,8 @@ func TestSubmitRejectsInvalidChanges(t *testing.T) {
 	}
 
 	submit(t, e, devA, change(p, "q2", 1, "o0", "o0", "o1"))
-	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.OptionIds != `["o0","o1"]` {
-		t.Errorf("q2 = %s, want repeats stored once", a.OptionIds)
+	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Value != `{"items":["o0","o1"]}` {
+		t.Errorf("q2 = %s, want repeats stored once", a.Value)
 	}
 	if _, err := e.Submit(devA, make([]wire.AnswerChange, 201), 0); !errors.Is(err, ErrInvalid) {
 		t.Errorf("201 changes: err = %v, want ErrInvalid", err)
@@ -231,7 +231,7 @@ func TestLateFlagUsesServerClock(t *testing.T) {
 	for i := range typ.NumField() {
 		fields = append(fields, typ.Field(i).Name)
 	}
-	if want := []string{"ChangeID", "ParticipantID", "QuestionID", "OptionIDs", "Seq"}; !slices.Equal(fields, want) {
+	if want := []string{"ChangeID", "ParticipantID", "QuestionID", "Answer", "Seq"}; !slices.Equal(fields, want) {
 		t.Fatalf("AnswerChange fields = %v, want %v", fields, want)
 	}
 
@@ -762,7 +762,7 @@ func TestRestartKeepsAnswers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := map[string][]string{"q1": {"o0"}, "q2": {"o0", "o1"}}; len(r.Rows) != 1 || !reflect.DeepEqual(r.Rows[0].Answers, want) {
+	if want := map[string]testfmt.Answer{"q1": {Items: []string{"o0"}}, "q2": {Items: []string{"o0", "o1"}}}; len(r.Rows) != 1 || !reflect.DeepEqual(r.Rows[0].Answers, want) {
 		t.Errorf("results after restart = %+v, want answers %v", r.Rows, want)
 	}
 	if live := liveOf(t, e2); len(live.Rows) != 1 || !slices.Equal(live.Rows[0].Cells, []string{"correct", "wrong"}) {
@@ -771,6 +771,30 @@ func TestRestartKeepsAnswers(t *testing.T) {
 	submit(t, e2, devA, change(p, "q1", 1, "o1"))
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 2 {
 		t.Errorf("q1 = %+v, want the stored seq 2 kept", a)
+	}
+}
+
+func TestSubmitStoresAnswerValue(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+
+	submit(t, e, devA, change(p, "q1", 1, "o1"))
+	res, err := e.Resume(devA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Answers) != 1 || !slices.Equal(res.Answers[0].Answer.Items, []string{"o1"}) {
+		t.Errorf("answers = %+v, want the stored items", res.Answers)
+	}
+
+	text := change(p, "q2", 1)
+	text.Answer = testfmt.Answer{Text: "x"}
+	if res := submit(t, e, devA, text); res.Rejected != 0 {
+		t.Errorf("result = %+v, want the text dropped, not rejected", res)
+	}
+	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Value != `{}` {
+		t.Errorf("q2 = %s, want text dropped", a.Value)
 	}
 }
 
@@ -790,7 +814,7 @@ func TestResumeReturnsStoredAnswers(t *testing.T) {
 	if res.ParticipantID != p.ID || len(res.Test.Questions) != 2 || res.Status.State != "writing" {
 		t.Errorf("Resume = %+v", res)
 	}
-	if len(res.Answers) != 1 || res.Answers[0].QuestionID != "q1" || res.Answers[0].Seq != 3 || !slices.Equal(res.Answers[0].OptionIDs, []string{"o1"}) {
+	if len(res.Answers) != 1 || res.Answers[0].QuestionID != "q1" || res.Answers[0].Seq != 3 || !slices.Equal(res.Answers[0].Answer.Items, []string{"o1"}) {
 		t.Errorf("answers = %+v", res.Answers)
 	}
 

@@ -21,14 +21,16 @@ type Result struct {
 	PerQuestion map[string]float64
 }
 
-// Score returns the points earned for one question given the selected option ids.
+// Score returns the points earned for one question given the answer's items,
+// the selected option ids.
 //
 // Unknown option ids are ignored and duplicates count once. A single question
 // scores full points only for exactly the one correct option. A multi question
 // scores full points only on an exact set match, or, when Partial is set,
 // points * max(0, (c - w) / C) for c correct picks, w wrong picks and C correct
 // options. A question with no correct option scores 0.
-func Score(q testfmt.Question, selected []string) float64 {
+func Score(q testfmt.Question, a testfmt.Answer) float64 {
+	selected := a.Items
 	known := make(map[string]bool, len(q.Options)) // option id -> correct
 	totalCorrect := 0
 	for _, o := range q.Options {
@@ -67,9 +69,9 @@ func Score(q testfmt.Question, selected []string) float64 {
 	}
 }
 
-// Total grades a whole test. answers maps question id to selected option ids;
+// Total grades a whole test. answers maps question id to the student's answer;
 // overrides maps question id to teacher-set points that replace Score.
-func Total(t testfmt.Test, answers map[string][]string, overrides map[string]float64) Result {
+func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[string]float64) Result {
 	r := Result{PerQuestion: make(map[string]float64, len(t.Questions))}
 	for _, q := range t.Questions {
 		pts, ok := overrides[q.ID]

@@ -66,7 +66,7 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 		last := -1
 		for i, question := range a.test.Questions {
 			row.Cells[i] = cellEmpty
-			if len(p.answers[question.ID]) == 0 {
+			if p.answers[question.ID].IsEmpty() {
 				continue
 			}
 			last = i

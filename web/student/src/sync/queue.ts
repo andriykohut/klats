@@ -1,3 +1,4 @@
+import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type {
   AnswerChange,
   StoredAnswer,
@@ -6,43 +7,88 @@ import { readStored } from "./storage";
 
 /** What an {@link AnswerQueue} keeps in storage under its key. */
 interface Saved {
-  v: 1;
+  v: 2;
   /** The seq base of the last restore, which every change must exceed. */
   seqBase: number;
   answers: StoredAnswer[];
   pending: AnswerChange[];
 }
 
-const isAnswer = (value: unknown): value is StoredAnswer => {
-  const a = value as StoredAnswer | null;
+/** An answer as version 1 stored it: a list of option ids. */
+type RowV1 = { questionId: string; optionIds: string[]; seq: number };
+
+/** The shape version 1 saved, converted on load. */
+interface SavedV1 {
+  v: 1;
+  seqBase: number;
+  answers: RowV1[];
+  pending: (RowV1 & { changeId: string; participantId: string })[];
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isStrings = (value: unknown): boolean =>
+  Array.isArray(value) && value.every((s) => typeof s === "string");
+
+const isAnswerValue = (value: unknown): value is Answer =>
+  isObject(value) &&
+  (value.items === undefined || isStrings(value.items)) &&
+  (value.pairs === undefined ||
+    (isObject(value.pairs) &&
+      Object.values(value.pairs).every((s) => typeof s === "string"))) &&
+  (value.text === undefined || typeof value.text === "string") &&
+  (value.point === undefined ||
+    (isObject(value.point) &&
+      typeof value.point.x === "number" &&
+      typeof value.point.y === "number"));
+
+/** Whether `value` is a stored answer of version `v`. */
+const isRow = (value: unknown, v: 1 | 2): boolean => {
+  const r = value as Record<string, unknown> | null;
   return (
-    typeof a?.questionId === "string" &&
-    Array.isArray(a.optionIds) &&
-    a.optionIds.every((id) => typeof id === "string") &&
-    typeof a.seq === "number"
+    typeof r?.questionId === "string" &&
+    typeof r.seq === "number" &&
+    (v === 1 ? isStrings(r.optionIds) : isAnswerValue(r.answer))
   );
 };
 
-const isChange = (value: unknown): value is AnswerChange => {
-  const c = value as AnswerChange | null;
+const isChange = (value: unknown, v: 1 | 2): boolean => {
+  const c = value as Record<string, unknown> | null;
   return (
-    isAnswer(value) &&
+    isRow(value, v) &&
     typeof c?.changeId === "string" &&
     typeof c.participantId === "string"
   );
 };
 
-const isSaved = (value: unknown): value is Saved => {
-  const s = value as Saved | null;
+const isSaved = (value: unknown): value is Saved | SavedV1 => {
+  const s = value as Saved | SavedV1 | null;
+  const v = s?.v;
   return (
-    s?.v === 1 &&
-    typeof s.seqBase === "number" &&
+    (v === 1 || v === 2) &&
+    typeof s?.seqBase === "number" &&
     Array.isArray(s.answers) &&
-    s.answers.every(isAnswer) &&
+    s.answers.every((a) => isRow(a, v)) &&
     Array.isArray(s.pending) &&
-    s.pending.every(isChange)
+    s.pending.every((c) => isChange(c, v))
   );
 };
+
+/** Converts a stored queue of either version to the current one. */
+function upgrade(saved: Saved | SavedV1): Saved {
+  if (saved.v === 2) return saved;
+  const row = <T extends RowV1>({ optionIds, ...rest }: T) => ({
+    ...rest,
+    answer: { items: optionIds },
+  });
+  return {
+    v: 2,
+    seqBase: saved.seqBase,
+    answers: saved.answers.map(row),
+    pending: saved.pending.map(row),
+  };
+}
 
 /**
  * A participant's answers on this device and the changes the server has not
@@ -65,6 +111,9 @@ const isSaved = (value: unknown): value is Saved => {
  * Only the newest unacked change of a question is pending: a newer one
  * replaces it, since the server would ignore the older one anyway.
  *
+ * A queue saved by version 1, which stored option ids, is converted to
+ * answers with `items` on load.
+ *
  * Unreadable stored state is copied to `<key>.bad` and the queue starts
  * empty. When a write to storage fails, the queue keeps working from memory,
  * logs the failure once and sets {@link AnswerQueue.saveFailed}; every later
@@ -84,7 +133,8 @@ export class AnswerQueue {
     this.storage = storage;
     this.key = key;
     this.participantId = participantId;
-    const saved = readStored(storage, key, isSaved);
+    const stored = readStored(storage, key, isSaved);
+    const saved = stored && upgrade(stored);
     this.answers = new Map(saved?.answers.map((a) => [a.questionId, a]));
     this.changes = saved?.pending ?? [];
     this.seqBase = saved?.seqBase ?? 0;
@@ -102,17 +152,17 @@ export class AnswerQueue {
    * Records the answer to a question and returns the change to send, which
    * replaces any unacked change of that question.
    */
-  set(questionId: string, optionIds: string[]): AnswerChange {
+  set(questionId: string, answer: Answer): AnswerChange {
     const last = this.answers.get(questionId)?.seq ?? 0;
     const seq = Math.max(last, this.seqBase) + 1;
     const change: AnswerChange = {
       changeId: newChangeId(),
       participantId: this.participantId,
       questionId,
-      optionIds,
+      answer,
       seq,
     };
-    this.answers.set(questionId, { questionId, optionIds, seq });
+    this.answers.set(questionId, { questionId, answer, seq });
     this.changes = this.changes.filter((c) => c.questionId !== questionId);
     this.changes.push(change);
     this.save();
@@ -131,9 +181,9 @@ export class AnswerQueue {
     this.save();
   }
 
-  /** Returns the option ids picked for a question, or undefined if unanswered. */
-  current(questionId: string): string[] | undefined {
-    return this.answers.get(questionId)?.optionIds;
+  /** Returns the answer recorded for a question, or undefined if none. */
+  current(questionId: string): Answer | undefined {
+    return this.answers.get(questionId)?.answer;
   }
 
   /**
@@ -155,7 +205,7 @@ export class AnswerQueue {
 
   private save(): void {
     const saved: Saved = {
-      v: 1,
+      v: 2,
       seqBase: this.seqBase,
       answers: [...this.answers.values()],
       pending: this.changes,

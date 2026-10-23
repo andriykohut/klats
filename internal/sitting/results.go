@@ -45,7 +45,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			row := wire.ResultRow{
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade,
-				SittingDate: s.StartedAt, Answers: map[string][]string{}, Overridden: []string{}, Late: []string{},
+				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Overridden: []string{}, Late: []string{},
 				Writing: p.state == stateWriting,
 			}
 			if p.finishedAt > 0 {
@@ -56,8 +56,8 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				if fullPoints(question, row.Points[i]) {
 					full[i]++
 				}
-				if ids := p.answers[question.ID]; len(ids) > 0 {
-					row.Answers[question.ID] = ids
+				if ans := p.answers[question.ID]; !ans.IsEmpty() {
+					row.Answers[question.ID] = ans
 				}
 				if _, ok := p.overrides[question.ID]; ok {
 					row.Overridden = append(row.Overridden, question.ID)

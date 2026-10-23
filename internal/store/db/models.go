@@ -11,7 +11,7 @@ import (
 type Answer struct {
 	ParticipantID string
 	QuestionID    string
-	OptionIds     string
+	Value         string
 	Seq           int64
 	ChangeID      string
 	ReceivedAt    int64

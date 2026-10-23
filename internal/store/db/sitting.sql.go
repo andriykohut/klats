@@ -312,7 +312,7 @@ func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) er
 }
 
 const listAnswers = `-- name: ListAnswers :many
-SELECT a.participant_id, a.question_id, a.option_ids, a.seq, a.change_id, a.received_at, a.late FROM answers a JOIN participants p ON p.id = a.participant_id
+SELECT a.participant_id, a.question_id, a.value, a.seq, a.change_id, a.received_at, a.late FROM answers a JOIN participants p ON p.id = a.participant_id
 WHERE p.sitting_id = ?
 ORDER BY a.participant_id, a.question_id
 `
@@ -329,7 +329,7 @@ func (q *Queries) ListAnswers(ctx context.Context, sittingID string) ([]Answer, 
 		if err := rows.Scan(
 			&i.ParticipantID,
 			&i.QuestionID,
-			&i.OptionIds,
+			&i.Value,
 			&i.Seq,
 			&i.ChangeID,
 			&i.ReceivedAt,
@@ -604,7 +604,7 @@ func (q *Queries) ListOverrides(ctx context.Context, sittingID string) ([]Overri
 }
 
 const listParticipantAnswers = `-- name: ListParticipantAnswers :many
-SELECT participant_id, question_id, option_ids, seq, change_id, received_at, late FROM answers WHERE participant_id = ?
+SELECT participant_id, question_id, value, seq, change_id, received_at, late FROM answers WHERE participant_id = ?
 ORDER BY question_id
 `
 
@@ -620,7 +620,7 @@ func (q *Queries) ListParticipantAnswers(ctx context.Context, participantID stri
 		if err := rows.Scan(
 			&i.ParticipantID,
 			&i.QuestionID,
-			&i.OptionIds,
+			&i.Value,
 			&i.Seq,
 			&i.ChangeID,
 			&i.ReceivedAt,
@@ -841,10 +841,10 @@ func (q *Queries) SetWindowSwitches(ctx context.Context, arg SetWindowSwitchesPa
 }
 
 const upsertAnswer = `-- name: UpsertAnswer :execrows
-INSERT INTO answers (participant_id, question_id, option_ids, seq, change_id, received_at, late)
+INSERT INTO answers (participant_id, question_id, value, seq, change_id, received_at, late)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (participant_id, question_id) DO UPDATE SET
-    option_ids = excluded.option_ids, seq = excluded.seq, change_id = excluded.change_id,
+    value = excluded.value, seq = excluded.seq, change_id = excluded.change_id,
     received_at = excluded.received_at, late = excluded.late
 WHERE excluded.seq > answers.seq
 `
@@ -852,7 +852,7 @@ WHERE excluded.seq > answers.seq
 type UpsertAnswerParams struct {
 	ParticipantID string
 	QuestionID    string
-	OptionIds     string
+	Value         string
 	Seq           int64
 	ChangeID      string
 	ReceivedAt    int64
@@ -865,7 +865,7 @@ func (q *Queries) UpsertAnswer(ctx context.Context, arg UpsertAnswerParams) (int
 	result, err := q.db.ExecContext(ctx, upsertAnswer,
 		arg.ParticipantID,
 		arg.QuestionID,
-		arg.OptionIds,
+		arg.Value,
 		arg.Seq,
 		arg.ChangeID,
 		arg.ReceivedAt,

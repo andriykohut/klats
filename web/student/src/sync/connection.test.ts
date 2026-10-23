@@ -72,7 +72,7 @@ test("goes offline after two failed heartbeats and flushes on recovery", async (
   await until(5000);
   expect(states).toEqual(["online 0", "offline 0"]);
 
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.flush();
   expect(states.at(-1)).toBe("offline 1");
   expect(submit).not.toHaveBeenCalled();
@@ -120,7 +120,7 @@ test("retries after 1, 2, 4, 8 and then every 8 s offline, and beats every 5 s o
 
 test("chunks submits at 100 changes, each reporting what is left after it", async () => {
   const { conn, queue, log } = setup();
-  for (let i = 0; i < 250; i++) queue.set(`q${i}`, ["a"]);
+  for (let i = 0; i < 250; i++) queue.set(`q${i}`, { items: ["a"] });
   conn.start();
   await until(0);
   expect(log).toEqual([
@@ -136,7 +136,7 @@ test("reports syncing after an outage until the queue drains", async () => {
   heartbeat.mockImplementation(offline);
   conn.start();
   await until(5000);
-  for (let i = 0; i < 150; i++) queue.set(`q${i}`, ["a"]);
+  for (let i = 0; i < 150; i++) queue.set(`q${i}`, { items: ["a"] });
   conn.flush();
   heartbeat.mockResolvedValue(WRITING);
   await until(6000);
@@ -158,10 +158,10 @@ test("sends one submit at a time; changes set meanwhile go in the next", async (
         answer = () => resolve(ackAll("", req));
       }),
   );
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(0);
-  queue.set("q2", ["b"]);
+  queue.set("q2", { items: ["b"] });
   conn.flush();
   await until(0);
   expect(log).toEqual(["submit 1 left 0"]);
@@ -179,7 +179,7 @@ test("rejected changes are acked and never resent", async () => {
     ...(await ackAll(base, req)),
     rejected: 1,
   }));
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(60000);
   expect(submit).toHaveBeenCalledTimes(1);
@@ -195,7 +195,7 @@ test("HTTP errors keep the changes and back off, but never go offline", async ()
     .mockRejectedValueOnce(new ApiError(429, "rate_limited"))
     .mockRejectedValueOnce(new ApiError(400, "invalid"))
     .mockRejectedValueOnce(new ApiError(404, "not_found"));
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(14999);
   expect(submit).toHaveBeenCalledTimes(4);
@@ -244,13 +244,13 @@ test("a request unanswered for 8 s is aborted and counts as a failure", async ()
 
 test("drain resolves true once all is acked, false while offline", async () => {
   const { conn, queue, heartbeat } = setup();
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await expect(conn.drain()).resolves.toBe(true);
 
   heartbeat.mockImplementation(offline);
   await until(10000);
-  queue.set("q2", ["b"]);
+  queue.set("q2", { items: ["b"] });
   await expect(conn.drain()).resolves.toBe(false);
 });
 
@@ -277,14 +277,14 @@ test("after stop it sends nothing and leaves the queue alone", async () => {
         answer = () => resolve(ackAll("", req));
       }),
   );
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(0);
   const drained = conn.drain();
   conn.stop();
   await expect(drained).resolves.toBe(false);
   answer();
-  queue.set("q2", ["b"]);
+  queue.set("q2", { items: ["b"] });
   conn.flush();
   await until(60000);
   expect(submit).toHaveBeenCalledTimes(1);
@@ -304,7 +304,7 @@ test("a failure after stop reaches no listener", async () => {
   );
   conn.start();
   await until(0);
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.flush();
   await until(0);
   conn.stop();
@@ -317,7 +317,7 @@ test("a failure after stop reaches no listener", async () => {
 test("a listener that stops it ends the cycle at once", async () => {
   const { conn, queue, submit, heartbeat } = setup();
   conn.onStatus(() => conn.stop());
-  for (let i = 0; i < 150; i++) queue.set(`q${i}`, ["a"]);
+  for (let i = 0; i < 150; i++) queue.set(`q${i}`, { items: ["a"] });
   conn.start();
   await until(60000);
   expect(submit).toHaveBeenCalledTimes(1);
@@ -329,7 +329,7 @@ test("a kicked device reports it once, then sends nothing more", async () => {
   const statuses: Status[] = [];
   conn.onStatus((s) => statuses.push(s));
   submit.mockRejectedValue(new ApiError(403, "kicked"));
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   const drained = conn.drain();
   await until(60000);
@@ -364,7 +364,7 @@ test("a throwing listener is logged and never stops syncing", async () => {
   expect(heartbeat).toHaveBeenCalledTimes(2);
   expect(statuses).toHaveBeenCalledTimes(2);
 
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.flush();
   await expect(conn.drain()).resolves.toBe(true);
   expect(submit).toHaveBeenCalledTimes(1);
@@ -375,7 +375,7 @@ test("a storage write failing during ack loses nothing and stops nothing", async
   const error = consoleError();
   const storage = memoryStorage();
   const { conn, queue, heartbeat } = setup(storage);
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   vi.spyOn(storage, "setItem").mockImplementationOnce(() => {
     throw new DOMException("full", "QuotaExceededError");
   });
@@ -384,13 +384,13 @@ test("a storage write failing during ack loses nothing and stops nothing", async
   expect(heartbeat).toHaveBeenCalledTimes(2);
   expect(queue.saveFailed).toBe(true);
   expect(error).toHaveBeenCalledTimes(1);
-  expect(queue.current("q1")).toEqual(["a"]);
+  expect(queue.current("q1")).toEqual({ items: ["a"] });
 
   // The next write saves the whole state again.
-  queue.set("q2", ["b"]);
+  queue.set("q2", { items: ["b"] });
   expect(queue.saveFailed).toBe(false);
   const reloaded = new AnswerQueue(storage, "k", "p1");
-  expect(reloaded.current("q1")).toEqual(["a"]);
+  expect(reloaded.current("q1")).toEqual({ items: ["a"] });
   expect(reloaded.pending().map((c) => c.questionId)).toEqual(["q2"]);
 });
 
@@ -399,7 +399,7 @@ test("a refused submit lets the heartbeat through; a failed one skips it", async
   submit
     .mockImplementationOnce(offline)
     .mockRejectedValueOnce(new ApiError(500, "internal"));
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(0);
   expect(log).toEqual(["submit 1 left 0"]);
@@ -441,7 +441,7 @@ test("setBase gives up a request to the old address at once, not as a failure", 
 test("an error thrown inside a cycle is logged and the next cycle still runs", async () => {
   const error = consoleError();
   const { conn, queue, submit } = setup();
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   vi.spyOn(queue, "ack").mockImplementationOnce(() => {
     throw new Error("broken");
   });
@@ -464,7 +464,7 @@ test("refused submits while the student keeps answering never hold the heartbeat
   conn.start();
   for (let at = 0; at <= 60_000; at += 4000) {
     await until(at);
-    queue.set(`q${at}`, ["a"]);
+    queue.set(`q${at}`, { items: ["a"] });
     conn.flush();
   }
   const gaps = beats.slice(1).map((t, i) => t - (beats[i] ?? 0));
@@ -485,13 +485,13 @@ test("one network blip never shows offline; two failed cycles do", async () => {
   conn.start();
   // Set without a flush, so the change goes with the 5 s cycle.
   await until(4999);
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   await until(20000);
   expect(states.filter((s) => s.startsWith("offline"))).toEqual([]);
 
   down = [25000, 31000];
   await until(24999);
-  queue.set("q2", ["b"]);
+  queue.set("q2", { items: ["b"] });
   await until(29999);
   expect(states.filter((s) => s.startsWith("offline"))).toEqual([]);
   await until(30000);
@@ -518,7 +518,7 @@ test("setBase during an offline retry adds no backoff step", async () => {
 test("setBase during a submit starts a fresh cycle, with no heartbeat in between", async () => {
   const { conn, queue, submit, log } = setup();
   submit.mockImplementationOnce(() => new Promise(() => {}));
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.start();
   await until(1000);
   conn.setBase("http://10.0.0.5:8080");
@@ -531,7 +531,7 @@ test("a submit that fails between cycles does not put the next cycle off", async
   submit.mockImplementationOnce(offline);
   conn.start();
   await until(4000);
-  queue.set("q1", ["a"]);
+  queue.set("q1", { items: ["a"] });
   conn.flush();
   await until(5000);
   expect(submit).toHaveBeenCalledTimes(2);

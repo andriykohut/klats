@@ -74,7 +74,7 @@ test("the teacher sends a student back to the names, and moves another to a new 
     .poll(
       async () => {
         const { rows } = await klats.results(assignmentId);
-        return rows.find((r) => r.name === moved)?.answers[q2.id];
+        return rows.find((r) => r.name === moved)?.answers[q2.id]?.items;
       },
       { timeout: 10_000 },
     )

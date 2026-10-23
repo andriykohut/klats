@@ -137,7 +137,7 @@ func TestLoad(t *testing.T) {
 					seq[q]++
 					c := wire.AnswerChange{
 						ChangeID: fmt.Sprintf("%s-%d-%d", devices[i], b, qi), ParticipantID: pids[i],
-						QuestionID: q, OptionIDs: []string{fmt.Sprintf("o%d", r.IntN(4))}, Seq: seq[q],
+						QuestionID: q, Answer: testfmt.Answer{Items: []string{fmt.Sprintf("o%d", r.IntN(4))}}, Seq: seq[q],
 					}
 					changes = append(changes, c)
 					last[i][q] = c
@@ -180,8 +180,8 @@ func TestLoad(t *testing.T) {
 	for i, changes := range last {
 		for q, c := range changes {
 			want++
-			ids, _ := json.Marshal(c.OptionIDs)
-			if a, ok := got[pids[i]+"/"+q]; !ok || a.Seq != c.Seq || a.OptionIds != string(ids) {
+			ids, _ := json.Marshal(c.Answer)
+			if a, ok := got[pids[i]+"/"+q]; !ok || a.Seq != c.Seq || a.Value != string(ids) {
 				t.Errorf("student %d, %s: stored %+v, want seq %d with %s", i, q, a, c.Seq, ids)
 			}
 		}

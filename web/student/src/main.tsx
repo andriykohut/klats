@@ -1,6 +1,7 @@
 import "@klats/shared/fonts.css";
 import "@klats/shared/tokens.css";
 import "./app.css";
+import { isAnswered } from "@klats/shared/answers.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { ConnectionToast } from "@klats/shared/student-ui/ConnectionToast.tsx";
 import { FinishScreen } from "@klats/shared/student-ui/FinishScreen.tsx";
@@ -134,9 +135,7 @@ function App() {
         )}
         {test && screen.name === "test" && (
           <Progress
-            answered={test.questions.map(
-              (q) => (s.answers[q.id]?.length ?? 0) > 0,
-            )}
+            answered={test.questions.map((q) => isAnswered(s.answers[q.id]))}
             current={s.index}
             onJump={go}
           />

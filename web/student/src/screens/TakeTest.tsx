@@ -1,3 +1,5 @@
+import { isAnswered } from "@klats/shared/answers.ts";
+import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type { StudentTest } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { QuestionSheet } from "@klats/shared/student-ui/QuestionSheet.tsx";
@@ -21,14 +23,15 @@ export function TakeTest({
 }: {
   test: StudentTest;
   index: number;
-  answers: Record<string, string[]>;
-  onAnswer: (questionId: string, optionIds: string[]) => void;
+  answers: Record<string, Answer>;
+  onAnswer: (questionId: string, answer: Answer) => void;
   onGo: (index: number) => void;
   onReview: () => void;
 }) {
   const q = test.questions[index];
   const multi = q.type === "multi";
-  const selected = answers[q.id] ?? [];
+  const selected = answers[q.id]?.items ?? [];
+  const answered = isAnswered(answers[q.id]);
   const last = index === test.questions.length - 1;
   const next = () => (last ? onReview() : onGo(index + 1));
   // A sheet on its way out must not take keys meant for the next one.
@@ -39,7 +42,7 @@ export function TakeTest({
       if (!present || e.altKey || e.ctrlKey || e.metaKey || typing()) return;
       if (e.key === "Enter") {
         const onButton = (e.target as Element).closest("button");
-        if (onButton || e.repeat || selected.length === 0) return;
+        if (onButton || e.repeat || !answered) return;
         e.preventDefault();
         next();
         return;
@@ -48,13 +51,10 @@ export function TakeTest({
       if (i === null) return;
       e.preventDefault();
       const id = q.options[i].id;
-      if (!multi) onAnswer(q.id, [id]);
+      if (!multi) onAnswer(q.id, { items: [id] });
       else if (selected.includes(id)) {
-        onAnswer(
-          q.id,
-          selected.filter((x) => x !== id),
-        );
-      } else onAnswer(q.id, [...selected, id]);
+        onAnswer(q.id, { items: selected.filter((x) => x !== id) });
+      } else onAnswer(q.id, { items: [...selected, id] });
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -68,7 +68,7 @@ export function TakeTest({
       options={q.options}
       multi={multi}
       selected={selected}
-      onChange={(ids) => onAnswer(q.id, ids)}
+      onChange={(items) => onAnswer(q.id, { items })}
     >
       <button type="button" className="s-btn s-btn-quiet" onClick={next}>
         <span>{m.test_skip()}</span>
@@ -76,7 +76,7 @@ export function TakeTest({
       <button
         type="button"
         className="s-btn"
-        disabled={selected.length === 0}
+        disabled={!answered}
         onClick={next}
       >
         <span>{last ? m.test_finish() : m.test_next()}</span>

@@ -135,12 +135,12 @@ type participant struct {
 	state      string
 	finishedBy string // finishedByStudent or finishedByEnd once finished
 	joinedAt   int64
-	finishedAt int64               // 0 until finished
-	switches   int                 // window switches
-	moves      int64               // times moved to another device
-	answers    map[string][]string // question id → selected option ids
-	late       map[string]bool     // question ids answered after the end
-	overrides  map[string]float64  // question id → points set by the teacher
+	finishedAt int64                     // 0 until finished
+	switches   int                       // window switches
+	moves      int64                     // times moved to another device
+	answers    map[string]testfmt.Answer // question id → the student's answer
+	late       map[string]bool           // question ids answered after the end
+	overrides  map[string]float64        // question id → points set by the teacher
 
 	// Presence lives only in memory: a restart counts everyone as just seen.
 	lastSeen time.Time
@@ -207,7 +207,7 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		a.participants = append(a.participants, &participant{
 			id: r.ID, key: key, name: r.DisplayName, class: r.TypedClass.String, device: r.DeviceToken, state: r.State,
 			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches), moves: r.Moves,
-			answers: map[string][]string{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: now,
+			answers: map[string]testfmt.Answer{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: now,
 		})
 	}
 	answers, err := q.ListAnswers(ctx, s.ID)
@@ -215,12 +215,12 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		return nil, err
 	}
 	for _, ans := range answers {
-		var ids []string
-		if err := json.Unmarshal([]byte(ans.OptionIds), &ids); err != nil {
+		var value testfmt.Answer
+		if err := json.Unmarshal([]byte(ans.Value), &value); err != nil {
 			return nil, err
 		}
 		p := a.byID(ans.ParticipantID)
-		p.answers[ans.QuestionID] = ids
+		p.answers[ans.QuestionID] = value
 		p.late[ans.QuestionID] = ans.Late == 1
 	}
 	overrides, err := q.ListOverrides(ctx, s.ID)

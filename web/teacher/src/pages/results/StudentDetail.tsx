@@ -1,3 +1,4 @@
+import { isAnswered } from "@klats/shared/answers.ts";
 import type {
   AssignmentResults,
   ResultQuestion,
@@ -110,7 +111,7 @@ function QuestionResult(props: {
 }) {
   const { question: q, row } = props;
   const override = useSetOverride(props.assignmentId);
-  const picked = row.answers[q.id] ?? [];
+  const picked = row.answers[q.id]?.items ?? [];
   const overridden = row.overridden.includes(q.id);
   const late = row.late.includes(q.id);
   // The field shows what was typed until the server's points change.
@@ -167,7 +168,9 @@ function QuestionResult(props: {
           );
         })}
       </ul>
-      {picked.length === 0 && <p className="r-none">{m.detail_no_answer()}</p>}
+      {!isAnswered(row.answers[q.id]) && (
+        <p className="r-none">{m.detail_no_answer()}</p>
+      )}
       <div className="r-points">
         <NumberField
           className="r-points-field"
