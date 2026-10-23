@@ -213,3 +213,197 @@ func TestParseDropsEmptyTextNodes(t *testing.T) {
 		t.Fatalf("canonical form\n%s\nwant\n%s", out, want)
 	}
 }
+
+var hex64 = strings.Repeat("ab", 32)
+
+func doc(blocks string) string { return `{"type":"doc","content":[` + blocks + `]}` }
+
+func accepts(t *testing.T, raw string, mode Mode) {
+	t.Helper()
+	if _, err := Parse([]byte(raw), mode); err != nil {
+		t.Errorf("mode %d: %v", mode, err)
+	}
+}
+
+func rejects(t *testing.T, raw string, mode Mode) {
+	t.Helper()
+	if _, err := Parse([]byte(raw), mode); !errors.Is(err, ErrInvalid) {
+		t.Errorf("mode %d: err = %v, want ErrInvalid: %s", mode, err, raw)
+	}
+}
+
+func TestParseMath(t *testing.T) {
+	ok := para(`{"type":"math","attrs":{"latex":"\\frac12"}}`)
+	accepts(t, ok, Inline)
+	accepts(t, ok, Block)
+	rejects(t, para(`{"type":"math","attrs":{"latex":""}}`), Inline)
+	rejects(t, para(`{"type":"math"}`), Inline)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"`+strings.Repeat("x", 1001)+`"}}`), Inline)
+	accepts(t, para(`{"type":"math","attrs":{"latex":"`+strings.Repeat("x", 1000)+`"}}`), Inline)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"x","src":"`+hex64+`.png"}}`), Inline)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"x","onclick":"y"}}`), Inline)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"x"},"text":"x"}`), Inline)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"x"},"content":[{"type":"text","text":"x"}]}`), Inline)
+}
+
+func TestParseImageAudio(t *testing.T) {
+	img := doc(`{"type":"image","attrs":{"src":"` + hex64 + `.webp","w":800,"h":600}}`)
+	accepts(t, img, Block)
+	rejects(t, img, Inline)
+	accepts(t, doc(`{"type":"audio","attrs":{"src":"`+hex64+`.mp3"}}`), Block)
+	for _, src := range []string{hex64 + ".mp3", "../x.png", strings.ToUpper(hex64) + ".png", hex64 + ".svg", hex64[:63] + ".png", "http://x/" + hex64 + ".png"} {
+		rejects(t, doc(`{"type":"image","attrs":{"src":"`+src+`","w":8,"h":6}}`), Block)
+	}
+	rejects(t, doc(`{"type":"audio","attrs":{"src":"`+hex64+`.png"}}`), Block)
+	rejects(t, doc(`{"type":"image","attrs":{"src":"`+hex64+`.png"}}`), Block)
+	rejects(t, doc(`{"type":"image","attrs":{"src":"`+hex64+`.png","w":10001,"h":6}}`), Block)
+	rejects(t, doc(`{"type":"image","attrs":{"src":"`+hex64+`.png","w":8,"h":0}}`), Block)
+	rejects(t, doc(`{"type":"audio","attrs":{"src":"`+hex64+`.mp3","w":8}}`), Block)
+	rejects(t, doc(`{"type":"image"}`), Block)
+}
+
+func TestParseGapOnlyInGapped(t *testing.T) {
+	g1 := para(`{"type":"gap","attrs":{"id":"g1"}}`)
+	rejects(t, g1, Block)
+	rejects(t, g1, Inline)
+	accepts(t, g1, Gapped)
+	rejects(t, para(`{"type":"gap","attrs":{"id":"g1"}},{"type":"gap","attrs":{"id":"g1"}}`), Gapped)
+	accepts(t, para(`{"type":"gap","attrs":{"id":"g1"}},{"type":"gap","attrs":{"id":"g2"}}`), Gapped)
+	rejects(t, para(`{"type":"gap","attrs":{"id":"a b"}}`), Gapped)
+	rejects(t, para(`{"type":"gap","attrs":{"id":""}}`), Gapped)
+	rejects(t, para(`{"type":"gap","attrs":{"id":"`+strings.Repeat("a", 33)+`"}}`), Gapped)
+	accepts(t, para(`{"type":"gap","attrs":{"id":"`+strings.Repeat("a", 32)+`"}}`), Gapped)
+	rejects(t, para(`{"type":"gap"}`), Gapped)
+	accepts(t, para(`{"type":"math","attrs":{"latex":"x"}}`), Gapped)
+}
+
+func TestParseTargetOnlyInMarked(t *testing.T) {
+	target := para(`{"type":"text","text":"x","marks":[{"type":"target"}]}`)
+	accepts(t, target, Marked)
+	rejects(t, target, Block)
+	rejects(t, target, Inline)
+	rejects(t, target, Gapped)
+	rejects(t, para(`{"type":"math","attrs":{"latex":"x"}}`), Marked)
+	accepts(t, para(`{"type":"text","text":"x","marks":[{"type":"bold"}]}`), Marked)
+}
+
+func TestParseTableAndCode(t *testing.T) {
+	cell := func(typ, text string) string {
+		return `{"type":"` + typ + `","content":[{"type":"paragraph","content":[{"type":"text","text":"` + text + `"}]}]}`
+	}
+	table := doc(`{"type":"table","content":[` +
+		`{"type":"tableRow","content":[` + cell("tableHeader", "a") + `,` + cell("tableHeader", "b") + `]},` +
+		`{"type":"tableRow","content":[` + cell("tableCell", "c") + `,{"type":"tableCell","attrs":{"colspan":2,"rowspan":1},"content":[{"type":"paragraph"}]}]}]}`)
+	accepts(t, table, Block)
+	rejects(t, table, Inline)
+	rejects(t, doc(`{"type":"table","content":[{"type":"paragraph"}]}`), Block)
+	rejects(t, doc(`{"type":"table","content":[{"type":"tableRow","content":[{"type":"paragraph"}]}]}`), Block)
+	rejects(t, doc(`{"type":"table","content":[{"type":"tableRow","content":[{"type":"tableCell","content":[{"type":"bulletList"}]}]}]}`), Block)
+	rejects(t, doc(`{"type":"table","content":[{"type":"tableRow","content":[{"type":"tableCell","attrs":{"colspan":21},"content":[{"type":"paragraph"}]}]}]}`), Block)
+	rejects(t, doc(`{"type":"table","content":[{"type":"tableRow","content":[{"type":"tableCell","attrs":{"src":"x"},"content":[{"type":"paragraph"}]}]}]}`), Block)
+
+	code := func(inner string) string { return doc(`{"type":"codeBlock","content":[` + inner + `]}`) }
+	accepts(t, code(`{"type":"text","text":"x := 1\ny := 2"}`), Block)
+	rejects(t, code(`{"type":"text","text":"x","marks":[{"type":"bold"}]}`), Block)
+	rejects(t, code(`{"type":"hardBreak"}`), Block)
+	rejects(t, code(`{"type":"paragraph"}`), Block)
+	rejects(t, code(`{"type":"text","text":"x"}`), Inline)
+	accepts(t, para(`{"type":"text","text":"x","marks":[{"type":"code"}]}`), Inline)
+}
+
+func TestPlainTextNewNodes(t *testing.T) {
+	parse := func(raw string, mode Mode) Doc {
+		t.Helper()
+		d, err := Parse([]byte(raw), mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if got := parse(para(`{"type":"text","text":"x = "},{"type":"math","attrs":{"latex":"\\pi"}}`), Inline).PlainText(); got != `x = \pi` {
+		t.Errorf("math: %q", got)
+	}
+	if got := parse(para(`{"type":"gap","attrs":{"id":"g"}}`), Gapped).PlainText(); got != "___" {
+		t.Errorf("gap: %q", got)
+	}
+	row := func(a, b string) string {
+		c := func(s string) string {
+			return `{"type":"tableCell","content":[{"type":"paragraph","content":[{"type":"text","text":"` + s + `"}]}]}`
+		}
+		return `{"type":"tableRow","content":[` + c(a) + `,` + c(b) + `]}`
+	}
+	table := doc(`{"type":"table","content":[` + row("а", "б") + `,` + row("в", "г") + `]}`)
+	if got := parse(table, Block).PlainText(); got != "а\tб\nв\tг" {
+		t.Errorf("table: %q", got)
+	}
+	img := doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`)
+	if got := parse(img, Block).PlainText(); got != "" {
+		t.Errorf("image: %q", got)
+	}
+	code := doc(`{"type":"codeBlock","content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]}`)
+	if got := parse(code, Block).PlainText(); got != "ab" {
+		t.Errorf("code: %q", got)
+	}
+}
+
+func TestIsEmptyWithMediaAndMath(t *testing.T) {
+	for name, raw := range map[string]string{
+		"image": doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`),
+		"audio": doc(`{"type":"audio","attrs":{"src":"` + hex64 + `.mp3"}}`),
+		"math":  para(`{"type":"math","attrs":{"latex":"x"}}`),
+	} {
+		d, err := Parse([]byte(raw), Block)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if d.IsEmpty() {
+			t.Errorf("%s: doc should not be empty", name)
+		}
+	}
+}
+
+func TestMediaAndGapIDs(t *testing.T) {
+	img, mp3 := hex64+".png", strings.Repeat("cd", 32)+".mp3"
+	d, err := Parse([]byte(doc(
+		`{"type":"image","attrs":{"src":"`+img+`","w":1,"h":1}},`+
+			`{"type":"audio","attrs":{"src":"`+mp3+`"}},`+
+			`{"type":"image","attrs":{"src":"`+img+`","w":2,"h":2}}`)), Block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := d.Media(); !reflect.DeepEqual(got, []string{img, mp3}) {
+		t.Errorf("Media = %v", got)
+	}
+	g, err := Parse([]byte(para(`{"type":"gap","attrs":{"id":"g2"}},{"type":"text","text":"x"},{"type":"gap","attrs":{"id":"g1"}}`)), Gapped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := g.GapIDs(); !reflect.DeepEqual(got, []string{"g2", "g1"}) {
+		t.Errorf("GapIDs = %v", got)
+	}
+}
+
+func TestMediaKind(t *testing.T) {
+	for name, want := range map[string]string{
+		hex64 + ".jpg": "image", hex64 + ".png": "image", hex64 + ".gif": "image", hex64 + ".webp": "image",
+		hex64 + ".mp3": "audio", hex64 + ".m4a": "audio", hex64 + ".ogg": "audio", hex64 + ".wav": "audio",
+		"": "", hex64: "", hex64 + ".svg": "", hex64 + ".PNG": "", "x.png": "", "/" + hex64 + ".png": "",
+	} {
+		if got := MediaKind(name); got != want {
+			t.Errorf("MediaKind(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestParseRoundTripsAttrs(t *testing.T) {
+	raw := doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":8,"h":6}},` +
+		`{"type":"paragraph","content":[{"type":"math","attrs":{"latex":"x"}}]}`)
+	d, err := Parse([]byte(raw), Block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := json.Marshal(d)
+	if string(out) != raw {
+		t.Fatalf("got %s\nwant %s", out, raw)
+	}
+}
