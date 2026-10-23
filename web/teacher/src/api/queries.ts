@@ -58,16 +58,25 @@ export const queryClient = new QueryClient({
   },
 });
 
+/**
+ * Whether a mutation with `key` is in flight. The cache turns a mutation
+ * pending as `mutate` is called, so a press handler that checks this first
+ * drops a second press that lands before the button re-renders as pending.
+ */
+export const busy = (key: string) =>
+  queryClient.isMutating({ mutationKey: [key] }) > 0;
+
 export const useTests = () =>
   useQuery({ queryKey: ["tests"], queryFn: api.listTests });
 
 export const useTest = (id: string) =>
   useQuery({ queryKey: ["tests", id], queryFn: () => api.getTest(id) });
 
-/** Creates an empty test titled in the UI language, and caches it. */
+/** Creates an empty test titled in the UI language, and caches it. Key: "createTest". */
 export function useCreateTest() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ["createTest"],
     mutationFn: () => api.createTest(m.tests_new()),
     onSuccess: (doc) => {
       qc.setQueryData(["tests", doc.id], doc);
@@ -95,11 +104,11 @@ export function useSaveTest(id: string) {
 }
 
 /**
- * Deletes a test after {@link UNDO_MS}, while a toast offers «Скасувати».
- * The deletion stays pending through the wait, so {@link useDeletingTests}
- * hides the row at once; an undo or a failed DELETE ends it and the row comes
- * back, the failure with an error toast. A deletion still waiting when the
- * window closes is never sent.
+ * Deletes a test after {@link UNDO_MS}, while a toast naming it offers
+ * «Скасувати». The deletion stays pending through the wait, so
+ * {@link useDeletingTests} hides the row at once; an undo or a failed DELETE
+ * ends it and the row comes back, the failure with an error toast. A deletion
+ * still waiting when the window closes is never sent.
  */
 export function useDeleteTest() {
   const qc = useQueryClient();
@@ -108,15 +117,19 @@ export function useDeleteTest() {
     mutationFn: async (t: TestSummary) => {
       const w = undoWindow(UNDO_MS);
       const key = toasts.add({
-        text: m.tests_deleted(),
+        text: m.tests_deleted({ title: t.title }),
         action: { label: m.action_undo(), onAction: w.undo },
       });
       const commit = await w.done;
       toasts.close(key);
       if (commit) await api.deleteTest(t.id);
+      return commit;
+    },
+    onSuccess: (deleted, t) => {
+      if (deleted) qc.removeQueries({ queryKey: ["tests", t.id], exact: true });
     },
     onError: () => notify(m.tests_delete_failed(), true),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["tests"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["tests"], exact: true }),
   });
 }
 
@@ -153,22 +166,39 @@ function useClassSaved() {
   };
 }
 
+/** Creates a class. Key: "saveClass", shared with {@link useSaveClass}. */
 export function useCreateClass() {
   const saved = useClassSaved();
-  return useMutation({ mutationFn: api.createClass, onSuccess: saved });
+  return useMutation({
+    mutationKey: ["saveClass"],
+    mutationFn: api.createClass,
+    onSuccess: saved,
+  });
 }
 
+/** Saves a class. Key: "saveClass". */
 export function useSaveClass() {
   const saved = useClassSaved();
-  return useMutation({ mutationFn: api.saveClass, onSuccess: saved });
+  return useMutation({
+    mutationKey: ["saveClass"],
+    mutationFn: api.saveClass,
+    onSuccess: saved,
+  });
 }
 
+/**
+ * Deletes a class. Its own query goes once the list has refetched without
+ * it, so no view of it is left to refetch it. Key: "deleteClass".
+ */
 export function useDeleteClass() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ["deleteClass"],
     mutationFn: api.deleteClass,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["classes"], exact: true }),
+    onSuccess: async (_, id) => {
+      await qc.invalidateQueries({ queryKey: ["classes"], exact: true });
+      qc.removeQueries({ queryKey: ["classes", id], exact: true });
+    },
   });
 }
 
@@ -201,10 +231,11 @@ export const settingsQuery = {
 
 export const useSettings = () => useQuery(settingsQuery);
 
-/** Saves the settings and switches the UI to the saved language at once. */
+/** Saves the settings and switches the UI to the saved language at once. Key: "saveSettings". */
 export function useSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ["saveSettings"],
     mutationFn: api.saveSettings,
     onSuccess: (s: SettingsInfo) => {
       applyLocale(s.language);

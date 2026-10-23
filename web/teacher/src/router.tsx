@@ -89,7 +89,7 @@ export const testRoute = createRoute({
 });
 export const classesRoute = createRoute({
   getParentRoute: () => shell,
-  path: "/classes",
+  path: "/classes/{-$id}",
   component: ClassesPage,
 });
 export const liveRoute = createRoute({

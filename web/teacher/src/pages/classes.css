@@ -49,6 +49,12 @@
   color: var(--k-sel-dark);
 }
 
+/* The new class, until its first save. */
+.t-class-draft {
+  border-style: dashed;
+  border-color: var(--t-line-strong);
+}
+
 .t-class-item[data-focus-visible] {
   outline: var(--t-focus);
   outline-offset: -3px;
@@ -111,20 +117,20 @@
   white-space: nowrap;
 }
 
-/* The columns balance on the list's natural height inside the scroller; a
-   height on the list itself would push extra columns off to the side. */
+/* The list scrolls between the class name and the add row, which stay put. */
 .t-students-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
 }
 
+/* One column, so the list reads like a class register and rows stay put as
+   names are typed. */
 .t-students {
+  max-width: 640px;
   margin: 0;
   padding: 12px 20px;
   list-style: none;
-  columns: 2 320px;
-  column-gap: 32px;
 }
 
 .t-students li {
@@ -132,7 +138,6 @@
   align-items: center;
   gap: 6px;
   padding: 2px 0;
-  break-inside: avoid;
 }
 
 .t-num {
@@ -176,6 +181,8 @@
 }
 
 .t-class-add {
+  max-width: 640px;
+  box-sizing: border-box;
   display: flex;
   gap: 10px;
   padding: 0 20px 14px;

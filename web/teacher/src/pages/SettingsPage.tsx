@@ -3,8 +3,7 @@ import type {
   SettingsInfo,
 } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useLocation } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   FieldError,
@@ -17,11 +16,13 @@ import {
   TextField,
 } from "react-aria-components";
 import {
+  busy,
   useNetwork,
   useSaveSettings,
   useSetAddress,
   useSettings,
 } from "../api/queries";
+import { setFlags, useFlags } from "../flags";
 import { parsePort } from "../forms";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
@@ -135,7 +136,13 @@ function Port(props: {
 }) {
   const [text, setText] = useState(String(props.port));
   const save = useSaveSettings();
-  const linked = useLocation({ select: (l) => l.hash === "port" });
+  const { portSaved, focusPort } = useFlags();
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!focusPort) return;
+    input.current?.focus();
+    setFlags({ focusPort: false });
+  }, [focusPort]);
   const port = parsePort(text);
   return (
     <section className="t-panel t-section" id="port">
@@ -145,9 +152,11 @@ function Port(props: {
         className="t-port-form"
         onSubmit={(e) => {
           e.preventDefault();
-          if (port) {
-            save.mutate({ port, language: props.settings.language });
-          }
+          if (!port || busy("saveSettings")) return;
+          save.mutate(
+            { port, language: props.settings.language },
+            { onSuccess: () => setFlags({ portSaved: true }) },
+          );
         }}
       >
         <TextField
@@ -156,9 +165,8 @@ function Port(props: {
           value={text}
           onChange={setText}
           isInvalid={port === null}
-          autoFocus={linked}
         >
-          <Input inputMode="numeric" />
+          <Input ref={input} inputMode="numeric" />
           <FieldError>{m.settings_port_invalid()}</FieldError>
         </TextField>
         <Button
@@ -171,7 +179,8 @@ function Port(props: {
           {m.action_save()}
         </Button>
       </Form>
-      {props.settings.restartRequired && (
+      {/* Only after a save here: a down student server also reports restartRequired. */}
+      {portSaved && props.settings.restartRequired && (
         <p className="t-notice">{m.settings_restart()}</p>
       )}
     </section>

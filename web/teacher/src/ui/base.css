@@ -736,7 +736,10 @@ h2 {
   animation: t-fade var(--k-dur-fast) var(--k-ease-out);
 }
 
+/* A closing dialog takes no more presses: a double-click on its last button
+   would otherwise press it twice. */
 .t-scrim[data-exiting] {
+  pointer-events: none;
   animation: t-fade var(--k-dur-fast) var(--k-ease-out) reverse;
 }
 
@@ -764,7 +767,7 @@ h2 {
   line-height: 1.3;
 }
 
-.t-dialog p {
+.t-dialog > p {
   margin: 0 0 22px;
   color: var(--k-muted);
   font-weight: 600;

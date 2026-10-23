@@ -1,13 +1,16 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { Button } from "react-aria-components";
 import {
+  busy,
   useCreateTest,
   useDeleteTest,
   useDeletingTests,
   useTests,
 } from "../api/queries";
+import { cooldown } from "../cooldown";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
 import "./tests.css";
@@ -18,6 +21,7 @@ export function TestsPage() {
   const deleting = useDeletingTests();
   const create = useCreateTest();
   const remove = useDeleteTest();
+  const [mayDelete] = useState(() => cooldown());
   const navigate = useNavigate();
   // The server lists the newest edit first.
   const rows = (tests.data ?? []).filter((t) => !deleting.includes(t.id));
@@ -33,12 +37,13 @@ export function TestsPage() {
       className="t-btn"
       data-variant="primary"
       isPending={create.isPending}
-      onPress={() =>
+      onPress={() => {
+        if (busy("createTest")) return;
         create.mutate(undefined, {
           onSuccess: (doc) =>
             navigate({ to: "/tests/$id", params: { id: doc.id } }),
-        })
-      }
+        });
+      }}
     >
       <Icon name="plus" />
       {m.tests_new()}
@@ -93,7 +98,7 @@ export function TestsPage() {
               className="t-icon-btn"
               data-variant="danger"
               aria-label={m.tests_delete({ title: t.title })}
-              onPress={() => remove.mutate(t)}
+              onPress={() => mayDelete() && remove.mutate(t)}
             >
               <Icon name="trash" />
             </Button>

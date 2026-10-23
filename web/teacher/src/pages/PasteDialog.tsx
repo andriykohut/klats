@@ -1,5 +1,5 @@
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Dialog,
@@ -59,8 +59,11 @@ function PasteForm({ onAdd }: { onAdd: (names: string[]) => void }) {
   const [text, setText] = useState("");
   const settled = useSettled(text, 300);
   const parse = useParse(settled);
-  const names = text.trim() === "" ? [] : (parse.data?.names ?? []);
   const behind = settled !== text || parse.isFetching;
+  const failed = parse.isError && !behind;
+  const names = text.trim() === "" || failed ? [] : (parse.data?.names ?? []);
+  // «Додати» acts once: a double-click must not append the names twice.
+  const added = useRef(false);
   return (
     <>
       <Heading slot="title">{m.classes_paste_open()}</Heading>
@@ -75,9 +78,15 @@ function PasteForm({ onAdd }: { onAdd: (names: string[]) => void }) {
           <TextArea spellCheck={false} />
         </TextField>
         <div className="t-preview">
-          <p className="t-found" aria-live="polite">
-            <b>{names.length}</b> {m.classes_found({ count: names.length })}
-          </p>
+          {failed ? (
+            <p className="t-field-error" role="alert">
+              {m.classes_paste_failed()}
+            </p>
+          ) : (
+            <p className="t-found" aria-live="polite">
+              <b>{names.length}</b> {m.classes_found({ count: names.length })}
+            </p>
+          )}
           {names.length > 0 ? (
             <ol>
               {names.map((n, i) => (
@@ -85,7 +94,7 @@ function PasteForm({ onAdd }: { onAdd: (names: string[]) => void }) {
               ))}
             </ol>
           ) : (
-            <p className="t-hint">{m.classes_paste_hint()}</p>
+            !failed && <p className="t-hint">{m.classes_paste_hint()}</p>
           )}
         </div>
       </div>
@@ -97,7 +106,11 @@ function PasteForm({ onAdd }: { onAdd: (names: string[]) => void }) {
           className="t-btn"
           data-variant="primary"
           isDisabled={behind || names.length === 0}
-          onPress={() => onAdd(names)}
+          onPress={() => {
+            if (added.current) return;
+            added.current = true;
+            onAdd(names);
+          }}
         >
           {m.classes_paste_add()}
         </Button>

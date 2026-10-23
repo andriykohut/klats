@@ -1,6 +1,7 @@
 import type { Class } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -10,62 +11,55 @@ import {
   TextField,
 } from "react-aria-components";
 import {
+  busy,
   useClass,
   useClasses,
   useCreateClass,
   useDeleteClass,
   useSaveClass,
 } from "../api/queries";
+import { cooldown } from "../cooldown";
 import { classError, MAX_NAME } from "../forms";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
-import { notify } from "../ui/Toasts";
+import { notify, toasts } from "../ui/Toasts";
 import "./classes.css";
 import { PasteDialog } from "./PasteDialog";
 
+/** The id in /classes/{-$id} that opens a new, unsaved class. */
+const NEW = "new";
+const EMPTY: Class = { id: "", name: "", students: [] };
+
 /**
- * The class lists: the classes on the left, the open class on the right.
- * Without a choice, the first class is open. «Новий клас» creates an empty
- * class at once and opens it with the cursor in its name.
+ * The class lists at /classes/{-$id}: the classes on the left, the open class
+ * on the right; without an id, the first class. «Новий клас» opens
+ * /classes/new, a draft that the first «Зберегти» creates.
  */
 export function ClassesPage() {
+  const { id } = useParams({ strict: false });
+  const navigate = useNavigate();
   const classes = useClasses();
-  const create = useCreateClass();
-  const [chosen, setChosen] = useState<string | null>(null);
-  const [created, setCreated] = useState("");
   const collator = new Intl.Collator(getLocale(), { numeric: true });
   const list = [...(classes.data ?? [])].sort((a, b) =>
     collator.compare(a.name, b.name),
   );
-  const open = list.find((c) => c.id === chosen) ?? list[0];
+  const draft = id === NEW;
+  const open = draft ? null : (list.find((c) => c.id === id) ?? list[0]);
+  const go = (to?: string) =>
+    navigate({ to: "/classes/{-$id}", params: { id: to } });
 
   if (classes.isError) return <LoadError onRetry={() => classes.refetch()} />;
   if (!classes.data) return null;
 
   const newClass = (
-    <Button
-      className="t-btn"
-      data-variant="primary"
-      isPending={create.isPending}
-      onPress={() =>
-        create.mutate(
-          { name: m.classes_new(), students: [] },
-          {
-            onSuccess: (c) => {
-              setChosen(c.id);
-              setCreated(c.id);
-            },
-          },
-        )
-      }
-    >
+    <Button className="t-btn" data-variant="primary" onPress={() => go(NEW)}>
       <Icon name="plus" />
       {m.classes_new()}
     </Button>
   );
 
-  if (!open) {
+  if (!draft && !open) {
     return (
       <div className="t-page">
         <div className="t-empty">
@@ -91,12 +85,18 @@ export function ClassesPage() {
           aria-label={m.nav_classes()}
           selectionMode="single"
           disallowEmptySelection
-          selectedKeys={[open.id]}
+          selectedKeys={[open?.id ?? NEW]}
           onSelectionChange={(keys) => {
-            const [id] = keys as Set<string>;
-            if (id) setChosen(id);
+            const [key] = keys as Set<string>;
+            if (key) go(key);
           }}
         >
+          {draft && (
+            <ListBoxItem id={NEW} className="t-class-item t-class-draft">
+              <b>{m.classes_new()}</b>
+              <span>{m.classes_draft()}</span>
+            </ListBoxItem>
+          )}
           {list.map((c) => (
             <ListBoxItem
               key={c.id}
@@ -110,33 +110,22 @@ export function ClassesPage() {
           ))}
         </ListBox>
         <section className="t-panel t-class-detail">
-          <ClassView
-            key={open.id}
-            id={open.id}
-            fresh={open.id === created}
-            onDeleted={() => setChosen(null)}
-          />
+          {open ? (
+            <ClassView key={open.id} id={open.id} />
+          ) : (
+            <ClassEditor key={NEW} cls={EMPTY} />
+          )}
         </section>
       </div>
     </div>
   );
 }
 
-function ClassView(props: {
-  id: string;
-  fresh: boolean;
-  onDeleted: () => void;
-}) {
-  const cls = useClass(props.id);
+function ClassView({ id }: { id: string }) {
+  const cls = useClass(id);
   if (cls.isError) return <LoadError onRetry={() => cls.refetch()} />;
   if (!cls.data) return null;
-  return (
-    <ClassEditor
-      cls={cls.data}
-      fresh={props.fresh}
-      onDeleted={props.onDeleted}
-    />
-  );
+  return <ClassEditor cls={cls.data} />;
 }
 
 /** A student row being edited; `key` stays put while the name changes. */
@@ -153,26 +142,39 @@ function rows(c: Class): Row[] {
 }
 
 /**
- * One class, editable: its name, and its students typed in (Enter goes to
- * the next row, and on the last one adds a row), renamed and removed, or
- * pasted through «Вставити список». Empty rows are ignored. «Зберегти» sends
- * it all; the reply lists the students in Ukrainian order. Opening another
- * class or page saves edits left unsaved, unless they are invalid.
+ * Edits the server would refuse, and new classes never saved, kept by class
+ * id (or "new") when the teacher leaves, until the editor opens again.
  */
-function ClassEditor(props: {
-  cls: Class;
-  fresh: boolean;
-  onDeleted: () => void;
-}) {
-  const { cls } = props;
-  const [name, setName] = useState(cls.name);
-  const [students, setStudents] = useState(() => rows(cls));
+// shortcut: kept edits live in memory, so closing the window drops them, as
+// it drops any unsaved edit; save them on pagehide too if teachers lose names
+// that way.
+const kept = new Map<string, { name: string; students: Row[] }>();
+
+/**
+ * One class, editable, or with an empty `cls` a new one: its name, and its
+ * students typed in (Enter goes to the next row, and on the last one adds a
+ * row), renamed and removed, or pasted through «Вставити список». Empty rows
+ * are ignored. «Зберегти» creates or saves it all; the reply lists the
+ * students in Ukrainian order. On leaving, valid edits to a saved class are
+ * saved; a new class or edits the server would refuse are kept, and a toast
+ * leads back to them.
+ */
+function ClassEditor({ cls }: { cls: Class }) {
+  const isNew = cls.id === "";
+  const key = cls.id || NEW;
+  const navigate = useNavigate();
+  const [restored] = useState(() => kept.get(key));
+  const [name, setName] = useState(restored?.name ?? cls.name);
+  const [students, setStudents] = useState(
+    () => restored?.students ?? rows(cls),
+  );
   const [added, setAdded] = useState("");
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [mayRemove] = useState(() => cooldown());
   const nextRow = useRef(0);
-  // A new class opens with its placeholder name selected, so typing replaces it.
-  const selectName = useRef(props.fresh);
+  const undos = useRef<string[]>([]);
+  const create = useCreateClass();
   const save = useSaveClass();
   const remove = useDeleteClass();
 
@@ -193,25 +195,47 @@ function ClassEditor(props: {
     students: named.map((s) => s.name),
   });
 
-  // What leaving should save: the draft while it has valid unsaved edits.
-  // shortcut: closing the window still drops unsaved edits; save them on
-  // pagehide too if teachers lose names that way.
-  const unsaved = useRef<Class | null>(null);
-  const gone = useRef(false);
+  // What leaving does with the edits, set after each render; `done` once
+  // they reached the server or the class was deleted.
+  const leave = useRef<(() => void) | null>(null);
+  const done = useRef(false);
   useEffect(() => {
-    unsaved.current = dirty && !invalid ? draft : null;
+    kept.delete(key);
+  }, [key]);
+  useEffect(() => {
+    leave.current = !dirty
+      ? null
+      : !isNew && !invalid
+        ? () =>
+            save.mutateAsync(draft).then(
+              () => notify(m.classes_saved_named({ name: draft.name })),
+              () => {}, // the mutation cache reports the failure
+            )
+        : () => {
+            kept.set(key, { name, students });
+            const toast = toasts.add(
+              {
+                text: m.classes_not_saved({
+                  name: name.trim() || m.classes_new(),
+                }),
+                action: {
+                  label: m.classes_back(),
+                  onAction: () => {
+                    toasts.close(toast);
+                    navigate({ to: "/classes/{-$id}", params: { id: key } });
+                  },
+                },
+              },
+              { timeout: 8000 },
+            );
+          };
   });
-  const saveOnLeave = save.mutateAsync;
   useEffect(
     () => () => {
-      const c = unsaved.current;
-      if (!c || gone.current) return;
-      saveOnLeave(c).then(
-        () => notify(m.classes_saved_named({ name: c.name })),
-        () => {}, // the mutation cache reports the failure
-      );
+      for (const t of undos.current) toasts.close(t);
+      if (!done.current) leave.current?.();
     },
-    [saveOnLeave],
+    [],
   );
 
   const reset = (c: Class) => {
@@ -229,6 +253,30 @@ function ClassEditor(props: {
     setStudents((list) => [...list, row]);
     setAdded(row.key);
   };
+  const removeRow = (row: Row) => {
+    if (!mayRemove()) return;
+    const at = students.findIndex((s) => s.key === row.key);
+    setStudents((list) => list.filter((s) => s.key !== row.key));
+    if (row.name.trim() === "") return;
+    const toast = toasts.add(
+      {
+        text: m.classes_student_removed({ name: row.name }),
+        action: {
+          label: m.action_undo(),
+          onAction: () => {
+            toasts.close(toast);
+            setStudents((list) => [
+              ...list.slice(0, at),
+              row,
+              ...list.slice(at),
+            ]);
+          },
+        },
+      },
+      { timeout: 6000 },
+    );
+    undos.current.push(toast);
+  };
   const focusRow = (from: HTMLElement, i: number) => {
     const next = from.closest("ol")?.querySelectorAll("input")[i];
     if (next) next.focus();
@@ -241,6 +289,7 @@ function ClassEditor(props: {
     else if (students[i].name.trim() !== "") add();
   };
   const submit = () => {
+    if (busy("saveClass")) return;
     if (invalid) {
       setError(
         invalid.field === "name"
@@ -249,12 +298,42 @@ function ClassEditor(props: {
       );
       return;
     }
+    if (isNew) {
+      create.mutate(draft, {
+        onSuccess: (c) => {
+          done.current = true;
+          notify(m.classes_saved());
+          navigate({
+            to: "/classes/{-$id}",
+            params: { id: c.id },
+            replace: true,
+          });
+        },
+      });
+      return;
+    }
     save.mutate(draft, {
       onSuccess: (c) => {
         reset(c);
         notify(m.classes_saved());
       },
     });
+  };
+  // The list refetch can unmount this editor before the delete settles, so
+  // the follow-up hangs on the promise rather than on mutate callbacks.
+  const deleteClass = () => {
+    if (busy("deleteClass")) return;
+    done.current = true;
+    remove.mutateAsync(cls.id).then(
+      () => {
+        setConfirming(false);
+        notify(m.classes_deleted({ name: cls.name }));
+        navigate({ to: "/classes/{-$id}", params: { id: undefined } });
+      },
+      () => {
+        done.current = false; // the mutation cache reports the failure
+      },
+    );
   };
 
   return (
@@ -266,12 +345,7 @@ function ClassEditor(props: {
           value={name}
           onChange={setName}
           maxLength={MAX_NAME}
-          autoFocus={props.fresh}
-          onFocus={(e) => {
-            if (!selectName.current) return;
-            selectName.current = false;
-            (e.target as HTMLInputElement).select();
-          }}
+          autoFocus={isNew}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
             e.preventDefault();
@@ -281,19 +355,21 @@ function ClassEditor(props: {
             if (list) focusRow(list, 0);
           }}
         >
-          <Input />
+          <Input placeholder={m.typed_class_example()} />
         </TextField>
         <span className="t-class-count">
           {m.classes_students({ count: named.length })}
         </span>
-        <Button
-          className="t-btn"
-          data-variant="quiet-danger"
-          onPress={() => setConfirming(true)}
-        >
-          <Icon name="trash" />
-          {m.classes_delete()}
-        </Button>
+        {!isNew && (
+          <Button
+            className="t-btn"
+            data-variant="quiet-danger"
+            onPress={() => setConfirming(true)}
+          >
+            <Icon name="trash" />
+            {m.classes_delete()}
+          </Button>
+        )}
       </header>
       <div className="t-students-scroll">
         <ol className="t-students">
@@ -323,9 +399,7 @@ function ClassEditor(props: {
                 aria-label={m.classes_remove({
                   name: s.name || String(i + 1),
                 })}
-                onPress={() =>
-                  setStudents((list) => list.filter((x) => x.key !== s.key))
-                }
+                onPress={() => removeRow(s)}
               >
                 <Icon name="close" />
               </Button>
@@ -354,7 +428,12 @@ function ClassEditor(props: {
           data-error={error ? true : undefined}
           aria-live="polite"
         >
-          {error || (dirty ? m.classes_unsaved() : m.classes_sorted())}
+          {error ||
+            (isNew
+              ? m.classes_draft()
+              : dirty
+                ? m.classes_unsaved()
+                : m.classes_sorted())}
         </p>
         <Button
           className="t-btn"
@@ -368,7 +447,7 @@ function ClassEditor(props: {
           className="t-btn"
           data-variant="primary"
           isDisabled={!dirty}
-          isPending={save.isPending}
+          isPending={create.isPending || save.isPending}
           onPress={submit}
         >
           {m.action_save()}
@@ -380,16 +459,7 @@ function ClassEditor(props: {
         title={m.classes_delete_title({ name: cls.name })}
         confirm={m.classes_delete()}
         pending={remove.isPending}
-        onConfirm={() =>
-          remove.mutate(cls.id, {
-            onSuccess: () => {
-              gone.current = true;
-              setConfirming(false);
-              notify(m.classes_deleted({ name: cls.name }));
-              props.onDeleted();
-            },
-          })
-        }
+        onConfirm={deleteClass}
       >
         {m.classes_delete_text({ count: cls.students.length })}
       </ConfirmDialog>

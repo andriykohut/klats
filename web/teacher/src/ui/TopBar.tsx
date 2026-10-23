@@ -22,7 +22,9 @@ export function TopBar() {
         <Link to="/" activeOptions={{ exact: true }}>
           {m.nav_tests()}
         </Link>
-        <Link to="/classes">{m.nav_classes()}</Link>
+        <Link to="/classes/{-$id}" params={{ id: undefined }}>
+          {m.nav_classes()}
+        </Link>
         <Link to="/assignments">{m.nav_results()}</Link>
         <Link to="/settings">{m.nav_settings()}</Link>
       </nav>

@@ -144,7 +144,7 @@
   ],
   "tests_edited": "Edited {date}",
   "tests_delete": "Delete the test “{title}”",
-  "tests_deleted": "Test deleted",
+  "tests_deleted": "Test “{title}” deleted",
   "tests_delete_failed": "Could not delete the test. Try again.",
   "tests_empty_title": "Your tests will appear here",
   "tests_empty_text": "Create your first test: add questions, mark the right answers and start it for a class.",
@@ -213,5 +213,10 @@
   "classes_paste_open": "Paste a list",
   "classes_paste_add": "Add",
   "classes_student_placeholder": "Surname and first name",
-  "classes_saved_named": "Changes to {name} saved"
+  "classes_saved_named": "Changes to {name} saved",
+  "classes_student_removed": "{name} removed",
+  "classes_draft": "Not saved yet",
+  "classes_not_saved": "{name}: changes not saved",
+  "classes_back": "Go back",
+  "classes_paste_failed": "Could not read the list. Try again."
 }

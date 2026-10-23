@@ -20,7 +20,12 @@ export function Banners() {
         <div className="t-banner" data-tone="error" role="alert">
           <Icon name="alert" />
           <p>{m.banner_port_busy({ port: net.port })}</p>
-          <Link to="/settings" hash="port" className="t-banner-link">
+          <Link
+            to="/settings"
+            hash="port"
+            className="t-banner-link"
+            onClick={() => setFlags({ focusPort: true })}
+          >
             {m.banner_port_change()}
           </Link>
         </div>
