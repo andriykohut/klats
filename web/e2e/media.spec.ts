@@ -84,6 +84,8 @@ test("images and audio are shown after the network drops", async ({
     soundLoaded.then((r) => r.finished()),
   ]);
 
+  // An unpicked tile shows its letter, not the selection dot.
+  await expect(page.locator(".k-badge-dot").first()).toHaveCSS("opacity", "0");
   const shown = page.locator(".k-qtext img");
   await expect(shown).toHaveAttribute("src", /^blob:/);
   await page.context().setOffline(true);
