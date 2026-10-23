@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { Question } from "@klats/shared/generated/testfmt.ts";
 import type {
+  AssignmentResults,
   LiveSnapshot,
   SittingInfo,
 } from "@klats/shared/generated/wire.ts";
@@ -93,6 +94,8 @@ export interface Klats {
   start(questions?: TestQuestion[]): Promise<SittingInfo>;
   /** The teacher's live snapshot. */
   live(): Promise<LiveSnapshot>;
+  /** The teacher's results of the assignment `id`. */
+  results(id: string): Promise<AssignmentResults>;
   /** Renames the computer the student `name` writes on. */
   rename(name: string, label: string): Promise<void>;
   /** A student computer: a 1024×768 page in a browser context of its own. */
@@ -115,14 +118,19 @@ export const test = base.extend<{ klats: Klats }>({
     });
     const exited = once(proc, "exit");
     const urls = new Map<string, string>();
+    // A server that hangs before its teacher line is killed, which ends stdout.
+    const hung = setTimeout(() => proc.kill("SIGKILL"), 30_000);
     for await (const line of createInterface({ input: proc.stdout })) {
       const [key, url] = line.split(" ");
       urls.set(key, url);
       if (key === "teacher") break;
     }
+    clearTimeout(hung);
     const printed = urls.get("teacher");
     if (!printed) {
-      proc.kill("SIGTERM");
+      proc.kill("SIGKILL");
+      await exited;
+      rmSync(data, { recursive: true, force: true });
       throw new Error(`klats did not start:\n${log}`);
     }
     const teacherURL = new URL(printed);
@@ -152,6 +160,8 @@ export const test = base.extend<{ klats: Klats }>({
     await use({
       student: urls.get("student") ?? "",
       live,
+      results: (id) =>
+        api<AssignmentResults>("GET", `/api/assignments/${id}/results`),
       async start(questions = TEST) {
         const cls = await api<{ id: string }>("POST", "/api/classes", {
           id: "",

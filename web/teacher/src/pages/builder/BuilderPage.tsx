@@ -55,8 +55,8 @@ const PREVIEW_KEY = "klats.builder.preview";
 /** The preview starts open on screens 1440 px wide and up, unless the teacher chose. */
 function previewOpen(): boolean {
   try {
-    const kept = localStorage.getItem(PREVIEW_KEY);
-    if (kept) return kept === "open";
+    const chosen = localStorage.getItem(PREVIEW_KEY);
+    if (chosen) return chosen === "open";
   } catch {}
   return window.innerWidth >= 1440;
 }

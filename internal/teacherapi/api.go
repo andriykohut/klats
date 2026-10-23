@@ -635,8 +635,9 @@ func (a *api) language() string {
 
 // export writes the assignment's results workbook. With Dialogs the teacher
 // picks the file, which is replaced atomically; without, the workbook is the
-// response. A finished export clears export_stale, unless a result changed
-// after the results it holds were read (see
+// response. A finished export records exported_at, which sets
+// [wire.AssignmentResults.Exported]. It also clears export_stale, unless a
+// result changed after the results it holds were read (see
 // [wire.AssignmentResults.ResultsRev]), which includes changes made while the
 // save dialog was open.
 func (a *api) export(w http.ResponseWriter, r *http.Request) {

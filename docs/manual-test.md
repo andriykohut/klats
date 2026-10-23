@@ -10,8 +10,9 @@ result (pass, or what went wrong) in the release pull request.
 ## Before you start
 
 - **Builds.** Run `make gen web` first.
-  - Windows teacher app: `GOOS=windows GOARCH=amd64 go build ./cmd/klats`
-    gives `klats.exe`.
+  - Windows teacher app: `GOOS=windows GOARCH=amd64 go build -ldflags
+    "-H windowsgui" ./cmd/klats` gives `klats.exe`, which opens no console
+    window. It builds on any OS, as the Windows shell needs no cgo.
   - Linux teacher app: on the Linux machine, install `libgtk-4-dev` and
     `libwebkitgtk-6.0-dev`, then run `make build`.
 - **Data.** In the teacher app, make class «7-Б» with five students, and a
@@ -67,10 +68,12 @@ Start from an empty data folder (`%APPDATA%\Klats`, or move it aside).
      new.
 2. **WebView2 requests.** Create a test, edit it until «Збережено» shows,
    delete another test and let the undo toast run out, then start a sitting.
-   - *Expected:* every step works.
-   - `logs\klats.log` in the data folder has no `forbidden_origin` and no
-     `unauthorized`. WebView2 must send `Origin: http://127.0.0.1:<port>`
-     on POST, PUT and DELETE.
+   - *Expected:* every step works: «Збережено» shows, the deleted test
+     leaves the list with no error toast, and the live view opens.
+   - These are POST, PUT and DELETE requests, which the teacher API refuses
+     unless WebView2 sends `Origin: http://127.0.0.1:<port>`. A save that
+     never reaches «Збережено», a deleted test that comes back with an error,
+     or a sitting that does not start means that check failed.
 3. **Port 80.** On the first run, look at the board address.
    - *Expected:* the address has no port, and student PCs open
      `http://<address>/`.

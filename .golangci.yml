@@ -1,3 +1,7 @@
 version: "2"
+run:
+  # Lint compiles the load test too, which only `make load` runs.
+  build-tags:
+    - load
 linters:
   default: standard

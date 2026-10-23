@@ -13,7 +13,7 @@ import {
 test("the teacher sends a student back to the names, and moves another to a new computer", async ({
   klats,
 }) => {
-  const { code } = await klats.start();
+  const { code, assignmentId } = await klats.start();
   const teacher = await klats.teacher();
   const [q1, q2] = TEST;
 
@@ -22,6 +22,10 @@ test("the teacher sends a student back to the names, and moves another to a new 
   const a = await klats.computer();
   await joinAs(a, klats, code, kicked);
   await pick(a, q1, "4");
+  await until(
+    klats,
+    (live) => live.rows.find((r) => r.name === kicked)?.cells[0] === "wrong",
+  );
   await teacher
     .getByRole("button", { name: m.live_row_menu({ name: kicked }) })
     .click();
@@ -66,10 +70,15 @@ test("the teacher sends a student back to the names, and moves another to a new 
   ).toBeChecked();
   await next.getByRole("button", { name: m.test_next() }).click();
   await pick(next, q2, "Клавіатура");
-  await until(
-    klats,
-    (live) => live.rows.find((r) => r.name === moved)?.cells[1] === "wrong",
-  );
+  await expect
+    .poll(
+      async () => {
+        const { rows } = await klats.results(assignmentId);
+        return rows.find((r) => r.name === moved)?.answers[q2.id];
+      },
+      { timeout: 10_000 },
+    )
+    .toEqual([q2.options[0].id]);
 
   await old.context().setOffline(false);
   await expect(old.getByText(m.moved_title())).toBeVisible({ timeout: 15_000 });
