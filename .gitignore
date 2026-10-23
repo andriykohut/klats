@@ -8,3 +8,4 @@ web/shared/src/generated/
 *.db
 /klats
 /klats.exe
+web/e2e/test-results/

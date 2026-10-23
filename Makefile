@@ -8,7 +8,7 @@ export MACOSX_DEPLOYMENT_TARGET := 13.0
 export CGO_LDFLAGS := $(or $(CGO_LDFLAGS),-O2 -g) -mmacosx-version-min=13.0
 endif
 
-.PHONY: build check lint test typecheck size web gen e2e dev
+.PHONY: build check lint test typecheck size web gen e2e load dev
 
 build:
 	go build ./cmd/klats
@@ -43,9 +43,14 @@ gen:
 	go tool sqlc generate
 	go tool tygo generate
 
-# Playwright end-to-end tests are added later.
-e2e:
-	@echo "e2e: no end-to-end tests yet"
+# The Playwright specs in web/e2e, in Chromium and Firefox. Their global setup
+# builds the klats binary, which embeds the web apps built here.
+e2e: web
+	cd web && pnpm --filter @klats/e2e exec playwright test
+
+# A lesson at full size against the sitting engine: 40 students for a minute.
+load:
+	go test -tags load -run Load -count=1 ./internal/sitting/
 
 dev:
 	go run -tags nodesktop ./cmd/klats -dev
