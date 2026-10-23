@@ -167,10 +167,9 @@ solves.
 `testfmt.Answer`: `items`, `pairs`, `text` and `point`, each omitted when
 empty. The server stores its JSON in `answers.value` and, for a choice
 question, keeps only the `items` that are option ids of the question. The
-queue saves `{v: 2, …}` under `klats.answers.<participantId>`. A queue saved
-as `v: 1`, which held `optionIds`, is converted on load rather than set
-aside as unreadable. `isAnswered` in `web/shared/src/answers.ts` and
-`Answer.IsEmpty` in Go both say whether an answer holds anything.
+queue saves `{v: 2, …}` under `klats.answers.<participantId>`. `isAnswered`
+in `web/shared/src/answers.ts` and `Answer.IsEmpty` in Go both say whether an
+answer holds anything.
 
 **Every change has a `changeId`, so a retry is harmless.** A request can
 succeed on the server while its response is lost to a dropped connection or

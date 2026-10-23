@@ -214,23 +214,3 @@ test.each([
     expect(queue.set("q1", { items: ["a"] }).seq).toBe(1);
   },
 );
-
-test("a v1 queue converts on load", () => {
-  const storage = memoryStorage();
-  const row = { questionId: "q1", optionIds: ["a"], seq: 3 };
-  storage.setItem(
-    KEY,
-    JSON.stringify({
-      v: 1,
-      seqBase: 0,
-      answers: [row],
-      pending: [{ ...row, changeId: "c", participantId: "p1" }],
-    }),
-  );
-  const queue = new AnswerQueue(storage, KEY, "p1");
-  expect(queue.current("q1")).toEqual({ items: ["a"] });
-  expect(queue.pending()[0].answer).toEqual({ items: ["a"] });
-  expect(queue.set("q1", { items: ["b"] }).seq).toBe(4);
-  expect(JSON.parse(storage.getItem(KEY) ?? "").v).toBe(2);
-  expect(storage.getItem(`${KEY}.bad`)).toBeNull();
-});

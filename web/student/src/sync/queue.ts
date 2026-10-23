@@ -14,17 +14,6 @@ interface Saved {
   pending: AnswerChange[];
 }
 
-/** An answer as version 1 stored it: a list of option ids. */
-type RowV1 = { questionId: string; optionIds: string[]; seq: number };
-
-/** The shape version 1 saved, converted on load. */
-interface SavedV1 {
-  v: 1;
-  seqBase: number;
-  answers: RowV1[];
-  pending: (RowV1 & { changeId: string; participantId: string })[];
-}
-
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -43,52 +32,35 @@ const isAnswerValue = (value: unknown): value is Answer =>
       typeof value.point.x === "number" &&
       typeof value.point.y === "number"));
 
-/** Whether `value` is a stored answer of version `v`. */
-const isRow = (value: unknown, v: 1 | 2): boolean => {
-  const r = value as Record<string, unknown> | null;
+const isRow = (value: unknown): boolean => {
+  const r = value as StoredAnswer | null;
   return (
     typeof r?.questionId === "string" &&
     typeof r.seq === "number" &&
-    (v === 1 ? isStrings(r.optionIds) : isAnswerValue(r.answer))
+    isAnswerValue(r.answer)
   );
 };
 
-const isChange = (value: unknown, v: 1 | 2): boolean => {
-  const c = value as Record<string, unknown> | null;
+const isChange = (value: unknown): value is AnswerChange => {
+  const c = value as AnswerChange | null;
   return (
-    isRow(value, v) &&
+    isRow(value) &&
     typeof c?.changeId === "string" &&
     typeof c.participantId === "string"
   );
 };
 
-const isSaved = (value: unknown): value is Saved | SavedV1 => {
-  const s = value as Saved | SavedV1 | null;
-  const v = s?.v;
+const isSaved = (value: unknown): value is Saved => {
+  const s = value as Saved | null;
   return (
-    (v === 1 || v === 2) &&
-    typeof s?.seqBase === "number" &&
+    s?.v === 2 &&
+    typeof s.seqBase === "number" &&
     Array.isArray(s.answers) &&
-    s.answers.every((a) => isRow(a, v)) &&
+    s.answers.every(isRow) &&
     Array.isArray(s.pending) &&
-    s.pending.every((c) => isChange(c, v))
+    s.pending.every(isChange)
   );
 };
-
-/** Converts a stored queue of either version to the current one. */
-function upgrade(saved: Saved | SavedV1): Saved {
-  if (saved.v === 2) return saved;
-  const row = <T extends RowV1>({ optionIds, ...rest }: T) => ({
-    ...rest,
-    answer: { items: optionIds },
-  });
-  return {
-    v: 2,
-    seqBase: saved.seqBase,
-    answers: saved.answers.map(row),
-    pending: saved.pending.map(row),
-  };
-}
 
 /**
  * A participant's answers on this device and the changes the server has not
@@ -111,9 +83,6 @@ function upgrade(saved: Saved | SavedV1): Saved {
  * Only the newest unacked change of a question is pending: a newer one
  * replaces it, since the server would ignore the older one anyway.
  *
- * A queue saved by version 1, which stored option ids, is converted to
- * answers with `items` on load.
- *
  * Unreadable stored state is copied to `<key>.bad` and the queue starts
  * empty. When a write to storage fails, the queue keeps working from memory,
  * logs the failure once and sets {@link AnswerQueue.saveFailed}; every later
@@ -133,8 +102,7 @@ export class AnswerQueue {
     this.storage = storage;
     this.key = key;
     this.participantId = participantId;
-    const stored = readStored(storage, key, isSaved);
-    const saved = stored && upgrade(stored);
+    const saved = readStored(storage, key, isSaved);
     this.answers = new Map(saved?.answers.map((a) => [a.questionId, a]));
     this.changes = saved?.pending ?? [];
     this.seqBase = saved?.seqBase ?? 0;
