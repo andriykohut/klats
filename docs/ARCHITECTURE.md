@@ -410,4 +410,5 @@ current webview.
 - **Sorting:** student names sort with Ukrainian collation, in Go, through
   `roster.SortKey`, which is also stored as `students.sort_key`. Every list
   and export the server sends is already in that order. The teacher app
-  sorts class names itself, with the collation of the UI language.
+  sorts class names itself, with Ukrainian collation too, whatever the UI
+  language.

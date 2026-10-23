@@ -23,6 +23,19 @@ test("a second computer that picks a taken name waits for the teacher", async ({
   const labels = { name, holder: "ПК-1", newcomer: "1" };
   const alert = teacher.getByText(m.ev_clash(labels));
   await expect(alert).toBeVisible();
+
+  // Disconnecting the holder discards their answers, so it asks first.
+  await teacher
+    .getByRole("button", { name: m.ev_kick({ label: "ПК-1" }), exact: true })
+    .click();
+  const confirm = teacher.getByRole("alertdialog", {
+    name: m.live_kick_title({ name }),
+  });
+  await expect(confirm).toContainText(m.live_kick_text());
+  await confirm.getByRole("button", { name: m.action_cancel() }).click();
+  await expect(confirm).toBeHidden();
+  await expect(alert).toBeVisible();
+
   await teacher
     .getByRole("button", { name: m.ev_kick({ label: "1" }), exact: true })
     .click();

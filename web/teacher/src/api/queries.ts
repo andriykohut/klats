@@ -207,9 +207,13 @@ export function useDeleteClass() {
   });
 }
 
-/** The live view; null when no sitting has run since launch. */
+/**
+ * The live view; null when no sitting has run since launch. The event stream
+ * refetches it on each change, and it also refetches every 10 s, in case the
+ * stream stalls without closing.
+ */
 export const useLive = () =>
-  useQuery({ queryKey: ["live"], queryFn: api.live });
+  useQuery({ queryKey: ["live"], queryFn: api.live, refetchInterval: 10_000 });
 
 /**
  * Ends the running sitting. The live view and the results list refetch.

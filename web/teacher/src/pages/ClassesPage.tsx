@@ -1,6 +1,5 @@
 import type { Class } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import {
@@ -40,7 +39,7 @@ export function ClassesPage() {
   const { id } = useParams({ strict: false });
   const navigate = useNavigate();
   const classes = useClasses();
-  const collator = new Intl.Collator(getLocale(), { numeric: true });
+  const collator = new Intl.Collator("uk", { numeric: true });
   const list = [...(classes.data ?? [])].sort((a, b) =>
     collator.compare(a.name, b.name),
   );

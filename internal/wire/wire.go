@@ -267,8 +267,9 @@ type ResultOption struct {
 
 // ResultRow is one participant's result, in Ukrainian order of Name. Points
 // has one entry per question, teacher overrides applied; Overridden lists the
-// ids of the overridden questions. DurationSec is 0 when the participant has
-// not finished. SittingDate is when the participant's sitting started.
+// ids of the overridden questions. Writing is set while the participant is
+// still writing in the running sitting, and DurationSec is 0 until they
+// finish. SittingDate is when the participant's sitting started.
 // Answers maps question id to the selected option ids, for answered questions;
 // Late lists the questions whose answer arrived after the sitting ended.
 type ResultRow struct {
@@ -279,6 +280,7 @@ type ResultRow struct {
 	Earned        float64             `json:"earned"`
 	Max           float64             `json:"max"`
 	Grade         int                 `json:"grade"`
+	Writing       bool                `json:"writing"`
 	DurationSec   int                 `json:"durationSec"`
 	SittingDate   int64               `json:"sittingDate"`
 	Answers       map[string][]string `json:"answers"`

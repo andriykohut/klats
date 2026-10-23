@@ -1,6 +1,5 @@
 import type { Problem, Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -108,7 +107,7 @@ function StartForm(props: StartProps & { close: () => void }) {
     (p) => p.severity === "error" && number.has(p.questionId),
   );
   const running = taken || (live.data != null && !live.data.sitting.ended);
-  const collator = new Intl.Collator(getLocale(), { numeric: true });
+  const collator = new Intl.Collator("uk", { numeric: true });
   const sorted = [...(classes.data ?? [])].sort((a, b) =>
     collator.compare(a.name, b.name),
   );

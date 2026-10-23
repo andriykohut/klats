@@ -46,6 +46,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade,
 				SittingDate: s.StartedAt, Answers: map[string][]string{}, Overridden: []string{}, Late: []string{},
+				Writing: p.state == stateWriting,
 			}
 			if p.finishedAt > 0 {
 				row.DurationSec = int(max(0, p.finishedAt-p.joinedAt) / 1000)

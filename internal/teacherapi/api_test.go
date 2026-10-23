@@ -534,15 +534,28 @@ func TestParticipantRoutesAndOverrides(t *testing.T) {
 	if !res.ExportStale || len(res.Rows) != 2 || res.Rows[0].Points[0] != 1 {
 		t.Errorf("results = %+v", res)
 	}
-	// Grades 6 (1 of 2 points) and 1 (nothing answered).
-	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 2 || list[0].AverageGrade == nil || *list[0].AverageGrade != 3.5 {
-		t.Errorf("list = %+v", list[0])
+	// Grades 6 (1 of 2 points) and 1 (nothing answered). The average leaves
+	// out the students still writing, whose grades are partial.
+	average := func(when string, participants int, want *float64) {
+		t.Helper()
+		got := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil))[0]
+		if got.Participants != participants || (got.AverageGrade == nil) != (want == nil) || (want != nil && *got.AverageGrade != *want) {
+			t.Errorf("list %s = %+v, want %d participants, average %v", when, got, participants, want)
+		}
+	}
+	average("while both write", 2, nil)
+	for _, step := range []struct {
+		dev  string
+		want float64
+	}{{"dev2", 1}, {"dev1", 3.5}} {
+		if _, err := v.e.Finish(step.dev); err != nil {
+			t.Fatal(err)
+		}
+		average("after "+step.dev+" finished", 2, ptr(step.want))
 	}
 
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[1]+"/kick", nil), 204)
-	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 1 || list[0].AverageGrade == nil || *list[0].AverageGrade != 6 {
-		t.Errorf("list after kick = %+v", list[0])
-	}
+	average("after the kick", 1, ptr(6))
 	wantError(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "nope"}), 404, "not_found")
 	wantStatus(t, v.do("PUT", "/api/devices/dev1", wire.LabelRequest{Label: "Стіл 1"}), 204)
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "dev2"}), 204)

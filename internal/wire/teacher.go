@@ -94,8 +94,9 @@ type LabelRequest struct {
 }
 
 // AssignmentSummary is a row of the results list. Participants does not count
-// kicked ones. AverageGrade is the mean grade of those participants, nil while
-// there are none. ExportStale is [AssignmentResults.ExportStale] without
+// kicked ones. AverageGrade is the mean grade of those participants who are no
+// longer writing, as a writer's grade is partial; it is nil while there are
+// none. ExportStale is [AssignmentResults.ExportStale] without
 // Exported beside it: it ignores whether a file was ever exported, so it is
 // also set for an assignment never exported, and alone it does not mean an
 // exported file is out of date.

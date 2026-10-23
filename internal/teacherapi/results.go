@@ -37,11 +37,13 @@ func (a *api) listAssignments(w http.ResponseWriter, r *http.Request) {
 			fail(w, r, err)
 			return
 		}
-		if n := len(res.Rows); n > 0 {
-			sum := 0
-			for _, rr := range res.Rows {
-				sum += rr.Grade
+		sum, n := 0, 0
+		for _, rr := range res.Rows {
+			if !rr.Writing {
+				sum, n = sum+rr.Grade, n+1
 			}
+		}
+		if n > 0 {
 			avg := float64(sum) / float64(n)
 			s.AverageGrade = &avg
 		}

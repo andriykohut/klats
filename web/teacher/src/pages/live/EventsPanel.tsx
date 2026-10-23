@@ -5,6 +5,7 @@ import { type ReactNode, useState } from "react";
 import { Button } from "react-aria-components";
 import { busy, useResolveEvent } from "../../api/queries";
 import { cooldown } from "../../cooldown";
+import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { withBold } from "../../ui/withBold";
 import { SCALE_MAX } from "./journal";
 
@@ -13,8 +14,10 @@ type Tone = "red" | "tang" | "mint" | undefined;
 /**
  * «Події»: the events waiting for a decision first, each with its actions,
  * then the rest, newest first, as the live snapshot lists them. A name clash
- * offers «Перенести на …» only while the name's current holder is offline.
- * `who` is how a name shows (initials while names are hidden); hidden names
+ * offers «Перенести на …» only while the name's current holder is offline,
+ * and asks before it disconnects the holder, as the row menu's kick does,
+ * since the holder's answers then stop counting. `who` is how a name shows
+ * (initials while names are hidden), in the confirmation too; hidden names
  * also hide the grade a student finished with.
  */
 export function EventsPanel(props: {
@@ -26,6 +29,7 @@ export function EventsPanel(props: {
   const resolve = useResolveEvent();
   // The next clash's buttons slide under the pointer once one is resolved.
   const [mayAct] = useState(() => cooldown());
+  const [kicking, setKicking] = useState<Event | null>(null);
   const time = new Intl.DateTimeFormat(getLocale(), {
     hour: "2-digit",
     minute: "2-digit",
@@ -59,7 +63,11 @@ export function EventsPanel(props: {
                         <Button
                           key={a.action}
                           className="l-ev-act"
-                          onPress={() => act(ev.id, a.action)}
+                          onPress={() =>
+                            a.action === "kick_old"
+                              ? setKicking(ev)
+                              : act(ev.id, a.action)
+                          }
                         >
                           {a.label}
                         </Button>
@@ -72,6 +80,24 @@ export function EventsPanel(props: {
           })}
         </ol>
       )}
+      <ConfirmDialog
+        isOpen={kicking !== null}
+        onOpenChange={(open) => !open && setKicking(null)}
+        title={m.live_kick_title({
+          name: props.who(kicking?.params.name ?? ""),
+        })}
+        confirm={m.live_kick()}
+        pending={resolve.isPending}
+        onConfirm={() => {
+          if (!kicking || busy("resolve")) return;
+          resolve.mutate(
+            { id: kicking.id, action: "kick_old" },
+            { onSuccess: () => setKicking(null) },
+          );
+        }}
+      >
+        {m.live_kick_text()}
+      </ConfirmDialog>
     </section>
   );
 }
