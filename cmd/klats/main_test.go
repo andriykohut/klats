@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -230,6 +231,30 @@ func TestDevModeServes(t *testing.T) {
 		if strings.Contains(l, teacher.Query().Get("t")) {
 			t.Errorf("the launch token is in %s", name)
 		}
+	}
+}
+
+// -demo needs -dev. It runs a sitting of the sample class in a temporary data
+// folder that is gone after the run, and the student line carries its code.
+func TestDemo(t *testing.T) {
+	stubs(t)
+	var stderr bytes.Buffer
+	if err := run(context.Background(), []string{"-demo"}, io.Discard, &stderr); !errors.Is(err, errUsage) || !strings.Contains(stderr.String(), "-demo needs -dev") {
+		t.Errorf("-demo without -dev = %v, printed %q", err, stderr.String())
+	}
+
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	d := startDev(t, "", "-demo", "-port", "0")
+	_, code, ok := strings.Cut(d.lines["student"], "/?code=")
+	status, b := api(t, d.lines["teacher"], "GET", "/api/sittings/current", nil)
+	var live wire.LiveSnapshot
+	if !ok || status != 200 || json.Unmarshal(b, &live) != nil || live.Sitting.Code != code || live.Sitting.ClassName != "7-Б" {
+		t.Errorf("student line %q, live sitting %d %s", d.lines["student"], status, b)
+	}
+	d.stop(t)
+	if entries, _ := os.ReadDir(tmp); len(entries) > 0 {
+		t.Errorf("the run left %v in the temporary folder", entries)
 	}
 }
 

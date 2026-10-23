@@ -8,7 +8,7 @@ export MACOSX_DEPLOYMENT_TARGET := 13.0
 export CGO_LDFLAGS := $(or $(CGO_LDFLAGS),-O2 -g) -mmacosx-version-min=13.0
 endif
 
-.PHONY: build check lint test typecheck size web gen e2e load dev
+.PHONY: build check lint test typecheck size web gen e2e load dev demo
 
 build:
 	go build ./cmd/klats
@@ -54,3 +54,9 @@ load:
 
 dev:
 	go run -tags nodesktop ./cmd/klats -dev
+
+# A lesson to try both apps on: class 7-Б, a six-question test and a running
+# sitting, in a temporary data folder removed on exit. It prints the student
+# address with the join code, and the teacher address.
+demo: web
+	go run -tags nodesktop ./cmd/klats -dev -demo

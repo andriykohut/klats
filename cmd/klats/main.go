@@ -1,7 +1,7 @@
 // Command klats is the teacher's program: it serves the student app on the
 // LAN, the teacher API on 127.0.0.1, and opens the teacher window. With -dev it
 // opens no window and prints the addresses instead, for development and the
-// end-to-end tests.
+// end-to-end tests; -demo adds a sample lesson to try them on.
 package main
 
 import (
@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"klats/internal/config"
+	"klats/internal/demo"
 	"klats/internal/events"
 	"klats/internal/lan"
 	"klats/internal/power"
@@ -81,32 +82,52 @@ func code(err error) int {
 
 // run serves until ctx is done or, without -dev, until the window quits, then
 // shuts the servers down and closes the database. With -dev it prints the
-// student, LAN and teacher addresses to stdout, one per line. Logs go to
-// stderr and to the data folder's logs/klats.log.
+// student, LAN and teacher addresses to stdout, one per line. With -demo too,
+// it first seeds a running sitting (see [demo.Seed]), in a temporary data
+// folder removed on exit unless -data names one, and the student addresses
+// carry its join code. Logs go to stderr and to the data folder's
+// logs/klats.log.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
 	flags := flag.NewFlagSet("klats", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	dataFlag := flags.String("data", "", "data folder (default: the per-user app-data folder)")
 	dev := flags.Bool("dev", false, "open no window; print the addresses")
 	portFlag := flags.Int("port", 0, "student server port for this run, not saved; 0 picks a free one")
+	demoFlag := flags.Bool("demo", false, "with -dev only: start a sample lesson, in a temporary data folder unless -data is set")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return errUsage
 	}
+	if *demoFlag && !*dev {
+		_, _ = fmt.Fprintln(stderr, "-demo needs -dev")
+		flags.Usage()
+		return errUsage
+	}
 	portSet := false
 	flags.Visit(func(f *flag.Flag) { portSet = portSet || f.Name == "port" })
 
 	dataDir := *dataFlag
-	if dataDir == "" {
+	switch {
+	case dataDir != "":
+		if err := os.MkdirAll(dataDir, 0o700); err != nil {
+			return err
+		}
+	case *demoFlag:
+		d, err := os.MkdirTemp("", "klats-demo-")
+		if err != nil {
+			return err
+		}
+		// Deferred first, so it runs after the store and the log are closed.
+		defer func() { _ = os.RemoveAll(d) }()
+		dataDir = d
+	default:
 		d, err := config.DataDir()
 		if err != nil {
 			return err
 		}
 		dataDir = d
-	} else if err := os.MkdirAll(dataDir, 0o700); err != nil {
-		return err
 	}
 
 	// The shell claims the single instance before anything a running instance
@@ -159,6 +180,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	}
 	eng.SetLanguage(settings.Language)
 	eng.SetSnapshotDir(dataDir)
+	join := ""
+	if *demoFlag {
+		info, err := demo.Seed(st, eng)
+		if err != nil {
+			return fmt.Errorf("demo: %w", err)
+		}
+		join = "/?code=" + info.Code
+	}
 
 	var lanL net.Listener
 	var lanErr string
@@ -242,9 +271,9 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	if *dev {
 		student, lanURL := "none", "none"
 		if lanL != nil {
-			student = fmt.Sprintf("http://127.0.0.1:%d", lanPort)
+			student = fmt.Sprintf("http://127.0.0.1:%d%s", lanPort, join)
 			if addr, ok := lan.Choose(lan.Candidates(lan.System()), settings.Address); ok {
-				lanURL = lan.URL(addr, lanPort)
+				lanURL = lan.URL(addr, lanPort) + join
 			}
 		}
 		if _, err := fmt.Fprintf(stdout, "student %s\nlan %s\nteacher %s\n", student, lanURL, teacherURL); err != nil {
