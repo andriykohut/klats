@@ -14,9 +14,10 @@ export interface Autosave<T> {
   flush(): Promise<void>;
   /**
    * Sends what is pending at once and stops retrying failed saves, for when
-   * the editor goes away; a save already sent still completes.
+   * the editor goes away; a save already sent still completes. Resolves once
+   * everything is saved, or rejects when that last attempt fails.
    */
-  stop(): void;
+  stop(): Promise<void>;
   /** Undoes {@link stop}, for an editor that comes back, as React's StrictMode remounts it. */
   start(): void;
 }
@@ -113,7 +114,7 @@ export function autosave<T, R>(opts: {
     flush,
     stop() {
       stopped = true;
-      flush().catch(() => {});
+      return flush();
     },
     start() {
       stopped = false;

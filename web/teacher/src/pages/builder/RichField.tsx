@@ -11,7 +11,7 @@ import {
 import StarterKit from "@tiptap/starter-kit";
 import { type KeyboardEvent, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
-import { textDoc, toStored } from "./model";
+import { oneParagraph, textDoc, toStored } from "./model";
 
 /*
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
@@ -62,12 +62,13 @@ const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
  * through `onChange` in the stored shape (see {@link toStored}), and reads
  * `value` only when it mounts: key it by what it edits.
  *
- * `inline` makes it an answer option: no lists, Enter calls `onEnter`, and
- * Backspace in an empty field calls `onEmptyBackspace`. A small toolbar with
- * bold, italic, subscript and superscript floats over the field while it has
- * focus; the same marks are on Mod-B, Mod-I, Mod-, and Mod-. . Each time
- * `focus` changes to a number other than 0, the field takes focus with the
- * caret at the end.
+ * `inline` makes it an answer option: one paragraph (a paste is joined into
+ * it with hard breaks), no lists, Enter calls `onEnter`, and Backspace in an
+ * empty field calls `onEmptyBackspace`; a held key calls them once. A small
+ * toolbar with bold, italic, subscript and superscript floats over the field
+ * while it has focus; the same marks are on Mod-B, Mod-I, Mod-, and Mod-. .
+ * Each time `focus` changes to a number other than 0, the field takes focus
+ * with the caret at the end.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -95,6 +96,9 @@ export function RichField(props: {
         "aria-multiline": inline ? "false" : "true",
         "aria-placeholder": props.placeholder,
       },
+      transformPasted: inline
+        ? (slice, view) => oneParagraph(slice, view.state.schema)
+        : undefined,
     },
     onUpdate: ({ editor }) =>
       props.onChange(toStored(editor.getJSON()) as RichDoc),
@@ -119,7 +123,9 @@ export function RichField(props: {
   });
 
   // Caught before ProseMirror sees them, and rendered at once, so the next
-  // key already reaches the option that took focus.
+  // key already reaches the option that took focus. A held key acts once:
+  // Backspace held past the start of a cleared option must not remove it
+  // and then eat into the one above, and a held Enter adds one option.
   const onKey = (e: KeyboardEvent) => {
     const plain = !(e.shiftKey || e.altKey || e.ctrlKey || e.metaKey);
     let act: (() => void) | undefined;
@@ -130,7 +136,7 @@ export function RichField(props: {
     if (!act || e.nativeEvent.isComposing) return;
     e.preventDefault();
     e.stopPropagation();
-    flushSync(act);
+    if (!e.repeat) flushSync(act);
   };
 
   return (

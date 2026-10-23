@@ -2,7 +2,7 @@ import type { Question, Test } from "@klats/shared/generated/testfmt.ts";
 import type { SaveResult, TestDoc } from "@klats/shared/generated/wire.ts";
 import { PALETTES, type PaletteId } from "@klats/shared/palettes.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -42,6 +42,12 @@ const SAVE_TEXT: Record<SaveState, () => string> = {
   saving: m.builder_saving,
   retrying: m.builder_retrying,
 };
+
+/**
+ * Edits whose save failed as the teacher left their test, by test id, with
+ * the toast that offers to go back. Opening the test again restores them.
+ */
+const kept = new Map<string, { test: Test; toast: string }>();
 
 /** Where the teacher's choice to show or hide the preview is kept. */
 const PREVIEW_KEY = "klats.builder.preview";
@@ -91,18 +97,22 @@ function BackLink() {
 /**
  * The test being edited. It is read from `doc` once; from then on this
  * component holds the test, and every edit autosaves the whole of it (see
- * {@link autosave}). Leaving saves what is pending. Deleting a question or an
+ * {@link autosave}). Leaving saves what is pending; when that save fails, the
+ * edits wait in memory, with a toast «Зміни не збережено» that goes back to
+ * them, until the test is opened again. Deleting a question or an
  * option takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
  * that puts it back where it was.
  */
 function Builder({ doc }: { doc: TestDoc }) {
   const save = useSaveTest(doc.id);
-  const [test, setTest] = useState(doc.test);
+  const navigate = useNavigate();
+  const [seed] = useState(() => kept.get(doc.id)?.test ?? doc.test);
+  const [test, setTest] = useState(seed);
   // The newest test, for edits made before React renders the last one.
-  const latest = useRef(doc.test);
+  const latest = useRef(seed);
   const [problems, setProblems] = useState(doc.problems);
   const [status, setStatus] = useState<SaveState>("saved");
-  const [selected, setSelected] = useState(doc.test.questions[0]?.id ?? "");
+  const [selected, setSelected] = useState(seed.questions[0]?.id ?? "");
   // A question just added, whose text takes focus.
   const [fresh, setFresh] = useState("");
   const [open, setOpen] = useState(previewOpen);
@@ -122,15 +132,34 @@ function Builder({ doc }: { doc: TestDoc }) {
     return () => document.body.classList.remove("b-body");
   }, []);
 
-  // shortcut: closing the window within 400 ms of an edit drops that edit;
-  // leaving the page saves it. Save on pagehide too if teachers lose edits that way.
+  // shortcut: closing the window within 400 ms of an edit, or while saves
+  // fail, drops those edits. Save on pagehide too if teachers lose edits that way.
   useEffect(() => {
     saver.start();
+    const back = kept.get(doc.id);
+    if (back) {
+      kept.delete(doc.id);
+      toasts.close(back.toast);
+      saver.change(back.test);
+    }
     return () => {
-      saver.stop();
       for (const key of undoToasts.current) toasts.close(key);
+      saver.stop().catch(() => {
+        const toast = toasts.add(
+          {
+            text: m.builder_not_saved(),
+            action: {
+              label: m.classes_back(),
+              onAction: () =>
+                navigate({ to: "/tests/$id", params: { id: doc.id } }),
+            },
+          },
+          { timeout: 8000 },
+        );
+        kept.set(doc.id, { test: latest.current, toast });
+      });
     };
-  }, [saver]);
+  }, [saver, doc.id, navigate]);
 
   const update = (fn: (t: Test) => Test) => {
     const next = fn(latest.current);
@@ -226,7 +255,8 @@ function Builder({ doc }: { doc: TestDoc }) {
   const errors = new Set(
     problems.filter((p) => p.severity === "error").map((p) => p.questionId),
   );
-  const palette = test.palette in PALETTES ? test.palette : "teal";
+  const palette: PaletteId =
+    test.palette in PALETTES ? (test.palette as PaletteId) : "teal";
 
   return (
     <div className="b-app">
@@ -331,7 +361,13 @@ function Builder({ doc }: { doc: TestDoc }) {
             </div>
           )}
         </main>
-        <PreviewPane test={test} index={index} open={open} onToggle={toggle}>
+        <PreviewPane
+          test={test}
+          palette={palette}
+          index={index}
+          open={open}
+          onToggle={toggle}
+        >
           <Checks
             problems={problems}
             questions={test.questions}

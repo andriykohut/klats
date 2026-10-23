@@ -55,13 +55,12 @@ export function Checks(props: {
               data-severity={p.severity}
             >
               <span>
-                <button
-                  type="button"
+                <Button
                   className="b-tip-link"
-                  onClick={() => props.onSelect(p.questionId)}
+                  onPress={() => props.onSelect(p.questionId)}
                 >
                   {problemText(p, number.get(p.questionId) ?? 0)}
-                </button>
+                </Button>
                 {p.code === "single_many_correct" && (
                   <Button
                     className="b-tip-fix"

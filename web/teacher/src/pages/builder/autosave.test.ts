@@ -108,10 +108,11 @@ test("flush rejects when the save fails", async () => {
 test("stop sends what is pending and retries no more; start retries again", async () => {
   const { a, calls } = setup();
   a.change("1");
-  a.stop();
+  const stopped = a.stop();
   await vi.advanceTimersByTimeAsync(0);
   expect(calls.map((c) => c.value)).toEqual(["1"]);
   calls[0].fail(new Error("down"));
+  await expect(stopped).rejects.toThrow("down");
   await vi.advanceTimersByTimeAsync(10_000);
   expect(calls).toHaveLength(1);
   a.start();

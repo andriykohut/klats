@@ -1,5 +1,12 @@
+import { Fragment, Schema, Slice } from "@tiptap/pm/model";
 import { expect, test } from "vitest";
-import { fromPasted, plainText, textDoc, toStored } from "./model";
+import {
+  fromPasted,
+  oneParagraph,
+  plainText,
+  textDoc,
+  toStored,
+} from "./model";
 
 test("toStored keeps only the keys the server allows", () => {
   const editor = {
@@ -118,4 +125,51 @@ test("fromPasted builds questions with fresh ids", () => {
   const ids = [q.id, ...q.options.map((o) => o.id)];
   expect(new Set(ids).size).toBe(3);
   expect(ids.every((id) => /^[a-z0-9]{16}$/.test(id))).toBe(true);
+});
+
+/** The inline schema of an option, as TipTap builds it: paragraphs of inline nodes. */
+const inline = new Schema({
+  nodes: {
+    doc: { content: "paragraph+" },
+    paragraph: { content: "inline*", group: "block" },
+    text: { group: "inline" },
+    hardBreak: { group: "inline", inline: true },
+  },
+  marks: { bold: {} },
+});
+const para = (...text: string[]) =>
+  inline.node(
+    "paragraph",
+    null,
+    text.map((t) => inline.text(t)),
+  );
+
+test("oneParagraph joins pasted paragraphs with hard breaks, skipping empty ones", () => {
+  const bold = inline.node("paragraph", null, [
+    inline.text("два", [inline.mark("bold")]),
+  ]);
+  const pasted = new Slice(Fragment.from([para("один"), para(), bold]), 0, 0);
+  const out = oneParagraph(pasted, inline);
+  expect([out.openStart, out.openEnd, out.content.childCount]).toEqual([
+    1, 1, 1,
+  ]);
+  expect(out.content.firstChild?.toJSON()).toEqual({
+    type: "paragraph",
+    content: [
+      { type: "text", text: "один" },
+      { type: "hardBreak" },
+      { type: "text", text: "два", marks: [{ type: "bold" }] },
+    ],
+  });
+});
+
+test("oneParagraph keeps a one-paragraph paste as it is, open to merge", () => {
+  const out = oneParagraph(
+    new Slice(Fragment.from(para("слово")), 1, 1),
+    inline,
+  );
+  expect([out.openStart, out.openEnd]).toEqual([1, 1]);
+  expect(out.content.toJSON()).toEqual([
+    { type: "paragraph", content: [{ type: "text", text: "слово" }] },
+  ]);
 });

@@ -1,5 +1,6 @@
 import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
 import type { RichDoc, RichNode } from "@klats/shared/rich/RichView.tsx";
+import { Fragment, type Node, type Schema, Slice } from "@tiptap/pm/model";
 import type { PastedQuestion } from "./pasteParse";
 
 /*
@@ -30,6 +31,26 @@ export function toStored(node: EditorNode): RichNode {
   if (node.marks?.length) out.marks = node.marks.map((m) => ({ type: m.type }));
   if (node.content?.length) out.content = node.content.map(toStored);
   return out;
+}
+
+/**
+ * Returns pasted `slice` as one paragraph, open at both ends so it merges into
+ * the paragraph at the caret: an answer option holds a single paragraph. The
+ * pasted paragraphs are joined by hard breaks, and empty ones are dropped.
+ */
+export function oneParagraph(slice: Slice, schema: Schema): Slice {
+  const inline: Node[] = [];
+  slice.content.forEach((block) => {
+    if (block.isInline) inline.push(block);
+    else if (block.childCount > 0) {
+      if (inline.length > 0) inline.push(schema.nodes.hardBreak.create());
+      block.forEach((n) => {
+        inline.push(n);
+      });
+    }
+  });
+  const paragraph = schema.nodes.paragraph.create(null, inline);
+  return new Slice(Fragment.from(paragraph), 1, 1);
 }
 
 /** Returns a document holding `text` as one paragraph, or one empty paragraph. */

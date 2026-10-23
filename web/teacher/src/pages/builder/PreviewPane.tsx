@@ -1,9 +1,5 @@
 import type { Test } from "@klats/shared/generated/testfmt.ts";
-import {
-  applyPalette,
-  PALETTES,
-  type PaletteId,
-} from "@klats/shared/palettes.ts";
+import { applyPalette, type PaletteId } from "@klats/shared/palettes.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { QuestionSheet } from "@klats/shared/student-ui/QuestionSheet.tsx";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
@@ -20,6 +16,7 @@ const STAGE_WIDTH = 1280;
  */
 export function PreviewPane(props: {
   test: Test;
+  palette: PaletteId;
   index: number;
   open: boolean;
   onToggle: (open: boolean) => void;
@@ -35,7 +32,11 @@ export function PreviewPane(props: {
               {m.builder_preview_hide()}
             </Button>
           </header>
-          <Stage test={props.test} index={props.index} />
+          <Stage
+            test={props.test}
+            palette={props.palette}
+            index={props.index}
+          />
         </>
       ) : (
         <Button
@@ -58,12 +59,18 @@ export function PreviewPane(props: {
  * to 1 inside it, and it carries the test's palette, leaving the app's own
  * colours alone. It is inert: a picture, not a place to answer.
  */
-function Stage({ test, index }: { test: Test; index: number }) {
+function Stage({
+  test,
+  palette,
+  index,
+}: {
+  test: Test;
+  palette: PaletteId;
+  index: number;
+}) {
   const frame = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
-  const palette: PaletteId =
-    test.palette in PALETTES ? (test.palette as PaletteId) : "teal";
 
   useLayoutEffect(() => {
     const el = frame.current;

@@ -335,5 +335,6 @@
   "start_problems": "Fix these first:",
   "start_active": "Another test is running. End it to start this one.",
   "start_open_live": "Open the running test",
-  "start_save_failed": "Could not save the test. Try again."
+  "start_save_failed": "Could not save the test. Try again.",
+  "builder_not_saved": "Changes not saved"
 }
