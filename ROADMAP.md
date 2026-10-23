@@ -50,8 +50,8 @@ Both wait until M2 has settled that format.
 Teachers who already have tests in older formats can open them in Klats.
 They become tests in the library.
 
-*Why here:* an imported test needs every question type and setting to map
-onto, so it waits for M2 and M3.
+*Why here:* a test opened from an older format needs every question type
+and setting to map onto, so it waits for M2 and M3.
 
 ## M5: installers and the website
 

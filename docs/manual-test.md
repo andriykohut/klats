@@ -74,10 +74,12 @@ Start from an empty data folder (`%APPDATA%\Klats`, or move it aside).
    delete another test and let the undo toast run out, then start a sitting.
    - *Expected:* every step works: «Збережено» shows, the deleted test
      leaves the list with no error toast, and the live view opens.
-   - These are POST, PUT and DELETE requests, which the teacher API refuses
-     unless WebView2 sends `Origin: http://127.0.0.1:<port>`. A save that
-     never reaches «Збережено», a deleted test that comes back with an error,
-     or a sitting that does not start means that check failed.
+   - These are POST, PUT and DELETE requests. The teacher API refuses any
+     request whose `Origin` header is present and is neither
+     `http://127.0.0.1:<port>` nor `http://localhost:<port>`; a request with
+     no `Origin` passes. If WebView2 sends any other Origin, such as `null`,
+     the save never reaches «Збережено», the deleted test comes back with an
+     error, and the sitting does not start.
 3. **Port 80.** On the first run, look at the board address.
    - *Expected:* the address has no port, and student PCs open
      `http://<address>/`.

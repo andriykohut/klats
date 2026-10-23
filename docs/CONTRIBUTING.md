@@ -31,6 +31,9 @@ Playwright browsers, once:
 cd web && pnpm --filter @klats/e2e exec playwright install chromium firefox
 ```
 
+On Linux, add `--with-deps` after `install`, as CI does, to install the
+system libraries the browsers need too.
+
 ## Make targets
 
 | Target | What it does |
@@ -48,13 +51,16 @@ cd web && pnpm --filter @klats/e2e exec playwright install chromium firefox
 ### Live reload
 
 To work on a web app with Vite's live reload, start the server, then the
-app's dev server, which forwards `/api` to it:
+app's dev server, which forwards `/api` to it. Each command keeps running,
+so use three terminals, all at the repository root:
 
 ```sh
-go run -tags nodesktop ./cmd/klats -dev -demo   # prints the addresses
-cd web
-KLATS_API=http://127.0.0.1:8080 pnpm --filter @klats/student dev
-KLATS_TEACHER_API='<the teacher address>' pnpm --filter @klats/teacher dev
+# 1: the server, which prints the addresses
+go run -tags nodesktop ./cmd/klats -dev -demo
+# 2: the student app
+cd web && KLATS_API=http://127.0.0.1:8080 pnpm --filter @klats/student dev
+# 3: the teacher app
+cd web && KLATS_TEACHER_API='<the teacher address>' pnpm --filter @klats/teacher dev
 ```
 
 `KLATS_API` is the printed student address, without the `?code=`.

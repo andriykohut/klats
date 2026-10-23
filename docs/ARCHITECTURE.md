@@ -166,9 +166,11 @@ solves.
 **Every change has a `changeId`, so a retry is harmless.** A request can
 succeed on the server while its response is lost to a dropped connection or
 the 8 s timeout. The client then sends the same change again. The server
-stores each change's id with the answer, ignores an id it has seen, and acks
-it either way, so the client can forget it. Malformed changes are acked too
-(and counted as rejected), so a bad change is never retried forever.
+keeps the id of the change it stored for each question, and skips a change
+whose id it holds; a resent change that has since been replaced loses on its
+`seq` instead (below). Either way the server acks it, so the client can
+forget it. Malformed changes are acked too (and counted as rejected), so a
+bad change is never retried forever.
 
 **Each question numbers its changes with a `seq`, and the highest wins.**
 Requests arrive out of order after retries, and changes can come from more
@@ -188,26 +190,44 @@ changes it never sent, perhaps because its network died. It numbers them
 from the previous base, so they lose to anything the new device sent for the
 same question. They still fill the questions the student never answered on
 the new device. That is why the server keeps taking changes from a device a
-student was moved off, and why that device keeps sending until its queue is
+student was moved off, unless the student has since finished on their own
+(see `pending` below), and why that device keeps sending until its queue is
 empty. This assumes fewer than a million changes to one question between two
 moves.
 
 **`pending` holds back the grade until every answer is in.** Every submit
 and heartbeat carries `pending`: how many changes the device still holds
 unacked after this request. Changes already sent but not yet acked count
-too. When the teacher ends the sitting, a student still writing sees no
-grade until their device reports `pending: 0`. At that point the
-participant is locked, so later changes can't move the grade after it is
-shown (a student could otherwise probe answers by watching the grade). A
-student who finishes on their own sends everything first, and the finish
-locks them at once.
+too. What happens then depends on how the student finished:
+- **On their own:** the device sends everything first. The finish then
+  locks the participant against changes from every device, and the grade
+  shows at once.
+- **By the teacher's End:** the participant keeps taking changes, which are
+  stored, flagged late and regraded. Their device shows no grade until it
+  reports `pending: 0`. That *settles* the participant: from then on, it
+  refuses changes from the device that shows the grade, so a student can't
+  probe answers by changing them and watching the grade move.
+
+  Changes from a device the student was moved off still land, flagged late
+  and regraded, and the device showing the grade gets a `status` hint to
+  fetch it again. The moved-off device never showed a grade, so its changes
+  can't be a probe. They may also be the only copy of answers given before
+  the move, on an old computer that was offline at the end. So a settled
+  grade can still change when such leftovers arrive.
+  `participant.refuses`, in `internal/sitting/sync.go`, holds this rule.
 
 **The heartbeat is the source of truth; the event stream only makes things
 faster.** Every status a device needs comes back from the heartbeat, every
 5 s, and from every submit: writing, finished with the grade, ended, kicked,
-moved or unjoined. The event stream only carries hints, "your status
-changed" and the taken names, which make the client heartbeat at once. The
-app must work with no stream at all, for three reasons:
+moved or unjoined. The event stream carries two hints:
+- `status` says the device's status changed, and the client heartbeats at
+  once to learn the new one;
+- `taken`, while a student chooses a name, lists the names other devices
+  hold, and goes straight into the name list.
+
+The app must work with no stream at all: statuses still come with the
+heartbeat, and the name list fetches the class list again every 15 s while
+the stream is closed. There are three reasons it must:
 - antivirus web shields on lab PCs sometimes stall streams;
 - the server allows 64 streams per IP address, and a school behind one NAT
   can reach that;
@@ -236,7 +256,8 @@ anyway: a second sender is harmless, because changes are idempotent.
     worker, so a reload needs the teacher's computer.
 - **On the server:** a student silent for 15 s is reported offline to the
   teacher. The first request afterwards reports them back online, with the
-  number of answers that arrived meanwhile.
+  number of answers stored since they went offline, those in that request
+  included.
 - **After a restart:** every change is written to SQLite before the engine
   reports success, so a restarted program resumes the sitting from the
   database. Presence is kept only in memory: after a restart, everyone
@@ -282,8 +303,8 @@ Students may have the address bookmarked.
     right.
 - **Rich text is data, not HTML.** Questions and options are stored as
   ProseMirror-style JSON, validated against an allow-list by
-  `internal/rich`, and rendered by a React component. Nowhere is HTML
-  parsed or injected.
+  `internal/rich`, and rendered by a React component, never as an HTML
+  string.
 - **Exports are safe to open.** Student names go into the workbook as
   plain strings, so a name beginning with `=` is never a formula.
 - **Nothing leaves the LAN.** There is no telemetry, and no network traffic
@@ -326,8 +347,8 @@ current webview.
 
   It holds `klats.db`, `settings.json`, `snapshots/` and `logs/klats.log`
   (the log is rotated at 5 MB).
-- **SQLite** through modernc.org/sqlite, which is pure Go, so no C compiler
-  is needed. It runs in WAL mode with foreign keys, over a single
+- **SQLite** through modernc.org/sqlite, which is pure Go, so the database
+  needs no cgo. It runs in WAL mode with foreign keys, over a single
   connection, so writers never contend for the lock.
   - The schema is a set of goose migrations, embedded from
     `internal/store/migrations`. Before migrating an existing database, the
@@ -375,7 +396,13 @@ current webview.
   follow the teacher's choice, which comes with the join.
 - **Go strings:** the Go side shows few strings of its own. The tray menu
   and the quit question are in `internal/desktop/strings.go`, in both
-  languages, and the workbook takes the language as an argument.
+  languages, and the workbook takes the language as an argument. Three are
+  Ukrainian only, whatever the language setting:
+  - the 401 page's text, «Відкрийте Клац із програми.», in
+    `internal/teacherapi/guard.go`;
+  - «Новий тест», the title of a new test, in `internal/teacherapi/api.go`;
+  - «Тест триває», the reason given to the OS for keeping the computer
+    awake, in `cmd/klats/main.go`.
 - **Sorting:** student names sort with Ukrainian collation, in Go, through
   `roster.SortKey`, which is also stored as `students.sort_key`. Every list
   and export the server sends is already in that order. The teacher app
