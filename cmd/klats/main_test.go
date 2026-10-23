@@ -286,6 +286,23 @@ func TestFirstRunSavesTheChosenPort(t *testing.T) {
 	}
 }
 
+func TestDamagedSettingsStartWithTheDefaults(t *testing.T) {
+	stubs(t)
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dataDir, "settings.json"), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := startDev(t, dataDir)
+	d.stop(t)
+	if !strings.Contains(d.logs.String(), "starting with the defaults") {
+		t.Errorf("the damaged settings were not logged:\n%s", d.logs)
+	}
+	// As on a first run, the chosen port is saved, which repairs the file.
+	if saved, err := config.Load(dataDir); err != nil || saved.Port == 0 {
+		t.Errorf("settings.json after the run = %+v, %v; want the chosen port", saved, err)
+	}
+}
+
 func TestBusySavedPortKeepsTheTeacherAppUp(t *testing.T) {
 	stubs(t)
 	listenLAN = func(s *config.Settings) (net.Listener, error) { return lan.Listen(s, runtime.GOOS) }

@@ -37,9 +37,8 @@ import (
 )
 
 const (
-	maxLogBytes   = 5 << 20
-	snapshotsKeep = 10
-	shutdownTime  = 3 * time.Second
+	maxLogBytes  = 5 << 20
+	shutdownTime = 3 * time.Second
 )
 
 // Tests swap these for stand-ins: the built student app, the shell, the
@@ -161,9 +160,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		}
 	}()
 
+	// A damaged file must not keep the window from opening: the defaults stand
+	// in, and the port is chosen and saved again as on a first run.
 	settings, err := config.Load(dataDir)
 	if err != nil {
-		return err
+		slog.Error("settings unusable; starting with the defaults", "err", err)
 	}
 	st, err := store.Open(filepath.Join(dataDir, "klats.db"))
 	if err != nil {
@@ -389,7 +390,7 @@ func snapshotDaily(st *store.Store, dataDir string) {
 			return
 		}
 	}
-	if err := st.Snapshot(dataDir, snapshotsKeep); err != nil {
+	if err := st.Snapshot(dataDir, store.SnapshotsKeep); err != nil {
 		slog.Error("daily snapshot", "err", err)
 	}
 }

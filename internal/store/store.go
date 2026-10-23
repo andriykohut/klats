@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -41,8 +42,10 @@ func NewID() string {
 	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b[:]))
 }
 
-// snapshotsKeep is how many pre-migration snapshots are retained.
-const snapshotsKeep = 10
+// SnapshotsKeep is how many snapshots the data folder keeps. Those taken
+// before a migration, each day and at the end of a sitting share one folder,
+// so every caller of [Store.Snapshot] passes it.
+const SnapshotsKeep = 10
 
 // ErrSchemaTooNew is returned by [Open] when the database was migrated by a
 // newer version of the program than this one.
@@ -53,9 +56,11 @@ var ErrSchemaTooNew = errors.New("store: database schema is newer than this prog
 //
 // Before migrating an existing database it takes a [Store.Snapshot] into
 // snapshots/ in the directory holding the database file (the data folder, as
-// the database lives directly in it). A fresh or up-to-date database takes no snapshot. If
-// the database is at a schema version above the newest embedded migration,
-// Open returns [ErrSchemaTooNew] without modifying the file.
+// the database lives directly in it). Old snapshots it fails to delete are
+// logged, and the migration goes ahead. A fresh or up-to-date database takes
+// no snapshot. If the database is at a schema version above the newest
+// embedded migration, Open returns [ErrSchemaTooNew] without modifying the
+// file.
 func Open(path string) (*Store, error) {
 	sub, err := fs.Sub(migrationsFS, "migrations")
 	if err != nil {
@@ -109,8 +114,14 @@ func (s *Store) migrate(path string, migrations fs.FS) error {
 		return fmt.Errorf("%w (database version %d, program version %d)", ErrSchemaTooNew, current, latest)
 	}
 	if current > 0 && current < latest {
-		if err := s.Snapshot(filepath.Dir(path), snapshotsKeep); err != nil {
+		dir := filepath.Dir(path)
+		if err := s.snapshot(dir); err != nil {
 			return err
+		}
+		// An old snapshot that cannot be deleted, such as one an antivirus
+		// holds open, must not keep the program from starting.
+		if err := prune(dir, SnapshotsKeep); err != nil {
+			slog.Error("store: old snapshots not pruned", "err", err)
 		}
 	}
 	_, err = provider.Up(ctx)
@@ -124,7 +135,8 @@ func (s *Store) Close() error { return s.conn.Close() }
 func (s *Store) Q() *db.Queries { return s.q }
 
 // Tx runs fn in a transaction, committing if it returns nil and rolling back
-// otherwise.
+// otherwise. Inside fn, use the queries it is given: calling [Store.Q] there
+// deadlocks, because the transaction holds the only connection.
 func (s *Store) Tx(ctx context.Context, fn func(*db.Queries) error) error {
 	tx, err := s.conn.BeginTx(ctx, nil)
 	if err != nil {

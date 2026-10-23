@@ -349,7 +349,8 @@ current webview.
   - `$XDG_DATA_HOME/klats` (by default `~/.local/share/klats`) elsewhere.
 
   It holds `klats.db`, `settings.json`, `snapshots/` and `logs/klats.log`
-  (the log is rotated at 5 MB).
+  (the log is rotated at 5 MB). A damaged `settings.json` is logged, and the
+  program starts with the defaults.
 - **SQLite** through modernc.org/sqlite, which is pure Go, so the database
   needs no cgo. It runs in WAL mode with foreign keys, over a single
   connection, so writers never contend for the lock.

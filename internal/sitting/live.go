@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"klats/internal/roster"
+	"klats/internal/store"
 	"klats/internal/store/db"
 	"klats/internal/testfmt"
 	"klats/internal/wire"
@@ -23,9 +24,6 @@ const (
 	cellCurrent = "current"
 	cellEmpty   = "empty"
 )
-
-// snapshotsKeep is how many snapshots taken at the end of a sitting are kept.
-const snapshotsKeep = 10
 
 // SetSnapshotDir makes [Engine.End] snapshot the database into
 // dir/snapshots. Without it, End takes no snapshot.
@@ -187,7 +185,7 @@ func (e *Engine) End() error {
 		return err
 	}
 	if e.snapshotDir != "" {
-		if err := e.st.Snapshot(e.snapshotDir, snapshotsKeep); err != nil {
+		if err := e.st.Snapshot(e.snapshotDir, store.SnapshotsKeep); err != nil {
 			slog.Error("sitting: snapshot after the end", "err", err)
 		}
 	}

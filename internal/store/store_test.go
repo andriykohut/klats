@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -255,6 +256,34 @@ func TestOpenSnapshotsBeforePendingMigration(t *testing.T) {
 	_ = snap.conn.QueryRow(`SELECT count(*) FROM sqlite_master WHERE name = 'extra'`).Scan(&extra)
 	if classes, _ := snap.Q().ListClasses(context.Background()); len(classes) != 1 || extra != 0 {
 		t.Fatalf("snapshot is not the pre-migration state: classes=%v extra=%d", classes, extra)
+	}
+}
+
+func TestOpenMigratesWhenOldSnapshotsCannotBeDeleted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "klats.db")
+	v1, v2 := migrationSets(t)
+	old, err := openWith(path, v1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = old.Close()
+	// A non-empty folder under a snapshot's name fails os.Remove, as a file an
+	// antivirus holds open does on Windows.
+	for i := range SnapshotsKeep {
+		stuck := filepath.Join(filepath.Dir(path), "snapshots", fmt.Sprintf("klats-00000000-000000-%09d.db", i), "x")
+		if err := os.MkdirAll(stuck, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	s, err := openWith(path, v2)
+	if err != nil {
+		t.Fatalf("Open = %v, want the migration despite the stuck snapshots", err)
+	}
+	defer func() { _ = s.Close() }()
+	var extra int
+	if err := s.conn.QueryRow(`SELECT count(*) FROM sqlite_master WHERE name = 'extra'`).Scan(&extra); err != nil || extra != 1 {
+		t.Fatalf("the migration did not run: extra=%d, %v", extra, err)
 	}
 }
 

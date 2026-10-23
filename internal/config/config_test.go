@@ -52,6 +52,19 @@ func TestLoadKeepsDefaultsForAbsentKeys(t *testing.T) {
 	}
 }
 
+func TestDamagedFileLoadsTheDefaults(t *testing.T) {
+	for _, data := range []string{"\x00garbage", `{"port": 70000}`, `{"port": -1}`, `{"language": "de"}`} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := Load(dir)
+		if err == nil || got != (Settings{Language: "uk"}) {
+			t.Errorf("Load of %q = %+v, %v; want the defaults and an error", data, got, err)
+		}
+	}
+}
+
 func TestDataDirFor(t *testing.T) {
 	env := func(m map[string]string) func(string) string {
 		return func(k string) string { return m[k] }

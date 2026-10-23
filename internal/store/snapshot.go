@@ -17,6 +17,14 @@ import (
 // zero-padded, so name order is chronological; a name that already exists is
 // bumped by a nanosecond, which keeps rapid snapshots distinct and ordered.
 func (s *Store) Snapshot(dir string, keep int) error {
+	if err := s.snapshot(dir); err != nil {
+		return err
+	}
+	return prune(dir, keep)
+}
+
+// snapshot is [Store.Snapshot] without the pruning.
+func (s *Store) snapshot(dir string) error {
 	snaps := filepath.Join(dir, "snapshots")
 	if err := os.MkdirAll(snaps, 0o700); err != nil {
 		return err
@@ -33,8 +41,13 @@ func (s *Store) Snapshot(dir string, keep int) error {
 	if _, err := s.conn.ExecContext(context.Background(), "VACUUM INTO ?", path); err != nil {
 		return fmt.Errorf("store: snapshot: %w", err)
 	}
+	return nil
+}
 
-	files, err := filepath.Glob(filepath.Join(snaps, "klats-*.db"))
+// prune deletes the oldest snapshots in dir/snapshots so that at most keep
+// remain.
+func prune(dir string, keep int) error {
+	files, err := filepath.Glob(filepath.Join(dir, "snapshots", "klats-*.db"))
 	if err != nil {
 		return err
 	}

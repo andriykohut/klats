@@ -64,7 +64,9 @@ func dataDirFor(goos, home string, getenv func(string) string) (string, error) {
 }
 
 // Load reads the settings from dir. A missing file, or a key absent from it,
-// yields the default (port 0, language "uk").
+// yields the default (port 0, language "uk"). A file that cannot be read, is
+// not JSON, or holds a port outside 0–65535 or a language other than "uk" or
+// "en" yields every default, with the error.
 func Load(dir string) (Settings, error) {
 	s := defaults()
 	data, err := os.ReadFile(filepath.Join(dir, settingsFile))
@@ -77,11 +79,15 @@ func Load(dir string) (Settings, error) {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return defaults(), fmt.Errorf("config: parse %s: %w", settingsFile, err)
 	}
+	if s.Port < 0 || s.Port > 65535 || (s.Language != "uk" && s.Language != "en") {
+		return defaults(), fmt.Errorf("config: %s holds port %d and language %q", settingsFile, s.Port, s.Language)
+	}
 	return s, nil
 }
 
 // Save writes the settings to dir atomically: a temp file in the same folder
-// is renamed over settings.json, so a crash never leaves a partial file.
+// is flushed to disk and renamed over settings.json, so neither a crash nor a
+// power cut leaves a partial file.
 func Save(dir string, s Settings) error {
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
@@ -92,6 +98,9 @@ func Save(dir string, s Settings) error {
 		return err
 	}
 	_, err = tmp.Write(data)
+	if err == nil {
+		err = tmp.Sync()
+	}
 	if cerr := tmp.Close(); err == nil {
 		err = cerr
 	}
