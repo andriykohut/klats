@@ -24,6 +24,7 @@ import {
 } from "../api/queries";
 import { setFlags, useFlags } from "../flags";
 import { parsePort } from "../forms";
+import { portBusyText } from "../ui/Banners";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
 import { notify } from "../ui/Toasts";
@@ -64,6 +65,7 @@ export function SettingsPage() {
 
 function Address({ net }: { net: NetworkInfo }) {
   const choose = useSetAddress();
+  const { portSaved } = useFlags();
   const copy = () =>
     navigator.clipboard.writeText(net.url).then(
       () => notify(m.settings_copied()),
@@ -84,7 +86,7 @@ function Address({ net }: { net: NetworkInfo }) {
       ) : (
         <p className="t-notice" data-tone="error">
           {net.error === "port_busy"
-            ? m.banner_port_busy({ port: net.port })
+            ? portBusyText(net.port, portSaved)
             : m.network_none()}
         </p>
       )}

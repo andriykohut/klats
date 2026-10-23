@@ -226,5 +226,6 @@
   "classes_draft": "Ще не збережено",
   "classes_not_saved": "{name}: зміни не збережено",
   "classes_back": "Повернутися",
-  "classes_paste_failed": "Не вдалося прочитати список. Спробуйте ще раз."
+  "classes_paste_failed": "Не вдалося прочитати список. Спробуйте ще раз.",
+  "banner_port_restart": "Перезапустіть Клац, щоб застосувати порт {port}"
 }

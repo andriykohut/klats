@@ -216,7 +216,7 @@ function ClassEditor({ cls }: { cls: Class }) {
             const toast = toasts.add(
               {
                 text: m.classes_not_saved({
-                  name: name.trim() || m.classes_new(),
+                  name: name.trim() || cls.name || m.classes_new(),
                 }),
                 action: {
                   label: m.classes_back(),
@@ -238,10 +238,14 @@ function ClassEditor({ cls }: { cls: Class }) {
     [],
   );
 
+  // After a save or a revert the removed rows are gone for good, so their
+  // undo toasts close: an undo would bring back a student the server deleted.
   const reset = (c: Class) => {
     setName(c.name);
     setStudents(rows(c));
     setError("");
+    for (const t of undos.current) toasts.close(t);
+    undos.current = [];
   };
   const newRow = (name: string): Row => ({
     key: `new-${nextRow.current++}`,

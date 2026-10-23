@@ -231,7 +231,11 @@ export const settingsQuery = {
 
 export const useSettings = () => useQuery(settingsQuery);
 
-/** Saves the settings and switches the UI to the saved language at once. Key: "saveSettings". */
+/**
+ * Saves the settings and switches the UI to the saved language at once. The
+ * network info refetches too: while the student server is down, its port is
+ * the saved one. Key: "saveSettings".
+ */
 export function useSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
@@ -240,6 +244,7 @@ export function useSaveSettings() {
     onSuccess: (s: SettingsInfo) => {
       applyLocale(s.language);
       qc.setQueryData(["settings"], s);
+      return qc.invalidateQueries({ queryKey: ["network"] });
     },
   });
 }

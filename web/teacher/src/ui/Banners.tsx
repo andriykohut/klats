@@ -13,13 +13,13 @@ import { Icon } from "./icons";
  */
 export function Banners() {
   const { data: net } = useNetwork();
-  const { addressChanged } = useFlags();
+  const { addressChanged, portSaved } = useFlags();
   return (
     <>
       {net?.error === "port_busy" && (
         <div className="t-banner" data-tone="error" role="alert">
           <Icon name="alert" />
-          <p>{m.banner_port_busy({ port: net.port })}</p>
+          <p>{portBusyText(net.port, portSaved)}</p>
           <Link
             to="/settings"
             hash="port"
@@ -53,4 +53,13 @@ export function Banners() {
       )}
     </>
   );
+}
+
+/**
+ * What the port-busy notices say. While the student server is down the
+ * server reports the saved port, so once the teacher saved another one in
+ * this session, the notice asks for a restart instead of calling it busy.
+ */
+export function portBusyText(port: number, saved: boolean): string {
+  return saved ? m.banner_port_restart({ port }) : m.banner_port_busy({ port });
 }

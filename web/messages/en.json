@@ -218,5 +218,6 @@
   "classes_draft": "Not saved yet",
   "classes_not_saved": "{name}: changes not saved",
   "classes_back": "Go back",
-  "classes_paste_failed": "Could not read the list. Try again."
+  "classes_paste_failed": "Could not read the list. Try again.",
+  "banner_port_restart": "Restart Klats to use port {port}"
 }
