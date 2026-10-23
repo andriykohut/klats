@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -475,7 +477,7 @@ func TestAssignmentsAndResults(t *testing.T) {
 	v := setup(t, false)
 	asg := v.startSitting(t)
 	list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil))
-	if len(list) != 1 || list[0].ID != asg || list[0].TestTitle != "Дроби" || list[0].Participants != 0 || list[0].CreatedAt == 0 {
+	if len(list) != 1 || list[0].ID != asg || list[0].TestTitle != "Дроби" || list[0].Participants != 0 || list[0].CreatedAt == 0 || list[0].AverageGrade != nil {
 		t.Errorf("list = %+v", list)
 	}
 	res := decodeBody[wire.AssignmentResults](t, v.do("GET", "/api/assignments/"+asg+"/results", nil))
@@ -514,13 +516,14 @@ func TestParticipantRoutesAndOverrides(t *testing.T) {
 	if !res.ExportStale || len(res.Rows) != 2 || res.Rows[0].Points[0] != 1 {
 		t.Errorf("results = %+v", res)
 	}
-	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 2 {
-		t.Errorf("participants = %d", list[0].Participants)
+	// Grades 6 (1 of 2 points) and 1 (nothing answered).
+	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 2 || list[0].AverageGrade == nil || *list[0].AverageGrade != 3.5 {
+		t.Errorf("list = %+v", list[0])
 	}
 
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[1]+"/kick", nil), 204)
-	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 1 {
-		t.Errorf("participants after kick = %d", list[0].Participants)
+	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); list[0].Participants != 1 || list[0].AverageGrade == nil || *list[0].AverageGrade != 6 {
+		t.Errorf("list after kick = %+v", list[0])
 	}
 	wantError(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "nope"}), 404, "not_found")
 	wantStatus(t, v.do("PUT", "/api/devices/dev1", wire.LabelRequest{Label: "Стіл 1"}), 204)
@@ -865,4 +868,27 @@ func TestNewToken(t *testing.T) {
 	if len(a) != 43 || a == b || strings.ContainsAny(a, "=+/") {
 		t.Errorf("tokens %q %q", a, b)
 	}
+}
+
+func TestQR(t *testing.T) {
+	v := setup(t, false)
+	w := v.do("GET", "/api/qr?text="+url.QueryEscape("http://192.168.1.20:8080/?code=1234"), nil)
+	wantStatus(t, w, 200)
+	if ct := w.Header().Get("Content-Type"); ct != "image/png" {
+		t.Errorf("Content-Type = %q, want image/png", ct)
+	}
+	if cc := w.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store", cc)
+	}
+	img, err := png.Decode(w.Body)
+	if err != nil {
+		t.Fatalf("not a PNG: %v", err)
+	}
+	if b := img.Bounds(); b.Dx() != 512 || b.Dy() != 512 {
+		t.Errorf("size = %v, want 512×512", b.Size())
+	}
+	wantError(t, v.do("GET", "/api/qr?text=", nil), 400, "invalid")
+	wantError(t, v.do("GET", "/api/qr", nil), 400, "invalid")
+	wantError(t, v.do("GET", "/api/qr?text="+strings.Repeat("a", 513), nil), 400, "invalid")
+	wantStatus(t, v.do("GET", "/api/qr?text="+strings.Repeat("a", 512), nil), 200)
 }

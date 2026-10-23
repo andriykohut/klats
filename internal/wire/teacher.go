@@ -94,14 +94,16 @@ type LabelRequest struct {
 }
 
 // AssignmentSummary is a row of the results list. Participants does not count
-// kicked ones.
+// kicked ones. AverageGrade is the mean grade of those participants, nil while
+// there are none.
 type AssignmentSummary struct {
-	ID           string `json:"id"`
-	TestTitle    string `json:"testTitle"`
-	ClassName    string `json:"className"`
-	CreatedAt    int64  `json:"createdAt"`
-	Participants int    `json:"participants"`
-	ExportStale  bool   `json:"exportStale"`
+	ID           string   `json:"id"`
+	TestTitle    string   `json:"testTitle"`
+	ClassName    string   `json:"className"`
+	CreatedAt    int64    `json:"createdAt"`
+	Participants int      `json:"participants"`
+	ExportStale  bool     `json:"exportStale"`
+	AverageGrade *float64 `json:"averageGrade"`
 }
 
 // OverrideRequest sets the points of a participant's answer, or clears the

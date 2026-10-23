@@ -68,7 +68,13 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		}
 	}
 	for i, question := range t.Questions {
-		rq := wire.ResultQuestion{ID: question.ID, Text: question.Text, Correct: full[i]}
+		rq := wire.ResultQuestion{
+			ID: question.ID, Type: question.Type, Text: question.Text, Points: question.Points,
+			Options: make([]wire.ResultOption, len(question.Options)), Correct: full[i],
+		}
+		for j, o := range question.Options {
+			rq.Options[j] = wire.ResultOption{ID: o.ID, Content: o.Content, Correct: o.Correct}
+		}
 		if len(out.Rows) > 0 {
 			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(len(out.Rows))))
 		}

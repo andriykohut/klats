@@ -2,15 +2,20 @@ package sitting
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"klats/internal/store/db"
+	"klats/internal/testfmt"
 	"klats/internal/wire"
 )
 
@@ -327,4 +332,46 @@ func TestEndResolvesClashes(t *testing.T) {
 			t.Errorf("engine %d: resolving after the end: err = %v, want ErrNotFound", i, err)
 		}
 	}
+}
+
+func TestResultQuestionsAreTheSnapshot(t *testing.T) {
+	e, st, _ := setup(t)
+	info := start(t, e, nil)
+
+	// The teacher rewrites q1 after the start: another type, points and options.
+	edited, err := json.Marshal(testfmt.Test{ID: "t1", Version: 1, Title: "Дроби", Palette: "teal", Questions: []testfmt.Question{
+		{ID: "q1", Type: "multi", Text: rich("Інше"), Points: 5, Options: []testfmt.Option{{ID: "x", Content: rich("нове"), Correct: true}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Q().UpdateTest(context.Background(), db.UpdateTestParams{Title: "Дроби", Doc: string(edited), ID: "t1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	qs := resultsOf(t, e, info.AssignmentID).Questions
+	if len(qs) != 2 {
+		t.Fatalf("questions = %+v", qs)
+	}
+	if qs[0].Type != "single" || qs[1].Type != "multi" {
+		t.Errorf("types = %q, %q", qs[0].Type, qs[1].Type)
+	}
+	if qs[0].Points != 2 || qs[1].Points != 3 {
+		t.Errorf("points = %d, %d", qs[0].Points, qs[1].Points)
+	}
+	want := []wire.ResultOption{{ID: "o0", Content: rich("варіант 0"), Correct: true}, {ID: "o1", Content: rich("варіант 1")}}
+	if got := qs[0].Options; !reflect.DeepEqual(got, want) {
+		t.Errorf("q1 options = %s, want %s", optionsText(got), optionsText(want))
+	}
+	if len(qs[1].Options) != 6 || !qs[1].Options[0].Correct || qs[1].Options[5].Correct {
+		t.Errorf("q2 options = %s", optionsText(qs[1].Options))
+	}
+}
+
+func optionsText(os []wire.ResultOption) string {
+	var b strings.Builder
+	for _, o := range os {
+		fmt.Fprintf(&b, "{%s %s %v} ", o.ID, o.Content, o.Correct)
+	}
+	return b.String()
 }

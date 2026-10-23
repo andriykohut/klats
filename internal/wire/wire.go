@@ -240,14 +240,26 @@ type AssignmentResults struct {
 	Rows         []ResultRow      `json:"rows"`
 }
 
-// ResultQuestion is a question of the results table. Correct is the number of
-// rows that scored full points on it, and CorrectPct is that count as a
-// percent of all rows.
+// ResultQuestion is a question of the results table, as the assignment's test
+// snapshot has it, correct options included: the teacher may have edited the
+// test since. Correct is the number of rows that scored full points on it, and
+// CorrectPct is that count as a percent of all rows.
 type ResultQuestion struct {
 	ID         string          `json:"id"`
+	Type       string          `json:"type"`
 	Text       json.RawMessage `json:"text"`
+	Points     int             `json:"points"`
+	Options    []ResultOption  `json:"options"`
 	Correct    int             `json:"correct"`
 	CorrectPct int             `json:"correctPct"`
+}
+
+// ResultOption is an option of a [ResultQuestion]. It goes to the teacher
+// only: student devices never get Correct.
+type ResultOption struct {
+	ID      string          `json:"id"`
+	Content json.RawMessage `json:"content"`
+	Correct bool            `json:"correct"`
 }
 
 // ResultRow is one participant's result, in Ukrainian order of Name. Points

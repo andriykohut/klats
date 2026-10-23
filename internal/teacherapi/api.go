@@ -25,6 +25,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/skip2/go-qrcode"
+
 	"klats/internal/config"
 	"klats/internal/events"
 	"klats/internal/httpx"
@@ -44,6 +46,8 @@ const (
 	keepAliveTime = 15 * time.Second
 	maxNameRunes  = 60
 	maxLabelRunes = 20
+	maxQRBytes    = 512
+	qrPixels      = 512
 	newTestTitle  = "Новий тест"
 	xlsxType      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
@@ -145,6 +149,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/settings", a.getSettings)
 	mux.HandleFunc("PUT /api/settings", a.putSettings)
 	mux.HandleFunc("GET /api/events", a.events)
+	mux.HandleFunc("GET /api/qr", a.qr)
 
 	spa := httpx.SPA(d.Assets)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -576,10 +581,26 @@ func (a *api) listAssignments(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]wire.AssignmentSummary, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, wire.AssignmentSummary{
+		s := wire.AssignmentSummary{
 			ID: row.ID, TestTitle: row.TestTitle, ClassName: row.ClassName, CreatedAt: row.CreatedAt,
 			Participants: int(row.Participants), ExportStale: row.ExportStale != 0,
-		})
+		}
+		// shortcut: every assignment is graded again on each list load; keep the
+		// average with the assignment when the results list gets slow.
+		res, err := a.eng.Results(row.ID)
+		if err != nil {
+			fail(w, r, err)
+			return
+		}
+		if n := len(res.Rows); n > 0 {
+			sum := 0
+			for _, rr := range res.Rows {
+				sum += rr.Grade
+			}
+			avg := float64(sum) / float64(n)
+			s.AverageGrade = &avg
+		}
+		out = append(out, s)
 	}
 	httpx.JSON(w, http.StatusOK, out)
 }
@@ -805,6 +826,24 @@ func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
 	a.settings = next
 	a.eng.SetLanguage(next.Language)
 	httpx.JSON(w, http.StatusOK, a.settingsInfo())
+}
+
+// qr answers a PNG QR code of the query's text, such as the students' join
+// link for the board view: 1 to 512 bytes, or a 400.
+func (a *api) qr(w http.ResponseWriter, r *http.Request) {
+	text := r.URL.Query().Get("text")
+	if text == "" || len(text) > maxQRBytes {
+		httpx.Error(w, http.StatusBadRequest, "invalid")
+		return
+	}
+	img, err := qrcode.Encode(text, qrcode.Medium, qrPixels)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(img)
 }
 
 // events streams the teacher's "live" hints until the client leaves.
