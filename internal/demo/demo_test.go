@@ -2,13 +2,16 @@ package demo
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"klats/internal/events"
 	"klats/internal/media"
+	"klats/internal/rich"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/testfmt"
@@ -81,6 +84,18 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 		if !strings.Contains(tests[0].Doc, `"type":"`+node+`"`) {
 			t.Errorf("no %s in the sample test", node)
 		}
+	}
+	// Images and audio are block nodes, so they sit at the top level of the text.
+	var q8 rich.Doc
+	if err := json.Unmarshal(test.Questions[7].Text, &q8); err != nil {
+		t.Fatal(err)
+	}
+	var top []string
+	for _, n := range q8.Content {
+		top = append(top, n.Type)
+	}
+	if !slices.Equal(top, []string{"paragraph", "image", "audio"}) {
+		t.Errorf("question 8 text holds %v, want a paragraph, an image and an audio", top)
 	}
 	files := test.Media()
 	if len(files) != 2 {

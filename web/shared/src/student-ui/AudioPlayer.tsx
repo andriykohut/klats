@@ -20,13 +20,29 @@ let playing: HTMLAudioElement | null = null;
  * player plays at a time, and a player pauses when it leaves the page. While
  * the file can't be loaded, such as offline before it was preloaded, it shows
  * a note instead and tries again when `src` changes.
+ *
+ * Once the element has loaded a URL it keeps it, even if `src` changes, so a
+ * recording that is playing from the network is not cut off when the
+ * preloaded copy arrives. It takes the new `src` only if it has loaded
+ * nothing yet or failed on the URL it has.
  */
 export function AudioPlayer({ src }: { src: string }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [isPlaying, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [current, setCurrent] = useState(src);
+  const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+
+  if (src !== current && (!ready || failed === current)) {
+    setCurrent(src);
+    setReady(false);
+    setFailed(null);
+    setPlaying(false);
+    setTime(0);
+    setDuration(0);
+  }
 
   useEffect(() => {
     const el = audio.current;
@@ -41,7 +57,7 @@ export function AudioPlayer({ src }: { src: string }) {
       {/* biome-ignore lint/a11y/useMediaCaption: question audio has no transcript */}
       <audio
         ref={audio}
-        src={src}
+        src={current}
         preload="metadata"
         onPlay={(e) => {
           if (playing && playing !== e.currentTarget) playing.pause();
@@ -54,10 +70,11 @@ export function AudioPlayer({ src }: { src: string }) {
         onLoadedMetadata={(e) => {
           const d = e.currentTarget.duration;
           setDuration(Number.isFinite(d) ? d : 0);
+          setReady(true);
         }}
-        onError={() => setFailed(src)}
+        onError={() => setFailed(current)}
       />
-      {failed === src ? (
+      {failed === current ? (
         <span className="k-media-wait">{m.media_audio_wait()}</span>
       ) : (
         <>

@@ -130,9 +130,17 @@ export function QuestionSheet(props: QuestionSheetProps) {
     const onScroll = () => setBelow(tilesBelow(scroller).length);
     scroller.addEventListener("scroll", onScroll, { passive: true });
     document.fonts.addEventListener("loadingdone", refit);
+    // Load and error don't bubble. A picture that decodes, or that gives way
+    // to a note, can change the content's height; the note renders only after
+    // the error event has passed, hence the timer.
+    const refitLater = () => setTimeout(refit);
+    scroller.addEventListener("load", refit, true);
+    scroller.addEventListener("error", refitLater, true);
     return () => {
       ro.disconnect();
       scroller.removeEventListener("scroll", onScroll);
+      scroller.removeEventListener("load", refit, true);
+      scroller.removeEventListener("error", refitLater, true);
       document.fonts.removeEventListener("loadingdone", refit);
     };
   }, [restart]);

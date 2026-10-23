@@ -130,7 +130,7 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 			para(plain("1991")), para(plain("1996")), para(plain("2001"))),
 		withImage(choice("q8", 1, doc(
 			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Подивіться на схему й послухайте звук. Скільки фігур на схемі?")}},
-			rich.Node{Type: "paragraph", Content: []rich.Node{{Type: "image", Attrs: &rich.Attrs{Src: pic, W: diagramW, H: diagramH}}}},
+			rich.Node{Type: "image", Attrs: &rich.Attrs{Src: pic, W: diagramW, H: diagramH}},
 			rich.Node{Type: "audio", Attrs: &rich.Attrs{Src: sound}}), []int{1},
 			para(plain("2")), para(plain("3")), para(plain("4"))), 1, testfmt.Image{Src: pic, W: diagramW, H: diagramH}),
 	}}

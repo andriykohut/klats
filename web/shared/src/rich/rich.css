@@ -59,15 +59,26 @@
 
 /*
  * Pictures never outgrow the sheet: at most its width and 45% of its height
- * (324 of the design's 720 px), keeping the aspect ratio.
+ * (324 of the design's 720 px), keeping the aspect ratio. MediaImage sets
+ * --img-w (the file's width) and --img-r (width over height) and the box's
+ * aspect ratio, so the box has its final size before the file decodes. The
+ * answer tiles' pictures (AnswerTile.css) use the same sizing with their own
+ * --img-max and --img-cap.
  */
-.k-img {
-  width: auto;
+.k-img,
+.k-tile-img {
+  width: min(
+    var(--img-cap, 100%),
+    var(--img-w),
+    calc(var(--img-max) * var(--img-r))
+  );
   height: auto;
-  max-width: 100%;
-  max-height: calc(324 * var(--k-px));
+}
+
+.k-img {
+  --img-max: calc(324 * var(--k-px));
+  display: block;
   margin: 0.2em 0;
-  vertical-align: bottom;
 }
 
 .k-media-wait {

@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useState } from "react";
+import { type CSSProperties, Fragment, type ReactNode, useState } from "react";
 import { useMediaURL } from "../media";
 import { m } from "../paraglide/messages.js";
 import { AudioPlayer } from "../student-ui/AudioPlayer";
@@ -124,7 +124,9 @@ function renderNode(node: RichNode, key: number): ReactNode {
 
 /**
  * The picture for media `src` at its size in pixels `w`×`h`, scaled down by
- * the page's styles to fit the sheet. When it fails to load, such as offline
+ * the page's styles to fit the sheet. Its box has its final size from the
+ * first frame, so layout measured before the file decodes stays right. When
+ * it fails to load, such as offline
  * before it was preloaded, it shows a note and tries again once the URL
  * changes.
  */
@@ -144,9 +146,18 @@ export function MediaImage({
   if (failed === url) {
     return <span className="k-media-wait">{m.media_image_wait()}</span>;
   }
+  const box =
+    w && h
+      ? ({
+          aspectRatio: `${w} / ${h}`,
+          "--img-w": `${w}px`,
+          "--img-r": w / h,
+        } as CSSProperties)
+      : undefined;
   return (
     <img
       className={className}
+      style={box}
       src={url}
       width={w}
       height={h}
