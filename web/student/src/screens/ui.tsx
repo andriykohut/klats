@@ -4,6 +4,8 @@ import { motion, useReducedMotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { NameTaken } from "../api";
 import { ApiError } from "../sync/connection";
+import "@klats/shared/student-ui/student-ui.css";
+import "@klats/shared/student-ui/FinishScreen.css";
 
 /**
  * The white sheet every screen sits on. It slides in and out like a question
