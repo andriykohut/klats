@@ -26,6 +26,7 @@ import { parsePort } from "../forms";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
 import { notify } from "../ui/Toasts";
+import "./settings.css";
 
 /** The student address, the UI language and the student port. */
 export function SettingsPage() {

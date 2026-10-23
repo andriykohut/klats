@@ -10,6 +10,7 @@ import {
 } from "../api/queries";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
+import "./tests.css";
 
 /** The test library: newest first, each row opening the builder. */
 export function TestsPage() {

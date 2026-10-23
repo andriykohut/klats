@@ -1,0 +1,142 @@
+/* Settings: the student address, the language and the port. */
+
+.t-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.t-settings-side {
+  display: grid;
+  gap: 18px;
+}
+
+.t-section {
+  padding: 22px 24px 24px;
+}
+
+.t-section h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.t-url {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: var(--t-radius-row);
+  background: var(--k-soft);
+}
+
+.t-url-text {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--k-sel-dark);
+  font: 700 28px / 1.2 var(--k-font-display);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 22px;
+}
+
+.t-choices [slot="description"] {
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.t-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.t-choice {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 0 12px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-field);
+  font: 600 15px var(--k-font-display);
+  cursor: pointer;
+  outline: none;
+}
+
+.t-choice::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid var(--t-line-strong);
+  border-radius: 50%;
+}
+
+.t-choice[data-hovered] {
+  border-color: var(--t-line-strong);
+}
+
+.t-choice[data-selected] {
+  border-color: var(--k-field);
+  background: var(--k-soft);
+}
+
+.t-choice[data-selected]::before {
+  border: 6px solid var(--k-field);
+}
+
+.t-choice[data-focus-visible],
+.t-segment .react-aria-Radio[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.t-segment {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 4px;
+  border-radius: var(--t-radius-field);
+  background: var(--t-track);
+}
+
+.t-segment .react-aria-Radio {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  border-radius: var(--t-radius-segment);
+  color: var(--k-muted);
+  font-weight: 800;
+  cursor: pointer;
+  outline: none;
+}
+
+.t-segment .react-aria-Radio[data-selected] {
+  background: var(--k-paper);
+  color: var(--k-ink);
+  box-shadow: var(--t-shadow-seg);
+}
+
+.t-port-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.t-port-field input {
+  width: 140px;
+  height: 44px;
+  font: 700 20px var(--k-font-display);
+}

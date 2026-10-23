@@ -4,7 +4,8 @@
  * grey-teal page. Teal, tangerine, ink and the soft tints come from the teal
  * palette (main.tsx applies it as --k-* variables); the shared fonts, easings
  * and durations from tokens.css. The --t-* tokens below are the teacher's own.
- * Only transform and opacity animate.
+ * Only transform and opacity animate. This file holds the tokens and the parts
+ * every page shares; each page adds its own stylesheet beside it in pages/.
  */
 :root {
   --t-bg: #f2f5f5;
@@ -24,11 +25,19 @@
   --t-shadow-seg: 0 1px 3px rgba(16, 41, 42, 0.15);
 
   --t-bar-height: 68px;
-  --t-radius-panel: 18px;
-  --t-radius-btn: 14px;
-  --t-radius-field: 12px;
-  --t-radius-small: 10px;
+  --t-radius-card: 24px;
   --t-radius-dialog: 22px;
+  --t-radius-mark-big: 22px;
+  --t-radius-panel: 18px;
+  --t-radius-row: 16px;
+  --t-radius-btn: 14px;
+  --t-radius-box: 14px;
+  --t-radius-field: 12px;
+  --t-radius-tab: 12px;
+  --t-radius-small: 10px;
+  --t-radius-segment: 9px;
+  --t-radius-link: 4px;
+  --t-radius-line: 2px;
   /* How far a raised button stands above its base; pressing sinks it. */
   --t-depth: 4px;
   --t-focus: 3px solid var(--k-field);
@@ -124,7 +133,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--t-radius-tab);
   background: var(--k-accent);
   color: var(--k-ink);
 }
@@ -148,7 +157,7 @@ h2 {
   padding: 0 16px;
   display: flex;
   align-items: center;
-  border-radius: 12px;
+  border-radius: var(--t-radius-tab);
   color: var(--k-on-field);
   font-weight: 700;
   font-size: 15px;
@@ -173,7 +182,7 @@ h2 {
   right: 16px;
   bottom: 6px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--t-radius-line);
   background: var(--k-accent);
   transform: scaleX(0);
   transition: transform var(--k-dur-state) var(--k-ease-spring);
@@ -300,7 +309,7 @@ h2 {
   color: var(--t-red);
   font-weight: 800;
   text-underline-offset: 3px;
-  border-radius: 4px;
+  border-radius: var(--t-radius-link);
 }
 
 .t-banner-link:focus-visible {
@@ -349,7 +358,7 @@ h2 {
   text-align: center;
   background: var(--k-paper);
   border: 1.5px solid var(--t-line);
-  border-radius: 24px;
+  border-radius: var(--t-radius-card);
 }
 
 .t-empty h1 {
@@ -369,7 +378,7 @@ h2 {
 .t-mark-big {
   width: 76px;
   height: 76px;
-  border-radius: 22px;
+  border-radius: var(--t-radius-mark-big);
   box-shadow: 0 6px 0 var(--k-accent-dark);
   animation: t-pop var(--k-dur-fill) var(--k-ease-spring);
 }
@@ -626,534 +635,6 @@ h2 {
   color: var(--t-red);
   font-size: 13px;
   font-weight: 700;
-}
-
-/* Tests */
-
-.t-tests {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.t-test {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 10px 12px 10px 10px;
-  background: var(--k-paper);
-  border: 1.5px solid var(--t-line);
-  border-radius: 16px;
-  transition: transform var(--k-dur-fast) var(--k-ease-spring);
-  animation: t-page-in var(--k-dur-state) var(--k-ease-out);
-}
-
-.t-test:hover {
-  border-color: var(--t-line-strong);
-  box-shadow: 0 var(--t-depth) 0 var(--k-tile-shadow);
-  transform: translateY(-2px);
-}
-
-.t-test-count {
-  width: 68px;
-  height: 58px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--t-radius-field);
-  background: var(--k-soft);
-  color: var(--k-sel-dark);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.t-test-count b {
-  margin-bottom: 3px;
-  color: var(--k-field);
-  font: 700 22px / 1 var(--k-font-display);
-}
-
-.t-test-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.t-test-title {
-  overflow: hidden;
-  color: var(--k-ink);
-  font-size: 17px;
-  font-weight: 800;
-  text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  outline: none;
-}
-
-/* The title's link covers the whole row, so a click anywhere opens the test. */
-.t-test-title::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-}
-
-.t-test-title:focus-visible::after {
-  outline: var(--t-focus);
-  outline-offset: 2px;
-}
-
-.t-test-meta {
-  color: var(--k-muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.t-test .t-icon-btn {
-  position: relative;
-}
-
-/* Classes */
-
-.t-classes {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 18px;
-}
-
-.t-class-list {
-  min-height: 0;
-  overflow: auto;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  outline: none;
-}
-
-.t-class-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1.5px solid transparent;
-  border-radius: var(--t-radius-field);
-  cursor: pointer;
-  outline: none;
-}
-
-.t-class-item b {
-  font: 600 16px var(--k-font-display);
-}
-
-.t-class-item span {
-  color: var(--k-muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.t-class-item[data-hovered] {
-  background: var(--t-hover);
-}
-
-.t-class-item[data-selected] {
-  background: var(--k-soft);
-  border-color: var(--k-tile-shadow);
-  color: var(--k-sel-dark);
-}
-
-.t-class-item[data-focus-visible] {
-  outline: var(--t-focus);
-  outline-offset: -3px;
-}
-
-.t-class-detail {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.t-class-editor {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  animation: t-page-in var(--k-dur-state) var(--k-ease-out);
-}
-
-.t-class-head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px 14px;
-  border-bottom: 1.5px solid var(--t-hair);
-}
-
-.t-class-name {
-  flex: 1;
-  min-width: 0;
-}
-
-.t-class-name input {
-  width: 100%;
-  box-sizing: border-box;
-  margin-left: -10px;
-  padding: 6px 10px;
-  border: 1.5px solid transparent;
-  border-radius: var(--t-radius-field);
-  background: transparent;
-  color: var(--k-ink);
-  font: 600 24px var(--k-font-display);
-  outline: none;
-}
-
-.t-class-name input[data-hovered] {
-  background: var(--t-hover);
-}
-
-.t-class-name input[data-focused] {
-  border-color: var(--k-field);
-  background: var(--k-paper);
-}
-
-.t-class-count {
-  color: var(--k-muted);
-  font-size: 14px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* The columns balance on the list's natural height inside the scroller; a
-   height on the list itself would push extra columns off to the side. */
-.t-students-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.t-students {
-  margin: 0;
-  padding: 12px 20px;
-  list-style: none;
-  columns: 2 320px;
-  column-gap: 32px;
-}
-
-.t-students li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 0;
-  break-inside: avoid;
-}
-
-.t-num {
-  width: 28px;
-  flex: none;
-  color: var(--k-muted);
-  font: 600 13px var(--k-font-display);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.t-students input {
-  flex: 1;
-  min-width: 0;
-  height: 38px;
-  padding: 0 10px;
-  border: 1.5px solid transparent;
-  border-radius: var(--t-radius-small);
-  background: transparent;
-  color: var(--k-ink);
-  font: 700 15px var(--k-font-text);
-  outline: none;
-}
-
-.t-students input[data-hovered] {
-  background: var(--t-hover);
-}
-
-.t-students input[data-focused] {
-  border-color: var(--k-field);
-  background: var(--k-paper);
-}
-
-.t-students .t-icon-btn {
-  opacity: 0.45;
-}
-
-.t-students li:hover .t-icon-btn,
-.t-students .t-icon-btn[data-focus-visible] {
-  opacity: 1;
-}
-
-.t-class-add {
-  display: flex;
-  gap: 10px;
-  padding: 0 20px 14px;
-}
-
-.t-class-add .t-btn[data-variant="dashed"] {
-  flex: 1;
-}
-
-.t-class-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  border-top: 1.5px solid var(--t-hair);
-}
-
-.t-class-foot[data-dirty] {
-  background: var(--t-tang-soft);
-}
-
-.t-class-state {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: var(--k-muted);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.t-class-foot[data-dirty] .t-class-state {
-  color: var(--k-ink);
-}
-
-.t-class-foot[data-dirty] .t-class-state::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--k-accent);
-}
-
-.t-class-state[data-error] {
-  color: var(--t-red);
-}
-
-.t-dialog.t-paste-dialog {
-  width: min(880px, 92vw);
-}
-
-.t-paste {
-  height: min(380px, 52vh);
-  margin-bottom: 22px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18px;
-}
-
-.t-paste-box {
-  min-height: 0;
-}
-
-.t-paste-box textarea {
-  flex: 1;
-  min-height: 0;
-  resize: none;
-  font: 600 15px / 1.5 var(--k-font-text);
-}
-
-.t-preview {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 14px 18px;
-  border-radius: 14px;
-  background: var(--t-bg);
-}
-
-.t-found {
-  margin: 0 0 8px;
-  color: var(--k-muted);
-  font-weight: 800;
-}
-
-.t-found b {
-  margin-right: 4px;
-  color: var(--k-field);
-  font: 700 26px var(--k-font-display);
-}
-
-.t-preview ol {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  margin: 0;
-  padding: 0 0 0 34px;
-  font-weight: 700;
-  line-height: 1.85;
-}
-
-.t-preview li::marker {
-  color: var(--k-muted);
-  font-size: 13px;
-}
-
-.t-hint {
-  margin: 0;
-  color: var(--k-muted);
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-/* Settings */
-
-.t-settings {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.t-settings-side {
-  display: grid;
-  gap: 18px;
-}
-
-.t-section {
-  padding: 22px 24px 24px;
-}
-
-.t-section h2 {
-  margin: 0 0 6px;
-  font-size: 18px;
-}
-
-.t-url {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 20px 22px;
-  border-radius: 16px;
-  background: var(--k-soft);
-}
-
-.t-url-text {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--k-sel-dark);
-  font: 700 28px / 1.2 var(--k-font-display);
-  letter-spacing: -0.01em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.t-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 22px;
-}
-
-.t-choices [slot="description"] {
-  color: var(--k-muted);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.t-choice-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.t-choice {
-  height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px 0 12px;
-  border: 1.5px solid var(--t-line);
-  border-radius: var(--t-radius-field);
-  font: 600 15px var(--k-font-display);
-  cursor: pointer;
-  outline: none;
-}
-
-.t-choice::before {
-  content: "";
-  width: 18px;
-  height: 18px;
-  box-sizing: border-box;
-  border: 2px solid var(--t-line-strong);
-  border-radius: 50%;
-}
-
-.t-choice[data-hovered] {
-  border-color: var(--t-line-strong);
-}
-
-.t-choice[data-selected] {
-  border-color: var(--k-field);
-  background: var(--k-soft);
-}
-
-.t-choice[data-selected]::before {
-  border: 6px solid var(--k-field);
-}
-
-.t-choice[data-focus-visible],
-.t-segment .react-aria-Radio[data-focus-visible] {
-  outline: var(--t-focus);
-  outline-offset: 2px;
-}
-
-.t-segment {
-  display: inline-flex;
-  gap: 4px;
-  margin-top: 10px;
-  padding: 4px;
-  border-radius: var(--t-radius-field);
-  background: var(--t-track);
-}
-
-.t-segment .react-aria-Radio {
-  height: 40px;
-  display: flex;
-  align-items: center;
-  padding: 0 18px;
-  border-radius: 9px;
-  color: var(--k-muted);
-  font-weight: 800;
-  cursor: pointer;
-  outline: none;
-}
-
-.t-segment .react-aria-Radio[data-selected] {
-  background: var(--k-paper);
-  color: var(--k-ink);
-  box-shadow: var(--t-shadow-seg);
-}
-
-.t-port-form {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.t-port-field input {
-  width: 140px;
-  height: 44px;
-  font: 700 20px var(--k-font-display);
 }
 
 /* Toasts */

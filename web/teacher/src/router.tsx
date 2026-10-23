@@ -5,6 +5,7 @@ import {
   createRouter,
   Outlet,
 } from "@tanstack/react-router";
+import { Fragment } from "react";
 import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
 import { ClassesPage } from "./pages/ClassesPage";
@@ -16,12 +17,12 @@ import { Toasts } from "./ui/Toasts";
 import { TopBar } from "./ui/TopBar";
 
 /**
- * The frame of every page. It remounts when the language changes, because
- * messages are read at render time. A 401 replaces the whole app with one
- * message: the launch-token cookie is gone or stale, and only the desktop
- * app can open a new session.
+ * The app root: the 401 gate and the toasts. A 401 replaces the whole app
+ * with one message: the launch-token cookie is gone or stale, and only the
+ * desktop app can open a new session. Everything below remounts when the
+ * language changes, because messages are read at render time.
  */
-function Shell() {
+function Root() {
   const { unauthorized } = useFlags();
   const { data: settings } = useSettings();
   if (unauthorized) {
@@ -35,13 +36,26 @@ function Shell() {
     );
   }
   return (
-    <div className="t-app" key={settings?.language}>
+    <Fragment key={settings?.language}>
+      <Outlet />
+      <Toasts />
+    </Fragment>
+  );
+}
+
+/**
+ * The frame of the library, classes, results and settings: the top bar and
+ * the banners over the page. A route that brings its own bar, such as the
+ * builder or the live view, hangs off the root instead.
+ */
+function Shell() {
+  return (
+    <div className="t-app">
       <TopBar />
       <Banners />
       <main className="t-main">
         <Outlet />
       </main>
-      <Toasts />
     </div>
   );
 }
@@ -55,53 +69,61 @@ function Placeholder() {
   );
 }
 
-const root = createRootRoute({ component: Shell });
+const root = createRootRoute({ component: Root });
+
+const shell = createRoute({
+  getParentRoute: () => root,
+  id: "shell",
+  component: Shell,
+});
 
 export const testsRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/",
   component: TestsPage,
 });
 export const testRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/tests/$id",
   component: Placeholder,
 });
 export const classesRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/classes",
   component: ClassesPage,
 });
 export const liveRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/live",
   component: Placeholder,
 });
 export const assignmentsRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/assignments",
   component: Placeholder,
 });
 export const assignmentRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/assignments/$id",
   component: Placeholder,
 });
 export const settingsRoute = createRoute({
-  getParentRoute: () => root,
+  getParentRoute: () => shell,
   path: "/settings",
   component: SettingsPage,
 });
 
 export const router = createRouter({
   routeTree: root.addChildren([
-    testsRoute,
-    testRoute,
-    classesRoute,
-    liveRoute,
-    assignmentsRoute,
-    assignmentRoute,
-    settingsRoute,
+    shell.addChildren([
+      testsRoute,
+      testRoute,
+      classesRoute,
+      liveRoute,
+      assignmentsRoute,
+      assignmentRoute,
+      settingsRoute,
+    ]),
   ]),
 });
 

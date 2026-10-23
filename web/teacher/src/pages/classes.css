@@ -1,0 +1,291 @@
+/* The class lists, the class editor and the paste dialog. */
+
+.t-classes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.t-class-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  outline: none;
+}
+
+.t-class-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1.5px solid transparent;
+  border-radius: var(--t-radius-field);
+  cursor: pointer;
+  outline: none;
+}
+
+.t-class-item b {
+  font: 600 16px var(--k-font-display);
+}
+
+.t-class-item span {
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.t-class-item[data-hovered] {
+  background: var(--t-hover);
+}
+
+.t-class-item[data-selected] {
+  background: var(--k-soft);
+  border-color: var(--k-tile-shadow);
+  color: var(--k-sel-dark);
+}
+
+.t-class-item[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: -3px;
+}
+
+.t-class-detail {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.t-class-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: t-page-in var(--k-dur-state) var(--k-ease-out);
+}
+
+.t-class-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px 14px;
+  border-bottom: 1.5px solid var(--t-hair);
+}
+
+.t-class-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.t-class-name input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-left: -10px;
+  padding: 6px 10px;
+  border: 1.5px solid transparent;
+  border-radius: var(--t-radius-field);
+  background: transparent;
+  color: var(--k-ink);
+  font: 600 24px var(--k-font-display);
+  outline: none;
+}
+
+.t-class-name input[data-hovered] {
+  background: var(--t-hover);
+}
+
+.t-class-name input[data-focused] {
+  border-color: var(--k-field);
+  background: var(--k-paper);
+}
+
+.t-class-count {
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* The columns balance on the list's natural height inside the scroller; a
+   height on the list itself would push extra columns off to the side. */
+.t-students-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.t-students {
+  margin: 0;
+  padding: 12px 20px;
+  list-style: none;
+  columns: 2 320px;
+  column-gap: 32px;
+}
+
+.t-students li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  break-inside: avoid;
+}
+
+.t-num {
+  width: 28px;
+  flex: none;
+  color: var(--k-muted);
+  font: 600 13px var(--k-font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.t-students input {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1.5px solid transparent;
+  border-radius: var(--t-radius-small);
+  background: transparent;
+  color: var(--k-ink);
+  font: 700 15px var(--k-font-text);
+  outline: none;
+}
+
+.t-students input[data-hovered] {
+  background: var(--t-hover);
+}
+
+.t-students input[data-focused] {
+  border-color: var(--k-field);
+  background: var(--k-paper);
+}
+
+.t-students .t-icon-btn {
+  opacity: 0.45;
+}
+
+.t-students li:hover .t-icon-btn,
+.t-students .t-icon-btn[data-focus-visible] {
+  opacity: 1;
+}
+
+.t-class-add {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px 14px;
+}
+
+.t-class-add .t-btn[data-variant="dashed"] {
+  flex: 1;
+}
+
+.t-class-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1.5px solid var(--t-hair);
+}
+
+.t-class-foot[data-dirty] {
+  background: var(--t-tang-soft);
+}
+
+.t-class-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--k-muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.t-class-foot[data-dirty] .t-class-state {
+  color: var(--k-ink);
+}
+
+.t-class-foot[data-dirty] .t-class-state::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--k-accent);
+}
+
+.t-class-state[data-error] {
+  color: var(--t-red);
+}
+
+.t-dialog.t-paste-dialog {
+  width: min(880px, 92vw);
+}
+
+.t-paste {
+  height: min(380px, 52vh);
+  margin-bottom: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.t-paste-box {
+  min-height: 0;
+}
+
+.t-paste-box textarea {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  font: 600 15px / 1.5 var(--k-font-text);
+}
+
+.t-preview {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px;
+  border-radius: var(--t-radius-box);
+  background: var(--t-bg);
+}
+
+.t-found {
+  margin: 0 0 8px;
+  color: var(--k-muted);
+  font-weight: 800;
+}
+
+.t-found b {
+  margin-right: 4px;
+  color: var(--k-field);
+  font: 700 26px var(--k-font-display);
+}
+
+.t-preview ol {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 0 0 0 34px;
+  font-weight: 700;
+  line-height: 1.85;
+}
+
+.t-preview li::marker {
+  color: var(--k-muted);
+  font-size: 13px;
+}
+
+.t-hint {
+  margin: 0;
+  color: var(--k-muted);
+  font-weight: 600;
+  line-height: 1.5;
+}

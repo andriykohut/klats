@@ -1,6 +1,6 @@
 import "@klats/shared/fonts.css";
 import "@klats/shared/tokens.css";
-import "./ui/teacher.css";
+import "./ui/base.css";
 import { applyPalette } from "@klats/shared/palettes.ts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
