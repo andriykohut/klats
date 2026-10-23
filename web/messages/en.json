@@ -294,7 +294,7 @@
   "problem_no_text": "Question {number} has no text.",
   "problem_no_correct": "Question {number}: mark at least one correct answer.",
   "problem_too_few_options": "Question {number}: add at least two answers.",
-  "problem_single_many_correct": "Question {number} takes one answer, but {count} are marked correct.",
+  "problem_single_many_correct": "Question {number} takes one answer, but {count} are marked correct. A student can pick only one, so no one can score on it.",
   "problem_make_multi": "Make it multiple answers",
   "problem_empty_option": "Question {number}: an answer is empty.",
   "problem_weak_partial": "Question {number}: with partial credit, ticking everything still scores. Add wrong answers or choose “All or nothing”.",

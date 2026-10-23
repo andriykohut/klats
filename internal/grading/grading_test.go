@@ -92,7 +92,9 @@ func TestGrade12(t *testing.T) {
 	for _, c := range []struct {
 		earned, max float64
 		want        int
-	}{{9, 9, 12}, {8, 9, 10}, {11, 12, 11}, {2, 12, 2}, {1, 12, 1}, {0, 9, 1}, {0, 0, 1}} {
+	}{{9, 9, 12}, {8, 9, 10}, {11, 12, 11}, {2, 12, 2}, {1, 12, 1}, {0, 9, 1}, {0, 0, 1},
+		// 12 × earned / max lands just below the boundary in float64.
+		{3.3, 3.6, 11}, {0.6, 3.6, 2}} {
 		if got := Grade12(c.earned, c.max); got != c.want {
 			t.Errorf("Grade12(%v, %v) = %d, want %d", c.earned, c.max, got, c.want)
 		}

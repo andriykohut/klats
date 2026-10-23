@@ -42,8 +42,10 @@ func (t Test) Problems() []Problem {
 		if len(q.Options) < 2 {
 			add("too_few_options", "error", 0)
 		}
+		// Scoring needs every correct option, and a single-answer question
+		// takes one pick, so nobody could score.
 		if q.Type == "single" && correct > 1 {
-			add("single_many_correct", "warning", correct)
+			add("single_many_correct", "error", correct)
 		}
 		if hasEmpty {
 			add("empty_option", "warning", 0)

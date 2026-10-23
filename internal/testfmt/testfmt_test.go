@@ -83,7 +83,9 @@ func TestTooFewOptions(t *testing.T) {
 
 func TestSingleManyCorrect(t *testing.T) {
 	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", true}, opt{"c", false})), "single_many_correct")
-	if ps[0].Severity != "warning" || ps[0].Count != 2 {
+	// The student can pick only one option, and scoring needs every correct
+	// one, so nobody could score: the start is blocked.
+	if ps[0].Severity != "error" || ps[0].Count != 2 {
 		t.Fatalf("problem = %+v", ps[0])
 	}
 }
