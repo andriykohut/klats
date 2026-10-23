@@ -375,6 +375,21 @@ func TestPickRateLimit(t *testing.T) {
 	wantError(t, pick(), 429, "rate_limited")
 }
 
+func TestLegacyOptionIDsChangeIsStoredAsItems(t *testing.T) {
+	v := setup(t)
+	p := v.enter(t, devA, "Шевченко")
+	body := fmt.Sprintf(`{"changes":[{"changeId":"c1","participantId":%q,"questionId":"q1","optionIds":["o1"],"seq":1}],"pending":0}`, p.ID)
+	wantStatus(t, v.do("POST", "/api/answers", devA, []byte(body)), 200)
+
+	rows, err := v.st.Q().ListParticipantAnswers(context.Background(), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Value != `{"items":["o1"]}` {
+		t.Errorf("stored = %+v, want items o1", rows)
+	}
+}
+
 func TestTestResponseIsOwnAnswersOnly(t *testing.T) {
 	v := setup(t)
 	a := v.enter(t, devA, "Шевченко")

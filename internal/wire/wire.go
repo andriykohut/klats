@@ -160,6 +160,24 @@ type AnswerChange struct {
 	Seq           int64          `json:"seq"`
 }
 
+// UnmarshalJSON reads a legacy `optionIds` list as the answer's items when the
+// change has no answer, for student pages loaded before the upgrade.
+func (c *AnswerChange) UnmarshalJSON(b []byte) error {
+	type plain AnswerChange
+	aux := struct {
+		plain
+		OptionIDs []string `json:"optionIds"`
+	}{}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+	*c = AnswerChange(aux.plain)
+	if c.Answer.IsEmpty() {
+		c.Answer.Items = aux.OptionIDs
+	}
+	return nil
+}
+
 // SubmitResult answers a batch of changes. Acks lists every change id the
 // device can forget, including repeats and changes that were not stored.
 // Rejected counts the acked changes refused as malformed or not the device's
