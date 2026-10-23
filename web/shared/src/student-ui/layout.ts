@@ -8,13 +8,18 @@ export const SEGMENT_GAP = 6;
 /**
  * Returns how to lay out answer tiles: a 2×2 `grid` only when there are at most
  * four options and each one wraps to at most two lines at half width
- * (`lineCounts`, measured in that grid); full-width `rows` otherwise.
+ * (`lineCounts`, measured in that grid); full-width `rows` otherwise. When
+ * options carry pictures (`hasImages`) the line counts don't matter: at most
+ * four options make a grid, with each picture above its text, and more make
+ * rows, with each picture at the left.
  */
 export function chooseLayout(
   count: number,
   lineCounts: number[],
+  hasImages = false,
 ): "grid" | "rows" {
-  return count <= 4 && lineCounts.every((n) => n <= 2) ? "grid" : "rows";
+  if (count > 4) return "rows";
+  return hasImages || lineCounts.every((n) => n <= 2) ? "grid" : "rows";
 }
 
 /**

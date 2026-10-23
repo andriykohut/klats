@@ -92,6 +92,8 @@ export interface Klats {
   student: string;
   /** Makes class 7-Б and a test of `questions`, and starts a sitting of it. */
   start(questions?: TestQuestion[]): Promise<SittingInfo>;
+  /** Stores `bytes` in the media store and returns its media name. */
+  upload(bytes: Buffer): Promise<string>;
   /** The teacher's live snapshot. */
   live(): Promise<LiveSnapshot>;
   /** The teacher's results of the assignment `id`. */
@@ -160,6 +162,15 @@ export const test = base.extend<{ klats: Klats }>({
     await use({
       student: urls.get("student") ?? "",
       live,
+      async upload(bytes) {
+        const res = await fetch(`${teacherURL.origin}/api/media`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: new Uint8Array(bytes),
+        });
+        if (!res.ok) throw new Error(`POST /api/media: ${res.status}`);
+        return ((await res.json()) as { name: string }).name;
+      },
       results: (id) =>
         api<AssignmentResults>("GET", `/api/assignments/${id}/results`),
       async start(questions = TEST) {

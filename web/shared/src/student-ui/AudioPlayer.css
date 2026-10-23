@@ -1,0 +1,111 @@
+.k-audio {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: calc(14 * var(--k-px));
+  max-width: calc(520 * var(--k-px));
+  margin: 0.4em 0;
+  padding: calc(8 * var(--k-px)) calc(18 * var(--k-px)) calc(8 * var(--k-px))
+    calc(8 * var(--k-px));
+  border-radius: 999px;
+  background: var(--k-soft);
+  color: var(--k-ink);
+  font-weight: 600;
+  font-size: max(14px, calc(16 * var(--k-px)));
+  line-height: 1.2;
+}
+
+.k-audio-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(44 * var(--k-px));
+  height: calc(44 * var(--k-px));
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--k-sel);
+  color: var(--k-on-dark);
+  cursor: pointer;
+  transition: transform var(--k-dur-press) var(--k-ease-out);
+}
+
+.k-audio-btn[data-pressed] {
+  transform: scale(0.92);
+}
+
+.k-audio-btn[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-audio-btn svg {
+  width: 55%;
+  height: 55%;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-audio-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.k-audio-seek {
+  flex: 1;
+  min-width: calc(80 * var(--k-px));
+}
+
+.k-audio-track {
+  position: relative;
+  height: calc(20 * var(--k-px));
+  min-height: 20px;
+  /* Room for the thumb, which is centred on the ends of the track. */
+  margin: 0 9px;
+}
+
+.k-audio-track::before,
+.k-audio-fill {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 3px;
+}
+
+.k-audio-track::before {
+  right: 0;
+  background: var(--k-tile-border);
+}
+
+.k-audio-fill {
+  background: var(--k-sel);
+}
+
+.k-audio-thumb {
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--k-sel);
+  border-radius: 50%;
+  background: var(--k-paper);
+  cursor: pointer;
+}
+
+.k-audio-thumb[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-audio-seek[data-disabled] {
+  opacity: 0.5;
+}

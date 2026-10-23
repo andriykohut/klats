@@ -11,6 +11,7 @@ import {
 import { CheckboxGroup } from "react-aria-components/CheckboxGroup";
 import { RadioGroup } from "react-aria-components/RadioGroup";
 import { flushSync } from "react-dom";
+import type { Image } from "../generated/testfmt";
 import { m } from "../paraglide/messages.js";
 import type { MessagePart } from "../paraglide/runtime.js";
 import { type RichDoc, RichView } from "../rich/RichView";
@@ -26,7 +27,7 @@ export interface QuestionSheetProps {
   number: number;
   total: number;
   text: RichDoc;
-  options: { id: string; content: RichDoc }[];
+  options: { id: string; content: RichDoc; image?: Image }[];
   multi: boolean;
   /** Selected option ids. */
   selected: string[];
@@ -65,6 +66,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
   const [phase, setPhase] = useState<"lines" | "fit" | "done">("lines");
   const [below, setBelow] = useState(0);
   const optionsKey = JSON.stringify(options);
+  const hasImages = options.some((o) => o.image);
   const behavior = reduced ? "auto" : "smooth";
 
   const restart = useCallback(() => {
@@ -88,7 +90,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
       const lines = faces.map((f) =>
         Math.round(f.offsetHeight / probe.offsetHeight),
       );
-      setLayout(chooseLayout(options.length, lines));
+      setLayout(chooseLayout(options.length, lines, hasImages));
       setPhase("fit");
     } else if (phase === "fit") {
       const next = nextDensity(
@@ -101,7 +103,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
     } else {
       setBelow(tilesBelow(scroller).length);
     }
-  }, [phase, density, options.length]);
+  }, [phase, density, options.length, hasImages]);
 
   // Pressing the cue can scroll it out of existence; keep focus off the body.
   useLayoutEffect(() => {
@@ -152,6 +154,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
       id={o.id}
       index={i}
       content={o.content}
+      image={o.image}
       multi={multi}
     />
   ));

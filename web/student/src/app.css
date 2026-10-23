@@ -599,3 +599,8 @@ input {
   }
 }
 /* biome-ignore-end lint/complexity/noImportantStyles: see above */
+
+/* An excerpt is one line of words; pictures and audio stay out of it. */
+.s-excerpt :is(.k-img, .k-audio, .k-media-wait) {
+  display: none;
+}

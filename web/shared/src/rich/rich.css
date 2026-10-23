@@ -56,3 +56,27 @@
   background: none;
   font-size: inherit;
 }
+
+/*
+ * Pictures never outgrow the sheet: at most its width and 45% of its height
+ * (324 of the design's 720 px), keeping the aspect ratio.
+ */
+.k-img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(324 * var(--k-px));
+  margin: 0.2em 0;
+  vertical-align: bottom;
+}
+
+.k-media-wait {
+  display: inline-block;
+  margin: 0.2em 0;
+  padding: 0.3em 0.8em;
+  border-radius: 0.5em;
+  background: var(--k-soft);
+  color: var(--k-muted);
+  font-size: 0.7em;
+  font-weight: 600;
+}

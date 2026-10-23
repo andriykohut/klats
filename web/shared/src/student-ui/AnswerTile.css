@@ -93,10 +93,57 @@
   outline-offset: 3px;
 }
 
+.k-tile-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--k-px));
+}
+
 .k-tile-text {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* An option's picture sits above its text; rows put it at the left. */
+.k-tile-img {
+  align-self: flex-start;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(140 * var(--k-px));
+  border-radius: calc(10 * var(--k-px));
+}
+
+.k-tile-body > .k-media-wait {
+  align-self: flex-start;
+}
+
+.k-answers-rows .k-tile-body {
+  flex-direction: row;
+  align-items: center;
+  gap: calc(16 * var(--k-px));
+}
+
+.k-answers-rows .k-tile-img {
+  flex: none;
+  max-width: 40%;
+  max-height: calc(96 * var(--k-px));
+}
+
+/* Tighter density steps shrink the pictures along with the tiles. */
+.k-sheet[data-density] .k-tile-img {
+  max-height: calc(110 * var(--k-px));
+}
+
+.k-sheet[data-density="2"] .k-tile-img {
+  max-height: calc(80 * var(--k-px));
+}
+
+.k-sheet[data-density] .k-answers-rows .k-tile-img {
+  max-height: calc(72 * var(--k-px));
 }
 
 .k-badge {

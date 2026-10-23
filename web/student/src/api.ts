@@ -44,6 +44,9 @@ function device(): string {
 /** The teacher's origin every call goes to; `''` is the page's own. */
 let base = "";
 
+/** The teacher's origin calls go to now; `''` is the page's own. */
+export const apiBase = (): string => base;
+
 /** Points every later call, and the next {@link listen}, at `url`. */
 export function setBase(url: string): void {
   base = url;

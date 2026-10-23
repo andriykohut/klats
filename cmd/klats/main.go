@@ -188,7 +188,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	eng.SetSnapshotDir(dataDir)
 	join := ""
 	if *demoFlag {
-		info, err := demo.Seed(st, eng)
+		info, err := demo.Seed(st, eng, ms)
 		if err != nil {
 			return fmt.Errorf("demo: %w", err)
 		}

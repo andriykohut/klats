@@ -7,6 +7,11 @@ test("chooseLayout", () => {
   expect(chooseLayout(5, [1, 1, 1, 1, 1])).toBe("rows");
 });
 
+test("chooseLayout with images", () => {
+  expect(chooseLayout(4, [3, 3, 3, 3], true)).toBe("grid");
+  expect(chooseLayout(5, [1, 1, 1, 1, 1], true)).toBe("rows");
+});
+
 test("progressMode", () => {
   expect(progressMode(9, 600)).toBe("segments");
   expect(progressMode(40, 1000)).toBe("compact");

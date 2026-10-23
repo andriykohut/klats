@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"klats/internal/events"
+	"klats/internal/media"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/testfmt"
@@ -24,16 +25,20 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ms, err := media.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	info, err := Seed(st, eng)
+	info, err := Seed(st, eng, ms)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !eng.Active() || eng.SittingID() != info.SittingID {
 		t.Fatalf("sitting %q is not the running one", info.SittingID)
 	}
-	if info.ClassName != "7-Б" || info.QuestionCount != 7 {
-		t.Errorf("sitting of class %q with %d questions, want 7-Б with 7", info.ClassName, info.QuestionCount)
+	if info.ClassName != "7-Б" || info.QuestionCount != 8 {
+		t.Errorf("sitting of class %q with %d questions, want 7-Б with 8", info.ClassName, info.QuestionCount)
 	}
 
 	join, err := eng.Join(info.Code, strings.Repeat("a", 26), "10.0.0.5")
@@ -72,6 +77,34 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 			t.Errorf("no %s in the sample test", node)
 		}
 	}
+	for _, node := range []string{"image", "audio"} {
+		if !strings.Contains(tests[0].Doc, `"type":"`+node+`"`) {
+			t.Errorf("no %s in the sample test", node)
+		}
+	}
+	files := test.Media()
+	if len(files) != 2 {
+		t.Errorf("sample test uses media %v, want its image and audio", files)
+	}
+	for _, name := range files {
+		f, _, err := ms.Open(name)
+		if err != nil {
+			t.Errorf("media %s is not stored: %v", name, err)
+			continue
+		}
+		_ = f.Close()
+	}
+	withImage := 0
+	for _, q := range test.Questions {
+		for _, o := range q.Options {
+			if o.Image != nil {
+				withImage++
+			}
+		}
+	}
+	if withImage != 1 {
+		t.Errorf("%d options with an image, want 1", withImage)
+	}
 }
 
 // A second run in the same data folder finds the sitting still running and
@@ -83,6 +116,10 @@ func TestSeedAgainReusesTheLesson(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
+	ms, err := media.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Each run is a new program over the same database, so a new engine.
 	run := func() (*sitting.Engine, wire.SittingInfo) {
 		t.Helper()
@@ -90,7 +127,7 @@ func TestSeedAgainReusesTheLesson(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		info, err := Seed(st, eng)
+		info, err := Seed(st, eng, ms)
 		if err != nil {
 			t.Fatal(err)
 		}

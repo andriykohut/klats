@@ -5,6 +5,7 @@
 package demo
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"slices"
 	"time"
 
+	"klats/internal/media"
 	"klats/internal/rich"
 	"klats/internal/roster"
 	"klats/internal/sitting"
@@ -104,9 +106,10 @@ func choice(id string, points int, text json.RawMessage, correct []int, options 
 	return q
 }
 
-// sampleTest is seven questions, single and multiple choice, with bold, sub-
-// and superscript text, and a table and a code block in the last.
-func sampleTest(id string) testfmt.Test {
+// sampleTest is eight questions, single and multiple choice, with bold, sub-
+// and superscript text, a table and a code block in the seventh, and the
+// stored image pic and audio sound in the eighth.
+func sampleTest(id, pic, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
 			para(plain("4")), para(plain("8")), para(plain("16")), para(plain("32"))),
@@ -125,14 +128,39 @@ func sampleTest(id string) testfmt.Test {
 			table([]string{"Рік", "Подія"}, []string{"1991", "Незалежність"}, []string{"1996", "Конституція"}),
 			codeBlock("year = 1991\nprint(year + 5)")), []int{1},
 			para(plain("1991")), para(plain("1996")), para(plain("2001"))),
+		withImage(choice("q8", 1, doc(
+			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Подивіться на схему й послухайте звук. Скільки фігур на схемі?")}},
+			rich.Node{Type: "paragraph", Content: []rich.Node{{Type: "image", Attrs: &rich.Attrs{Src: pic, W: diagramW, H: diagramH}}}},
+			rich.Node{Type: "audio", Attrs: &rich.Attrs{Src: sound}}), []int{1},
+			para(plain("2")), para(plain("3")), para(plain("4"))), 1, testfmt.Image{Src: pic, W: diagramW, H: diagramH}),
 	}}
 }
 
-// Seed starts a sitting of the seven-question sample test for class 7-Б, of 25
+// withImage shows img with option i of q.
+func withImage(q testfmt.Question, i int, img testfmt.Image) testfmt.Question {
+	q.Options[i].Image = &img
+	return q
+}
+
+// storeMedia saves the sample image and audio in ms and returns their names.
+func storeMedia(ms *media.Store) (pic, sound string, err error) {
+	png, err := diagram()
+	if err != nil {
+		return "", "", err
+	}
+	if pic, err = ms.Put(bytes.NewReader(png)); err != nil {
+		return "", "", err
+	}
+	sound, err = ms.Put(bytes.NewReader(tone()))
+	return pic, sound, err
+}
+
+// Seed starts a sitting of the eight-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
-// earlier run in the same data folder did. If a sitting already runs, demo or
+// earlier run in the same data folder did, and the test's image and audio in
+// ms. If a sitting already runs, demo or
 // not, it stores and starts nothing and returns that sitting.
-func Seed(st *store.Store, eng *sitting.Engine) (wire.SittingInfo, error) {
+func Seed(st *store.Store, eng *sitting.Engine, ms *media.Store) (wire.SittingInfo, error) {
 	if eng.Active() {
 		live, err := eng.Live()
 		return live.Sitting, err
@@ -140,7 +168,11 @@ func Seed(st *store.Store, eng *sitting.Engine) (wire.SittingInfo, error) {
 	ctx := context.Background()
 	// Decode validates the test and makes its rich text canonical, as a save
 	// through the teacher API does.
-	raw, err := json.Marshal(sampleTest(testID))
+	pic, sound, err := storeMedia(ms)
+	if err != nil {
+		return wire.SittingInfo{}, err
+	}
+	raw, err := json.Marshal(sampleTest(testID, pic, sound))
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}

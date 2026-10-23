@@ -1,7 +1,8 @@
 import { motion, useReducedMotionConfig } from "motion/react";
 import { CheckboxButton, CheckboxField } from "react-aria-components/Checkbox";
 import { RadioButton, RadioField } from "react-aria-components/RadioGroup";
-import { type RichDoc, RichView } from "../rich/RichView";
+import type { Image } from "../generated/testfmt";
+import { MediaImage, type RichDoc, RichView } from "../rich/RichView";
 import { BADGE_LETTERS } from "./badges";
 import { popIn } from "./motion";
 import "./student-ui.css";
@@ -13,6 +14,8 @@ export interface AnswerTileProps {
   /** Position among the options, from 0; picks the badge letter. */
   index: number;
   content: RichDoc;
+  /** A picture shown above the text, or at its left in a row layout. */
+  image?: Image;
   /** A checkbox inside a CheckboxGroup when set, a radio inside a RadioGroup otherwise. */
   multi: boolean;
 }
@@ -24,9 +27,17 @@ export interface AnswerTileProps {
  * past the ninth get their number as the badge. Focusing the tile scrolls it
  * into view within the sheet.
  */
-export function AnswerTile({ id, index, content, multi }: AnswerTileProps) {
+export function AnswerTile({
+  id,
+  index,
+  content,
+  image,
+  multi,
+}: AnswerTileProps) {
   const reduced = useReducedMotionConfig();
-  const face = <TileFace index={index} content={content} multi={multi} />;
+  const face = (
+    <TileFace index={index} content={content} image={image} multi={multi} />
+  );
   return (
     <motion.div
       className="k-tile-wrap"
@@ -56,10 +67,12 @@ export function AnswerTile({ id, index, content, multi }: AnswerTileProps) {
 export function TileFace({
   index,
   content,
+  image,
   multi,
 }: {
   index: number;
   content: RichDoc;
+  image?: Image;
   multi: boolean;
 }) {
   return (
@@ -79,8 +92,18 @@ export function TileFace({
           <span className="k-badge-dot" />
         )}
       </span>
-      <span className="k-tile-text">
-        <RichView doc={content} />
+      <span className="k-tile-body">
+        {image && (
+          <MediaImage
+            className="k-tile-img"
+            src={image.src}
+            w={image.w}
+            h={image.h}
+          />
+        )}
+        <span className="k-tile-text">
+          <RichView doc={content} />
+        </span>
       </span>
     </span>
   );

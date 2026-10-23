@@ -134,3 +134,8 @@
   font-weight: 700;
   font-size: 14px;
 }
+
+/* The list shows a question's words; its pictures and audio stay out. */
+.b-qi-tx :is(.k-img, .k-audio, .k-media-wait) {
+  display: none;
+}

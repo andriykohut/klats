@@ -16,6 +16,7 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { isLocale, setLocale } from "@klats/shared/paraglide/runtime.js";
 import * as api from "./api";
 import { watchFocus } from "./input/focus";
+import { preloadMedia, releaseMedia, retryMedia } from "./media";
 import { route } from "./route";
 import { ApiError, Connection, type ConnectionState } from "./sync/connection";
 import { AnswerQueue } from "./sync/queue";
@@ -196,7 +197,10 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
   const conn = new Connection(api.transport, queue);
   const s = { queue, conn };
   session = s;
-  conn.onState((st, pending) => update({ net: { state: st, pending } }));
+  conn.onState((st, pending) => {
+    if (st === "online" && state.net.state !== "online") retryMedia();
+    update({ net: { state: st, pending } });
+  });
   conn.onStatus((st) => {
     if (session === s) void follow(st);
   });
@@ -207,6 +211,7 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
 function end(): void {
   session?.conn.stop();
   session = null;
+  releaseMedia();
 }
 
 /**
@@ -242,6 +247,7 @@ async function resume(name?: string): Promise<void> {
   // server anyway (no service worker on plain HTTP). Revisit if offline
   // reloads become possible.
   const queue = sync(id, res);
+  preloadMedia(test);
   paint(test.palette);
   update({
     test,

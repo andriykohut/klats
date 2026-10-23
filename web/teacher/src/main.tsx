@@ -1,6 +1,7 @@
 import "@klats/shared/fonts.css";
 import "@klats/shared/tokens.css";
 import "./ui/base.css";
+import { setMediaResolver } from "@klats/shared/media.ts";
 import { applyPalette } from "@klats/shared/palettes.ts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
@@ -12,6 +13,7 @@ import { applyLocale } from "./locale";
 import { router } from "./router";
 
 applyPalette(document.documentElement, "teal");
+setMediaResolver((name) => `/api/media/${name}`);
 subscribeTeacherEvents(queryClient);
 
 // The saved language is loaded before the first render, so the first frame is
