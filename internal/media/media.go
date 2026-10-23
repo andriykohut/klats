@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"klats/internal/rich"
 )
@@ -111,7 +112,8 @@ func (s *Store) Open(name string) (*os.File, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("media: %w", err)
 	}
-	return f, contentTypes[name[len(name)-3:]], nil
+	_, ext, _ := strings.Cut(name, ".")
+	return f, contentTypes[ext], nil
 }
 
 // sniff returns the extension for the type of data's leading bytes, or "" for

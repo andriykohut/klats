@@ -144,3 +144,30 @@ func TestOpenServesStoredFile(t *testing.T) {
 		t.Errorf("len %d, content type %q", len(b), ct)
 	}
 }
+
+func TestOpenContentTypeForEveryExtension(t *testing.T) {
+	s, _ := open(t)
+	for _, c := range []struct{ head, ext, contentType string }{
+		{"\xff\xd8\xff\xe0", "jpg", "image/jpeg"},
+		{string(pngHead), "png", "image/png"},
+		{"GIF89a", "gif", "image/gif"},
+		{string(riffWebp), "webp", "image/webp"},
+		{"ID3\x04", "mp3", "audio/mpeg"},
+		{"\x00\x00\x00\x20ftypM4A \x00\x00", "m4a", "audio/mp4"},
+		{"OggS\x00", "ogg", "audio/ogg"},
+		{"RIFF\x24\x00\x00\x00WAVEfmt ", "wav", "audio/wav"},
+	} {
+		name, err := s.Put(strings.NewReader(c.head))
+		if err != nil || !strings.HasSuffix(name, "."+c.ext) {
+			t.Fatalf("%s: Put = %q, %v", c.ext, name, err)
+		}
+		f, ct, err := s.Open(name)
+		if err != nil {
+			t.Fatalf("%s: Open: %v", c.ext, err)
+		}
+		_ = f.Close()
+		if ct != c.contentType {
+			t.Errorf("%s: content type %q, want %q", c.ext, ct, c.contentType)
+		}
+	}
+}
