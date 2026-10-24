@@ -453,11 +453,9 @@
   color: var(--k-sel-dark);
 }
 
-label.b-rich-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
+.b-rich-btn[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 1px;
 }
 
 .b-rich-err {
@@ -613,11 +611,6 @@ label.b-rich-btn {
 .t-icon-btn.b-opt-img {
   width: 32px;
   height: 32px;
-}
-
-.t-icon-btn.b-opt-img:hover {
-  background: var(--t-hover);
-  color: var(--k-ink);
 }
 
 .t-icon-btn.b-opt-img .t-icon {

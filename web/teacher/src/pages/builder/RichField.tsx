@@ -18,6 +18,7 @@ import {
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { type KeyboardEvent, useLayoutEffect, useState } from "react";
+import { Button, FileTrigger } from "react-aria-components";
 import { flushSync } from "react-dom";
 import { addImage, mediaMessage, uploadMedia } from "./media";
 import { oneParagraph, textDoc, toStored } from "./model";
@@ -122,13 +123,13 @@ const MEDIA = [
     kind: "image",
     label: m.rich_image,
     glyph: "▣",
-    accept: "image/*",
+    accept: ["image/*"],
   },
   {
     kind: "audio",
     label: m.rich_audio,
     glyph: "♪",
-    accept: ".mp3,.m4a,.ogg,.wav",
+    accept: [".mp3", ".m4a", ".ogg", ".wav"],
   },
 ] as const;
 
@@ -294,7 +295,9 @@ export function RichField(props: {
           {props.placeholder}
         </span>
       )}
-      {/* Out of the tab order: every button has a shortcut, named in its title. */}
+      {/* The format and table buttons are out of the tab order: each has a
+          shortcut, named in its title. The image and audio buttons have none
+          (a file picker has no shortcut), so they stay in the tab order. */}
       <div className="b-rich-bar" role="toolbar" aria-label={m.rich_toolbar()}>
         {MARKS.map((b) => (
           <button
@@ -332,26 +335,21 @@ export function RichField(props: {
           ))}
         {!inline &&
           MEDIA.map((b) => (
-            <label
+            <FileTrigger
               key={b.kind}
-              className="b-rich-btn"
-              data-mark={b.kind}
-              title={b.label()}
-              onMouseDown={(e) => e.preventDefault()}
+              acceptedFileTypes={b.accept}
+              onSelect={(files) => void add(editor.view, [...(files ?? [])])}
             >
-              {b.glyph}
-              <input
-                type="file"
-                hidden
+              <Button
+                className="b-rich-btn"
+                data-mark={b.kind}
                 aria-label={b.label()}
-                accept={b.accept}
-                onChange={(e) => {
-                  const files = [...(e.target.files ?? [])];
-                  e.target.value = "";
-                  void add(editor.view, files);
-                }}
-              />
-            </label>
+                // Keeps the selection in the editor.
+                preventFocusOnPress
+              >
+                {b.glyph}
+              </Button>
+            </FileTrigger>
           ))}
         {state.table &&
           TABLE_EDITS.map((b) => (

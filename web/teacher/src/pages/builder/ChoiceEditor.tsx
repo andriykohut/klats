@@ -5,6 +5,7 @@ import { BADGE_LETTERS } from "@klats/shared/student-ui/badges.ts";
 import { useState } from "react";
 import {
   Button,
+  FileTrigger,
   ListBox,
   ListBoxItem,
   Popover,
@@ -241,23 +242,17 @@ export function ChoiceEditor(props: {
                 </Button>
               </span>
             )}
-            <label
-              className="t-icon-btn b-opt-img"
-              title={m.builder_answer_image({ letter: letter(i) })}
+            <FileTrigger
+              acceptedFileTypes={["image/*"]}
+              onSelect={(files) => void pickImage(o.id, files?.[0])}
             >
-              <Icon name="image" />
-              <input
-                type="file"
-                hidden
+              <Button
+                className="t-icon-btn b-opt-img"
                 aria-label={m.builder_answer_image({ letter: letter(i) })}
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  void pickImage(o.id, file);
-                }}
-              />
-            </label>
+              >
+                <Icon name="image" />
+              </Button>
+            </FileTrigger>
             <Button
               className="t-icon-btn b-opt-del"
               data-variant="danger"

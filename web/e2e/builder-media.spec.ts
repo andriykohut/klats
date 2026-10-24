@@ -57,6 +57,17 @@ const HEIC = Buffer.concat([
   Buffer.alloc(2000),
 ]);
 
+/** Presses the button named `name` and answers the file chooser it opens with `file`. */
+async function attach(
+  page: Page,
+  name: string,
+  file: { name: string; mimeType: string; buffer: Buffer },
+) {
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name, exact: true }).click();
+  await (await chooser).setFiles(file);
+}
+
 /** Opens a new test with one single-choice question in the builder. */
 async function newQuestion(klats: Klats) {
   const page = await klats.teacher("/");
@@ -103,7 +114,7 @@ test("a big photo is stored at most 1600 px wide, and a HEIC file is refused", a
   await text.click();
   await page.keyboard.type("Що на фото?");
 
-  await page.getByLabel(m.rich_image(), { exact: true }).setInputFiles({
+  await attach(page, m.rich_image(), {
     name: "IMG_0001.jpg",
     mimeType: "image/jpeg",
     buffer: await photo(page, 4000, 3000, "image/jpeg"),
@@ -118,7 +129,7 @@ test("a big photo is stored at most 1600 px wide, and a HEIC file is refused", a
   expect(image.attrs?.h).toBeLessThanOrEqual(1200);
   expect(image.attrs?.src).toMatch(/\.(webp|jpg)$/);
 
-  await page.getByLabel(m.rich_image(), { exact: true }).setInputFiles({
+  await attach(page, m.rich_image(), {
     name: "IMG_0002.heic",
     mimeType: "image/heic",
     buffer: HEIC,
@@ -137,14 +148,16 @@ test("an image and a sound stay in the question when it is edited", async ({
   const text = page.getByRole("textbox", { name: m.builder_question_text() });
   await text.click();
   await page.keyboard.type("Послухайте");
-  await page.getByLabel(m.rich_image(), { exact: true }).setInputFiles({
+  await attach(page, m.rich_image(), {
     name: "small.png",
     mimeType: "image/png",
     buffer: await photo(page, 64, 40, "image/png"),
   });
-  await page
-    .getByLabel(m.rich_audio(), { exact: true })
-    .setInputFiles({ name: "tone.wav", mimeType: "audio/wav", buffer: wav() });
+  await attach(page, m.rich_audio(), {
+    name: "tone.wav",
+    mimeType: "audio/wav",
+    buffer: wav(),
+  });
   await expect(text.locator("img")).toBeVisible();
   await expect(text.locator("audio")).toBeAttached();
   await expect
@@ -177,13 +190,20 @@ test("an option picture shows in the preview tile", async ({ klats }) => {
     name: m.builder_answer_placeholder({ letter: "А" }),
   });
   await option.fill("Коло");
-  await page
-    .getByLabel(m.builder_answer_image({ letter: "А" }), { exact: true })
-    .setInputFiles({
-      name: "circle.png",
-      mimeType: "image/png",
-      buffer: await photo(page, 64, 64, "image/png"),
-    });
+  // Reached by keyboard: Tab from the answer's field, then Enter.
+  await option.press("Tab");
+  await expect(
+    page.getByRole("button", {
+      name: m.builder_answer_image({ letter: "А" }),
+    }),
+  ).toBeFocused();
+  const chooser = page.waitForEvent("filechooser");
+  await page.keyboard.press("Enter");
+  await (await chooser).setFiles({
+    name: "circle.png",
+    mimeType: "image/png",
+    buffer: await photo(page, 64, 64, "image/png"),
+  });
 
   const row = page.getByRole("listitem").filter({ has: option });
   await expect(row.locator("img")).toBeVisible();
