@@ -75,7 +75,7 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 			t.Errorf("no %s text in the sample test", mark)
 		}
 	}
-	for _, node := range []string{"table", "tableHeader", "codeBlock"} {
+	for _, node := range []string{"math", "table", "tableHeader", "codeBlock"} {
 		if !strings.Contains(tests[0].Doc, `"type":"`+node+`"`) {
 			t.Errorf("no %s in the sample test", node)
 		}

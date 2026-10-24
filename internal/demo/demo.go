@@ -48,6 +48,11 @@ func bold(s string) rich.Node  { return marked("bold", s) }
 func sub(s string) rich.Node   { return marked("subscript", s) }
 func sup(s string) rich.Node   { return marked("superscript", s) }
 
+// formula is an inline formula of LaTeX source.
+func formula(latex string) rich.Node {
+	return rich.Node{Type: "math", Attrs: &rich.Attrs{Latex: latex}}
+}
+
 func marked(mark, s string) rich.Node {
 	return rich.Node{Type: "text", Text: s, Marks: []rich.Mark{{Type: mark}}}
 }
@@ -107,8 +112,9 @@ func choice(id string, points int, text json.RawMessage, correct []int, options 
 }
 
 // sampleTest is eight questions, single and multiple choice, with bold, sub-
-// and superscript text, a table and a code block in the seventh, and the
-// stored image pic and audio sound in the eighth.
+// and superscript text, formulas in the text and options of the sixth, a table
+// and a code block in the seventh, and the stored image pic and audio sound in
+// the eighth.
 func sampleTest(id, pic, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
@@ -121,8 +127,8 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 			para(plain("20")), para(plain("100")), para(plain("512")), para(plain("1024"))),
 		choice("q5", 2, para(plain("Які з цих чисел є "), bold("простими"), plain("?")), []int{0, 1, 3},
 			para(plain("2")), para(plain("7")), para(plain("9")), para(plain("13")), para(plain("15"))),
-		choice("q6", 1, para(plain("Яка площа квадрата зі стороною 3 см?")), []int{1},
-			para(plain("6 см"), sup("2")), para(plain("9 см"), sup("2")), para(plain("12 см"), sup("2"))),
+		choice("q6", 1, para(plain("Скільки буде "), formula(`\frac{1}{2}+\frac{1}{4}`), plain("?")), []int{1},
+			para(formula(`\frac{2}{6}`)), para(formula(`\frac{3}{4}`)), para(formula(`\sqrt{2}`))),
 		choice("q7", 1, doc(
 			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Скористайтеся таблицею. Що виведе програма?")}},
 			table([]string{"Рік", "Подія"}, []string{"1991", "Незалежність"}, []string{"1996", "Конституція"}),

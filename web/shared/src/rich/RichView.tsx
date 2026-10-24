@@ -1,4 +1,5 @@
 import { type CSSProperties, Fragment, type ReactNode, useState } from "react";
+import { MathView } from "../math/MathView";
 import { useMediaURL } from "../media";
 import { m } from "../paraglide/messages.js";
 import { AudioPlayer } from "../student-ui/AudioPlayer";
@@ -23,7 +24,7 @@ export interface RichAttrs {
 /**
  * A node of a rich-text document. Known types: paragraph, text, hardBreak,
  * bulletList, orderedList, listItem, codeBlock, table, tableRow, tableHeader,
- * tableCell, image, audio. Only text nodes carry text and marks.
+ * tableCell, image, audio, math. Only text nodes carry text and marks.
  */
 export interface RichNode {
   type: string;
@@ -43,7 +44,8 @@ export interface RichDoc {
  * Renders a rich-text document as React elements. A node or mark it does not
  * know renders as its children or text alone, so newer documents degrade
  * instead of failing. Images and audio load through {@link useMediaURL}; one
- * that can't be loaded shows a note that it is still loading.
+ * that can't be loaded shows a note that it is still loading. A formula is
+ * drawn by {@link MathView}.
  */
 export function RichView({ doc }: { doc: RichDoc }) {
   return <>{doc.content?.map(renderNode)}</>;
@@ -116,6 +118,10 @@ function renderNode(node: RichNode, key: number): ReactNode {
     case "audio":
       return node.attrs?.src ? (
         <RichAudio key={key} src={node.attrs.src} />
+      ) : null;
+    case "math":
+      return node.attrs?.latex ? (
+        <MathView key={key} latex={node.attrs.latex} />
       ) : null;
     default:
       return <Fragment key={key}>{children ?? node.text}</Fragment>;

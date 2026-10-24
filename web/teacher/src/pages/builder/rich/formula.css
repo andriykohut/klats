@@ -1,0 +1,83 @@
+/* A formula in the text: clicking it reopens the formula dialog. */
+.b-math {
+  display: inline-block;
+  padding: 0 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.b-math:hover {
+  background: var(--t-hover);
+}
+
+.b-math.ProseMirror-selectednode {
+  outline: var(--t-focus);
+  outline-offset: 1px;
+}
+
+/* The formula dialog. */
+.t-dialog.b-fx-dialog {
+  width: min(560px, 92vw);
+}
+
+.b-fx-dialog .t-field {
+  margin-bottom: 12px;
+}
+
+.b-fx-dialog .t-field input {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+
+.b-fx-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.b-fx-key {
+  min-width: 38px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-small);
+  background: var(--k-paper);
+  color: var(--k-ink);
+  font: 700 16px var(--k-font-text);
+  cursor: pointer;
+  outline: none;
+}
+
+.b-fx-key[data-hovered] {
+  border-color: var(--k-field);
+  background: var(--k-soft);
+}
+
+.b-fx-key[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 1px;
+}
+
+.t-dialog > .b-fx-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.b-fx-preview {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  margin-bottom: 20px;
+  padding: 8px 16px;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--t-line);
+  border-radius: var(--t-radius-box);
+  font-size: 26px;
+  overflow-x: auto;
+}
+
+.b-fx-preview p {
+  margin: 0;
+  font-size: 14px;
+}

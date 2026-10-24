@@ -329,6 +329,11 @@ Students may have the address bookmarked.
   ProseMirror-style JSON, validated against an allow-list by
   `internal/rich`, and rendered by a React component, never as an HTML
   string.
+- **Formulas are LaTeX, drawn by KaTeX with `trust` off.** A formula is a
+  `math` node holding LaTeX source, which `internal/rich` length-checks like
+  any attribute. KaTeX draws it into DOM nodes it builds itself, never from
+  an HTML string, and cannot make links or raw HTML. Its `maxSize` and
+  `maxExpand` options bound what one formula may cost.
 - **Exports are safe to open.** Student names go into the workbook as
   plain strings, so a name beginning with `=` is never a formula.
 - **Nothing leaves the LAN.** There is no telemetry, and no network traffic
@@ -354,6 +359,12 @@ The floor lives in one module, `web/shared/src/browsers.ts`:
 Raising the floor is a one-line change to `FLOOR`. The avoid-list then
 shrinks to match, and the feature check in `web/student/index.html` may need
 a newer probe (see below).
+
+Formulas need KaTeX, which the student app loads only
+for a test that has formulas, at test load, as its own chunk with its style
+and fonts (`web/student/src/math.ts`). It then fetches the font faces at once,
+so formulas still draw after the network drops. Until it arrives, a formula
+shows its LaTeX source.
 
 A browser below the floor gets a plain notice, «Цей браузер застарий…» with
 an English line, instead of a blank page. A few lines of ES5 in

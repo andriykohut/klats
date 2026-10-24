@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@tiptap/extension-table";
-import { Selection } from "@tiptap/pm/state";
+import { type EditorState, NodeSelection, Selection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import {
   type Editor,
@@ -23,13 +23,15 @@ import { flushSync } from "react-dom";
 import { addImage, mediaMessage, uploadMedia } from "./media";
 import { oneParagraph, textDoc, toStored } from "./model";
 import { AudioNode } from "./rich/AudioNode";
+import { FormulaDialog } from "./rich/FormulaDialog";
 import { ImageNode } from "./rich/ImageNode";
+import { MathNode } from "./rich/MathNode";
 
 /*
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
- * code; Subscript, Superscript, the table nodes and, in block fields, the
- * image and audio nodes are added beside it.
+ * code; Subscript, Superscript, the table nodes, the formula node and, in
+ * block fields, the image and audio nodes are added beside it.
  * Pasted content is parsed against this schema, so headings, quotes, links
  * and the like arrive as plain paragraphs and text. Undo, the drop cursor
  * and the gap cursor stay: they add no nodes.
@@ -69,11 +71,13 @@ const BLOCK_EXTENSIONS = [
   ...TABLE_EXTENSIONS,
   ImageNode,
   AudioNode,
+  MathNode,
 ];
 const INLINE_EXTENSIONS = [
   StarterKit.configure(INLINE),
   Subscript,
   Superscript,
+  MathNode,
 ];
 
 const MARKS = [
@@ -133,7 +137,9 @@ const MEDIA = [
   },
 ] as const;
 
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+const MOD = MAC ? "⌘" : "Ctrl+";
+const SHIFT = MAC ? "⇧" : "Shift+";
 
 /**
  * A rich-text field holding a stored rich document. It reports every edit
@@ -152,8 +158,11 @@ const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
  * its toolbar has an image and an audio button, and an image file pasted or
  * dropped into it is uploaded and inserted at the caret or drop point. The
  * node goes in only after the upload succeeds; a failure shows a message under
- * the field until the next edit or upload. Each time `focus` changes to a
- * number other than 0, the field takes focus with the caret at the end.
+ * the field until the next edit or upload. Both kinds of field take formulas:
+ * the toolbar's formula button, or Mod-Shift-L, opens a dialog for a new one,
+ * or for the formula that is selected, and clicking a formula reopens it.
+ * Each time `focus` changes to a number other than 0, the field takes focus
+ * with the caret at the end.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -168,6 +177,12 @@ export function RichField(props: {
   const inline = props.inline ?? false;
   const focus = props.focus ?? 0;
   const [error, setError] = useState("");
+  // The open formula dialog: the position of the formula it edits, or null
+  // for a new one at the selection.
+  const [formula, setFormula] = useState<{
+    pos: number | null;
+    latex: string;
+  } | null>(null);
 
   const add = async (view: EditorView, files: File[]) => {
     setError("");
@@ -200,6 +215,27 @@ export function RichField(props: {
         "aria-label": props.label,
         "aria-multiline": inline ? "false" : "true",
         "aria-placeholder": props.placeholder,
+      },
+      // Mod-Shift-L, by key position so it works in any keyboard layout.
+      handleKeyDown: (view, e) => {
+        const { selection } = view.state;
+        if (
+          e.code !== "KeyL" ||
+          !e.shiftKey ||
+          e.altKey ||
+          !(MAC ? e.metaKey : e.ctrlKey) ||
+          selection.$from.parent.type.spec.code
+        ) {
+          return false;
+        }
+        e.preventDefault();
+        setFormula(selectedFormula(view.state));
+        return true;
+      },
+      handleClickOn: (_view, _pos, node, nodePos) => {
+        if (node.type.name !== "math") return false;
+        setFormula({ pos: nodePos, latex: node.attrs.latex });
+        return true;
       },
       transformPasted: inline
         ? (slice, view) => oneParagraph(slice, view.state.schema)
@@ -278,98 +314,155 @@ export function RichField(props: {
     if (!e.repeat) flushSync(act);
   };
 
+  const putFormula = (latex: string) => {
+    const chain = editor.chain().focus();
+    const pos = formula?.pos;
+    if (pos == null) chain.insertContent({ type: "math", attrs: { latex } });
+    else {
+      chain.command(({ tr }) => {
+        tr.setNodeAttribute(pos, "latex", latex);
+        // The formula stays selected otherwise, and the next key replaces it.
+        tr.setSelection(Selection.near(tr.doc.resolve(pos + 1)));
+        return true;
+      });
+    }
+    chain.run();
+    setFormula(null);
+  };
+
   return (
-    <div
-      className="b-rich"
-      data-inline={inline || undefined}
-      onKeyDownCapture={inline ? onKey : undefined}
-    >
-      <EditorContent editor={editor} />
-      {error && (
-        <p className="b-rich-err" role="alert">
-          {error}
-        </p>
-      )}
-      {state.empty && (
-        <span className="b-rich-ph" aria-hidden="true">
-          {props.placeholder}
-        </span>
-      )}
-      {/* The format and table buttons are out of the tab order: each has a
-          shortcut, named in its title. The image and audio buttons have none
-          (a file picker has no shortcut), so they stay in the tab order. */}
-      <div className="b-rich-bar" role="toolbar" aria-label={m.rich_toolbar()}>
-        {MARKS.map((b) => (
+    <>
+      <div
+        className="b-rich"
+        data-inline={inline || undefined}
+        onKeyDownCapture={inline ? onKey : undefined}
+      >
+        <EditorContent editor={editor} />
+        {error && (
+          <p className="b-rich-err" role="alert">
+            {error}
+          </p>
+        )}
+        {state.empty && (
+          <span className="b-rich-ph" aria-hidden="true">
+            {props.placeholder}
+          </span>
+        )}
+        {/* The format, table and formula buttons are out of the tab order: each
+          has a shortcut, named in its title. The image and audio buttons have
+          none (a file picker has no shortcut), so they stay in the tab order. */}
+        <div
+          className="b-rich-bar"
+          role="toolbar"
+          aria-label={m.rich_toolbar()}
+        >
+          {MARKS.map((b) => (
+            <button
+              key={b.mark}
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark={b.mark}
+              aria-pressed={state[b.mark]}
+              aria-label={b.label()}
+              title={`${b.label()} (${MOD}${b.keys})`}
+              // Keeps the selection in the editor.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => toggle(editor, b.mark)}
+            >
+              {b.glyph}
+            </button>
+          ))}
+          {!inline &&
+            BLOCKS.map((b) => (
+              <button
+                key={b.key}
+                type="button"
+                tabIndex={-1}
+                className="b-rich-btn"
+                data-mark={b.key}
+                aria-pressed={
+                  b.key === "codeBlock" ? state.codeBlock : undefined
+                }
+                aria-label={b.label()}
+                title={b.label()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => b.run(editor)}
+              >
+                {b.glyph}
+              </button>
+            ))}
+          {!inline &&
+            MEDIA.map((b) => (
+              <FileTrigger
+                key={b.kind}
+                acceptedFileTypes={b.accept}
+                onSelect={(files) => void add(editor.view, [...(files ?? [])])}
+              >
+                <Button
+                  className="b-rich-btn"
+                  data-mark={b.kind}
+                  aria-label={b.label()}
+                  // Keeps the selection in the editor.
+                  preventFocusOnPress
+                >
+                  {b.glyph}
+                </Button>
+              </FileTrigger>
+            ))}
           <button
-            key={b.mark}
             type="button"
             tabIndex={-1}
             className="b-rich-btn"
-            data-mark={b.mark}
-            aria-pressed={state[b.mark]}
-            aria-label={b.label()}
-            title={`${b.label()} (${MOD}${b.keys})`}
+            data-mark="math"
+            aria-label={m.rich_formula()}
+            title={`${m.rich_formula()} (${MOD}${SHIFT}L)`}
+            disabled={state.codeBlock}
             // Keeps the selection in the editor.
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => toggle(editor, b.mark)}
+            onClick={() => setFormula(selectedFormula(editor.state))}
           >
-            {b.glyph}
+            π
           </button>
-        ))}
-        {!inline &&
-          BLOCKS.map((b) => (
-            <button
-              key={b.key}
-              type="button"
-              tabIndex={-1}
-              className="b-rich-btn"
-              data-mark={b.key}
-              aria-pressed={b.key === "codeBlock" ? state.codeBlock : undefined}
-              aria-label={b.label()}
-              title={b.label()}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => b.run(editor)}
-            >
-              {b.glyph}
-            </button>
-          ))}
-        {!inline &&
-          MEDIA.map((b) => (
-            <FileTrigger
-              key={b.kind}
-              acceptedFileTypes={b.accept}
-              onSelect={(files) => void add(editor.view, [...(files ?? [])])}
-            >
-              <Button
+          {state.table &&
+            TABLE_EDITS.map((b) => (
+              <button
+                key={b.key}
+                type="button"
+                tabIndex={-1}
                 className="b-rich-btn"
-                data-mark={b.kind}
+                data-mark={b.key}
                 aria-label={b.label()}
-                // Keeps the selection in the editor.
-                preventFocusOnPress
+                title={b.label()}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus()[b.key]().run()}
               >
                 {b.glyph}
-              </Button>
-            </FileTrigger>
-          ))}
-        {state.table &&
-          TABLE_EDITS.map((b) => (
-            <button
-              key={b.key}
-              type="button"
-              tabIndex={-1}
-              className="b-rich-btn"
-              data-mark={b.key}
-              aria-label={b.label()}
-              title={b.label()}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus()[b.key]().run()}
-            >
-              {b.glyph}
-            </button>
-          ))}
+              </button>
+            ))}
+        </div>
       </div>
-    </div>
+      {formula && (
+        <FormulaDialog
+          latex={formula.latex}
+          editing={formula.pos !== null}
+          onSubmit={putFormula}
+          onClose={() => setFormula(null)}
+        />
+      )}
+    </>
   );
+}
+
+/** The formula dialog's start: the selected formula, or a new one. */
+function selectedFormula({ selection }: EditorState): {
+  pos: number | null;
+  latex: string;
+} {
+  return selection instanceof NodeSelection &&
+    selection.node.type.name === "math"
+    ? { pos: selection.from, latex: selection.node.attrs.latex }
+    : { pos: null, latex: "" };
 }
 
 /**

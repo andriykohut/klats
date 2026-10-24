@@ -7,6 +7,7 @@ import type {
   StudentTest,
   TestResponse,
 } from "@klats/shared/generated/wire.ts";
+import { hasMath } from "@klats/shared/math/registry.ts";
 import {
   applyPalette,
   PALETTES,
@@ -16,6 +17,7 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { isLocale, setLocale } from "@klats/shared/paraglide/runtime.js";
 import * as api from "./api";
 import { watchFocus } from "./input/focus";
+import { loadMath } from "./math";
 import { preloadMedia, releaseMedia, retryMedia } from "./media";
 import { route } from "./route";
 import { ApiError, Connection, type ConnectionState } from "./sync/connection";
@@ -198,7 +200,10 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
   const s = { queue, conn };
   session = s;
   conn.onState((st, pending) => {
-    if (st === "online" && state.net.state !== "online") retryMedia();
+    if (st === "online" && state.net.state !== "online") {
+      retryMedia();
+      if (state.test) loadFormulas(state.test);
+    }
     update({ net: { state: st, pending } });
   });
   conn.onStatus((st) => {
@@ -206,6 +211,14 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
   });
   conn.start();
   return queue;
+}
+
+/**
+ * Loads KaTeX when `test` has formulas. A failed load shows the formulas as
+ * LaTeX until the connection returns and this runs again.
+ */
+function loadFormulas(test: StudentTest): void {
+  if (hasMath(test)) loadMath().catch(() => {});
 }
 
 function end(): void {
@@ -248,6 +261,7 @@ async function resume(name?: string): Promise<void> {
   // reloads become possible.
   const queue = sync(id, res);
   preloadMedia(test);
+  loadFormulas(test);
   paint(test.palette);
   update({
     test,

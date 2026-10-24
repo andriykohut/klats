@@ -1,0 +1,6 @@
+/* A formula before the renderer is registered: the LaTeX itself. */
+.k-math-src {
+  color: var(--k-muted);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 0.85em;
+}
