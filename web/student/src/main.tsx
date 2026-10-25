@@ -8,6 +8,7 @@ import { FinishScreen } from "@klats/shared/student-ui/FinishScreen.tsx";
 import { Progress } from "@klats/shared/student-ui/Progress.tsx";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import { Fragment, useSyncExternalStore } from "react";
+import { I18nProvider } from "react-aria-components";
 import { createRoot } from "react-dom/client";
 import {
   answer,
@@ -171,12 +172,22 @@ function App() {
   );
 }
 
+/** Gives React Aria's own strings, such as a popover's dismiss label, the app's language. */
+function Root() {
+  const lang = useSyncExternalStore(subscribe, () => getState().lang);
+  return (
+    <I18nProvider locale={lang === "uk" ? "uk-UA" : "en-US"}>
+      <App />
+    </I18nProvider>
+  );
+}
+
 // Mounts only while the old-browser notice in index.html stays hidden: a
 // browser below the floor gets the notice instead of the app.
 if (document.getElementById("old")?.hidden) {
   createRoot(document.getElementById("root") as HTMLElement).render(
     <MotionConfig reducedMotion="user">
-      <App />
+      <Root />
     </MotionConfig>,
   );
   void boot();

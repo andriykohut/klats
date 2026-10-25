@@ -91,6 +91,14 @@ test("short, number and gaps answers are typed, saved and graded", async ({
   // Two of three gaps are filled, so the question is still open.
   await expect(next).toBeDisabled();
   await list.click();
+  // The popover's hidden dismiss button is labelled by React Aria itself, from
+  // its uk-UA strings, which the build keeps and the app's locale selects.
+  await expect(
+    page
+      .locator(".k-gap-pop")
+      .getByRole("button", { name: "Скасувати" })
+      .first(),
+  ).toBeAttached();
   await page.getByRole("option", { name: "чотири" }).click();
   await expect(list).toContainText("чотири");
   await expect(next).toBeEnabled();

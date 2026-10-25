@@ -1,3 +1,4 @@
+import { reactAriaUkEnOnly } from "@klats/shared/ariaLocales.ts";
 import { buildTarget, cssTargets } from "@klats/shared/browsers.ts";
 import { katexWoff2Only } from "@klats/shared/katexFonts.ts";
 import babel from "@rolldown/plugin-babel";
@@ -13,6 +14,7 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     katexWoff2Only,
+    reactAriaUkEnOnly,
   ],
   build: {
     target: buildTarget,
