@@ -206,12 +206,6 @@ func judgeGaps(q testfmt.Question, a testfmt.Answer) Verdict {
 			w++
 		}
 	}
-	switch {
-	case n == 0:
-	case q.Partial:
-		v.Points = float64(q.Points) * math.Max(0, float64(c-w)/float64(n))
-	case c == n:
-		v.Points = float64(q.Points)
-	}
+	v.Points = partialPoints(q, n, c, w)
 	return v
 }

@@ -144,8 +144,8 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // question's Gaps are brought in line with its body: one entry for each gap
 // node, in body order. A list of over 50 entries or with a repeated id (for
 // gaps, both before and after that step), an accepted text or choice of over
-// 200 characters, a rubric of over 2,000 and a coordinate outside 0 to 1 are
-// errors. Content problems such as a missing correct option are not errors
+// 200 characters, a rubric of over 2,000, a coordinate outside 0 to 1 and a
+// word bank gap with more than one word are errors. Content problems such as a missing correct option are not errors
 // here; see Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test
@@ -212,6 +212,9 @@ func (q *Question) decode() error {
 		return err
 	}
 	q.clearDanglingTargets()
+	if k.validate != nil {
+		return k.validate(*q)
+	}
 	return nil
 }
 

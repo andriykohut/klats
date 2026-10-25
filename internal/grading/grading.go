@@ -1,5 +1,6 @@
-// Package grading scores answers to the choice, short text, number and gaps
-// questions and converts a total into the Ukrainian 12-point grade.
+// Package grading scores answers to the choice, short text, number, gaps,
+// ordering, matching, grouping and word bank questions and converts a total
+// into the Ukrainian 12-point grade.
 package grading
 
 import (
@@ -41,8 +42,12 @@ func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
 		return judgePick(q, a)
 	case "truefalse":
 		return judgeStatements(q, a)
-	case "grid":
+	case "grid", "match", "groups":
 		return judgeGrid(q, a)
+	case "order":
+		return judgeOrder(q, a)
+	case "bank":
+		return judgeBank(q, a)
 	case "short":
 		return judgeShort(q, a)
 	case "number":

@@ -92,3 +92,103 @@ func TestStudentPayloadTextOnlyTypes(t *testing.T) {
 		}
 	}
 }
+
+func arrangeQuestions(n int) []testfmt.Question {
+	rich := func(s string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":%q}]}]}`, s))
+	}
+	var order, left, items, words []testfmt.Option
+	var right []testfmt.Target
+	body := `{"type":"doc","content":[{"type":"paragraph","content":[`
+	for i := range n {
+		id := fmt.Sprint(i)
+		order = append(order, testfmt.Option{ID: "o" + id, Content: rich("o" + id)})
+		left = append(left, testfmt.Option{ID: "l" + id, Content: rich("l" + id), Target: "r" + id})
+		right = append(right, testfmt.Target{ID: "r" + id, Content: rich("r" + id)})
+		items = append(items, testfmt.Option{ID: "i" + id, Content: rich("i" + id), Target: "t" + fmt.Sprint(i%2)})
+		words = append(words, testfmt.Option{ID: "w" + id, Content: rich("w" + id), Target: "g" + id})
+		body += fmt.Sprintf(`{"type":"gap","attrs":{"id":"g%d"}},`, i)
+	}
+	body = body[:len(body)-1] + `]}]}`
+	return []testfmt.Question{
+		{ID: "q1", Type: "order", Text: rich("Q"), Points: 1, Options: order},
+		{ID: "q2", Type: "match", Text: rich("Q"), Points: 1, Options: left, Targets: right},
+		{ID: "q3", Type: "groups", Text: rich("Q"), Points: 1, Options: items,
+			Targets: []testfmt.Target{{ID: "t0", Content: rich("A")}, {ID: "t1", Content: rich("B")}}},
+		{ID: "q4", Type: "bank", Points: 1, Body: json.RawMessage(body), Options: words},
+	}
+}
+
+func targetIDs(q wire.StudentQuestion) []string {
+	var ids []string
+	for _, g := range q.Targets {
+		ids = append(ids, g.ID)
+	}
+	return ids
+}
+
+func TestStudentPayloadArrange(t *testing.T) {
+	for n := 2; n <= 6; n++ {
+		raw, err := json.Marshal(testfmt.Test{ID: "t", Version: 1, Title: "T", Questions: arrangeQuestions(n)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tst, err := testfmt.Decode(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		key := func(i int) []string {
+			var ids []string
+			for _, o := range tst.Questions[i].Options {
+				ids = append(ids, o.ID)
+			}
+			return ids
+		}
+		var sawTargetShuffle, sawItemShuffle, sawWordShuffle bool
+		for d := range 50 {
+			device := fmt.Sprintf("dev%d", d)
+			st := studentTest(tst, device)
+			order, match, groups, bank := st.Questions[0], st.Questions[1], st.Questions[2], st.Questions[3]
+
+			got := optionIDs(order)
+			if slices.Equal(got, key(0)) || !slices.Equal(slices.Sorted(slices.Values(got)), key(0)) {
+				t.Fatalf("n=%d %s: order options %v must be a shuffle of %v, not the key", n, device, got, key(0))
+			}
+			if !slices.Equal(optionIDs(studentTest(tst, device).Questions[0]), got) {
+				t.Fatalf("n=%d %s: the order shuffle must be fixed per device", n, device)
+			}
+
+			if !slices.Equal(optionIDs(match), key(1)) {
+				t.Fatalf("n=%d: match options must keep their order: %v", n, optionIDs(match))
+			}
+			tg := targetIDs(match)
+			if len(tg) != n {
+				t.Fatalf("n=%d: match targets = %v", n, tg)
+			}
+			sawTargetShuffle = sawTargetShuffle || !slices.IsSorted(tg)
+
+			if !slices.Equal(targetIDs(groups), []string{"t0", "t1"}) {
+				t.Fatalf("groups targets must keep their order: %v", targetIDs(groups))
+			}
+			sawItemShuffle = sawItemShuffle || !slices.Equal(optionIDs(groups), key(2))
+
+			if string(bank.Body) != string(tst.Questions[3].Body) || len(bank.Gaps) != 0 {
+				t.Fatalf("bank sends its body and no gaps: %+v", bank)
+			}
+			sawWordShuffle = sawWordShuffle || !slices.Equal(optionIDs(bank), key(3))
+
+			js, err := json.Marshal(st)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, leak := range []string{`"target":`, `"correct":`, `"partial":`} {
+				if strings.Contains(string(js), leak) {
+					t.Fatalf("payload carries %s: %s", leak, js)
+				}
+			}
+		}
+		if !sawTargetShuffle || !sawItemShuffle || !sawWordShuffle {
+			t.Errorf("n=%d: match targets, group items and bank words should shuffle: %v %v %v", n, sawTargetShuffle, sawItemShuffle, sawWordShuffle)
+		}
+	}
+}

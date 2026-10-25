@@ -22,8 +22,12 @@ type Problem struct {
 // empty_option; the choice grid has too_few_options, too_few_targets, no_target
 // and empty_option; short text has no_accepted and one_accepted; number has
 // no_number; gaps has no_gaps and gap_no_answer, once per gap without an
-// answer. Count is the least number the question needs for too_few_options and
-// too_few_targets, and the number of the gap (from 1) for gap_no_answer.
+// answer; ordering has too_few_options and empty_option; matching has
+// too_few_options, no_target and empty_option; grouping has too_few_options,
+// too_few_targets, no_target and empty_option; the word bank has no_gaps,
+// gap_no_answer, once per gap without a word, and empty_option. Count is the
+// least number the question needs for too_few_options and too_few_targets, and
+// the number of the gap (from 1) for gap_no_answer.
 func (t Test) Problems() []Problem {
 	var out []Problem
 	for _, q := range t.Questions {

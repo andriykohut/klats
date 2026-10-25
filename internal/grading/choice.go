@@ -61,8 +61,9 @@ func judgeStatements(q testfmt.Question, a testfmt.Answer) Verdict {
 	})
 }
 
-// judgeGrid judges a choice grid answer: a row is right when it is mapped to
-// its target. A row without a target is not judged.
+// judgeGrid judges a choice grid, matching or groups answer: a row, left item
+// or item is right when it is mapped to its target. One without a target is not
+// judged.
 func judgeGrid(q testfmt.Question, a testfmt.Answer) Verdict {
 	return judgePairs(q, a, func(o testfmt.Option) (string, bool) { return o.Target, o.Target != "" })
 }
@@ -93,12 +94,20 @@ func judgePairs(q testfmt.Question, a testfmt.Answer, want func(testfmt.Option) 
 			w++
 		}
 	}
+	v.Points = partialPoints(q, n, c, w)
+	return v
+}
+
+// partialPoints returns the points for c right and w wrong answers among n
+// judged parts: points * max(0, (c - w) / n), or, without Partial, all points
+// when c is n. It is 0 when n is 0.
+func partialPoints(q testfmt.Question, n, c, w int) float64 {
 	switch {
 	case n == 0:
 	case q.Partial:
-		v.Points = float64(q.Points) * math.Max(0, float64(c-w)/float64(n))
+		return float64(q.Points) * math.Max(0, float64(c-w)/float64(n))
 	case c == n:
-		v.Points = float64(q.Points)
+		return float64(q.Points)
 	}
-	return v
+	return 0
 }

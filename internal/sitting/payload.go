@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"io"
 	"math/rand/v2"
+	"slices"
 
 	"klats/internal/testfmt"
 	"klats/internal/wire"
@@ -20,9 +21,11 @@ const moveSeqStride = 1_000_000
 // Resume returns what the device needs to start or resume writing: the test
 // (without correct answers or points; questions keep their order, and the
 // options of a question with ShuffleOptions are shuffled in an order fixed per
-// device), the answers stored for the device's participant, that
-// participant's id, its seq base (moves × 1,000,000) and the device's status.
-// It returns [ErrKicked] if the teacher sent the device back to the name
+// device, as are those of ordering, grouping and word bank questions, and the
+// right-hand targets of a matching question; an ordering question is never
+// sent in its correct order), the answers stored for the device's participant,
+// that participant's id, its seq base (moves × 1,000,000) and the device's
+// status. It returns [ErrKicked] if the teacher sent the device back to the name
 // picker and [ErrNotJoined] unless the device writes as a participant in the
 // running sitting.
 func (e *Engine) Resume(device string) (wire.TestResponse, error) {
@@ -71,16 +74,25 @@ func studentTest(t testfmt.Test, device string) wire.StudentTest {
 		for j, o := range q.Options {
 			opts[j] = wire.StudentOption{ID: o.ID, Content: o.Content, Image: o.Image}
 		}
-		if q.ShuffleOptions {
+		switch {
+		case q.Type == "order":
+			shuffleOffKey(opts, q, device+q.ID)
+		case q.ShuffleOptions || q.Type == "groups" || q.Type == "bank":
 			shuffle(opts, device+q.ID)
 		}
 		sq := wire.StudentQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Options: opts}
 		for _, g := range q.Targets {
 			sq.Targets = append(sq.Targets, wire.StudentTarget{ID: g.ID, Content: g.Content, Image: g.Image, X: g.X, Y: g.Y})
 		}
-		if q.Type == "gaps" {
+		if q.Type == "match" {
+			shuffle(sq.Targets, device+q.ID+"#t")
+		}
+		switch q.Type {
+		case "gaps":
 			sq.Body = q.Body
 			sq.Gaps = studentGaps(q, device)
+		case "bank":
+			sq.Body = q.Body
 		}
 		out.Questions[i] = sq
 	}
@@ -100,6 +112,18 @@ func studentGaps(q testfmt.Question, device string) []wire.StudentGap {
 		shuffle(gaps[i].Choices, device+q.ID+"#g:"+g.ID)
 	}
 	return gaps
+}
+
+// shuffleOffKey shuffles the options of an ordering question like [shuffle],
+// then rotates them by one if that left them in the question's key order, so
+// the correct order is never sent.
+func shuffleOffKey(opts []wire.StudentOption, q testfmt.Question, key string) {
+	shuffle(opts, key)
+	if len(opts) > 1 && slices.EqualFunc(opts, q.Options, func(s wire.StudentOption, o testfmt.Option) bool { return s.ID == o.ID }) {
+		first := opts[0]
+		copy(opts, opts[1:])
+		opts[len(opts)-1] = first
+	}
 }
 
 // shuffle reorders list in an order fixed by the FNV-1a hash of key.

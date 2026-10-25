@@ -28,12 +28,14 @@ type report func(code, severity string, count int)
 
 // kind is what one question type is made of: the fields it uses, the mode of
 // its body, the findings it adds to Problems after the empty text or body that
-// every type gets, and its answer rules for [Question.CleanAnswer].
+// every type gets, its answer rules for [Question.CleanAnswer] and the check
+// [Decode] makes of the question once its fields are cleaned.
 type kind struct {
 	uses     use
 	bodyMode rich.Mode
 	problems func(q Question, add report)
 	clean    func(q Question, a Answer) (Answer, bool)
+	validate func(q Question) error
 }
 
 // kinds holds every question type id.
@@ -45,10 +47,10 @@ var kinds = map[string]kind{
 	"short":     {uses: useAccepted | useMatch, problems: shortProblems, clean: cleanText},
 	"number":    {uses: useNumber, problems: numberProblems, clean: cleanText},
 	"gaps":      {uses: useBody | useGaps | useMatch | usePartial, bodyMode: rich.Gapped, problems: gapsProblems, clean: cleanGaps},
-	"order":     {uses: useOptions | usePartial},
-	"match":     {uses: useOptions | useTarget | useTargets | usePartial},
-	"groups":    {uses: useOptions | useTarget | useTargets | usePartial},
-	"bank":      {uses: useBody | useOptions | useTarget | usePartial, bodyMode: rich.Gapped},
+	"order":     {uses: useOptions | usePartial, problems: orderProblems, clean: cleanOrder},
+	"match":     {uses: useOptions | useTarget | useTargets | usePartial, problems: matchProblems, clean: cleanMatch},
+	"groups":    {uses: useOptions | useTarget | useTargets | usePartial, problems: groupsProblems, clean: cleanGrid},
+	"bank":      {uses: useBody | useOptions | useTarget | usePartial, bodyMode: rich.Gapped, problems: bankProblems, clean: cleanBank, validate: checkBankWords},
 	"hotspot":   {uses: useImage | useAreas},
 	"label":     {uses: useImage | useTargets | useOptions | useTarget | usePartial},
 	"highlight": {uses: useBody | usePartial, bodyMode: rich.Marked},
