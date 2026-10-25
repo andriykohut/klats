@@ -65,7 +65,7 @@ export const HAS_CORRECT = new Set(["single", "multi", "truefalse"]);
  */
 export const HAS_TARGETS = new Set(["grid", "match", "groups"]);
 
-/** The types whose question has a body in place of its text. */
+/** The types whose question has a body below its text. */
 export const HAS_BODY = new Set(["gaps", "bank", "highlight"]);
 
 /** The types whose question has an image of its own. */
