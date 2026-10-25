@@ -287,8 +287,9 @@ type AssignmentResults struct {
 // since. Correct is the number of rows that scored full points on it, and
 // CorrectPct is that count as a percent of the rows whose answer is not
 // waiting for the teacher's points (see ResultRow.PendingIDs), or nil when
-// there is no such row. A highlight question also carries Words, its body as students got it (see testfmt.Question.Words),
-// and TargetWords, the indexes of its marked words.
+// there is no such row. A highlight question also carries Words, its body as
+// students got it (see testfmt.Question.Words), and TargetWords, the indexes
+// of its marked words.
 type ResultQuestion struct {
 	Question    testfmt.Question `json:"question"`
 	Correct     int              `json:"correct"`
