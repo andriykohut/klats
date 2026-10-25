@@ -292,6 +292,8 @@
   "rich_superscript": "Superscript",
   "rich_code": "Code",
   "rich_code_block": "Code block",
+  "rich_code_language": "Language",
+  "rich_code_plain": "No highlighting",
   "rich_table": "Table",
   "rich_row_below": "Row below",
   "rich_col_right": "Column to the right",

@@ -1,3 +1,4 @@
+import { hasCode } from "@klats/shared/code/registry.ts";
 import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type {
   FinishResult,
@@ -16,6 +17,7 @@ import {
 import { m } from "@klats/shared/paraglide/messages.js";
 import { isLocale, setLocale } from "@klats/shared/paraglide/runtime.js";
 import * as api from "./api";
+import { loadHighlighter } from "./code";
 import { watchFocus } from "./input/focus";
 import { loadMath } from "./math";
 import { preloadMedia, releaseMedia, retryMedia } from "./media";
@@ -218,6 +220,14 @@ function loadFormulas(test: StudentTest): void {
   if (hasMath(test)) loadMath().catch(() => {});
 }
 
+/**
+ * Loads the code highlighter when `test` has a code block with a language. It
+ * is not retried: when the load fails, code stays plain text.
+ */
+function loadHighlighting(test: StudentTest): void {
+  if (hasCode(test)) loadHighlighter().catch(() => {});
+}
+
 function end(): void {
   session?.conn.stop();
   session = null;
@@ -259,6 +269,7 @@ async function resume(name?: string): Promise<void> {
   const queue = sync(id, res);
   preloadMedia(test);
   loadFormulas(test);
+  loadHighlighting(test);
   paint(test.palette);
   update({
     test,

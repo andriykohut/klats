@@ -63,6 +63,25 @@ test("toStored keeps only the keys the server allows", () => {
   });
 });
 
+test("toStored keeps a code block's language, and drops an empty or unknown one", () => {
+  const code = (language: string | null) => ({
+    type: "codeBlock",
+    attrs: { language },
+    content: [{ type: "text", text: "x" }],
+  });
+  expect(toStored(code("python"))).toEqual({
+    type: "codeBlock",
+    attrs: { language: "python" },
+    content: [{ type: "text", text: "x" }],
+  });
+  for (const none of [null, "", "ruby"]) {
+    expect(toStored(code(none))).toEqual({
+      type: "codeBlock",
+      content: [{ type: "text", text: "x" }],
+    });
+  }
+});
+
 test("toStored keeps marks on text only", () => {
   const bold = [{ type: "bold" }];
   expect(

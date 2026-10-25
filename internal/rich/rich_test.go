@@ -311,6 +311,20 @@ func TestParseTableAndCode(t *testing.T) {
 	accepts(t, para(`{"type":"text","text":"x","marks":[{"type":"code"}]}`), Inline)
 }
 
+func TestParseCodeLanguage(t *testing.T) {
+	code := func(attrs string) string {
+		return doc(`{"type":"codeBlock",` + attrs + `"content":[{"type":"text","text":"x"}]}`)
+	}
+	for _, l := range []string{"python", "cpp", "pascal", "javascript", "html", "css"} {
+		accepts(t, code(`"attrs":{"language":"`+l+`"},`), Block)
+	}
+	accepts(t, code(""), Block)
+	rejects(t, code(`"attrs":{"language":"ruby"},`), Block)
+	rejects(t, code(`"attrs":{"language":""},`), Block)
+	rejects(t, code(`"attrs":{"language":"python","src":"x"},`), Block)
+	rejects(t, doc(`{"type":"paragraph","attrs":{"language":"python"}}`), Block)
+}
+
 func TestPlainTextNewNodes(t *testing.T) {
 	parse := func(raw string, mode Mode) Doc {
 		t.Helper()

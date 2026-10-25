@@ -2,6 +2,7 @@ import "@klats/shared/fonts.css";
 import "@klats/shared/tokens.css";
 import "./ui/base.css";
 import "./math";
+import "./code";
 import { setMediaResolver } from "@klats/shared/media.ts";
 import { applyPalette } from "@klats/shared/palettes.ts";
 import { QueryClientProvider } from "@tanstack/react-query";

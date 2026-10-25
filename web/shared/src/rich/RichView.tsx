@@ -1,4 +1,5 @@
 import { type CSSProperties, Fragment, type ReactNode, useState } from "react";
+import { CodeView } from "../code/CodeView";
 import { MathView } from "../math/MathView";
 import { useMediaURL } from "../media";
 import { m } from "../paraglide/messages.js";
@@ -16,6 +17,7 @@ export interface RichAttrs {
   w?: number;
   h?: number;
   latex?: string;
+  language?: string;
   id?: string;
   colspan?: number;
   rowspan?: number;
@@ -45,7 +47,7 @@ export interface RichDoc {
  * know renders as its children or text alone, so newer documents degrade
  * instead of failing. Images and audio load through {@link useMediaURL}; one
  * that can't be loaded shows a note that it is still loading. A formula is
- * drawn by {@link MathView}.
+ * drawn by {@link MathView}, and a code block by {@link CodeView}.
  */
 export function RichView({ doc }: { doc: RichDoc }) {
   return <>{doc.content?.map(renderNode)}</>;
@@ -72,9 +74,11 @@ function renderNode(node: RichNode, key: number): ReactNode {
       return <li key={key}>{children}</li>;
     case "codeBlock":
       return (
-        <pre key={key} className="k-pre">
-          <code>{children}</code>
-        </pre>
+        <CodeView
+          key={key}
+          code={node.content?.map((c) => c.text).join("") ?? ""}
+          language={node.attrs?.language}
+        />
       );
     case "table":
       return (

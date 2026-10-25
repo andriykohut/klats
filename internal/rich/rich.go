@@ -57,7 +57,8 @@ type Doc struct {
 }
 
 // Node is a block or inline node. Only text nodes carry Text and Marks, and
-// only image, audio, math, gap, tableHeader and tableCell nodes carry Attrs.
+// only image, audio, math, gap, codeBlock, tableHeader and tableCell nodes
+// carry Attrs.
 type Node struct {
 	Type    string `json:"type"`
 	Attrs   *Attrs `json:"attrs,omitempty"`
@@ -67,16 +68,18 @@ type Node struct {
 }
 
 // Attrs holds the node attributes. Each node type uses a fixed subset: Src, W
-// and H for image (Src alone for audio), Latex for math, ID for gap, and
-// Colspan and Rowspan for table cells. A zero field is absent.
+// and H for image (Src alone for audio), Latex for math, Language for
+// codeBlock, ID for gap, and Colspan and Rowspan for table cells. A zero field
+// is absent.
 type Attrs struct {
-	Src     string `json:"src,omitempty"`
-	W       int    `json:"w,omitempty"`
-	H       int    `json:"h,omitempty"`
-	Latex   string `json:"latex,omitempty"`
-	ID      string `json:"id,omitempty"`
-	Colspan int    `json:"colspan,omitempty"`
-	Rowspan int    `json:"rowspan,omitempty"`
+	Src      string `json:"src,omitempty"`
+	W        int    `json:"w,omitempty"`
+	H        int    `json:"h,omitempty"`
+	Latex    string `json:"latex,omitempty"`
+	Language string `json:"language,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Colspan  int    `json:"colspan,omitempty"`
+	Rowspan  int    `json:"rowspan,omitempty"`
 }
 
 // Mark is a text style. Marks carry no attributes.
@@ -133,14 +136,17 @@ var needsChild = map[string]bool{"table": true, "tableRow": true}
 
 var allowedKeys = map[string]bool{"type": true, "attrs": true, "text": true, "marks": true, "content": true}
 
-var allowedAttrKeys = map[string]bool{"src": true, "w": true, "h": true, "latex": true, "id": true, "colspan": true, "rowspan": true}
+var allowedAttrKeys = map[string]bool{"src": true, "w": true, "h": true, "latex": true, "language": true, "id": true, "colspan": true, "rowspan": true}
+
+// codeLanguages holds the ids a codeBlock's language can have.
+var codeLanguages = map[string]bool{"python": true, "cpp": true, "pascal": true, "javascript": true, "html": true, "css": true}
 
 var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": true, "superscript": true, "code": true}
 
 // Parse decodes raw and validates it against mode. It rejects object keys
 // other than exactly type, attrs, text, marks and content (case-sensitive, no
-// duplicates) at every level, and attrs keys other than src, w, h, latex, id,
-// colspan and rowspan. It also rejects nodes and marks the mode does not
+// duplicates) at every level, and attrs keys other than src, w, h, latex, language,
+// id, colspan and rowspan. It also rejects nodes and marks the mode does not
 // permit, attrs a node type does not take or whose values are out of range,
 // children a node may not hold (inline nodes only in a paragraph, block nodes
 // only in the doc, list items and cells, table, row and cell nesting, and
@@ -327,6 +333,11 @@ func (c *checker) checkAttrs(n Node) error {
 			return err
 		}
 		a.Latex = ""
+	case "codeBlock":
+		if !codeLanguages[a.Language] {
+			return fmt.Errorf("code language %q is not one of python, cpp, pascal, javascript, html, css", a.Language)
+		}
+		a.Language = ""
 	case "gap":
 		if !validGapID(a.ID) {
 			return fmt.Errorf("gap id %q must be 1 to %d of A-Z, a-z, 0-9, _ and -", a.ID, maxGapID)

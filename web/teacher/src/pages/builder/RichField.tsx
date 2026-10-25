@@ -1,5 +1,6 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { RichDoc } from "@klats/shared/rich/RichView.tsx";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import {
@@ -20,9 +21,11 @@ import StarterKit from "@tiptap/starter-kit";
 import { type KeyboardEvent, useLayoutEffect, useState } from "react";
 import { Button, FileTrigger } from "react-aria-components";
 import { flushSync } from "react-dom";
+import { lowlight } from "../../code";
 import { addImage, mediaMessage, uploadMedia } from "./media";
 import { oneParagraph, textDoc, toStored } from "./model";
 import { AudioNode } from "./rich/AudioNode";
+import { CodeLanguageSelect } from "./rich/CodeLanguageSelect";
 import { FormulaDialog } from "./rich/FormulaDialog";
 import { ImageNode } from "./rich/ImageNode";
 import { MathNode } from "./rich/MathNode";
@@ -31,7 +34,9 @@ import { MathNode } from "./rich/MathNode";
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
  * code; Subscript, Superscript, the table nodes, the formula node and, in
- * block fields, the image and audio nodes are added beside it.
+ * block fields, the image and audio nodes are added beside it. Block fields
+ * swap StarterKit's codeBlock for CodeBlockLowlight, which highlights the
+ * block and adds its `language` attr.
  * Pasted content is parsed against this schema, so headings, quotes, links
  * and the like arrive as plain paragraphs and text. Undo, the drop cursor
  * and the gap cursor stay: they add no nodes.
@@ -65,7 +70,8 @@ const TABLE_EXTENSIONS = [
 ];
 
 const BLOCK_EXTENSIONS = [
-  StarterKit.configure(BLOCK),
+  StarterKit.configure({ ...BLOCK, codeBlock: false }),
+  CodeBlockLowlight.configure({ lowlight }),
   Subscript,
   Superscript,
   ...TABLE_EXTENSIONS,
@@ -152,8 +158,9 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * toolbar with bold, italic, subscript, superscript and code floats over the
  * field while it has focus; the same marks are on Mod-B, Mod-I, Mod-, Mod-.
  * and Mod-E. A block field's toolbar also has a code block and a 3×3 table;
- * while the caret is in a table it adds buttons to add or delete a row or
- * column and to delete the table. Table cells hold paragraphs only, and cells
+ * while the caret is in a code block it adds a select for the block's
+ * language, and while the caret is in a table it adds buttons to add or
+ * delete a row or column and to delete the table. Table cells hold paragraphs only, and cells
  * are never merged or split here. A block field also takes images and audio:
  * its toolbar has an image and an audio button, and an image file pasted or
  * dropped into it is uploaded and inserted at the caret or drop point. The
@@ -177,6 +184,7 @@ export function RichField(props: {
   const inline = props.inline ?? false;
   const focus = props.focus ?? 0;
   const [error, setError] = useState("");
+  const [languageOpen, setLanguageOpen] = useState(false);
   // The open formula dialog: the position of the formula it edits, or null
   // for a new one at the selection.
   const [formula, setFormula] = useState<{
@@ -293,6 +301,8 @@ export function RichField(props: {
       superscript: e.isActive("superscript"),
       code: e.isActive("code"),
       codeBlock: e.isActive("codeBlock"),
+      language:
+        (e.getAttributes("codeBlock").language as string | null) ?? null,
       table: e.isActive("table"),
     }),
   });
@@ -349,10 +359,13 @@ export function RichField(props: {
           </span>
         )}
         {/* The format, table and formula buttons are out of the tab order: each
-          has a shortcut, named in its title. The image and audio buttons have
-          none (a file picker has no shortcut), so they stay in the tab order. */}
+          has a shortcut, named in its title. The image and audio buttons and
+          the code language select have none, so they stay in the tab order.
+          While the select's list is open, focus is outside the field and the
+          bar is kept shown for the list to anchor to. */}
         <div
           className="b-rich-bar"
+          data-open={languageOpen || undefined}
           role="toolbar"
           aria-label={m.rich_toolbar()}
         >
@@ -392,6 +405,19 @@ export function RichField(props: {
                 {b.glyph}
               </button>
             ))}
+          {!inline && state.codeBlock && (
+            <CodeLanguageSelect
+              value={state.language}
+              onChange={(language) =>
+                editor
+                  .chain()
+                  .focus()
+                  .updateAttributes("codeBlock", { language })
+                  .run()
+              }
+              onOpenChange={setLanguageOpen}
+            />
+          )}
           {!inline &&
             MEDIA.map((b) => (
               <FileTrigger

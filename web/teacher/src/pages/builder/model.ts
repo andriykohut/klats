@@ -1,3 +1,4 @@
+import { CODE_LANGUAGES } from "@klats/shared/code/registry.ts";
 import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
 import type {
   RichAttrs,
@@ -33,6 +34,7 @@ export const STORED_ATTRS: Record<string, (keyof RichAttrs)[]> = {
   image: ["src", "w", "h"],
   audio: ["src"],
   math: ["latex"],
+  codeBlock: ["language"],
   gap: ["id"],
   tableHeader: ["colspan", "rowspan"],
   tableCell: ["colspan", "rowspan"],
@@ -42,9 +44,11 @@ export const STORED_ATTRS: Record<string, (keyof RichAttrs)[]> = {
  * Returns `node` with only the keys internal/rich accepts: type, text, the
  * mark types of text nodes (ProseMirror also marks formulas and hard breaks,
  * which the server refuses), non-empty content, and for the node types in
- * {@link STORED_ATTRS} their listed attrs. Null attrs and spans of 1 are
- * dropped, as is every attr of other nodes (so an ordered list always starts
- * at 1 and a table has no column widths).
+ * {@link STORED_ATTRS} their listed attrs. Null attrs, spans of 1 and code
+ * languages that are empty or not in {@link CODE_LANGUAGES} (the editor takes
+ * one from a pasted `language-*` class or a typed ```fence) are dropped, as is
+ * every attr of other nodes (so an ordered list always starts at 1 and a table
+ * has no column widths).
  */
 export function toStored(node: EditorNode): RichNode {
   const out: RichNode = { type: node.type ?? "" };
@@ -52,7 +56,9 @@ export function toStored(node: EditorNode): RichNode {
   for (const key of STORED_ATTRS[out.type] ?? []) {
     const v = node.attrs?.[key];
     const span = key === "colspan" || key === "rowspan";
-    if (v != null && !(span && v === 1)) attrs[key] = v;
+    const unknownLanguage =
+      key === "language" && !CODE_LANGUAGES.some((l) => l.id === v);
+    if (v != null && !(span && v === 1) && !unknownLanguage) attrs[key] = v;
   }
   if (Object.keys(attrs).length) out.attrs = attrs as RichAttrs;
   if (node.text !== undefined) out.text = node.text;

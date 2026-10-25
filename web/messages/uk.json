@@ -302,6 +302,8 @@
   "rich_superscript": "Верхній індекс",
   "rich_code": "Код",
   "rich_code_block": "Блок коду",
+  "rich_code_language": "Мова",
+  "rich_code_plain": "Без підсвічування",
   "rich_table": "Таблиця",
   "rich_row_below": "Рядок нижче",
   "rich_col_right": "Стовпець праворуч",

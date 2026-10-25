@@ -92,9 +92,9 @@ func table(rows ...[]string) rich.Node {
 	return t
 }
 
-// codeBlock returns a block of source text.
-func codeBlock(src string) rich.Node {
-	return rich.Node{Type: "codeBlock", Content: []rich.Node{plain(src)}}
+// codeBlock returns a block of source text in the code language lang.
+func codeBlock(lang, src string) rich.Node {
+	return rich.Node{Type: "codeBlock", Attrs: &rich.Attrs{Language: lang}, Content: []rich.Node{plain(src)}}
 }
 
 // choice returns a question worth points. The options at the indexes in
@@ -132,7 +132,7 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 		choice("q7", 1, doc(
 			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Скористайтеся таблицею. Що виведе програма?")}},
 			table([]string{"Рік", "Подія"}, []string{"1991", "Незалежність"}, []string{"1996", "Конституція"}),
-			codeBlock("year = 1991\nprint(year + 5)")), []int{1},
+			codeBlock("python", "year = 1991\nprint(year + 5)")), []int{1},
 			para(plain("1991")), para(plain("1996")), para(plain("2001"))),
 		withImage(choice("q8", 1, doc(
 			rich.Node{Type: "paragraph", Content: []rich.Node{plain("Подивіться на схему й послухайте звук. Скільки фігур на схемі?")}},

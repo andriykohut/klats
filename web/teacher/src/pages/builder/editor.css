@@ -417,8 +417,61 @@
   animation: t-drop var(--k-dur-fast) var(--k-ease-out);
 }
 
-.b-rich:focus-within .b-rich-bar {
+.b-rich:focus-within .b-rich-bar,
+.b-rich-bar[data-open] {
   display: flex;
+}
+
+.b-code-lang-btn {
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--k-muted);
+  font: 700 13px var(--k-font-text);
+  cursor: pointer;
+}
+
+.b-code-lang-btn:hover {
+  background: var(--t-hover);
+  color: var(--k-ink);
+}
+
+.b-code-lang-btn[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 1px;
+}
+
+.b-code-lang-pop {
+  min-width: 170px;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-box);
+  background: var(--k-paper);
+  box-shadow: var(--t-shadow-toast);
+}
+
+.b-code-lang-list {
+  outline: none;
+}
+
+.b-code-lang-item {
+  padding: 7px 12px;
+  border-radius: var(--t-radius-small);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
+.b-code-lang-item[data-focused] {
+  background: var(--t-hover);
+}
+
+.b-code-lang-item[data-selected] {
+  color: var(--k-sel-dark);
 }
 
 .b-rich[data-inline] .b-rich-bar {

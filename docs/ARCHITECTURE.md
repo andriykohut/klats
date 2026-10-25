@@ -334,6 +334,10 @@ Students may have the address bookmarked.
   any attribute. KaTeX draws it into DOM nodes it builds itself, never from
   an HTML string, and cannot make links or raw HTML. Its `maxSize` and
   `maxExpand` options bound what one formula may cost.
+- **Highlighted code is a token tree, never HTML.** A code block holds plain
+  text and a `language` that `internal/rich` checks against six ids. lowlight
+  turns the text into a tree of tokens, and the shared `CodeView` builds
+  elements from it, so highlighting never passes through an HTML string.
 - **Exports are safe to open.** Student names go into the workbook as
   plain strings, so a name beginning with `=` is never a formula.
 - **Nothing leaves the LAN.** There is no telemetry, and no network traffic
@@ -365,6 +369,11 @@ for a test that has formulas, at test load, as its own chunk with its style
 and fonts (`web/student/src/math.ts`). It then fetches the font faces at once,
 so formulas still draw after the network drops. Until it arrives, a formula
 shows its LaTeX source.
+
+Syntax highlighting is loaded the same way, for a test that has a code block
+with a language: lowlight and six grammars form their own chunk
+(`web/student/src/highlighter.ts`). Until it arrives, or if it fails to load,
+code shows as plain text.
 
 A browser below the floor gets a plain notice, «Цей браузер застарий…» with
 an English line, instead of a blank page. A few lines of ES5 in
