@@ -104,6 +104,21 @@ async function drag(
   await page.mouse.up();
 }
 
+/** The text of the nodes of a highlight question's body that carry the target mark. */
+function marked(q: Question): string[] {
+  const out: string[] = [];
+  const walk = (n: {
+    text?: string;
+    marks?: { type: string }[];
+    content?: unknown[];
+  }) => {
+    if (n.marks?.some((x) => x.type === "target")) out.push(n.text ?? "");
+    for (const c of n.content ?? []) walk(c as typeof n);
+  };
+  walk(q.body as never);
+  return out;
+}
+
 const near = (v: number | undefined, want: number) =>
   expect(Math.abs((v ?? 99) - want)).toBeLessThan(0.01);
 
@@ -127,6 +142,18 @@ test("a hotspot question saves the area drawn on its picture, and every number s
   expect(q.areas?.[0].shape).toBe("rect");
   near(q.areas?.[0].x, 0.2);
   near(q.areas?.[0].y, 0.2);
+  near(q.areas?.[0].w, 0.2);
+  near(q.areas?.[0].h, 0.2);
+
+  // Dragging an area moves it and leaves its size.
+  await drag(page, [0.3, 0.3], [0.5, 0.4]);
+  await expect(areaX).toHaveValue("40");
+  await expect
+    .poll(async () => (await question(page)).areas?.[0].x)
+    .toBeGreaterThan(0.35);
+  q = await question(page);
+  near(q.areas?.[0].x, 0.4);
+  near(q.areas?.[0].y, 0.3);
   near(q.areas?.[0].w, 0.2);
   near(q.areas?.[0].h, 0.2);
 
@@ -166,6 +193,8 @@ test("a hotspot question saves the area drawn on its picture, and every number s
     })
     .click();
   await expect.poll(async () => (await question(page)).areas?.length).toBe(2);
+  // Focus goes to the neighbouring area's first field.
+  await expect(areaX).toBeFocused();
   await page.getByRole("button", { name: m.action_undo() }).click();
   await expect.poll(async () => (await question(page)).areas?.length).toBe(3);
 
@@ -211,6 +240,59 @@ test("a picture dropped on a hotspot question is added", async ({
     }, bytes);
   await expect(picture(page).locator("img")).toBeVisible();
   expect((await question(page)).image?.w).toBe(320);
+});
+
+test("a picture pasted after a click on the empty picture field is added", async ({
+  klats,
+  browserName,
+}) => {
+  test.skip(
+    browserName === "firefox",
+    "Firefox leaves the files of a script-made DataTransfer empty",
+  );
+  const page = await newTest(klats);
+  await add(page, m.type_hotspot_desc);
+  const bytes = [...(await scene(page, 320, 200))];
+  const zone = editor(page).locator("[data-drop]");
+  await zone.click({ position: { x: 4, y: 4 } });
+  await expect(zone).toBeFocused();
+  await page.evaluate((bytes) => {
+    const data = new DataTransfer();
+    data.items.add(
+      new File([new Uint8Array(bytes)], "shot.png", { type: "image/png" }),
+    );
+    document.activeElement?.dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  }, bytes);
+  await expect(picture(page).locator("img")).toBeVisible();
+  expect((await question(page)).image?.w).toBe(320);
+});
+
+test("a file that is not a picture, dropped on the empty picture field, is not opened by the browser", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  await add(page, m.type_hotspot_desc);
+  const prevented = await editor(page)
+    .locator("[data-drop]")
+    .evaluate((el) => {
+      const data = new DataTransfer();
+      data.items.add(new File(["x"], "notes.txt", { type: "text/plain" }));
+      const drop = new DragEvent("drop", {
+        dataTransfer: data,
+        bubbles: true,
+        cancelable: true,
+      });
+      el.dispatchEvent(drop);
+      return drop.defaultPrevented;
+    });
+  expect(prevented).toBe(true);
+  await expect(picture(page).locator("img")).toHaveCount(0);
 });
 
 test("a label question saves its points where they were put, each with the label of its own", async ({
@@ -294,6 +376,7 @@ test("a label question saves its points where they were put, each with the label
     })
     .click();
   await expect(pin(3)).toHaveCount(0);
+  await expect(label(2)).toBeFocused();
   await expect
     .poll(async () => {
       const x = await question(page);
@@ -341,17 +424,43 @@ test("a highlight question saves the target mark on the marked words, and the pr
   await expect(words).toHaveText(["Небо", "яскраво", "світить"]);
   const q = await question(page);
   expect(q.type).toBe("highlight");
-  const marked: string[] = [];
-  const walk = (n: {
-    text?: string;
-    marks?: { type: string }[];
-    content?: unknown[];
-  }) => {
-    if (n.marks?.some((x) => x.type === "target")) marked.push(n.text ?? "");
-    for (const c of n.content ?? []) walk(c as typeof n);
+  expect(marked(q)).toEqual(["яскраво"]);
+});
+
+test("Mod-K leaves the space of a selected word unmarked, and marks a partly marked word all through before it clears it", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  await add(page, m.type_highlight_desc);
+  const body = field(page, m.builder_highlight_body());
+  await body.click();
+  await page.keyboard.type("Небо тихо ");
+  const press = async (key: string, n: number) => {
+    for (let i = 0; i < n; i++) await page.keyboard.press(key);
   };
-  walk(q.body as never);
-  expect(marked).toEqual(["яскраво"]);
+  const markedNow = async () => marked(await question(page));
+
+  // «тихо » as a double click may select it, trailing space and all.
+  await press("Shift+ArrowLeft", 5);
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect.poll(markedNow).toEqual(["тихо"]);
+
+  // The selection is the word without its space: two steps pass the space.
+  await press("ArrowRight", 2);
+  await page.keyboard.type("світить");
+  await press("ArrowLeft", 3);
+  await press("Shift+ArrowLeft", 4);
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect.poll(markedNow).toEqual(["тихо", "світ"]);
+
+  // The whole of «світить»: the first press marks all of it, the second clears it.
+  await page.keyboard.press("ArrowRight");
+  await press("ArrowRight", 3);
+  await press("Shift+ArrowLeft", 7);
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect.poll(markedNow).toEqual(["тихо", "світить"]);
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect.poll(markedNow).toEqual(["тихо"]);
 });
 
 test("a written-answer question saves the marking notes, which students never get", async ({

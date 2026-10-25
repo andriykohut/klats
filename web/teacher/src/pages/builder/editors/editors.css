@@ -338,6 +338,11 @@
   font-weight: 600;
 }
 
+.b-drop:focus {
+  border-color: var(--k-field);
+  outline: none;
+}
+
 .b-drop .t-btn {
   height: 42px;
 }
@@ -374,8 +379,17 @@
   position: absolute;
   box-sizing: border-box;
   border: 2px solid var(--k-sel-dark);
-  background: rgba(255, 140, 40, 0.28);
   cursor: move;
+}
+
+/* The fill is the palette's tangerine, thinned. */
+.b-area::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--k-sel);
+  opacity: 0.28;
 }
 
 .b-area[data-shape="ellipse"] {

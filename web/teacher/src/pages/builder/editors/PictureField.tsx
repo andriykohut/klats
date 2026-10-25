@@ -132,14 +132,16 @@ export function PictureField(
           className="b-drop"
           aria-label={m.builder_picture()}
           data-drop
+          // Focusable by click, so a paste lands here; the button stays the tab stop.
+          tabIndex={-1}
           onDragOver={(e) => e.preventDefault()}
+          // The browser would open a dropped file in place of the builder.
           onDrop={(e) => {
+            e.preventDefault();
             const file = [...e.dataTransfer.files].find((f) =>
               f.type.startsWith("image/"),
             );
-            if (!file) return;
-            e.preventDefault();
-            void pick(file);
+            if (file) void pick(file);
           }}
           // A copied picture has no text; a copy from a document has both.
           onPaste={(e) => {

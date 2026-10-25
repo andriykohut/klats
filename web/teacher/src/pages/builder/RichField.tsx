@@ -221,7 +221,10 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * formatting like an option but with more than one paragraph, and the target
  * mark (see {@link TargetMark}); it has no formulas, gaps, lists, code, tables
  * or media. Its toolbar's «Шукане слово» button, or Mod-K, toggles the mark on
- * the selected text and does nothing without a selection.
+ * the selected text without the whitespace at the selection's ends (a
+ * double-click may select the space after a word). A selection that is
+ * marked all through loses the mark, and any other, partly marked or not,
+ * is marked all through. Nothing happens without text selected.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -445,8 +448,9 @@ export function RichField(props: {
   };
 
   const putTarget = () => {
-    const { from, to } = liveRange(editor.view);
-    if (from === to) return;
+    const live = liveRange(editor.view);
+    const { from, to } = trimmedRange(editor.state.doc, live.from, live.to);
+    if (!editor.state.doc.textBetween(from, to, " ").trim()) return;
     editor
       .chain()
       .focus()

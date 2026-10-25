@@ -46,8 +46,15 @@ export function LabelEditor(props: EditorProps) {
   const { question: q, onChange, onRemoveItem } = props;
   const points = q.targets ?? [];
   const box = useRef<HTMLFieldSetElement>(null);
-  // The point to focus, bumped on each request so a repeat still moves focus.
-  const [focus, setFocus] = useState({ id: "", n: 0 });
+  const list = useRef<HTMLUListElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  // What takes focus, bumped on each request so a repeat still moves focus: a
+  // point's pin, a point's label field, or «Додати точку».
+  const [focus, setFocus] = useState<{
+    on: "pin" | "label" | "add";
+    id: string;
+    n: number;
+  }>({ on: "pin", id: "", n: 0 });
   const [imageError, setImageError] = useState("");
   const [mayDelete] = useState(() => cooldown());
   // A click that ends a drag of a point must not put a new one.
@@ -56,11 +63,16 @@ export function LabelEditor(props: EditorProps) {
   const point = (i: number) => m.point_label({ number: i + 1 });
 
   useEffect(() => {
-    if (focus.n) {
-      box.current
-        ?.querySelector<HTMLElement>(`[data-pin="${CSS.escape(focus.id)}"]`)
-        ?.focus();
-    }
+    if (!focus.n) return;
+    const id = CSS.escape(focus.id);
+    (focus.on === "add"
+      ? addButton.current
+      : focus.on === "pin"
+        ? box.current?.querySelector<HTMLElement>(`[data-pin="${id}"]`)
+        : list.current?.querySelector<HTMLElement>(
+            `[data-item="${id}"] [role="textbox"]`,
+          )
+    )?.focus();
   }, [focus]);
 
   const addPoint = (x: number, y: number) => {
@@ -76,7 +88,7 @@ export function LabelEditor(props: EditorProps) {
             options: [...x.options, o],
           },
     );
-    setFocus((f) => ({ id: t.id, n: f.n + 1 }));
+    setFocus((f) => ({ on: "pin", id: t.id, n: f.n + 1 }));
   };
 
   const editPoint = (id: string, patch: Partial<Target>) =>
@@ -122,6 +134,12 @@ export function LabelEditor(props: EditorProps) {
     const gone = points[index];
     const label = q.options.find((o) => o.target === gone.id);
     const labelIndex = label ? q.options.indexOf(label) : -1;
+    const near = points[index - 1] ?? points[index + 1];
+    setFocus((f) => ({
+      on: near ? "label" : "add",
+      id: near?.id ?? "",
+      n: f.n + 1,
+    }));
     onRemoveItem(
       m.builder_item_removed({ item: point(index) }),
       () =>
@@ -148,7 +166,7 @@ export function LabelEditor(props: EditorProps) {
         boxProps={{
           onClick: (e) => {
             if (dragged.current || !box.current) return;
-            const at = fractionAt(box.current, e);
+            const at = movePoint(fractionAt(box.current, e), 0, 0);
             addPoint(at.x, at.y);
           },
         }}
@@ -176,7 +194,7 @@ export function LabelEditor(props: EditorProps) {
             {m.builder_points()}
             <em>{m.builder_points_hint()}</em>
           </div>
-          <ul className="b-opts">
+          <ul className="b-opts" ref={list}>
             {points.map((t, i) => {
               const label = q.options.find((o) => o.target === t.id);
               const name = m.builder_point_label({ number: i + 1 });
@@ -223,6 +241,7 @@ export function LabelEditor(props: EditorProps) {
             </p>
           )}
           <Button
+            ref={addButton}
             className="t-btn b-add-opt"
             data-variant="dashed"
             isDisabled={full}

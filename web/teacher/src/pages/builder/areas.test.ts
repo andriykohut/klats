@@ -75,3 +75,12 @@ test("movePoint steps a point and keeps it within 0 to 1", () => {
   for (let i = 0; i < 30; i++) p = movePoint(p, 0.01, 0);
   expect(p.x).toBe(0.8);
 });
+
+test("areaFromDrag cuts both corners to the picture, whichever way the drag goes", () => {
+  const out = areaFromDrag({ x: 1.2, y: -0.3 }, { x: -0.1, y: 1.5 }, "ellipse");
+  expect(out).toMatchObject({ x: 0, y: 0, w: near(1), h: near(1) });
+});
+
+test("movePoint without a step cuts a point just outside the picture back to its edge", () => {
+  expect(movePoint({ x: -0.0004, y: 1.0007 }, 0, 0)).toEqual({ x: 0, y: 1 });
+});

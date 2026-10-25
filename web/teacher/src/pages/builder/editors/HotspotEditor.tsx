@@ -49,17 +49,19 @@ export function HotspotEditor(props: EditorProps) {
   const [draft, setDraft] = useState<Area | null>(null);
   const [mayDelete] = useState(() => cooldown());
   const list = useRef<HTMLUListElement>(null);
-  // The area whose X field takes focus, bumped on each request.
+  const addButton = useRef<HTMLButtonElement>(null);
+  // The area whose X field takes focus, or «Додати область» for an empty id;
+  // bumped on each request.
   const [focus, setFocus] = useState({ id: "", n: 0 });
 
   useEffect(() => {
-    if (focus.n) {
-      list.current
-        ?.querySelector<HTMLElement>(
+    if (!focus.n) return;
+    (focus.id
+      ? list.current?.querySelector<HTMLElement>(
           `[data-item="${CSS.escape(focus.id)}"] input`,
         )
-        ?.focus();
-    }
+      : addButton.current
+    )?.focus();
   }, [focus]);
 
   const edit = (id: string, fn: (a: Area) => Area) =>
@@ -115,6 +117,8 @@ export function HotspotEditor(props: EditorProps) {
 
   const remove = (index: number) => {
     const gone = areas[index];
+    const near = areas[index - 1] ?? areas[index + 1];
+    setFocus((f) => ({ id: near?.id ?? "", n: f.n + 1 }));
     onRemoveItem(
       m.builder_item_removed({ item: m.builder_area({ number: index + 1 }) }),
       () =>
@@ -218,6 +222,7 @@ export function HotspotEditor(props: EditorProps) {
             ))}
           </ul>
           <Button
+            ref={addButton}
             className="t-btn b-add-opt"
             data-variant="dashed"
             isDisabled={areas.length >= MAX_LIST}
