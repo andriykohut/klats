@@ -33,7 +33,7 @@ export function TakeTest({
   const multi = q.type === "multi";
   const keyed = multi || q.type === "single";
   const selected = answers[q.id]?.items ?? [];
-  const answered = isAnswered(answers[q.id]);
+  const answered = isAnswered(q, answers[q.id]);
   const last = index === test.questions.length - 1;
   const next = () => (last ? onReview() : onGo(index + 1));
   // A sheet on its way out must not take keys meant for the next one.

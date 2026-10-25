@@ -1,4 +1,4 @@
-import { isAnswered } from "@klats/shared/answers.ts";
+import { hasAnswer } from "@klats/shared/answers.ts";
 import type {
   AssignmentResults,
   ResultQuestion,
@@ -169,7 +169,7 @@ function QuestionResult(props: {
           );
         })}
       </ul>
-      {!isAnswered(row.answers[q.id]) && (
+      {!hasAnswer(row.answers[q.id]) && (
         <p className="r-none">{m.detail_no_answer()}</p>
       )}
       <div className="r-points">

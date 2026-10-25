@@ -31,7 +31,7 @@ export function Review({
   const reduced = useReducedMotionConfig();
   const total = test.questions.length;
   const open = test.questions.flatMap((q, i) =>
-    isAnswered(answers[q.id]) ? [] : [{ q, i }],
+    isAnswered(q, answers[q.id]) ? [] : [{ q, i }],
   );
   const answered = total - open.length;
 

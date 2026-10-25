@@ -19,17 +19,21 @@ export interface AnswerProps {
 
 /**
  * The part of a question's sheet the student answers in: the component of the
- * question's type, or nothing for a type with none yet. `onDensity` reports
- * the density step the sheet should take on (see {@link ChoiceAnswers}).
+ * question's type, or nothing for a type with none yet. `density` is the
+ * sheet's tile density step and `onDensity` asks it to change (see
+ * {@link ChoiceAnswers}).
  */
 export function AnswerArea({
+  density,
   onDensity,
   ...props
-}: AnswerProps & { onDensity: (density: number) => void }) {
+}: AnswerProps & { density: number; onDensity: (density: number) => void }) {
   switch (props.question.type) {
     case "single":
     case "multi":
-      return <ChoiceAnswers {...props} onDensity={onDensity} />;
+      return (
+        <ChoiceAnswers {...props} density={density} onDensity={onDensity} />
+      );
     case "truefalse":
       return <TrueFalseAnswers {...props} />;
     case "grid":

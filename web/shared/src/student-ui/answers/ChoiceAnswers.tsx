@@ -17,10 +17,12 @@ import type { AnswerProps } from "./AnswerArea";
 /**
  * The answer tiles of a single or multiple choice question. Tiles form a 2×2
  * grid when they fit (see {@link chooseLayout}) and full-width rows otherwise.
- * If the answers still overflow the sheet's scroller, it steps `onDensity` up:
- * tighter tile padding and gaps, then a smaller tile font (never below the
- * pixel floors). All of this is measured before the first paint, and again
- * when the scroller resizes, fonts load or a picture loads or fails.
+ * If the answers still overflow the sheet's scroller, it steps `density` up
+ * through `onDensity`: tighter tile padding and gaps, then a smaller tile
+ * font (never below the pixel floors). The sheet owns `density` and shows it
+ * as `data-density`, which the stylesheets key on, so each step is measured
+ * after it is on screen. All of this is measured before the first paint, and
+ * again when the scroller resizes, fonts load or a picture loads or fails.
  *
  * Each tile is marked `data-more-item` for the sheet's overflow cue. Picking a
  * tile by key scrolls it into view.
@@ -32,8 +34,9 @@ export function ChoiceAnswers({
   readOnly,
   labelledBy,
   describedBy,
+  density,
   onDensity,
-}: AnswerProps & { onDensity: (density: number) => void }) {
+}: AnswerProps & { density: number; onDensity: (density: number) => void }) {
   const { options } = question;
   const multi = question.type === "multi";
   const selected = answer?.items ?? [];
@@ -41,7 +44,6 @@ export function ChoiceAnswers({
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<"grid" | "rows">("grid");
-  const [density, setDensity] = useState(0);
   // "lines" measures line counts, "fit" steps density up until nothing
   // overflows, "done" leaves the result on screen.
   const [phase, setPhase] = useState<"lines" | "fit" | "done">("lines");
@@ -49,14 +51,12 @@ export function ChoiceAnswers({
   const hasImages = options.some((o) => o.image);
 
   const restart = useCallback(() => {
-    setDensity(0);
+    onDensity(0);
     setPhase("lines");
-  }, []);
+  }, [onDensity]);
 
   // Keyed on content, so a caller rebuilding the array costs no remeasure.
   useLayoutEffect(restart, [optionsKey]);
-
-  useLayoutEffect(() => onDensity(density), [density, onDensity]);
 
   useLayoutEffect(() => {
     const scroller = rootRef.current?.closest<HTMLElement>(".k-sheet-scroll");
@@ -80,9 +80,9 @@ export function ChoiceAnswers({
         density,
       );
       if (next === null) setPhase("done");
-      else setDensity(next);
+      else onDensity(next);
     }
-  }, [phase, density, options.length, hasImages]);
+  }, [phase, density, onDensity, options.length, hasImages]);
 
   useEffect(() => {
     const scroller = rootRef.current?.closest<HTMLElement>(".k-sheet-scroll");

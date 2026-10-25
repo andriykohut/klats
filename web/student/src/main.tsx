@@ -135,7 +135,7 @@ function App() {
         )}
         {test && screen.name === "test" && (
           <Progress
-            answered={test.questions.map((q) => isAnswered(s.answers[q.id]))}
+            answered={test.questions.map((q) => isAnswered(q, s.answers[q.id]))}
             current={s.index}
             onJump={go}
           />

@@ -17,7 +17,9 @@ export function toStudent(q: Question): StudentQuestion {
       image,
     })),
     targets: q.targets,
-    body: q.body,
+    // A highlight body carries its key as target marks, and the server sends
+    // it as word nodes instead; the preview shows none until it does too.
+    body: q.type === "gaps" || q.type === "bank" ? q.body : undefined,
     gaps: q.gaps?.map((g) => ({
       id: g.id,
       choices: g.choices?.map(({ id, text }) => ({ id, text })),

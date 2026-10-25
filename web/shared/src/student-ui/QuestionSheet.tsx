@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
 import {
   type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -54,7 +55,13 @@ export function QuestionSheet(props: QuestionSheetProps) {
   const moreRef = useRef<HTMLDivElement>(null);
   // The first item the cue revealed, which takes focus if the cue goes away.
   const revealed = useRef<HTMLElement | null>(null);
-  const [density, setDensity] = useState(0);
+  // Tile density belongs to the answer area of one type: another type starts at 0.
+  const [stepped, setStepped] = useState({ type: question.type, density: 0 });
+  const density = stepped.type === question.type ? stepped.density : 0;
+  const setDensity = useCallback(
+    (next: number) => setStepped({ type: question.type, density: next }),
+    [question.type],
+  );
   const [below, setBelow] = useState(0);
   const behavior = reduced ? "auto" : "smooth";
 
@@ -117,6 +124,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
               readOnly={props.readOnly}
               labelledBy={textId}
               describedBy={chipId}
+              density={density}
               onDensity={setDensity}
             />
           </div>

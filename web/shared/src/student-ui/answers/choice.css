@@ -51,7 +51,7 @@ fieldset.k-tf {
   gap: calc(12 * var(--k-px));
 }
 
-/* A pill with the depth of an answer tile; picked, it takes the sheet's colour. */
+/* A pill with the depth of an answer tile; picked, it takes the palette's selection colour. */
 .k-pick {
   position: relative;
   display: block;
@@ -117,14 +117,14 @@ fieldset.k-tf {
 
 /*
  * The header row stays at the top of the sheet's scroller. Sticky offsets
- * count from the scroller's content box, so the offset cancels its 40px of
- * top padding (.k-sheet-scroll in QuestionSheet.css), and the header's own
- * top padding stands in for it.
+ * count from the scroller's content box, so the offset cancels the scroller's
+ * top padding (--k-pad-top in QuestionSheet.css), and the header's own top
+ * padding stands in for it.
  */
 .k-grid thead th,
 .k-grid-corner {
   position: sticky;
-  top: calc(-40 * var(--k-px));
+  top: calc(-1 * var(--k-pad-top));
   z-index: 2;
   background: var(--k-paper);
   border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
@@ -151,7 +151,7 @@ fieldset.k-tf {
   width: 36%;
 }
 
-.k-grid-row {
+.k-grid .k-grid-row {
   padding: calc(12 * var(--k-px)) calc(16 * var(--k-px)) calc(12 * var(--k-px))
     0;
   border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
@@ -161,6 +161,7 @@ fieldset.k-tf {
 }
 
 .k-grid tbody td {
+  padding: calc(8 * var(--k-px)) 0;
   border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
 }
 

@@ -1,4 +1,15 @@
+import type { Page } from "@playwright/test";
 import { doc, expect, joinAs, m, questionOf, test, until } from "./fixtures";
+
+/** Presses a Cyrillic key, which Playwright's keyboard has no name for. */
+const pressLetter = (page: Page, key: string) =>
+  page.evaluate(
+    (key) =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true }),
+      ),
+    key,
+  );
 
 test("true/false and grid answers are chosen, saved and graded", async ({
   klats,
@@ -52,12 +63,27 @@ test("true/false and grid answers are chosen, saved and graded", async ({
   await expect(
     group("Вода суха").getByRole("radio", { name: m.answer_false() }),
   ).toBeChecked();
-  await page.getByRole("button", { name: m.test_next() }).click();
+  // The fourth statement is the one the digit and the letter would pick in a
+  // single-choice question; here they do nothing, and no key hint shows.
+  await page.keyboard.press("4");
+  await pressLetter(page, "Г");
+  await expect(
+    group("Місяць квадратний").getByRole("radio", { checked: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".k-keys")).toHaveCount(0);
+  // A statement is still open, so the question is skipped, not finished.
+  await expect(
+    page.getByRole("button", { name: m.test_next() }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: m.test_skip() }).click();
 
   // Every row is answered by mouse except the last, which takes keys alone.
   const column = (name: string) =>
     page.getByRole("columnheader", { name, exact: true });
   await expect(column("Ссавці")).toBeVisible();
+  await page.keyboard.press("1");
+  await pressLetter(page, "А");
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
   // A radio's own input is a hidden pixel, so the mouse takes its round mark.
   await group("Кіт").locator(".k-dot").first().click();
   await group("Горобець").locator(".k-dot").first().click();
@@ -67,9 +93,12 @@ test("true/false and grid answers are chosen, saved and graded", async ({
     await page.keyboard.press("Tab");
   }
   await expect(whale).toBeFocused();
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowLeft");
   await page.keyboard.press("Space");
+  await expect(whale).toBeChecked();
+  const birds = group("Кит").getByRole("radio", { name: "Птахи" });
+  await page.keyboard.press("ArrowRight");
+  await expect(birds).toBeChecked();
+  await page.keyboard.press("ArrowLeft");
   await expect(whale).toBeChecked();
 
   await page.getByRole("button", { name: m.test_finish() }).click();

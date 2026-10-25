@@ -70,3 +70,21 @@ test("a long question with nine answers fits a 1024×768 lab screen", async ({
     page.getByRole("button", { name: m.review_finish() }),
   ).toBeVisible();
 });
+
+test("answers that overflow only at the first density stop at the second", async ({
+  klats,
+}) => {
+  // Six short answers under a four-line question fit once the tiles tighten
+  // by one step and no further; data-density counts the steps.
+  const q = question("q1", `Питання. ${"Слово ".repeat(40)}`, [
+    "*Відповідь",
+    ...[1, 2, 3, 4, 5].map((n) => `Відповідь ${n}`),
+  ]);
+  const { code } = await klats.start([q]);
+  const page = await klats.computer();
+  await joinAs(page, klats, code, CLASS[0]);
+
+  await expect(answers(page, q)).toBeVisible();
+  await expect(page.locator(".k-sheet")).toHaveAttribute("data-density", "1");
+  await expect(page.locator(".k-more[data-show]")).toHaveCount(0);
+});

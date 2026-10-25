@@ -20,7 +20,9 @@
   display: grid;
   grid-template-columns: calc(168 * var(--k-px)) minmax(0, 1fr);
   align-content: start;
-  padding: calc(40 * var(--k-px)) calc(44 * var(--k-px)) calc(16 * var(--k-px))
+  /* A sticky element inside offsets its top by this, to sit at the edge. */
+  --k-pad-top: calc(40 * var(--k-px));
+  padding: var(--k-pad-top) calc(44 * var(--k-px)) calc(16 * var(--k-px))
     calc(36 * var(--k-px));
 }
 
@@ -130,7 +132,7 @@
  * overflow: tighter padding and gaps, then a smaller tile font.
  */
 .k-sheet[data-density] .k-sheet-scroll {
-  padding-top: calc(28 * var(--k-px));
+  --k-pad-top: calc(28 * var(--k-px));
   padding-bottom: calc(8 * var(--k-px));
 }
 
