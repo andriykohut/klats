@@ -2,7 +2,6 @@ import type { Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { ComponentType } from "react";
 import { RichField } from "../RichField";
-import { HAS_BODY } from "../types";
 import { ChoiceEditor } from "./ChoiceEditor";
 import { EditorHead, Grading } from "./EditorHead";
 import { GridEditor } from "./GridEditor";
@@ -25,7 +24,7 @@ const EDITORS: Record<string, ComponentType<EditorProps>> = {
 
 /**
  * Edits one question: the head (see {@link EditorHead}), the question text
- * unless the type has a body in its place, the editor of the type's own parts
+ * (for a type with a body, an instruction above it), the editor of the type's own parts
  * and the scoring choice (see {@link Grading}). Every edit goes through
  * `onChange` as a function of the newest question. Removing an item goes
  * through `onRemoveItem`, which owns the undo. The question text takes focus
@@ -43,18 +42,14 @@ export function QuestionEditor(props: {
   return (
     <div className="b-ed-in">
       <EditorHead question={q} onChange={onChange} onDelete={props.onDelete} />
-      {!HAS_BODY.has(q.type) && (
-        <>
-          <div className="b-lbl">{m.builder_question_text()}</div>
-          <RichField
-            value={q.text}
-            onChange={(doc) => onChange((x) => ({ ...x, text: doc }))}
-            label={m.builder_question_text()}
-            placeholder={m.builder_question_placeholder()}
-            focus={props.focusText}
-          />
-        </>
-      )}
+      <div className="b-lbl">{m.builder_question_text()}</div>
+      <RichField
+        value={q.text}
+        onChange={(doc) => onChange((x) => ({ ...x, text: doc }))}
+        label={m.builder_question_text()}
+        placeholder={m.builder_question_placeholder()}
+        focus={props.focusText}
+      />
       {Body && (
         <Body
           question={q}

@@ -1,6 +1,6 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import { newOption, newTarget, plainText } from "../model";
-import { ItemList, itemNames, RowChoice } from "./ItemList";
+import { ItemList, itemNames, type RemoveItem, RowChoice } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
 
 const COLUMNS = itemNames((i) => m.builder_column({ number: i + 1 }));
@@ -12,9 +12,8 @@ const MAX_COLUMNS = 6;
 /**
  * The columns and rows of a choice grid: two to six column headers, and rows
  * that each have one chip per column marking the right one. A row's `target`
- * is the id of its right column. Removing a column leaves that id dangling
- * in the rows that named it: the server clears it, and an undo makes it right
- * again.
+ * is the id of its right column. Removing a column clears the rows that named
+ * it, and an undo gives them their column back.
  */
 export function GridEditor({
   question: q,
@@ -22,6 +21,37 @@ export function GridEditor({
   onRemoveItem,
 }: EditorProps) {
   const columns = q.targets ?? [];
+
+  const removeColumn: RemoveItem = (text, remove, restore) => {
+    const marked = q.options;
+    onRemoveItem(
+      text,
+      () => {
+        remove();
+        onChange((x) => ({
+          ...x,
+          options: x.options.map((o) =>
+            o.target && !x.targets?.some((t) => t.id === o.target)
+              ? { ...o, target: "" }
+              : o,
+          ),
+        }));
+      },
+      () => {
+        restore();
+        onChange((x) => ({
+          ...x,
+          options: x.options.map((o) => {
+            const was = marked.find((r) => r.id === o.id)?.target;
+            return !o.target && was && x.targets?.some((t) => t.id === was)
+              ? { ...o, target: was }
+              : o;
+          }),
+        }));
+      },
+    );
+  };
+
   return (
     <>
       <div className="b-lbl">
@@ -38,7 +68,7 @@ export function GridEditor({
         onChange={(fn) =>
           onChange((x) => ({ ...x, targets: fn(x.targets ?? []) }))
         }
-        onRemoveItem={onRemoveItem}
+        onRemoveItem={removeColumn}
       />
 
       <div className="b-lbl">

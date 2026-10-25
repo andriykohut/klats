@@ -4,8 +4,8 @@ import type { IconName } from "../../ui/icons";
 
 /*
  * What the builder knows about each question type: its name and description
- * in the picker, and which parts of a question it uses (the same sets as
- * internal/testfmt's types.go).
+ * in the picker, and which parts of a question each has (the sets follow
+ * internal/testfmt's types.go, except where a set's doc says otherwise).
  */
 
 /** The name and one-line description of each question type, in the UI language. */
@@ -59,7 +59,10 @@ export const HAS_OPTIONS = new Set([
 /** The types whose options carry `correct`. */
 export const HAS_CORRECT = new Set(["single", "multi", "truefalse"]);
 
-/** The types with targets that options name in `target`: columns, right-hand sides and groups. */
+/**
+ * The types whose targets, and the options' choice of one, carry over in a
+ * conversion: columns, right-hand sides and groups. A label's points do not.
+ */
 export const HAS_TARGETS = new Set(["grid", "match", "groups"]);
 
 /** The types whose question has a body in place of its text. */

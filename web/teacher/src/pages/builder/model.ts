@@ -194,9 +194,11 @@ export function newQuestion(type: string): Question {
  * target for the first option that names it); the body among gaps, word bank
  * and highlight, without the target marks going to gaps or bank, and without
  * the gaps and formulas going to highlight; and the image between hotspot and
- * labels. Every other field starts as {@link newQuestion} has it.
+ * labels. Every other field starts as {@link newQuestion} has it. Converting to
+ * the question's own type returns it as it is.
  */
 export function convertQuestion(q: Question, type: string): Question {
+  if (type === q.type) return q;
   const out: Question = {
     ...newQuestion(type),
     id: q.id,

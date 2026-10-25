@@ -362,8 +362,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} answer.",
-        "countPlural=*": "Question {number}: add at least {count} answers."
+        "countPlural=one": "Question {number}: there must be at least {count} answer.",
+        "countPlural=*": "Question {number}: there must be at least {count} answers."
       }
     }
   ],
@@ -585,8 +585,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} statement.",
-        "countPlural=*": "Question {number}: add at least {count} statements."
+        "countPlural=one": "Question {number}: there must be at least {count} statement.",
+        "countPlural=*": "Question {number}: there must be at least {count} statements."
       }
     }
   ],
@@ -599,8 +599,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} row.",
-        "countPlural=*": "Question {number}: add at least {count} rows."
+        "countPlural=one": "Question {number}: there must be at least {count} row.",
+        "countPlural=*": "Question {number}: there must be at least {count} rows."
       }
     }
   ],
@@ -613,8 +613,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} item.",
-        "countPlural=*": "Question {number}: add at least {count} items."
+        "countPlural=one": "Question {number}: there must be at least {count} item.",
+        "countPlural=*": "Question {number}: there must be at least {count} items."
       }
     }
   ],
@@ -627,8 +627,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} pair.",
-        "countPlural=*": "Question {number}: add at least {count} pairs."
+        "countPlural=one": "Question {number}: there must be at least {count} pair.",
+        "countPlural=*": "Question {number}: there must be at least {count} pairs."
       }
     }
   ],
@@ -641,8 +641,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} column.",
-        "countPlural=*": "Question {number}: add at least {count} columns."
+        "countPlural=one": "Question {number}: there must be at least {count} column.",
+        "countPlural=*": "Question {number}: there must be at least {count} columns."
       }
     }
   ],
@@ -655,8 +655,8 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Question {number}: add at least {count} group.",
-        "countPlural=*": "Question {number}: add at least {count} groups."
+        "countPlural=one": "Question {number}: there must be at least {count} group.",
+        "countPlural=*": "Question {number}: there must be at least {count} groups."
       }
     }
   ],

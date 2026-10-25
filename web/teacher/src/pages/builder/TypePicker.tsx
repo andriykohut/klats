@@ -1,6 +1,6 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import { QUESTION_TYPES, type TypeGroup } from "@klats/shared/questionTypes.ts";
-import { useId, useRef } from "react";
+import { useContext, useId } from "react";
 import {
   Button,
   Dialog,
@@ -8,6 +8,7 @@ import {
   Heading,
   Modal,
   ModalOverlay,
+  OverlayTriggerStateContext,
 } from "react-aria-components";
 import { Icon } from "../../ui/icons";
 import { GROUP_NAMES, TYPE_INFO, typeIcon } from "./types";
@@ -50,12 +51,16 @@ export function TypePicker({ onPick }: { onPick: (type: string) => void }) {
 }
 
 function Types({ onPick }: { onPick: (type: string) => void }) {
-  // A double-click must add one question, not two.
-  const picked = useRef(false);
+  // A double-click must add one question, not two: the first press closes the
+  // dialog, and a card does nothing while it is closed, also during its exit
+  // animation.
+  const dialog = useContext(OverlayTriggerStateContext);
   const id = useId();
   return (
     <>
-      <Heading slot="title">{m.types_title()}</Heading>
+      <Heading slot="title" level={2}>
+        {m.types_title()}
+      </Heading>
       <p>{m.types_text()}</p>
       {GROUPS.map(({ group, types }) => (
         <section
@@ -70,9 +75,7 @@ function Types({ onPick }: { onPick: (type: string) => void }) {
                 key={type}
                 className="b-tc"
                 onPress={() => {
-                  if (picked.current) return;
-                  picked.current = true;
-                  onPick(type);
+                  if (dialog?.isOpen) onPick(type);
                 }}
               >
                 <span className="b-ic b-ic-lg">

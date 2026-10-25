@@ -53,11 +53,10 @@ async function newTest(klats: Klats) {
 /** Adds a question of `type` through the picker. */
 async function add(page: Page, type: string) {
   await page.getByRole("button", { name: m.builder_add_question() }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog
+  await page
+    .getByRole("dialog")
     .getByRole("button", { name: DESC[type](), exact: false })
     .click();
-  await expect(dialog).toBeHidden();
 }
 
 /** The test document as last saved, read through the page's own session. */
@@ -109,6 +108,23 @@ test("the picker offers all fifteen types, and each starts without a missing-ite
     QUESTION_TYPES.map((t) => t.type),
   );
   expect(doc.problems.filter((p) => p.code.startsWith("too_few"))).toEqual([]);
+});
+
+test("the picker works when it is reopened before it has finished closing", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  // Each add opens the picker again at once, while the last one is still closing.
+  await add(page, "single");
+  await add(page, "multi");
+  await add(page, "truefalse");
+  await expect(
+    page
+      .getByRole("listbox", { name: m.builder_questions() })
+      .getByRole("option"),
+  ).toHaveCount(3);
+  const types = (await questions(page)).map((q) => q.type);
+  expect(types).toEqual(["single", "multi", "truefalse"]);
 });
 
 test("a true/false question keeps the truth of each statement", async ({
@@ -203,6 +219,51 @@ test("a grid question keeps the right column of each row", async ({
     main.getByRole("button", { name: m.builder_add_column() }),
   ).toBeDisabled();
   await expect(right(1).getByRole("radio")).toHaveCount(6);
+});
+
+test("removing a grid column and undoing it gives the rows their column back", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  await add(page, "grid");
+  const main = editor(page);
+  await main
+    .getByRole("textbox", { name: m.builder_column({ number: 1 }) })
+    .fill("Метал");
+  await main
+    .getByRole("textbox", { name: m.builder_column({ number: 2 }) })
+    .fill("Неметал");
+  await main.getByRole("button", { name: m.builder_add_column() }).click();
+  await main
+    .getByRole("textbox", { name: m.builder_row({ number: 1 }) })
+    .fill("Залізо");
+  const right = main.getByRole("radiogroup", {
+    name: m.builder_row_right({ number: 1 }),
+  });
+  await right.getByText("Метал", { exact: true }).click();
+  const [before] = await questions(page);
+  const column = before.targets?.[0].id;
+  expect(before.options[0].target).toBe(column);
+
+  await main
+    .getByRole("button", {
+      name: m.builder_item_delete({ item: m.builder_column({ number: 1 }) }),
+    })
+    .click();
+  await expect(right.getByRole("radio")).toHaveCount(2);
+  await expect(right.getByRole("radio", { checked: true })).toHaveCount(0);
+  await expect
+    .poll(async () => (await saved(page)).test.questions[0].options[0].target)
+    .toBeFalsy();
+
+  await page.getByRole("button", { name: m.action_undo() }).click();
+  await expect(right.getByRole("radio")).toHaveCount(3);
+  await expect(
+    right.getByRole("radio", { name: "Метал", exact: true }),
+  ).toBeChecked();
+  await expect
+    .poll(async () => (await saved(page)).test.questions[0].options[0].target)
+    .toBe(column);
 });
 
 test("a single-choice question turned into ordering keeps its text and answers", async ({

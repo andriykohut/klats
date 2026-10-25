@@ -372,9 +372,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} відповідь.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} відповіді.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} відповідей."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} відповідь.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} відповіді.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} відповідей."
       }
     }
   ],
@@ -594,7 +594,7 @@
   "builder_partial_hint_gaps": "Бал ділиться між пропусками. Помилка у виборі зі списку знімає частку балів, а неправильно вписане слово не знімає нічого.",
   "builder_partial_hint_bank": "Бал ділиться між пропусками. Кожне слово не на своєму місці знімає частку балів.",
   "builder_partial_hint_label": "Бал ділиться між підписами. Кожен підпис не на своєму місці, зокрема зайвий, знімає частку балів.",
-  "builder_partial_hint_highlight": "Бал ділиться між виділеними словами. Кожне зайве слово знімає частку балів.",
+  "builder_partial_hint_highlight": "Бал ділиться між позначеними словами. Кожне зайве слово знімає частку балів.",
   "problem_no_body_gaps": "Питання {number}: напишіть текст із пропусками.",
   "problem_no_body_highlight": "Питання {number}: напишіть текст, у якому учні виділятимуть слова.",
   "problem_empty_statement": "Питання {number}: є порожнє твердження.",
@@ -613,9 +613,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} твердження.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} твердження.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} тверджень."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} твердження.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} твердження.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} тверджень."
       }
     }
   ],
@@ -628,9 +628,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} рядок.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} рядки.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} рядків."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} рядок.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} рядки.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} рядків."
       }
     }
   ],
@@ -643,9 +643,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} елемент.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} елементи.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} елементів."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} елемент.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} елементи.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} елементів."
       }
     }
   ],
@@ -658,9 +658,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} пару.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} пари.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} пар."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} пара.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} пари.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} пар."
       }
     }
   ],
@@ -673,9 +673,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} стовпець.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} стовпці.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} стовпців."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} стовпець.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} стовпці.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} стовпців."
       }
     }
   ],
@@ -688,9 +688,9 @@
       ],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "Питання {number}: додайте щонайменше {count} групу.",
-        "countPlural=few": "Питання {number}: додайте щонайменше {count} групи.",
-        "countPlural=*": "Питання {number}: додайте щонайменше {count} груп."
+        "countPlural=one": "Питання {number}: має бути щонайменше {count} група.",
+        "countPlural=few": "Питання {number}: має бути щонайменше {count} групи.",
+        "countPlural=*": "Питання {number}: має бути щонайменше {count} груп."
       }
     }
   ],

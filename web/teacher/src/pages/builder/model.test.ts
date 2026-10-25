@@ -405,6 +405,16 @@ test("convertQuestion moves the image between hotspot and label only", () => {
   expect(convertQuestion(hotspot, "open").image).toBeUndefined();
 });
 
+test("convertQuestion to the question's own type changes nothing", () => {
+  const short = { ...newQuestion("short"), accepted: ["кіт"] };
+  expect(convertQuestion(short, "short")).toBe(short);
+  const label = {
+    ...newQuestion("label"),
+    targets: [{ id: "p", content: textDoc(""), x: 0.5, y: 0.5 }],
+  };
+  expect(convertQuestion(label, "label").targets).toEqual(label.targets);
+});
+
 test("convertQuestion leaves a label's points behind", () => {
   const label = {
     ...newQuestion("label"),
