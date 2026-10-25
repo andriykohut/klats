@@ -105,11 +105,16 @@ func cleanGaps(q Question, a Answer) (Answer, bool) {
 
 // syncGaps makes Gaps list exactly the gap nodes of the body, in body order. A
 // gap whose node is gone is dropped and a node without an entry gets an empty
-// one.
-func (q *Question) syncGaps() {
+// one. It rejects a list that is too long or repeats an id before the sync; the
+// caller checks the synced list the same way, since a body with many gap nodes
+// lengthens it.
+func (q *Question) syncGaps() error {
+	if err := checkIDs("gaps", q.Gaps, func(g Gap) string { return g.ID }); err != nil {
+		return err
+	}
 	doc, err := rich.Parse(q.Body, rich.Gapped)
 	if err != nil {
-		return
+		return err
 	}
 	var gaps []Gap
 	for _, id := range doc.GapIDs() {
@@ -121,4 +126,5 @@ func (q *Question) syncGaps() {
 		}
 	}
 	q.Gaps = gaps
+	return nil
 }

@@ -169,3 +169,43 @@ func TestJudgeGapsUsesMatchSwitches(t *testing.T) {
 	near(t, Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "київ"}}).Points, 0)
 	near(t, Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "Київ"}}).Points, 1)
 }
+
+func TestBlankAcceptedMatchesNothing(t *testing.T) {
+	q := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"Київ", " "}, Match: &testfmt.Match{AllowTypo: true}}
+	for text, want := range map[string]float64{"?": 0, "х": 0, "Київ": 1} {
+		if got := Judge(q, testfmt.Answer{Text: text}).Points; got != want {
+			t.Errorf("%q: %v, want %v", text, got, want)
+		}
+	}
+}
+
+func TestTypoOnlyForLongWordsWithoutDigits(t *testing.T) {
+	typo := &testfmt.Match{AllowTypo: true}
+	year := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"1991"}, Match: typo}
+	if Judge(year, testfmt.Answer{Text: "1990"}).Points != 0 || Judge(year, testfmt.Answer{Text: "1991"}).Points != 1 {
+		t.Error("a year must match exactly")
+	}
+	symbol := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"Fe"}, Match: typo}
+	for _, s := range []string{"F", "Fr"} {
+		if Judge(symbol, testfmt.Answer{Text: s}).Points != 0 {
+			t.Errorf("%q must not match Fe", s)
+		}
+	}
+	if Judge(symbol, testfmt.Answer{Text: "fe"}).Points != 1 {
+		t.Error("Fe must still match without case")
+	}
+	mixed := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"H2O ok"}, Match: typo}
+	if Judge(mixed, testfmt.Answer{Text: "H2O o"}).Points != 0 {
+		t.Error("an accepted text with a digit must match exactly")
+	}
+}
+
+func TestJudgeGapsTypoOnlyInWords(t *testing.T) {
+	q := gapsQ(true)
+	q.Match = &testfmt.Match{AllowTypo: true}
+	v := Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "Кийв", "g2": "1990"}})
+	near(t, v.Points, 1)
+	if !v.Items["g1"] || v.Items["g2"] {
+		t.Errorf("items = %+v", v.Items)
+	}
+}

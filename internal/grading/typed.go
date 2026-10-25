@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -76,7 +77,9 @@ func typo1(a, b string) bool {
 }
 
 // matches reports whether the typed text equals one of the accepted texts
-// under the question's matching switches.
+// under the question's matching switches. A blank accepted text matches
+// nothing. With AllowTypo, one typo is forgiven only for an accepted text of at
+// least 4 characters without a digit, so a year or a symbol must be exact.
 func matches(text string, accepted []string, m *testfmt.Match) bool {
 	var sw testfmt.Match
 	if m != nil {
@@ -85,7 +88,11 @@ func matches(text string, accepted []string, m *testfmt.Match) bool {
 	got := normalize(text, sw)
 	return slices.ContainsFunc(accepted, func(a string) bool {
 		want := normalize(a, sw)
-		return got == want || sw.AllowTypo && typo1(got, want)
+		if want == "" {
+			return false
+		}
+		forgiving := sw.AllowTypo && utf8.RuneCountInString(want) >= 4 && !strings.ContainsFunc(want, unicode.IsDigit)
+		return got == want || forgiving && typo1(got, want)
 	})
 }
 

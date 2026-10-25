@@ -36,6 +36,28 @@ func TestDecodeSyncsGapsWithBody(t *testing.T) {
 	}
 }
 
+func TestDecodeCapsGapsOfBody(t *testing.T) {
+	many := func(n int) Question {
+		gaps := make([]Gap, n)
+		for i := range gaps {
+			gaps[i] = Gap{ID: fmt.Sprintf("g%d", i), Accepted: []string{"x"}}
+		}
+		return gapsQ(gaps...)
+	}
+	q := mustDecodeQ(t, many(50))
+	if len(q.Gaps) != 50 {
+		t.Fatalf("gaps = %d", len(q.Gaps))
+	}
+	// A decoded test is stored and decoded again.
+	mustDecodeQ(t, q)
+
+	over := many(51)
+	over.Gaps = nil
+	if _, err := decodeQ(t, over); err == nil {
+		t.Error("51 gap nodes: want error")
+	}
+}
+
 func TestDecodeKeepsGapOrderOfBody(t *testing.T) {
 	q := gapsQ(Gap{ID: "g1"}, Gap{ID: "g2"})
 	q.Gaps = []Gap{{ID: "g2", Accepted: []string{"x"}}, {ID: "g1", Accepted: []string{"y"}}}
@@ -83,7 +105,10 @@ func TestProblemsGaps(t *testing.T) {
 	if ps[0].Count != 2 || ps[0].Severity != "error" {
 		t.Errorf("typed gap without answer: %+v", ps[0])
 	}
-	wantCodes(t, testOf(t, gapsQ(Gap{ID: "g1", Accepted: []string{" "}})), "gap_no_answer")
+	ps = wantCodes(t, testOf(t, gapsQ(Gap{ID: "g1", Accepted: []string{" "}})), "gap_no_answer")
+	if ps[0].Count != 1 {
+		t.Errorf("typed gap without answer: %+v", ps[0])
+	}
 
 	one := Gap{ID: "g1", Choices: []Choice{{ID: "a", Text: "a", Correct: true}}}
 	if ps = wantCodes(t, testOf(t, gapsQ(one)), "gap_no_answer"); ps[0].Count != 1 {

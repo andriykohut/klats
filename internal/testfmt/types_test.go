@@ -97,12 +97,14 @@ func TestDecodeClearsDanglingTarget(t *testing.T) {
 }
 
 func TestDecodeRejectsDuplicateIDs(t *testing.T) {
+	repeatedGap := gapsQ(Gap{ID: "g1"})
+	repeatedGap.Gaps = append(repeatedGap.Gaps, Gap{ID: "g1"})
 	cols := []Target{col("c1", "A"), col("c2", "B")}
 	for name, q := range map[string]Question{
 		"options": tf(stmt("o1", "a", true), stmt("o1", "b", false)),
 		"targets": grid([]Target{col("t1", "A"), col("t1", "B")}, row("r1", "x", "t1")),
-		"gaps":    {ID: "q1", Type: "gaps", Points: 1, Gaps: []Gap{{ID: "g1"}, {ID: "g1"}}},
-		"choices": {ID: "q1", Type: "gaps", Points: 1, Gaps: []Gap{{ID: "g1", Choices: []Choice{{ID: "c"}, {ID: "c"}}}}},
+		"gaps":    repeatedGap,
+		"choices": gapsQ(Gap{ID: "g1", Choices: []Choice{{ID: "c"}, {ID: "c"}}}),
 		"areas":   {ID: "q1", Type: "hotspot", Points: 1, Areas: []Area{{ID: "a"}, {ID: "a"}}},
 	} {
 		if _, err := decodeQ(t, q); err == nil {
@@ -125,8 +127,8 @@ func TestDecodeRejectsOversize(t *testing.T) {
 		"51 options":      tf(many...),
 		"long accepted":   {ID: "q1", Type: "short", Points: 1, Accepted: []string{long}},
 		"51 accepted":     {ID: "q1", Type: "short", Points: 1, Accepted: slices.Repeat([]string{"x"}, 51)},
-		"long gap text":   {ID: "q1", Type: "gaps", Points: 1, Gaps: []Gap{{ID: "g", Accepted: []string{long}}}},
-		"long choice":     {ID: "q1", Type: "gaps", Points: 1, Gaps: []Gap{{ID: "g", Choices: []Choice{{ID: "c", Text: long}}}}},
+		"long gap text":   gapsQ(Gap{ID: "g", Accepted: []string{long}}),
+		"long choice":     gapsQ(Gap{ID: "g", Choices: []Choice{{ID: "c", Text: long}}}),
 		"long rubric":     {ID: "q1", Type: "open", Points: 1, Rubric: strings.Repeat("я", 2001)},
 		"target x":        grid([]Target{{ID: "c1", X: 1.1}}, row("r1", "x", "c1")),
 		"target y":        grid([]Target{{ID: "c1", Y: -0.1}}, row("r1", "x", "c1")),
