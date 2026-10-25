@@ -13,6 +13,7 @@ import (
 	"klats/internal/store"
 	"klats/internal/store/db"
 	"klats/internal/testfmt"
+	"klats/internal/wire"
 )
 
 var picture = &testfmt.Image{Src: strings.Repeat("c", 64) + ".png", W: 800, H: 600}
@@ -137,8 +138,17 @@ func TestFinishResultPending(t *testing.T) {
 	if l := liveOf(t, e); l.QuestionPct[3] != nil {
 		t.Errorf("a pending answer counts in the percent: %v", *l.QuestionPct[3])
 	}
-	if row := resultsOf(t, e, info.AssignmentID).Rows[0]; row.Pending != 1 {
+	if row := resultsOf(t, e, info.AssignmentID).Rows[0]; !slices.Equal(row.PendingIDs, []string{"q4"}) {
 		t.Errorf("results row = %+v", row)
+	}
+	var finished wire.Event
+	for _, ev := range liveOf(t, e).Events {
+		if ev.Kind == "finished" {
+			finished = ev
+		}
+	}
+	if finished.Params["pending"] != "true" {
+		t.Errorf("finished event = %+v, want pending", finished)
 	}
 
 	three := 3.0
@@ -153,8 +163,36 @@ func TestFinishResultPending(t *testing.T) {
 	if row := liveOf(t, e).Rows[0]; row.Cells[3] != "wrong" || row.Pending != 0 {
 		t.Errorf("live row after the override = %+v", row)
 	}
-	if row := resultsOf(t, e, info.AssignmentID).Rows[0]; row.Pending != 0 || row.Points[3] != 3 {
+	if row := resultsOf(t, e, info.AssignmentID).Rows[0]; len(row.PendingIDs) != 0 || row.Points[3] != 3 {
 		t.Errorf("results row after the override = %+v", row)
+	}
+}
+
+func TestResultsPctLeavesOutPendingAnswers(t *testing.T) {
+	e, _ := setupQuestions(t, pictureTextQuestions())
+	info := start(t, e, nil)
+	a := enter(t, e, info.Code, devA, "Шевченко")
+	b := enter(t, e, info.Code, devB, "Франко")
+	hit := testfmt.Answer{Point: &testfmt.Point{X: 0.5, Y: 0.5}}
+	submit(t, e, devA,
+		typedChange(a, "q1", 1, hit),
+		typedChange(a, "q4", 1, testfmt.Answer{Text: "Бо так"}),
+	)
+	submit(t, e, devB, typedChange(b, "q4", 1, testfmt.Answer{Text: "Тому"}))
+
+	pct := func() (hotspot, open int) {
+		qs := resultsOf(t, e, info.AssignmentID).Questions
+		return qs[0].CorrectPct, qs[3].CorrectPct
+	}
+	if hotspot, open := pct(); hotspot != 50 || open != 0 {
+		t.Errorf("percents with both written answers pending = %d, %d, want 50, 0", hotspot, open)
+	}
+	four := 4.0
+	if err := e.SetOverride(info.AssignmentID, a.ID, "q4", &four); err != nil {
+		t.Fatal(err)
+	}
+	if _, open := pct(); open != 100 {
+		t.Errorf("open percent with one pending and one full = %d, want 100", open)
 	}
 }
 

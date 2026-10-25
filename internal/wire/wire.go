@@ -285,7 +285,8 @@ type AssignmentResults struct {
 // ResultQuestion is a question of the results table, as the assignment's test
 // snapshot has it, answer key included: the teacher may have edited the test
 // since. Correct is the number of rows that scored full points on it, and
-// CorrectPct is that count as a percent of all rows. A highlight question also
+// CorrectPct is that count as a percent of the rows whose answer is not
+// waiting for the teacher's points (see ResultRow.PendingIDs), 0 when none is. A highlight question also
 // carries Words, its body as students got it (see testfmt.Question.Words),
 // and TargetWords, the indexes of its marked words.
 type ResultQuestion struct {
@@ -304,9 +305,9 @@ type ResultQuestion struct {
 // Answers maps question id to the answer, for answered questions; Verdicts
 // maps question id to whether each part of the answer is right (see
 // grading.Verdict), for the questions with an answered part; Late lists the
-// questions whose answer arrived after the sitting ended. Pending counts the
-// written answers waiting for the teacher's points (see grading.IsPending),
-// which score 0 until then.
+// questions whose answer arrived after the sitting ended. PendingIDs lists, in
+// test order, the questions whose written answer waits for the teacher's
+// points (see grading.IsPending); they score 0 until then.
 type ResultRow struct {
 	ParticipantID string                     `json:"participantId"`
 	Name          string                     `json:"name"`
@@ -315,7 +316,7 @@ type ResultRow struct {
 	Earned        float64                    `json:"earned"`
 	Max           float64                    `json:"max"`
 	Grade         int                        `json:"grade"`
-	Pending       int                        `json:"pending"`
+	PendingIDs    []string                   `json:"pendingIds"`
 	Writing       bool                       `json:"writing"`
 	DurationSec   int                        `json:"durationSec"`
 	SittingDate   int64                      `json:"sittingDate"`

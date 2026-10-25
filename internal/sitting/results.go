@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 
+	"klats/internal/grading"
 	"klats/internal/store/db"
 	"klats/internal/testfmt"
 	"klats/internal/wire"
@@ -32,7 +33,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		Exported: asg.ExportedAt.Valid, ExportStale: asg.ExportStale == 1, ResultsRev: asg.ResultsRev,
 		Questions: []wire.ResultQuestion{}, Rows: []wire.ResultRow{},
 	}
-	full := make([]int, len(t.Questions))
+	full, rated := make([]int, len(t.Questions)), make([]int, len(t.Questions))
 	for _, s := range sittings {
 		a, err := e.loadSitting(q, s)
 		if err != nil {
@@ -45,7 +46,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			r := a.grade(p)
 			row := wire.ResultRow{
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
-				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade, Pending: r.Pending,
+				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade, PendingIDs: []string{},
 				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Verdicts: r.Verdicts, Overridden: []string{}, Late: []string{},
 				Writing: p.state == stateWriting,
 			}
@@ -57,11 +58,18 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				if fullPoints(question, row.Points[i]) {
 					full[i]++
 				}
-				if ans := p.answers[question.ID]; !ans.IsEmpty() {
+				ans := p.answers[question.ID]
+				if !ans.IsEmpty() {
 					row.Answers[question.ID] = ans
 				}
-				if _, ok := p.overrides[question.ID]; ok {
+				_, overridden := p.overrides[question.ID]
+				if overridden {
 					row.Overridden = append(row.Overridden, question.ID)
+				}
+				if grading.IsPending(question, ans, overridden) {
+					row.PendingIDs = append(row.PendingIDs, question.ID)
+				} else {
+					rated[i]++
 				}
 				if p.late[question.ID] {
 					row.Late = append(row.Late, question.ID)
@@ -81,8 +89,8 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				}
 			}
 		}
-		if len(out.Rows) > 0 {
-			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(len(out.Rows))))
+		if rated[i] > 0 {
+			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(rated[i])))
 		}
 		out.Questions = append(out.Questions, rq)
 	}

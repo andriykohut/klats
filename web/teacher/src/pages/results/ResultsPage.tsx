@@ -16,6 +16,7 @@ import {
   type JournalCell,
   type JournalColumn,
   JournalTable,
+  PendingGrade,
 } from "../live/JournalTable";
 import { band, formatDate, formatPoints } from "../live/journal";
 import { StudentDetail } from "./StudentDetail";
@@ -26,6 +27,7 @@ const RESULTS_LEGEND = () =>
     { swatch: { state: "full" }, label: m.legend_full() },
     { swatch: { state: "partial" }, label: m.legend_partial() },
     { swatch: { state: "zero" }, label: m.legend_zero() },
+    { swatch: { state: "pending" }, label: m.legend_pending() },
     {
       swatch: { state: "empty", overridden: true },
       label: m.legend_overridden(),
@@ -47,7 +49,9 @@ const duration = (sec: number) =>
 export function ResultsPage() {
   const { id } = useParams({ from: "/shell/assignments/$id" });
   const results = useResults(id);
-  const [open, setOpen] = useState<string | null>(null);
+  // The student whose answers are open, and the question whose points field
+  // takes focus there.
+  const [open, setOpen] = useState<{ id: string; focus?: string } | null>(null);
   if (results.isError) return <LoadError onRetry={() => results.refetch()} />;
   const res = results.data;
   if (!res) return null;
@@ -63,10 +67,16 @@ export function ResultsPage() {
     .join(" · ");
   const typed = res.className === "";
   const pts = (n: number) => formatPoints(n, locale);
+  const waiting = res.rows.filter((r) => r.pendingIds.length > 0);
+  const toReview = waiting.reduce((n, r) => n + r.pendingIds.length, 0);
 
   const after: JournalColumn[] = [
     { head: m.col_points(), width: 82, className: "r-col-num" },
-    { head: m.col_grade(), width: 64, className: "j-grade" },
+    {
+      head: m.col_grade(),
+      width: waiting.length > 0 ? 190 : 64,
+      className: "j-grade",
+    },
     { head: m.col_time(), width: 64, className: "r-col-num" },
     { head: m.col_date(), width: 110 },
   ];
@@ -83,6 +93,19 @@ export function ResultsPage() {
           <p>{about}</p>
         </div>
         <div className="r-export">
+          {toReview > 0 && (
+            <Button
+              className="t-btn"
+              onPress={() =>
+                setOpen({
+                  id: waiting[0].participantId,
+                  focus: waiting[0].pendingIds[0],
+                })
+              }
+            >
+              {m.results_review({ count: toReview })}
+            </Button>
+          )}
           {res.exported && res.exportStale && (
             <span className="j-chip r-stale" data-tone="tang">
               {m.results_stale()}
@@ -101,7 +124,9 @@ export function ResultsPage() {
         }
         after={after}
         pct={res.questions.map((q) =>
-          res.rows.length > 0 ? q.correctPct : null,
+          res.rows.some((r) => !r.pendingIds.includes(q.question.id))
+            ? q.correctPct
+            : null,
         )}
         footLabel={m.live_class_correct()}
         barLabel={(t) =>
@@ -111,11 +136,16 @@ export function ResultsPage() {
         rows={res.rows.map((r) => ({
           key: r.participantId,
           name: (
-            <Button className="r-open" onPress={() => setOpen(r.participantId)}>
+            <Button
+              className="r-open"
+              onPress={() => setOpen({ id: r.participantId })}
+            >
               {r.name}
             </Button>
           ),
-          cells: cellsOf(res, r, pts),
+          cells: cellsOf(res, r, pts, (focus) =>
+            setOpen({ id: r.participantId, focus }),
+          ),
           before: typed
             ? [
                 <td key="class" className="j-device">
@@ -128,9 +158,13 @@ export function ResultsPage() {
               {pts(r.earned)} / {pts(r.max)}
             </td>,
             <td key="grade" className="j-grade">
-              <span className="j-gr" data-band={band(r.grade)}>
-                {r.grade}
-              </span>
+              {r.pendingIds.length > 0 ? (
+                <PendingGrade />
+              ) : (
+                <span className="j-gr" data-band={band(r.grade)}>
+                  {r.grade}
+                </span>
+              )}
             </td>,
             <td key="time" className="r-col-num">
               {duration(r.durationSec)}
@@ -147,7 +181,8 @@ export function ResultsPage() {
       {open && (
         <StudentDetail
           results={res}
-          participantId={open}
+          participantId={open.id}
+          focus={open.focus}
           onClose={() => setOpen(null)}
         />
       )}
@@ -158,14 +193,25 @@ export function ResultsPage() {
 /**
  * The cells of a row: full, partial or zero points for an answered or
  * overridden question, empty for an unanswered one, with the points inside,
- * and the marks of an override and of a late answer.
+ * and the marks of an override and of a late answer. A written answer waiting
+ * for the teacher is a "pending" cell that is a button, which calls `review`
+ * with the question's id.
  */
 function cellsOf(
   res: AssignmentResults,
   r: ResultRow,
   pts: (n: number) => string,
+  review: (questionId: string) => void,
 ): JournalCell[] {
   return res.questions.map(({ question: q }, i) => {
+    if (r.pendingIds.includes(q.id)) {
+      return {
+        state: "pending",
+        late: r.late.includes(q.id),
+        onPress: () => review(q.id),
+        label: `${i + 1}: ${m.status_pending()}`,
+      };
+    }
     const got = r.points[i];
     const overridden = r.overridden.includes(q.id);
     const answered = q.id in r.answers || overridden;

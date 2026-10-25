@@ -122,12 +122,24 @@ func TestExportPendingGrade(t *testing.T) {
 	r.Questions[0].Question.Type, r.Questions[1].Question.Type = "open", "open"
 	// The first row answered both written questions; the teacher graded q2.
 	first := &r.Rows[0]
-	first.Points, first.Earned, first.Pending = []float64{0, 1.5, 0}, 1.5, 1
+	first.Points, first.Earned, first.PendingIDs = []float64{0, 1.5, 0}, 1.5, []string{"q1"}
 	first.Answers = map[string]testfmt.Answer{"q1": {Text: "Бо"}, "q2": {Text: "Тому"}}
 	first.Overridden = []string{"q2"}
 	f := open(t, r, "uk")
 	eq(t, "pending row", row(t, f, "Результати", 2, false), []string{"1", "=1+1", "7-А", "", "1.5", "0.0", "1.5", "", "75:03", "21.10.2026"})
 	eq(t, "unanswered row", row(t, f, "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "0.0", "3.0", "0.0", "3.0", "7", "", "21.10.2026"})
+}
+
+func TestExportQuestionPctBlankWhileEveryAnswerIsPending(t *testing.T) {
+	r := sample()
+	r.Questions[0].Question.Type = "open"
+	r.Questions[0].CorrectPct = 0
+	for i := range r.Rows {
+		r.Rows[i].PendingIDs = []string{"q1"}
+	}
+	f := open(t, r, "uk")
+	eq(t, "all pending", row(t, f, "Питання", 2, false), []string{"1", "Скільки?", "1"})
+	eq(t, "answered", row(t, f, "Питання", 3, false), []string{"2", strings.Repeat("я", 200) + "…", "2", "100"})
 }
 
 func TestExportEnglish(t *testing.T) {

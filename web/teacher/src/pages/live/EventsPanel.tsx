@@ -18,7 +18,9 @@ type Tone = "red" | "tang" | "mint" | undefined;
  * and asks before it disconnects the holder, as the row menu's kick does,
  * since the holder's answers then stop counting. `who` is how a name shows
  * (initials while names are hidden), in the confirmation too; hidden names
- * also hide the grade a student finished with.
+ * also hide the grade a student finished with. A student who finished with a
+ * written answer waiting for the teacher gets «чекає перевірки» in place of a
+ * grade.
  */
 export function EventsPanel(props: {
   events: Event[];
@@ -172,14 +174,16 @@ function describe(
         tone: "mint",
         text: hidden
           ? m.ev_finished_hidden({ name })
-          : withBold(
-              m.ev_finished.parts({
-                name,
-                grade: p.grade ?? "",
-                max: SCALE_MAX,
-              }),
-              "l-ev-grade",
-            ),
+          : p.pending === "true"
+            ? withBold(m.ev_finished_pending.parts({ name }), "l-ev-grade")
+            : withBold(
+                m.ev_finished.parts({
+                  name,
+                  grade: p.grade ?? "",
+                  max: SCALE_MAX,
+                }),
+                "l-ev-grade",
+              ),
       };
     case "late_answers":
       return { tone: "tang", text: m.ev_late({ name, count: p.count ?? "" }) };

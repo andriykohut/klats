@@ -381,13 +381,13 @@ func (e *Engine) Finish(device string) (wire.FinishResult, error) {
 
 func (e *Engine) finish(p *participant) error {
 	now := e.now().UnixMilli()
-	grade := e.cur.finishResult(p).Grade
+	res := e.cur.finishResult(p)
 	return e.commit(func(q *db.Queries) (func(), error) {
 		err := q.FinishParticipant(ctx, db.FinishParticipantParams{FinishedBy: valid(finishedByStudent), FinishedAt: sql.NullInt64{Int64: now, Valid: true}, ID: p.id})
 		if err != nil {
 			return nil, err
 		}
-		_, err = e.raise(q, e.cur.sitting.ID, "finished", map[string]string{"name": p.name, "grade": strconv.Itoa(grade)}, false)
+		_, err = e.raise(q, e.cur.sitting.ID, "finished", map[string]string{"name": p.name, "grade": strconv.Itoa(res.Grade), "pending": strconv.FormatBool(res.Pending)}, false)
 		return func() {
 			p.state, p.finishedBy, p.finishedAt = stateFinished, finishedByStudent, now
 			e.publishStatus(p.device)

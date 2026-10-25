@@ -15,6 +15,7 @@ import {
   type JournalColumn,
   type JournalRow,
   JournalTable,
+  PendingGrade,
 } from "./JournalTable";
 import { band, initials } from "./journal";
 import { LiveTopBar } from "./LiveTopBar";
@@ -80,26 +81,28 @@ const LIVE_LEGEND = () =>
   [
     { swatch: { state: "correct" }, label: m.live_legend_correct() },
     { swatch: { state: "wrong" }, label: m.live_legend_wrong() },
+    { swatch: { state: "pending" }, label: m.legend_pending() },
     { swatch: { state: "current" }, label: m.live_legend_current() },
   ] as const;
 
 const HIDDEN_LEGEND = () =>
   [
     { swatch: { state: "answered" }, label: m.live_legend_answered() },
+    { swatch: { state: "pending" }, label: m.legend_pending() },
     { swatch: { state: "current" }, label: m.live_legend_current() },
   ] as const;
 
 /**
  * A live cell as the journal draws it: correct and wrong become "answered"
  * while names are hidden, a written answer waiting for the teacher
- * ("pending") is always "answered", and a value this version does not know is
- * empty.
+ * ("pending") shows as such either way since it says nothing about being
+ * right, and a value this version does not know is empty.
  */
 function liveCell(state: string, hidden: boolean): CellState {
   if (state === "correct" || state === "wrong") {
     return hidden ? "answered" : state;
   }
-  if (state === "pending") return "answered";
+  if (state === "pending") return "pending";
   return state === "current" ? "current" : "empty";
 }
 
@@ -118,7 +121,11 @@ function Live({ snap }: { snap: LiveSnapshot }) {
 
   const after: JournalColumn[] = [
     { head: m.col_status(), width: 210 },
-    { head: m.col_grade(), width: 64, className: "j-grade" },
+    {
+      head: m.col_grade(),
+      width: snap.rows.some((r) => r.pending > 0) ? 190 : 64,
+      className: "j-grade",
+    },
   ];
   // The server refuses kicks and renames once the sitting has ended.
   if (!ended) after.push({ head: "", width: 44 });
@@ -147,11 +154,15 @@ function Live({ snap }: { snap: LiveSnapshot }) {
           </span>
         </td>,
         <td key="grade" className="j-grade">
-          {r.grade != null && !hidden && (
-            <span className="j-gr" data-band={band(r.grade)}>
-              {r.grade}
-            </span>
-          )}
+          {r.grade != null &&
+            !hidden &&
+            (r.pending > 0 ? (
+              <PendingGrade />
+            ) : (
+              <span className="j-gr" data-band={band(r.grade)}>
+                {r.grade}
+              </span>
+            ))}
         </td>,
         ...(ended
           ? []

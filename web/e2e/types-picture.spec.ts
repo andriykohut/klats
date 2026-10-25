@@ -220,7 +220,7 @@ test("hotspot, labels, highlight and a written answer, with the pending finish",
   await until(klats, (live) => live.rows[0]?.status === "finished");
   const before = await klats.results(assignmentId);
   expect(before.rows[0].points).toEqual([1, 1, 1, 0]);
-  expect(before.rows[0].pending).toBe(1);
+  expect(before.rows[0].pendingIds).toEqual(["q4"]);
   await expect(
     page.getByRole("img", {
       name: m.finish_grade({ grade: before.rows[0].grade }),

@@ -1,5 +1,6 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { CSSProperties, ReactNode } from "react";
+import { Button } from "react-aria-components";
 import { COMPACT_AFTER, tally } from "./journal";
 import "./journal.css";
 
@@ -13,7 +14,8 @@ export interface JournalColumn {
 /**
  * What a question cell shows: "correct", "wrong", "current", "empty" and
  * "answered" (live, the last while names are hidden), or "full", "partial",
- * "zero" and "empty" (results).
+ * "zero" and "empty" (results), and in both "pending", a written answer
+ * waiting for the teacher's points.
  */
 export type CellState =
   | "correct"
@@ -23,17 +25,21 @@ export type CellState =
   | "answered"
   | "full"
   | "partial"
-  | "zero";
+  | "zero"
+  | "pending";
 
 /**
  * One question cell: `state` picks its colour and `text` is drawn inside. An
- * override puts a dot on its corner and a late answer outlines it.
+ * override puts a dot on its corner and a late answer outlines it. A cell
+ * with `onPress` is a button named `label`, above the row's own button.
  */
 export interface JournalCell {
   state: CellState;
   text?: string;
   overridden?: boolean;
   late?: boolean;
+  onPress?: () => void;
+  label?: string;
 }
 
 /** A student's row: the name cell, the cells, and the columns around them. */
@@ -214,16 +220,34 @@ export function JournalTable(props: {
   );
 }
 
-function Cell({ cell }: { cell: JournalCell }) {
+/**
+ * A grade that is not known yet: «—» and the chip «Чекає перевірки», for a row
+ * with a written answer the teacher has not graded.
+ */
+export function PendingGrade() {
   return (
-    <span
-      className="j-cell"
-      data-state={cell.state}
-      data-overridden={cell.overridden || undefined}
-      data-late={cell.late || undefined}
-    >
-      {cell.text}
+    <span className="j-pending-grade">
+      <span aria-hidden="true">—</span>
+      <span className="j-chip" data-tone="tang">
+        {m.status_pending()}
+      </span>
     </span>
+  );
+}
+
+function Cell({ cell }: { cell: JournalCell }) {
+  const props = {
+    className: "j-cell",
+    "data-state": cell.state,
+    "data-overridden": cell.overridden || undefined,
+    "data-late": cell.late || undefined,
+  };
+  return cell.onPress ? (
+    <Button {...props} aria-label={cell.label} onPress={cell.onPress}>
+      {cell.text}
+    </Button>
+  ) : (
+    <span {...props}>{cell.text}</span>
   );
 }
 

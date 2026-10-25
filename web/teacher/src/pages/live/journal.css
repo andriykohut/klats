@@ -162,6 +162,19 @@
   background: var(--t-line-strong);
 }
 
+.j-cell[data-state="pending"] {
+  background: var(--t-tang-soft);
+  border: 1.5px dashed var(--k-accent);
+}
+
+.j-pending-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k-muted);
+  font: 700 12px var(--k-font-display);
+}
+
 .j-cell[data-state="current"] {
   background: var(--k-paper);
   border: 2px solid var(--k-field);

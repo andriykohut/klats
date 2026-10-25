@@ -13,7 +13,6 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"klats/internal/grading"
 	"klats/internal/wire"
 )
 
@@ -38,7 +37,8 @@ var (
 // results sheet are headed by question number, and the questions sheet maps
 // the numbers to text cut at 200 characters. A row with a written answer
 // waiting for the teacher has an empty grade cell, and that answer an empty
-// points cell.
+// points cell. On the questions sheet the percent is blank while every row's
+// answer to the question waits for the teacher.
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
 	if lang == "en" {
@@ -82,12 +82,12 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		res.put(3, n, row.ClassName, 0)
 		for q := range min(qn, len(row.Points)) {
 			question := r.Questions[q].Question
-			if !grading.IsPending(question, row.Answers[question.ID], slices.Contains(row.Overridden, question.ID)) {
+			if !slices.Contains(row.PendingIDs, question.ID) {
 				res.put(4+q, n, row.Points[q], decimal)
 			}
 		}
 		res.put(4+qn, n, row.Earned, decimal)
-		if row.Pending == 0 {
+		if len(row.PendingIDs) == 0 {
 			res.put(5+qn, n, row.Grade, 0)
 		}
 		if row.DurationSec > 0 {
@@ -115,7 +115,11 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		qs.put(1, i+2, i+1, 0)
 		qs.put(2, i+2, questionText(q), 0)
 		qs.put(3, i+2, q.Correct, 0)
-		qs.put(4, i+2, q.CorrectPct, 0)
+		// The percent is of the answers already rated, so it stays blank while
+		// every row's answer waits for the teacher.
+		if len(r.Rows) == 0 || slices.ContainsFunc(r.Rows, func(row wire.ResultRow) bool { return !slices.Contains(row.PendingIDs, q.Question.ID) }) {
+			qs.put(4, i+2, q.CorrectPct, 0)
+		}
 	}
 	qs.width(1, 1, 6)
 	qs.width(2, 2, 80)
