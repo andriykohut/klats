@@ -383,11 +383,8 @@ export function RichField(props: {
 
   const putGap = () => {
     if (gapCount(editor) >= MAX_LIST) return;
-    const { from, to } = trimmedRange(
-      editor.state.doc,
-      editor.state.selection.from,
-      editor.state.selection.to,
-    );
+    const live = liveRange(editor.view);
+    const { from, to } = trimmedRange(editor.state.doc, live.from, live.to);
     const id = newId();
     props.onGap?.(id, editor.state.doc.textBetween(from, to, " ").trim());
     editor
@@ -588,6 +585,31 @@ function insertMedia(
   if (below) tr.setSelection(below);
   view.dispatch(tr.scrollIntoView());
   view.focus();
+}
+
+/**
+ * Returns the range the teacher has selected in `view`. ProseMirror's own
+ * selection follows the DOM's on an asynchronous `selectionchange` event, so
+ * a shortcut pressed right after an arrow key would see the selection before
+ * it; the DOM selection is read instead. A node selection, which the DOM shows
+ * as a caret, and a view without focus keep ProseMirror's selection.
+ */
+function liveRange(view: EditorView): { from: number; to: number } {
+  const { selection } = view.state;
+  const dom = (view.root as Document).getSelection();
+  if (
+    selection instanceof NodeSelection ||
+    !view.hasFocus() ||
+    !dom?.anchorNode ||
+    !dom.focusNode ||
+    !view.dom.contains(dom.anchorNode) ||
+    !view.dom.contains(dom.focusNode)
+  ) {
+    return { from: selection.from, to: selection.to };
+  }
+  const anchor = view.posAtDOM(dom.anchorNode, dom.anchorOffset);
+  const focus = view.posAtDOM(dom.focusNode, dom.focusOffset);
+  return { from: Math.min(anchor, focus), to: Math.max(anchor, focus) };
 }
 
 /** Returns how many gap nodes `editor` holds. */
