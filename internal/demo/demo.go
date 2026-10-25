@@ -154,14 +154,16 @@ func numberAnswer(id string, text json.RawMessage, value, tolerance float64) tes
 // gap is the place in a gaps body where the gap with the given id goes.
 func gap(id string) rich.Node { return rich.Node{Type: "gap", Attrs: &rich.Attrs{ID: id}} }
 
-// sampleTest is seventeen questions, single and multiple choice, with bold,
+// sampleTest is twenty-one questions, single and multiple choice, with bold,
 // sub- and superscript text, formulas in the text and options of the sixth, a
 // table and a code block in the seventh, and the stored image pic and audio
 // sound in the eighth, then a true/false question with a picture beside one
 // statement, a choice grid, a short answer, a number and a gaps question with a
 // formula, a typed gap and a list gap, then an ordering, a matching, a grouping
-// (with a picture on one item) and a word bank question.
-func sampleTest(id, pic, sound string) testfmt.Test {
+// (with a picture on one item) and a word bank question, then a hotspot and a
+// labelling question on the stored image scene, a highlight question and a
+// written answer.
+func sampleTest(id, pic, scene, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
 			para(plain("4")), para(plain("8")), para(plain("16")), para(plain("32"))),
@@ -223,7 +225,48 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 				{ID: "q17o3", Content: para(plain("16"))},
 				{ID: "q17o4", Content: para(plain("Львів"))},
 			}},
+		hotspot("q18", para(plain("Клацніть на зелене коло.")), testfmt.Image{Src: scene, W: sceneW, H: sceneH},
+			testfmt.Area{ID: "q18a0", Shape: "ellipse", X: 1000.0 / sceneW, Y: 620.0 / sceneH, W: 480.0 / sceneW, H: 480.0 / sceneH}),
+		labelling("q19", 3, para(plain("Підпишіть фігури на малюнку.")), testfmt.Image{Src: scene, W: sceneW, H: sceneH},
+			[]point{{360, 440}, {920, 340}, {1240, 860}},
+			para(plain("Червоний квадрат")), para(plain("Синій прямокутник")), para(plain("Зелене коло")), para(plain("Трикутник"))),
+		{ID: "q20", Type: "highlight", Points: 2, Partial: true, Text: para(plain("Виділіть слова, що описують сонце й вітер.")),
+			Body: para(plain("Сонце світить "), target("яскраво"), plain(", а вітер дме "), target("холодно"), plain("."))},
+		{ID: "q21", Type: "open", Points: 3, Text: para(plain("Поясніть, чому небо вдень блакитне.")),
+			Rubric: "Світло розсіюється в атмосфері; блакитне розсіюється найсильніше."},
 	}}
+}
+
+// target is a text run that a highlight question's answer must choose.
+func target(s string) rich.Node {
+	return rich.Node{Type: "text", Text: s, Marks: []rich.Mark{{Type: "target"}}}
+}
+
+// hotspot returns a one-point question whose answer is a click inside area on
+// img.
+func hotspot(id string, text json.RawMessage, img testfmt.Image, area testfmt.Area) testfmt.Question {
+	return testfmt.Question{ID: id, Type: "hotspot", Text: text, Points: 1, Image: &img, Areas: []testfmt.Area{area}}
+}
+
+// point is a place on an image, in the pixels of its file.
+type point struct{ x, y float64 }
+
+// labelling returns a question worth points whose image has a place at each of
+// places. Its labels go to the places in order, and labels beyond them are
+// decoys.
+func labelling(id string, points int, text json.RawMessage, img testfmt.Image, places []point, labels ...json.RawMessage) testfmt.Question {
+	q := testfmt.Question{ID: id, Type: "label", Text: text, Points: points, Partial: true, Image: &img}
+	for i, p := range places {
+		q.Targets = append(q.Targets, testfmt.Target{ID: fmt.Sprintf("%st%d", id, i), X: p.x / float64(img.W), Y: p.y / float64(img.H)})
+	}
+	for i, content := range labels {
+		o := testfmt.Option{ID: fmt.Sprintf("%so%d", id, i), Content: content}
+		if i < len(places) {
+			o.Target = q.Targets[i].ID
+		}
+		q.Options = append(q.Options, o)
+	}
+	return q
 }
 
 // pair is a left-hand item of a matching or grouping question and the index
@@ -272,20 +315,28 @@ func withImage(q testfmt.Question, i int, img testfmt.Image) testfmt.Question {
 	return q
 }
 
-// storeMedia saves the sample image and audio in ms and returns their names.
-func storeMedia(ms *media.Store) (pic, sound string, err error) {
-	png, err := diagram()
+// storeMedia saves the sample diagram, scene and audio in ms and returns their
+// names.
+func storeMedia(ms *media.Store) (pic, scenePic, sound string, err error) {
+	diagramPNG, err := diagram()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	if pic, err = ms.Put(bytes.NewReader(png)); err != nil {
-		return "", "", err
+	scenePNG, err := scene()
+	if err != nil {
+		return "", "", "", err
+	}
+	if pic, err = ms.Put(bytes.NewReader(diagramPNG)); err != nil {
+		return "", "", "", err
+	}
+	if scenePic, err = ms.Put(bytes.NewReader(scenePNG)); err != nil {
+		return "", "", "", err
 	}
 	sound, err = ms.Put(bytes.NewReader(tone()))
-	return pic, sound, err
+	return pic, scenePic, sound, err
 }
 
-// Seed starts a sitting of the seventeen-question sample test for class 7-Б, of 25
+// Seed starts a sitting of the twenty-one-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
 // earlier run in the same data folder did, and the test's image and audio in
 // ms. If a sitting already runs, demo or
@@ -298,11 +349,11 @@ func Seed(st *store.Store, eng *sitting.Engine, ms *media.Store) (wire.SittingIn
 	ctx := context.Background()
 	// Decode validates the test and makes its rich text canonical, as a save
 	// through the teacher API does.
-	pic, sound, err := storeMedia(ms)
+	pic, scenePic, sound, err := storeMedia(ms)
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}
-	raw, err := json.Marshal(sampleTest(testID, pic, sound))
+	raw, err := json.Marshal(sampleTest(testID, pic, scenePic, sound))
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}

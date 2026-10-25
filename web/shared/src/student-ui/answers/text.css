@@ -1,0 +1,68 @@
+/* Highlight and written answers. */
+.k-words {
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(26 * var(--k-px));
+  font-size: max(18px, calc(24 * var(--k-px)));
+  font-weight: 600;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+
+.k-words p {
+  margin: 0;
+}
+
+.k-words strong {
+  font-weight: 800;
+}
+
+/* A word is a button that looks like text until it is hovered or chosen. */
+.k-word {
+  display: inline;
+  /* Half of the side padding is taken back by the margin, so the box hugs the word without widening the spaces much. */
+  margin: 0 -0.05em;
+  padding: 0.05em 0.1em;
+  border: 0;
+  border-radius: 0.3em;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.k-word[data-hovered] {
+  background: var(--k-soft);
+}
+
+.k-word[data-selected] {
+  background: var(--k-sel);
+  color: var(--k-on-dark);
+}
+
+.k-word[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-open {
+  max-width: calc(900 * var(--k-px));
+}
+
+.k-open-box {
+  height: calc(250 * var(--k-px));
+  min-height: calc(120 * var(--k-px));
+  font-size: max(16px, calc(22 * var(--k-px)));
+  font-weight: 500;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.k-open-count {
+  margin-top: calc(8 * var(--k-px));
+  color: var(--k-muted);
+  font-size: max(13px, calc(16 * var(--k-px)));
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

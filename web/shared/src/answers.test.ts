@@ -67,6 +67,31 @@ test("short and number are answered by any non-blank text", () => {
   }
 });
 
+test("label is answered when every point has a label, decoys need no place", () => {
+  const q = {
+    type: "label",
+    options: ["l1", "l2", "decoy"].map((id) => ({ id })),
+    targets: [{ id: "p1" }, { id: "p2" }],
+  };
+  expect(isAnswered(q, undefined)).toBe(false);
+  expect(isAnswered(q, { pairs: { l1: "p1" } })).toBe(false);
+  expect(isAnswered(q, { pairs: { l1: "p1", decoy: "p1" } })).toBe(false);
+  expect(isAnswered(q, { pairs: { l1: "p1", l2: "p2" } })).toBe(true);
+  expect(isAnswered(q, { pairs: { l1: "p1", decoy: "p2" } })).toBe(true);
+});
+
+test("hotspot, highlight and open are answered by a point, a word and non-blank text", () => {
+  const hotspot = { type: "hotspot", options: [] };
+  expect(isAnswered(hotspot, {})).toBe(false);
+  expect(isAnswered(hotspot, { point: { x: 0, y: 0 } })).toBe(true);
+  const highlight = { type: "highlight", options: [] };
+  expect(isAnswered(highlight, { items: [] })).toBe(false);
+  expect(isAnswered(highlight, { items: ["0"] })).toBe(true);
+  const open = { type: "open", options: [] };
+  expect(isAnswered(open, { text: " \n " })).toBe(false);
+  expect(isAnswered(open, { text: "Так" })).toBe(true);
+});
+
 test("withPair sets a gap's value and drops its key when it is empty", () => {
   expect(withPair({ a: "x" }, "b", "y")).toEqual({ a: "x", b: "y" });
   expect(withPair({ a: "x", b: "y" }, "b", "")).toEqual({ a: "x" });

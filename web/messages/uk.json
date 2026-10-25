@@ -16,6 +16,7 @@
   "answer_label": "Розставте підписи",
   "answer_highlight": "Виділіть потрібні слова",
   "answer_open": "Напишіть відповідь",
+  "open_count": "{count} з {max}",
   "answer_true": "Правда",
   "answer_false": "Неправда",
   "number_placeholder": "Наприклад, 9,8",
@@ -24,6 +25,7 @@
   "cards_tray": "Картки",
   "card_label": "Картка {number}",
   "slot_label": "Місце {number}",
+  "point_label": "Точка {number}",
   "card_place": "Покласти сюди: {slot}",
   "card_return": "Повернути до карток",
   "card_picked": "Вибрано: {card}. Оберіть місце",
@@ -53,6 +55,7 @@
   "finish_correct": "Правильно: {correct} з {total}",
   "finish_sent": "Результат надіслано вчителю",
   "finish_waiting": "Роботу збережено, оцінка з’явиться після відновлення зв’язку",
+  "finish_pending": "Оцінку виставить учитель, коли перевірить роботу",
   "finish_announce": "Оцінка {grade} з 12. Правильно: {correct} з {total}",
   "toast_offline": "Немає зв’язку. Відповіді збережено",
   "toast_offline_pending": [

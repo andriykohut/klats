@@ -123,6 +123,13 @@ export interface Klats {
   live(): Promise<LiveSnapshot>;
   /** The teacher's results of the assignment `id`. */
   results(id: string): Promise<AssignmentResults>;
+  /** Sets the teacher's points for a participant's answer, as the results table does. */
+  override(
+    assignmentId: string,
+    participantId: string,
+    questionId: string,
+    points: number,
+  ): Promise<void>;
   /** Renames the computer the student `name` writes on. */
   rename(name: string, label: string): Promise<void>;
   /** A student computer: a 1024×768 page in a browser context of its own, with a touch screen when `touch`. */
@@ -222,6 +229,13 @@ export const test = base.extend<{ klats: Klats }>({
         return api<SittingInfo>("POST", "/api/sittings", {
           testId: id,
           classId: cls.id,
+        });
+      },
+      async override(assignmentId, participantId, questionId, points) {
+        await api("PUT", `/api/assignments/${assignmentId}/overrides`, {
+          participantId,
+          questionId,
+          points,
         });
       },
       async rename(name, label) {

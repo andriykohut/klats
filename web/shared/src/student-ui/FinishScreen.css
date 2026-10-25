@@ -80,6 +80,15 @@
   line-height: 1.15;
 }
 
+.k-finish-note {
+  max-width: calc(560 * var(--k-px));
+  margin: calc(14 * var(--k-px)) 0 0;
+  color: var(--k-muted);
+  font-weight: 600;
+  font-size: max(16px, calc(22 * var(--k-px)));
+  line-height: 1.35;
+}
+
 .k-finish-chips {
   display: flex;
   flex-wrap: wrap;

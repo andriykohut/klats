@@ -19,8 +19,9 @@ export function hasAnswer(a: Answer | undefined): boolean {
  * Whether a student has finished answering `question`. A true/false, grid,
  * matching or grouping question counts only when every statement, row, left
  * item or item has a value, a gaps question only when every gap has non-blank
- * text or a choice, and a word bank only when every gap of its body has a
- * word, so a partly filled one still shows as open in the progress bar and
+ * text or a choice, a word bank only when every gap of its body has a word,
+ * and a labelling question only when every point has a label (decoys need no
+ * place), so a partly filled one still shows as open in the progress bar and
  * the review; the server grades what is given. Any other type counts as soon
  * as {@link hasAnswer} does, which for ordering means once the student has
  * moved a card.
@@ -29,11 +30,16 @@ export function isAnswered(
   question: {
     type: string;
     options: { id: string }[];
+    targets?: { id: string }[];
     gaps?: { id: string }[];
     body?: unknown;
   },
   a: Answer | undefined,
 ): boolean {
+  if (question.type === "label") {
+    const used = new Set(Object.values(a?.pairs ?? {}));
+    return (question.targets ?? []).every((t) => used.has(t.id));
+  }
   if (["truefalse", "grid", "match", "groups"].includes(question.type)) {
     return question.options.every((o) => !!a?.pairs?.[o.id]);
   }

@@ -5,8 +5,12 @@ import { ChoiceAnswers } from "./ChoiceAnswers";
 import { GapsAnswer } from "./GapsAnswer";
 import { GridAnswers } from "./GridAnswers";
 import { GroupsAnswers } from "./GroupsAnswers";
+import { HighlightAnswer } from "./HighlightAnswer";
+import { HotspotAnswer } from "./HotspotAnswer";
+import { LabelAnswer } from "./LabelAnswer";
 import { MatchAnswers } from "./MatchAnswers";
 import { NumberAnswer } from "./NumberAnswer";
+import { OpenAnswer } from "./OpenAnswer";
 import { OrderAnswers } from "./OrderAnswers";
 import { TextAnswer } from "./TextAnswer";
 import { TrueFalseAnswers } from "./TrueFalseAnswers";
@@ -26,7 +30,7 @@ export interface AnswerProps {
 
 /**
  * The part of a question's sheet the student answers in: the component of the
- * question's type, or nothing for a type with none yet. `density` is the
+ * question's type, or nothing for a type with none. `density` is the
  * sheet's tile density step and `onDensity` asks it to change (see
  * {@link ChoiceAnswers}).
  */
@@ -59,6 +63,14 @@ export function AnswerArea({
       return <GroupsAnswers {...props} />;
     case "bank":
       return <BankAnswers {...props} />;
+    case "hotspot":
+      return <HotspotAnswer {...props} />;
+    case "label":
+      return <LabelAnswer {...props} />;
+    case "highlight":
+      return <HighlightAnswer {...props} />;
+    case "open":
+      return <OpenAnswer {...props} />;
     default:
       return null;
   }

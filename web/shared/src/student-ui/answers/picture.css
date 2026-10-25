@@ -1,0 +1,114 @@
+/*
+ * Hotspot and labelling pictures. The picture takes the height the viewport
+ * has left after the sheet's text and footer (--pic-reserve, in design pixels
+ * that a type's answers add), never less than 180 px, at its aspect ratio and
+ * never wider than its file or the sheet. Rich text's --img-w and --img-r give
+ * the file's width and aspect ratio.
+ */
+.k-pic {
+  --pic-reserve: calc(380 * var(--k-px));
+  --pic-max: max(180px, calc(100cqh - var(--pic-reserve)));
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, var(--img-w), calc(var(--pic-max) * var(--img-r)));
+  margin-top: calc(22 * var(--k-px));
+  border-radius: calc(12 * var(--k-px));
+  outline: none;
+}
+
+.k-board .k-pic {
+  --pic-reserve: calc(520 * var(--k-px));
+}
+
+.k-pic-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  user-select: none;
+}
+
+.k-pic-hot {
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.k-pic-hot:focus-visible {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+/* Markers never take a click, so it lands on the picture and its offset is the picture's. */
+.k-marker,
+.k-cursor {
+  position: absolute;
+  box-sizing: border-box;
+  width: max(24px, calc(34 * var(--k-px)));
+  height: max(24px, calc(34 * var(--k-px)));
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.k-marker {
+  border: calc(5 * var(--k-px)) solid var(--k-paper);
+  background: var(--k-sel);
+  box-shadow: 0 0 0 calc(3 * var(--k-px)) var(--k-sel-dark);
+}
+
+/* The keyboard's cursor shows only while the picture has focus from the keyboard. */
+.k-cursor {
+  display: none;
+  border: calc(3 * var(--k-px)) dashed var(--k-focus);
+}
+
+.k-pic-hot:focus-visible .k-cursor {
+  display: block;
+}
+
+/* A labelling place sits on its point; it grows to hold a label and stays centred on the point. */
+.k-pin {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+}
+
+.k-pin:focus-within {
+  z-index: 2;
+}
+
+.k-pin .k-slot {
+  display: block;
+}
+
+.k-pin .k-slot-list {
+  min-width: max(40px, calc(52 * var(--k-px)));
+  min-height: max(40px, calc(52 * var(--k-px)));
+  padding: calc(4 * var(--k-px));
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(26 * var(--k-px));
+  background: var(--k-paper);
+}
+
+.k-pin .k-card {
+  padding: calc(4 * var(--k-px)) calc(12 * var(--k-px));
+  white-space: nowrap;
+}
+
+.k-pin .k-slot-hit {
+  border-radius: calc(26 * var(--k-px));
+}
+
+.k-pin-no {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: var(--k-sel);
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  pointer-events: none;
+}

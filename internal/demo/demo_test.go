@@ -40,8 +40,8 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	if !eng.Active() || eng.SittingID() != info.SittingID {
 		t.Fatalf("sitting %q is not the running one", info.SittingID)
 	}
-	if info.ClassName != "7-Б" || info.QuestionCount != 17 {
-		t.Errorf("sitting of class %q with %d questions, want 7-Б with 17", info.ClassName, info.QuestionCount)
+	if info.ClassName != "7-Б" || info.QuestionCount != 21 {
+		t.Errorf("sitting of class %q with %d questions, want 7-Б with 21",info.ClassName, info.QuestionCount)
 	}
 
 	join, err := eng.Join(info.Code, strings.Repeat("a", 26), "10.0.0.5")
@@ -67,7 +67,7 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	for _, q := range test.Questions {
 		types[q.Type] = true
 	}
-	for _, want := range []string{"single", "multi", "truefalse", "grid", "short", "number", "gaps", "order", "match", "groups", "bank"} {
+	for _, want := range []string{"single", "multi", "truefalse", "grid", "short", "number", "gaps", "order", "match", "groups", "bank", "hotspot", "label", "highlight", "open"} {
 		if !types[want] {
 			t.Errorf("question types %v, want %s among them", types, want)
 		}
@@ -100,8 +100,8 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 		t.Errorf("question 8 text holds %v, want a paragraph, an image and an audio", top)
 	}
 	files := test.Media()
-	if len(files) != 2 {
-		t.Errorf("sample test uses media %v, want its image and audio", files)
+	if len(files) != 3 {
+		t.Errorf("sample test uses media %v, want its two images and audio", files)
 	}
 	for _, name := range files {
 		f, _, err := ms.Open(name)

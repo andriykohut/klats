@@ -26,7 +26,7 @@ export interface RichAttrs {
 /**
  * A node of a rich-text document. Known types: paragraph, text, hardBreak,
  * bulletList, orderedList, listItem, codeBlock, table, tableRow, tableHeader,
- * tableCell, image, audio, math, gap. Only text nodes carry text and marks.
+ * tableCell, image, audio, math, gap, word. Only text nodes carry text and marks.
  */
 export interface RichNode {
   type: string;
@@ -48,24 +48,34 @@ export interface RichDoc {
  * instead of failing. Images and audio load through {@link useMediaURL}; one
  * that can't be loaded shows a note that it is still loading. A formula is
  * drawn by {@link MathView}, and a code block by {@link CodeView}. A gap
- * renders as what `gap` returns for its id, or as nothing without it.
+ * renders as what `gap` returns for its id, or as nothing without it. A word
+ * node, which the server makes of a highlight question's body, renders as
+ * what `word` returns for its index and its text, or as its text without it.
+ * The index counts word nodes through the whole document, as Go's
+ * `rich.Doc.Words` does.
  */
 export function RichView({
   doc,
   gap,
+  word,
 }: {
   doc: RichDoc;
   gap?: (id: string) => ReactNode;
+  word?: (index: number, children: ReactNode) => ReactNode;
 }) {
-  return <>{doc.content?.map((n, i) => renderNode(n, i, gap))}</>;
+  const render = { gap, word, words: 0 };
+  return <>{doc.content?.map((n, i) => renderNode(n, i, render))}</>;
 }
 
-function renderNode(
-  node: RichNode,
-  key: number,
-  gap?: (id: string) => ReactNode,
-): ReactNode {
-  const children = node.content?.map((n, i) => renderNode(n, i, gap));
+/** How one document renders its gap and word nodes, and how many words it has met so far. */
+interface Render {
+  gap?: (id: string) => ReactNode;
+  word?: (index: number, children: ReactNode) => ReactNode;
+  words: number;
+}
+
+function renderNode(node: RichNode, key: number, render: Render): ReactNode {
+  const children = node.content?.map((n, i) => renderNode(n, i, render));
   switch (node.type) {
     case "text":
       return (
@@ -139,9 +149,15 @@ function renderNode(
         <MathView key={key} latex={node.attrs.latex} />
       ) : null;
     case "gap":
-      return node.attrs?.id && gap ? (
-        <Fragment key={key}>{gap(node.attrs.id)}</Fragment>
+      return node.attrs?.id && render.gap ? (
+        <Fragment key={key}>{render.gap(node.attrs.id)}</Fragment>
       ) : null;
+    case "word":
+      return (
+        <Fragment key={key}>
+          {render.word ? render.word(render.words++, children) : children}
+        </Fragment>
+      );
     default:
       return <Fragment key={key}>{children ?? node.text}</Fragment>;
   }
