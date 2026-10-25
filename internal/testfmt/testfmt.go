@@ -140,7 +140,9 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // field is replaced by the canonical JSON of its parsed rich.Doc (a missing or
 // null field becomes an empty document), so callers persist the result rather
 // than the input. Each question keeps only the fields its type uses, and an
-// option's Target that names no target or body gap is cleared. A list of over
+// option's Target that names no target or body gap is cleared, and a gaps
+// question's Gaps are brought in line with its body: one entry for each gap
+// node, in body order. A list of over
 // 50 entries or with a repeated id, an accepted text or choice of over 200
 // characters, a rubric of over 2,000 and a coordinate outside 0 to 1 are
 // errors. Content problems such as a missing correct option are not errors
@@ -203,6 +205,9 @@ func (q *Question) decode() error {
 	}
 	if err := q.checkGapsAndAreas(); err != nil {
 		return err
+	}
+	if k.uses&useGaps != 0 {
+		q.syncGaps()
 	}
 	q.clearDanglingTargets()
 	return nil

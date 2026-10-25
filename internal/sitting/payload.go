@@ -72,16 +72,40 @@ func studentTest(t testfmt.Test, device string) wire.StudentTest {
 			opts[j] = wire.StudentOption{ID: o.ID, Content: o.Content, Image: o.Image}
 		}
 		if q.ShuffleOptions {
-			h := fnv.New64a()
-			_, _ = io.WriteString(h, device+q.ID)
-			seed := h.Sum64()
-			rand.New(rand.NewPCG(seed, seed)).Shuffle(len(opts), func(i, j int) { opts[i], opts[j] = opts[j], opts[i] })
+			shuffle(opts, device+q.ID)
 		}
 		sq := wire.StudentQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Options: opts}
 		for _, g := range q.Targets {
 			sq.Targets = append(sq.Targets, wire.StudentTarget{ID: g.ID, Content: g.Content, Image: g.Image, X: g.X, Y: g.Y})
 		}
+		if q.Type == "gaps" {
+			sq.Body = q.Body
+			sq.Gaps = studentGaps(q, device)
+		}
 		out.Questions[i] = sq
 	}
 	return out
+}
+
+// studentGaps lists the gaps of a gaps question in body order, each list gap
+// with its choices in an order fixed per device and question. A typed gap has
+// no choices.
+func studentGaps(q testfmt.Question, device string) []wire.StudentGap {
+	gaps := make([]wire.StudentGap, len(q.Gaps))
+	for i, g := range q.Gaps {
+		gaps[i].ID = g.ID
+		for _, c := range g.Choices {
+			gaps[i].Choices = append(gaps[i].Choices, wire.StudentChoice{ID: c.ID, Text: c.Text})
+		}
+		shuffle(gaps[i].Choices, device+q.ID+"#g:"+g.ID)
+	}
+	return gaps
+}
+
+// shuffle reorders list in an order fixed by the FNV-1a hash of key.
+func shuffle[T any](list []T, key string) {
+	h := fnv.New64a()
+	_, _ = io.WriteString(h, key)
+	seed := h.Sum64()
+	rand.New(rand.NewPCG(seed, seed)).Shuffle(len(list), func(i, j int) { list[i], list[j] = list[j], list[i] })
 }

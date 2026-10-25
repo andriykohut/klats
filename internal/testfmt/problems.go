@@ -20,8 +20,10 @@ type Problem struct {
 // too_few_options, single_many_correct (Count is the number of correct
 // options), empty_option and weak_partial; true/false has too_few_options and
 // empty_option; the choice grid has too_few_options, too_few_targets, no_target
-// and empty_option. Count is the least number the question needs for
-// too_few_options and too_few_targets.
+// and empty_option; short text has no_accepted and one_accepted; number has
+// no_number; gaps has no_gaps and gap_no_answer, once per gap without an
+// answer. Count is the least number the question needs for too_few_options and
+// too_few_targets, and the number of the gap (from 1) for gap_no_answer.
 func (t Test) Problems() []Problem {
 	var out []Problem
 	for _, q := range t.Questions {

@@ -1,5 +1,5 @@
-// Package grading scores answers to the choice questions (single, multiple,
-// true/false and grid) and converts a total into the Ukrainian 12-point grade.
+// Package grading scores answers to the choice, short text, number and gaps
+// questions and converts a total into the Ukrainian 12-point grade.
 package grading
 
 import (
@@ -26,7 +26,8 @@ type Result struct {
 
 // Verdict is the outcome of judging one answer. Items says, for each part of
 // the answer the type judges, whether it is right; its keys are option ids for
-// the choice types.
+// the choice types, gap ids for gaps and "" for the one answer of a short text
+// or number question.
 type Verdict struct {
 	Points float64
 	Items  map[string]bool
@@ -42,6 +43,12 @@ func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
 		return judgeStatements(q, a)
 	case "grid":
 		return judgeGrid(q, a)
+	case "short":
+		return judgeShort(q, a)
+	case "number":
+		return judgeNumber(q, a)
+	case "gaps":
+		return judgeGaps(q, a)
 	}
 	return Verdict{}
 }
