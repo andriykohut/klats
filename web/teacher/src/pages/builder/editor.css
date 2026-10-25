@@ -738,3 +738,19 @@
   font-weight: 600;
   line-height: 1.45;
 }
+
+/* A word to find in a highlight body. */
+.b-target {
+  border-radius: 3px;
+  background: #ffd9ab;
+  box-shadow: inset 0 -3px 0 var(--k-sel);
+}
+
+.b-rich-btn[data-mark="target"] {
+  background: #ffd9ab;
+  color: var(--k-ink);
+}
+
+.b-rich-btn[data-mark="target"][aria-pressed="true"] {
+  box-shadow: inset 0 -3px 0 var(--k-sel);
+}

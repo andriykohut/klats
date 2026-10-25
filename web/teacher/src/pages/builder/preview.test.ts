@@ -46,18 +46,26 @@ test("toStudent strips the key and keeps the teacher's order", () => {
   expect(JSON.stringify(grid)).not.toMatch(/"target"|correct/);
 });
 
-test("toStudent leaves out a highlight body and an open question's rubric", () => {
+test("toStudent sends a highlight body as words with no target mark, and leaves out an open question's rubric", () => {
   const marked = {
     type: "doc",
     content: [
       {
         type: "paragraph",
-        content: [{ type: "text", text: "слово", marks: [{ type: "target" }] }],
+        content: [
+          { type: "text", text: "яскраво ", marks: [{ type: "target" }] },
+          { type: "text", text: "світить" },
+        ],
       },
     ],
   };
   const highlight = toStudent({ ...base, type: "highlight", body: marked });
-  expect(JSON.stringify(highlight)).not.toMatch(/target|marks/);
+  expect(JSON.stringify(highlight)).not.toMatch(/target/);
+  expect(
+    (
+      highlight.body as { content: { content: { type: string }[] }[] }
+    ).content[0].content.map((n) => n.type),
+  ).toEqual(["word", "text", "word"]);
   const open = toStudent({ ...base, type: "open" });
   expect(JSON.stringify(open)).not.toMatch(/rubric|Критерії/);
 });

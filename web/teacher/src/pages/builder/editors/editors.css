@@ -322,3 +322,155 @@
 .b-group .b-opt .b-rich[data-inline] {
   flex-basis: 100px;
 }
+
+/* The empty picture field: a button, and the hint that a file can be dropped or pasted. */
+.b-drop {
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border: 2px dashed var(--t-line-strong);
+  border-radius: 13px;
+  color: var(--k-muted);
+  font-weight: 600;
+}
+
+.b-drop .t-btn {
+  height: 42px;
+}
+
+/* The picture takes its final shape from the first frame; the pointer draws and drags on it. */
+.b-pic {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: border-box;
+  border-radius: var(--t-radius-field);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.b-pic-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.b-pic-x {
+  margin-top: 8px;
+}
+
+/* A hotspot area is drawn as internal/grading reads it: the box, or the ellipse inscribed in it. */
+.b-area {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--k-sel-dark);
+  background: rgba(255, 140, 40, 0.28);
+  cursor: move;
+}
+
+.b-area[data-shape="ellipse"] {
+  border-radius: 50%;
+}
+
+.b-area[data-draft] {
+  border-style: dashed;
+  pointer-events: none;
+}
+
+.b-area-n {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--k-sel-dark);
+  font: 800 16px var(--k-font-text);
+  pointer-events: none;
+}
+
+.b-pin {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 3px solid var(--k-paper);
+  border-radius: 50%;
+  background: var(--k-sel);
+  box-shadow: 0 0 0 2px var(--k-sel-dark);
+  color: var(--k-on-dark);
+  font: 800 13px / 1 var(--k-font-text);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+}
+
+.b-pin:focus-visible {
+  outline: var(--t-focus);
+  outline-offset: 3px;
+}
+
+/* The number in front of a row of areas or points. */
+.b-area-no {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--k-field);
+  border-radius: 11px;
+  background: var(--k-soft);
+  font: 800 12px / 1 var(--k-font-text);
+}
+
+/* One of an area's four percentages: its letter, the field, and the percent sign. */
+.b-pct {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--k-muted);
+  font: 800 13px var(--k-font-text);
+}
+
+.b-pct input {
+  width: 38px;
+  padding: 6px 4px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-small);
+  background: var(--k-paper);
+  color: var(--k-ink);
+  font: 700 14px var(--k-font-text);
+  outline: none;
+}
+
+.b-pct input[data-hovered] {
+  border-color: var(--t-line-strong);
+}
+
+.b-pct input[data-focused] {
+  border-color: var(--k-field);
+  box-shadow: 0 0 0 3px var(--k-soft);
+}
+
+.b-opt.b-area-row {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.b-rubric textarea {
+  resize: vertical;
+}

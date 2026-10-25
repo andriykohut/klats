@@ -33,6 +33,9 @@ export const MAX_POINTS = 12;
 /** The longest a typed text may be, in characters, as internal/testfmt allows. */
 export const MAX_TEXT = 200;
 
+/** The longest a written-answer question's marking notes may be, in characters, as internal/testfmt allows. */
+export const MAX_RUBRIC = 2000;
+
 /** The most entries a list of texts, choices or gaps may hold, as internal/testfmt allows. */
 export const MAX_LIST = 50;
 

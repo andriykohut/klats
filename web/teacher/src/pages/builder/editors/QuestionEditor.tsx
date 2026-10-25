@@ -8,9 +8,13 @@ import { EditorHead, Grading } from "./EditorHead";
 import { GapsEditor } from "./GapsEditor";
 import { GridEditor } from "./GridEditor";
 import { GroupsEditor } from "./GroupsEditor";
+import { HighlightEditor } from "./HighlightEditor";
+import { HotspotEditor } from "./HotspotEditor";
 import type { RemoveItem } from "./ItemList";
+import { LabelEditor } from "./LabelEditor";
 import { MatchEditor } from "./MatchEditor";
 import { NumberEditor } from "./NumberEditor";
+import { OpenEditor } from "./OpenEditor";
 import { OrderEditor } from "./OrderEditor";
 import { ShortEditor } from "./ShortEditor";
 import { TrueFalseEditor } from "./TrueFalseEditor";
@@ -34,6 +38,10 @@ const EDITORS: Record<string, ComponentType<EditorProps>> = {
   match: MatchEditor,
   groups: GroupsEditor,
   bank: BankEditor,
+  hotspot: HotspotEditor,
+  label: LabelEditor,
+  highlight: HighlightEditor,
+  open: OpenEditor,
 };
 
 /**

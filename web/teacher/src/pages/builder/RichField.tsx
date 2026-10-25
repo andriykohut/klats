@@ -43,13 +43,15 @@ import { FormulaDialog } from "./rich/FormulaDialog";
 import { GapNode, setGapWords } from "./rich/GapNode";
 import { ImageNode } from "./rich/ImageNode";
 import { MathNode } from "./rich/MathNode";
+import { TargetMark } from "./rich/TargetMark";
 
 /*
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
  * code; Subscript, Superscript, the table nodes, the formula node and, in
  * block fields, the image and audio nodes are added beside it. Gapped fields
- * keep the inline set and add the gap node. Block fields swap StarterKit's
+ * keep the inline set and add the gap node; marked fields keep it without
+ * formulas and add the target mark. Block fields swap StarterKit's
  * codeBlock for CodeBlockLowlight, which highlights the block and adds its
  * `language` attr.
  * Pasted content is parsed against this schema, so headings, quotes, links
@@ -107,6 +109,13 @@ const GAPPED_EXTENSIONS = [
   Superscript,
   MathNode,
   GapNode,
+];
+
+const MARKED_EXTENSIONS = [
+  StarterKit.configure(INLINE),
+  Subscript,
+  Superscript,
+  TargetMark,
 ];
 
 const MARKS = [
@@ -189,7 +198,8 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * and an image file pasted or dropped into it is uploaded and inserted at the
  * caret or drop point. The
  * node goes in only after the upload succeeds; a failure shows a message under
- * the field until the next edit or upload. Both kinds of field take formulas:
+ * the field until the next edit or upload. Every field but a marked one takes
+ * formulas:
  * the toolbar's formula button, or Mod-Shift-L, opens a dialog for a new one,
  * or for the formula that is selected, and clicking a formula reopens it.
  * Each time `focus` changes to a number other than 0, the field takes focus
@@ -206,6 +216,12 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * the button and the shortcut off, for a caller that has a limit of its own
  * on what a gap adds. The chips show the text `gapWords` has for their id
  * instead of their number, and are named «Пропуск N: слово» then.
+ *
+ * `marked` makes it the body of a highlight question: paragraphs and
+ * formatting like an option but with more than one paragraph, and the target
+ * mark (see {@link TargetMark}); it has no formulas, gaps, lists, code, tables
+ * or media. Its toolbar's «Шукане слово» button, or Mod-K, toggles the mark on
+ * the selected text and does nothing without a selection.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -218,13 +234,15 @@ export function RichField(props: {
   gapName?: string;
   gapDisabled?: boolean;
   gapWords?: Map<string, string>;
+  marked?: boolean;
   focus?: number;
   onEnter?: () => void;
   onEmptyBackspace?: () => void;
 }) {
   const inline = props.inline ?? false;
   const gapped = props.gapped ?? false;
-  const block = !(inline || gapped);
+  const marked = props.marked ?? false;
+  const block = !(inline || gapped || marked);
   const focus = props.focus ?? 0;
   const [error, setError] = useState("");
   const [languageOpen, setLanguageOpen] = useState(false);
@@ -256,11 +274,13 @@ export function RichField(props: {
 
   const editor = useEditor({
     immediatelyRender: true,
-    extensions: gapped
-      ? GAPPED_EXTENSIONS
-      : inline
-        ? INLINE_EXTENSIONS
-        : BLOCK_EXTENSIONS,
+    extensions: marked
+      ? MARKED_EXTENSIONS
+      : gapped
+        ? GAPPED_EXTENSIONS
+        : inline
+          ? INLINE_EXTENSIONS
+          : BLOCK_EXTENSIONS,
     // A stored empty document has no paragraph, which ProseMirror requires.
     content: props.value.content?.length ? props.value : textDoc(""),
     editorProps: {
@@ -271,18 +291,24 @@ export function RichField(props: {
         "aria-multiline": inline ? "false" : "true",
         "aria-placeholder": props.placeholder,
       },
-      // Mod-Shift-L (formula) and, in a gapped field, Mod-Shift-G (gap), by
-      // key position so they work in any keyboard layout.
+      // Mod-Shift-L (formula), in a gapped field Mod-Shift-G (gap) and in a
+      // marked field Mod-K (target), by key position so they work in any
+      // keyboard layout.
       handleKeyDown: (view, e) => {
         const { selection } = view.state;
         if (
-          !e.shiftKey ||
           e.altKey ||
           !(MAC ? e.metaKey : e.ctrlKey) ||
           selection.$from.parent.type.spec.code
         ) {
           return false;
         }
+        if (marked && e.code === "KeyK" && !e.shiftKey) {
+          e.preventDefault();
+          putTarget();
+          return true;
+        }
+        if (!e.shiftKey || (marked && e.code === "KeyL")) return false;
         if (e.code === "KeyG" && gapped) {
           e.preventDefault();
           putGap();
@@ -368,6 +394,7 @@ export function RichField(props: {
         (e.getAttributes("codeBlock").language as string | null) ?? null,
       table: e.isActive("table"),
       gaps: gapped ? gapCount(e) : 0,
+      target: marked && e.isActive("target"),
     }),
   });
 
@@ -417,6 +444,17 @@ export function RichField(props: {
       .run();
   };
 
+  const putTarget = () => {
+    const { from, to } = liveRange(editor.view);
+    if (from === to) return;
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .toggleMark("target")
+      .run();
+  };
+
   return (
     <>
       <div
@@ -435,7 +473,7 @@ export function RichField(props: {
             {props.placeholder}
           </span>
         )}
-        {/* The format, table, formula and gap buttons are out of the tab order:
+        {/* The format, table, formula, gap and target buttons are out of the tab order:
           each has a shortcut, named in its title. The image and audio buttons
           and the code language select have none, so they stay in the tab
           order.
@@ -464,6 +502,22 @@ export function RichField(props: {
               {b.glyph}
             </button>
           ))}
+          {marked && (
+            <button
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark="target"
+              aria-pressed={state.target}
+              aria-label={m.rich_target()}
+              title={`${m.rich_target()} (${MOD}K)`}
+              // Keeps the selection in the editor.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={putTarget}
+            >
+              Ab
+            </button>
+          )}
           {block &&
             BLOCKS.map((b) => (
               <button
@@ -514,20 +568,22 @@ export function RichField(props: {
                 </Button>
               </FileTrigger>
             ))}
-          <button
-            type="button"
-            tabIndex={-1}
-            className="b-rich-btn"
-            data-mark="math"
-            aria-label={m.rich_formula()}
-            title={`${m.rich_formula()} (${MOD}${SHIFT}L)`}
-            disabled={state.codeBlock}
-            // Keeps the selection in the editor.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setFormula(selectedFormula(editor.state))}
-          >
-            π
-          </button>
+          {!marked && (
+            <button
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark="math"
+              aria-label={m.rich_formula()}
+              title={`${m.rich_formula()} (${MOD}${SHIFT}L)`}
+              disabled={state.codeBlock}
+              // Keeps the selection in the editor.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setFormula(selectedFormula(editor.state))}
+            >
+              π
+            </button>
+          )}
           {gapped && (
             <button
               type="button"
