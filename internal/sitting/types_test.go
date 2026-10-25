@@ -63,7 +63,8 @@ func TestStudentPayloadTrueFalseGrid(t *testing.T) {
 		}
 	}
 	grid := res.Questions[1]
-	if len(grid.Targets) != 2 || grid.Targets[0].ID != "c0" || grid.Targets[0].X != 0.25 {
+	// Only label points keep a position.
+	if len(grid.Targets) != 2 || grid.Targets[0].ID != "c0" || grid.Targets[0].X != 0 {
 		t.Errorf("grid targets = %+v", grid.Targets)
 	}
 	if got := optionIDs(res.Questions[0]); !slices.Equal(got, []string{"s1", "s2"}) {

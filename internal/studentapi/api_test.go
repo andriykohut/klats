@@ -331,6 +331,32 @@ func TestOversizeBodyIs413(t *testing.T) {
 	wantError(t, v.do("POST", "/api/join", devA, []byte(`{not json`)), 400, "invalid")
 }
 
+// TestLargeWrittenAnswerAccepted sends what a device that went offline during
+// a test of 30 written questions holds: one 5,000-character answer to each,
+// about 300 KB.
+func TestLargeWrittenAnswerAccepted(t *testing.T) {
+	v := setupWith(t, func(tst *testfmt.Test, _ *media.Store) {
+		for i := range 30 {
+			tst.Questions = append(tst.Questions, testfmt.Question{ID: fmt.Sprintf("w%d", i), Type: "open", Text: rich("Поясніть"), Points: 4})
+		}
+	})
+	p := v.enter(t, devA, "Шевченко")
+	text := strings.Repeat("ї", 5000)
+	var req wire.SubmitRequest
+	for i := range 30 {
+		req.Changes = append(req.Changes, wire.AnswerChange{ChangeID: fmt.Sprintf("c%d", i), ParticipantID: p.ID, QuestionID: fmt.Sprintf("w%d", i), Answer: testfmt.Answer{Text: text}, Seq: 1})
+	}
+	w := v.do("POST", "/api/answers", devA, req)
+	wantStatus(t, w, 200)
+	if sr := decodeBody[wire.SubmitResult](t, w); len(sr.Acks) != 30 || sr.Rejected != 0 {
+		t.Errorf("submit = %+v", sr)
+	}
+	res := decodeBody[wire.TestResponse](t, v.do("GET", "/api/test", devA, nil))
+	if len(res.Answers) != 30 || res.Answers[0].Answer.Text != text {
+		t.Errorf("stored %d answers", len(res.Answers))
+	}
+}
+
 func TestTrailingBytesRejected(t *testing.T) {
 	v := setup(t)
 	good := `{"code":"` + v.code + `"}`

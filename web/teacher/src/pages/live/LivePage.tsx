@@ -91,12 +91,15 @@ const HIDDEN_LEGEND = () =>
 
 /**
  * A live cell as the journal draws it: correct and wrong become "answered"
- * while names are hidden, and a value this version does not know is empty.
+ * while names are hidden, a written answer waiting for the teacher
+ * ("pending") is always "answered", and a value this version does not know is
+ * empty.
  */
 function liveCell(state: string, hidden: boolean): CellState {
   if (state === "correct" || state === "wrong") {
     return hidden ? "answered" : state;
   }
+  if (state === "pending") return "answered";
   return state === "current" ? "current" : "empty";
 }
 

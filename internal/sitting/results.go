@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"slices"
+	"strconv"
 
 	"klats/internal/store/db"
 	"klats/internal/testfmt"
@@ -44,7 +45,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			r := a.grade(p)
 			row := wire.ResultRow{
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
-				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade,
+				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade, Pending: r.Pending,
 				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Verdicts: r.Verdicts, Overridden: []string{}, Late: []string{},
 				Writing: p.state == stateWriting,
 			}
@@ -71,6 +72,15 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 	}
 	for i, question := range t.Questions {
 		rq := wire.ResultQuestion{Question: question, Correct: full[i]}
+		if question.Type == "highlight" {
+			doc, words := question.Words()
+			rq.Words, _ = json.Marshal(doc) // a rich.Doc holds nothing that fails to marshal
+			for j, w := range words {
+				if w.Target {
+					rq.TargetWords = append(rq.TargetWords, strconv.Itoa(j))
+				}
+			}
+		}
 		if len(out.Rows) > 0 {
 			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(len(out.Rows))))
 		}

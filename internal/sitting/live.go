@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"klats/internal/grading"
 	"klats/internal/roster"
 	"klats/internal/store"
 	"klats/internal/store/db"
@@ -21,6 +22,7 @@ import (
 const (
 	cellCorrect = "correct"
 	cellWrong   = "wrong"
+	cellPending = "pending"
 	cellCurrent = "current"
 	cellEmpty   = "empty"
 )
@@ -62,14 +64,19 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 			continue
 		}
 		r := a.grade(p)
-		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: make([]string, n), Status: p.state, WindowSwitches: p.switches}
+		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: make([]string, n), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
 		last := -1
 		for i, question := range a.test.Questions {
 			row.Cells[i] = cellEmpty
-			if p.answers[question.ID].IsEmpty() {
+			ans := p.answers[question.ID]
+			if ans.IsEmpty() {
 				continue
 			}
 			last = i
+			if _, overridden := p.overrides[question.ID]; grading.IsPending(question, ans, overridden) {
+				row.Cells[i] = cellPending
+				continue
+			}
 			answered[i]++
 			row.Cells[i] = cellWrong
 			if fullPoints(question, r.PerQuestion[question.ID]) {

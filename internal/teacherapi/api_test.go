@@ -566,6 +566,39 @@ func TestParticipantRoutesAndOverrides(t *testing.T) {
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "dev2"}), 204)
 }
 
+func TestAverageGradeLeavesOutPendingRows(t *testing.T) {
+	v := setup(t, false)
+	doc := goodTest("")
+	doc.Questions = append(doc.Questions, testfmt.Question{ID: "q2", Type: "open", Text: rich("Поясніть"), Points: 2})
+	w := v.do("POST", "/api/sittings", wire.StartRequest{TestID: v.saveTest(t, doc)})
+	wantStatus(t, w, 201)
+	info := decodeBody[wire.SittingInfo](t, w)
+	if _, err := v.e.Join(info.Code, "dev1", "10.0.0.5"); err != nil {
+		t.Fatal(err)
+	}
+	p, err := v.e.Pick(info.Code, "dev1", wire.PickRequest{Surname: "Учень", FirstName: "А"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch := wire.AnswerChange{ChangeID: "c1", ParticipantID: p.ID, QuestionID: "q2", Answer: testfmt.Answer{Text: "Бо"}, Seq: 1}
+	if _, err := v.e.Submit("dev1", []wire.AnswerChange{ch}, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.e.Finish("dev1"); err != nil {
+		t.Fatal(err)
+	}
+	average := func() *float64 {
+		return decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil))[0].AverageGrade
+	}
+	if got := average(); got != nil {
+		t.Errorf("average while the written answer waits = %v, want none", *got)
+	}
+	wantStatus(t, v.do("PUT", "/api/assignments/"+info.AssignmentID+"/overrides", wire.OverrideRequest{ParticipantID: p.ID, QuestionID: "q2", Points: ptr(2)}), 200)
+	if got := average(); got == nil || *got != 6 {
+		t.Errorf("average after grading = %v, want 6", got)
+	}
+}
+
 func ptr(f float64) *float64 { return &f }
 
 func TestExportFallbackDownload(t *testing.T) {

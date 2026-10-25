@@ -153,6 +153,17 @@ design follows from where it runs:
 7. **Results.** The results list and each assignment's results are graded
    from the assignment's copy of the test. The teacher can override the
    points of any answer.
+
+   Written answers wait for the teacher. Until the teacher sets its points,
+   an answered written question is *pending*:
+   - it scores 0;
+   - the student's finish result says a grade is still to come;
+   - the live view shows a `pending` cell;
+   - the results list leaves the row out of the average grade;
+   - the export leaves the row's grade and that question's points blank.
+
+   A blank written answer scores 0 and is not pending. Setting the points,
+   even 0, grades it, and the student's device gets the new grade.
 8. **Export.** `POST /api/assignments/{id}/export` writes an Excel
    workbook, to the path the teacher picks in the save dialog, or as a
    download in a plain browser.
@@ -293,7 +304,8 @@ Students may have the address bookmarked.
 
 - **The student API is the only thing on the LAN, and it trusts nothing.**
   - Device tokens must match their format.
-  - Bodies are capped at 256 KiB.
+  - Bodies are capped at 1 MiB, room for a batch of 5,000-character written
+    answers.
   - Media files are served only for the running test (or the last ended
     one), so a student cannot fetch the files of other tests.
   - Joins and picks are rate limited per device token (10 a minute) and

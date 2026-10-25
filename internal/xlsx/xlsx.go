@@ -13,6 +13,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
+	"klats/internal/grading"
 	"klats/internal/wire"
 )
 
@@ -35,7 +36,9 @@ var (
 // Export writes the workbook for r to w. lang "en" gives English sheet and
 // column names; any other value gives Ukrainian. Question columns on the
 // results sheet are headed by question number, and the questions sheet maps
-// the numbers to text cut at 200 characters.
+// the numbers to text cut at 200 characters. A row with a written answer
+// waiting for the teacher has an empty grade cell, and that answer an empty
+// points cell.
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
 	if lang == "en" {
@@ -78,10 +81,15 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		res.put(2, n, row.Name, 0)
 		res.put(3, n, row.ClassName, 0)
 		for q := range min(qn, len(row.Points)) {
-			res.put(4+q, n, row.Points[q], decimal)
+			question := r.Questions[q].Question
+			if !grading.IsPending(question, row.Answers[question.ID], slices.Contains(row.Overridden, question.ID)) {
+				res.put(4+q, n, row.Points[q], decimal)
+			}
 		}
 		res.put(4+qn, n, row.Earned, decimal)
-		res.put(5+qn, n, row.Grade, 0)
+		if row.Pending == 0 {
+			res.put(5+qn, n, row.Grade, 0)
+		}
 		if row.DurationSec > 0 {
 			res.put(6+qn, n, fmt.Sprintf("%02d:%02d", row.DurationSec/60, row.DurationSec%60), 0)
 		}

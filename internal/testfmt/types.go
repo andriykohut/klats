@@ -3,7 +3,8 @@ package testfmt
 import "klats/internal/rich"
 
 // use is a set of the question fields a type keeps. The option fields Correct
-// and Target are listed apart from Options because only some types use them.
+// and Target, and the target fields X and Y, are listed apart from Options and
+// Targets because only some types use them.
 type use uint16
 
 const (
@@ -11,6 +12,7 @@ const (
 	useCorrect
 	useTarget
 	useTargets
+	usePosition
 	useBody
 	useGaps
 	useImage
@@ -51,10 +53,10 @@ var kinds = map[string]kind{
 	"match":     {uses: useOptions | useTarget | useTargets | usePartial, problems: matchProblems, clean: cleanMatch, validate: checkMatchPairs},
 	"groups":    {uses: useOptions | useTarget | useTargets | usePartial, problems: groupsProblems, clean: cleanGrid},
 	"bank":      {uses: useBody | useOptions | useTarget | usePartial, bodyMode: rich.Gapped, problems: bankProblems, clean: cleanBank, validate: checkBankWords},
-	"hotspot":   {uses: useImage | useAreas},
-	"label":     {uses: useImage | useTargets | useOptions | useTarget | usePartial},
-	"highlight": {uses: useBody | usePartial, bodyMode: rich.Marked},
-	"open":      {uses: useRubric},
+	"hotspot":   {uses: useImage | useAreas, problems: hotspotProblems, clean: cleanPoint},
+	"label":     {uses: useImage | useTargets | usePosition | useOptions | useTarget | usePartial, problems: labelProblems, clean: cleanMatch, validate: checkLabelPoints},
+	"highlight": {uses: useBody | usePartial, bodyMode: rich.Marked, problems: highlightProblems, clean: cleanHighlight},
+	"open":      {uses: useRubric, clean: cleanWritten},
 }
 
 // dropUnused clears the fields the type does not use.
@@ -72,6 +74,11 @@ func (q *Question) dropUnused(u use) {
 	}
 	if u&useTargets == 0 {
 		q.Targets = nil
+	}
+	if u&usePosition == 0 {
+		for i := range q.Targets {
+			q.Targets[i].X, q.Targets[i].Y = 0, 0
+		}
 	}
 	if u&useBody == 0 {
 		q.Body = nil

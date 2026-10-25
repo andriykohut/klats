@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { route } from "./route";
 
-const result = { grade: 9, correct: 7, total: 9 };
+const result = { grade: 9, correct: 7, total: 9, pending: false };
 
 test("writing loads the test unless it already syncs", () => {
   expect(route({ state: "writing" }, "pick", false)).toEqual({ to: "resume" });

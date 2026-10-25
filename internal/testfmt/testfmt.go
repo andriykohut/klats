@@ -145,8 +145,8 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // node, in body order. A list of over 50 entries or with a repeated id (for
 // gaps, both before and after that step), an accepted text or choice of over
 // 200 characters, a rubric of over 2,000, a coordinate outside 0 to 1, a word
-// bank gap with more than one word and a matching target shared by two left
-// items are errors. Content problems such as a missing correct option are not
+// bank gap with more than one word, a matching target shared by two left items
+// and a label point shared by two labels are errors. Content problems such as a missing correct option are not
 // errors here; see Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test

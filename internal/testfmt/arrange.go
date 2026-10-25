@@ -128,8 +128,9 @@ func cleanOrder(q Question, a Answer) (Answer, bool) {
 	return Answer{Items: a.Items}, true
 }
 
-// cleanMatch validates the answer of a matching question: each left item maps
-// to a right-hand target, and no target is used twice.
+// cleanMatch validates the answer of a matching or label question: each left
+// item or label maps to a right-hand target or point, and no target is used
+// twice.
 func cleanMatch(q Question, a Answer) (Answer, bool) {
 	if _, ok := cleanGrid(q, a); !ok || hasRepeatedValue(a.Pairs) {
 		return Answer{}, false

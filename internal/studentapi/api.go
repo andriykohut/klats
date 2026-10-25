@@ -31,7 +31,7 @@ import (
 const deviceHeader = "X-Klats-Device"
 
 const (
-	maxBodyBytes    = 256 << 10
+	maxBodyBytes    = 1 << 20
 	maxStreamsPerIP = 64
 	keepAliveTime   = 15 * time.Second
 )

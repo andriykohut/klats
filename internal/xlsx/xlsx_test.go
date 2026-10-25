@@ -117,6 +117,19 @@ func TestExportCells(t *testing.T) {
 	}
 }
 
+func TestExportPendingGrade(t *testing.T) {
+	r := sample()
+	r.Questions[0].Question.Type, r.Questions[1].Question.Type = "open", "open"
+	// The first row answered both written questions; the teacher graded q2.
+	first := &r.Rows[0]
+	first.Points, first.Earned, first.Pending = []float64{0, 1.5, 0}, 1.5, 1
+	first.Answers = map[string]testfmt.Answer{"q1": {Text: "Бо"}, "q2": {Text: "Тому"}}
+	first.Overridden = []string{"q2"}
+	f := open(t, r, "uk")
+	eq(t, "pending row", row(t, f, "Результати", 2, false), []string{"1", "=1+1", "7-А", "", "1.5", "0.0", "1.5", "", "75:03", "21.10.2026"})
+	eq(t, "unanswered row", row(t, f, "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "0.0", "3.0", "0.0", "3.0", "7", "", "21.10.2026"})
+}
+
 func TestExportEnglish(t *testing.T) {
 	f := open(t, sample(), "en")
 	if got := f.GetSheetList(); strings.Join(got, "|") != "Results|Questions" {

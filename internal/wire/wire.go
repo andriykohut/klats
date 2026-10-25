@@ -214,17 +214,20 @@ type Status struct {
 }
 
 // FinishResult is the grade a student sees: no correct answers, only how many
-// of Total questions scored full points.
+// of Total questions scored full points. Pending is set while a written answer
+// waits for the teacher's points; Grade and Correct count it as 0 until then.
 type FinishResult struct {
-	Grade   int `json:"grade"`
-	Correct int `json:"correct"`
-	Total   int `json:"total"`
+	Grade   int  `json:"grade"`
+	Correct int  `json:"correct"`
+	Total   int  `json:"total"`
+	Pending bool `json:"pending"`
 }
 
 // LiveSnapshot is the teacher's live view of the running sitting or, until
 // the next one starts, of the last ended one. Kicked participants are left
 // out. QuestionPct has one entry per question: the percent of answers to it
-// that score full points, or nil while nobody has answered it. Events lists
+// that score full points, or nil while there are none; written answers waiting
+// for the teacher are left out. Events lists
 // the pinned events waiting for a decision, then the 20 newest others, newest
 // first.
 type LiveSnapshot struct {
@@ -247,9 +250,11 @@ type Counts struct {
 
 // LiveRow is one participant in the live view, in Ukrainian order of Name.
 // Cells has one entry per question: "correct" (full points), "wrong"
-// (answered with fewer), "current" (the question after the last one answered,
-// while writing) or "empty". Status is "writing", "offline" or "finished".
-// Grade is set once finished.
+// (answered with fewer), "pending" (a written answer the teacher has not
+// graded), "current" (the question after the last one answered, while
+// writing) or "empty". Status is "writing", "offline" or "finished". Grade is
+// set once finished; Pending counts the "pending" cells, which Grade scores as
+// 0.
 type LiveRow struct {
 	ParticipantID  string   `json:"participantId"`
 	Name           string   `json:"name"`
@@ -258,6 +263,7 @@ type LiveRow struct {
 	Cells          []string `json:"cells"`
 	Status         string   `json:"status"`
 	Grade          *int     `json:"grade"`
+	Pending        int      `json:"pending"`
 	WindowSwitches int      `json:"windowSwitches"`
 }
 
@@ -280,11 +286,15 @@ type AssignmentResults struct {
 // ResultQuestion is a question of the results table, as the assignment's test
 // snapshot has it, answer key included: the teacher may have edited the test
 // since. Correct is the number of rows that scored full points on it, and
-// CorrectPct is that count as a percent of all rows.
+// CorrectPct is that count as a percent of all rows. A highlight question also
+// carries Words, its body as students got it (see testfmt.Question.Words),
+// and TargetWords, the indexes of its marked words.
 type ResultQuestion struct {
-	Question   testfmt.Question `json:"question"`
-	Correct    int              `json:"correct"`
-	CorrectPct int              `json:"correctPct"`
+	Question    testfmt.Question `json:"question"`
+	Correct     int              `json:"correct"`
+	CorrectPct  int              `json:"correctPct"`
+	Words       json.RawMessage  `json:"words,omitempty"`
+	TargetWords []string         `json:"targetWords,omitempty"`
 }
 
 // ResultRow is one participant's result, in Ukrainian order of Name. Points
@@ -295,7 +305,9 @@ type ResultQuestion struct {
 // Answers maps question id to the answer, for answered questions; Verdicts
 // maps question id to whether each part of the answer is right (see
 // grading.Verdict), for the questions with an answered part; Late lists the
-// questions whose answer arrived after the sitting ended.
+// questions whose answer arrived after the sitting ended. Pending counts the
+// written answers waiting for the teacher's points (see grading.IsPending),
+// which score 0 until then.
 type ResultRow struct {
 	ParticipantID string                     `json:"participantId"`
 	Name          string                     `json:"name"`
@@ -304,6 +316,7 @@ type ResultRow struct {
 	Earned        float64                    `json:"earned"`
 	Max           float64                    `json:"max"`
 	Grade         int                        `json:"grade"`
+	Pending       int                        `json:"pending"`
 	Writing       bool                       `json:"writing"`
 	DurationSec   int                        `json:"durationSec"`
 	SittingDate   int64                      `json:"sittingDate"`

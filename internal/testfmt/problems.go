@@ -25,9 +25,13 @@ type Problem struct {
 // answer; ordering has too_few_options and empty_option; matching has
 // too_few_options, no_target and empty_option; grouping has too_few_options,
 // too_few_targets, no_target and empty_option; the word bank has no_gaps,
-// gap_no_answer, once per gap without a word, and empty_option. Count is the
-// least number the question needs for too_few_options and too_few_targets, and
-// the number of the gap (from 1) for gap_no_answer.
+// gap_no_answer, once per gap without a word, and empty_option; the hotspot
+// has no_image and no_areas; labelling has no_image, no_points,
+// point_no_label, once per point without a label, and empty_option for a
+// label; highlighting has no_words; a written answer has none of its own.
+// Count is the least number the question needs for too_few_options and
+// too_few_targets, the number of the gap (from 1) for gap_no_answer, and the
+// number of the point (from 1) for point_no_label.
 func (t Test) Problems() []Problem {
 	var out []Problem
 	for _, q := range t.Questions {

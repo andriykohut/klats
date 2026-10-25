@@ -75,9 +75,22 @@ func TestDecodeDropsUnusedFields(t *testing.T) {
 }
 
 func TestDecodeKeepsFieldsOfItsType(t *testing.T) {
-	q := mustDecodeQ(t, grid([]Target{col("c1", "A"), col("c2", "B")}, row("r1", "x", "c1")))
+	q := mustDecodeQ(t, grid([]Target{{ID: "c1", Content: rj("A"), X: 0.25, Y: 0.5}, col("c2", "B")}, row("r1", "x", "c1")))
 	if len(q.Targets) != 2 || q.Options[0].Target != "c1" {
 		t.Fatalf("grid lost fields: %+v", q)
+	}
+	if q.Targets[0].X != 0 || q.Targets[0].Y != 0 {
+		t.Errorf("a grid column keeps a position: %+v", q.Targets[0])
+	}
+	l := mustDecodeQ(t, labelQ([]Target{spot("p1", 0.25, 0.5)}, row("l1", "a", "p1")))
+	if l.Targets[0].X != 0.25 || l.Targets[0].Y != 0.5 || l.Image == nil {
+		t.Errorf("label lost its point or image: %+v", l)
+	}
+	if h := mustDecodeQ(t, hotspotQ(Area{ID: "a1", Shape: "rect", W: 0.5, H: 0.5})); h.Image == nil || len(h.Areas) != 1 {
+		t.Errorf("hotspot lost its image or areas: %+v", h)
+	}
+	if hl := mustDecodeQ(t, highlightQ("Кіт", "*біжить")); !strings.Contains(string(hl.Body), "target") {
+		t.Errorf("highlight lost its body: %s", hl.Body)
 	}
 }
 
@@ -130,8 +143,8 @@ func TestDecodeRejectsOversize(t *testing.T) {
 		"long gap text":   gapsQ(Gap{ID: "g", Accepted: []string{long}}),
 		"long choice":     gapsQ(Gap{ID: "g", Choices: []Choice{{ID: "c", Text: long}}}),
 		"long rubric":     {ID: "q1", Type: "open", Points: 1, Rubric: strings.Repeat("я", 2001)},
-		"target x":        grid([]Target{{ID: "c1", X: 1.1}}, row("r1", "x", "c1")),
-		"target y":        grid([]Target{{ID: "c1", Y: -0.1}}, row("r1", "x", "c1")),
+		"point x":         labelQ([]Target{spot("p1", 1.1, 0)}, row("l1", "x", "p1")),
+		"point y":         labelQ([]Target{spot("p1", 0, -0.1)}, row("l1", "x", "p1")),
 		"area width":      {ID: "q1", Type: "hotspot", Points: 1, Areas: []Area{{ID: "a", Shape: "rect", W: 2}}},
 		"target bad img":  grid([]Target{{ID: "c1", Image: &Image{Src: "x.png", W: 1, H: 1}}}),
 		"question no img": {ID: "q1", Type: "hotspot", Points: 1, Image: &Image{Src: img + ".mp3", W: 1, H: 1}},

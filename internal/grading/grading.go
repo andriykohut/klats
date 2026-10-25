@@ -1,6 +1,6 @@
-// Package grading scores answers to the choice, short text, number, gaps,
-// ordering, matching, grouping and word bank questions and converts a total
-// into the Ukrainian 12-point grade.
+// Package grading scores answers to every question type except written
+// answers, which wait for the teacher's points, and converts a total into the
+// Ukrainian 12-point grade.
 package grading
 
 import (
@@ -23,19 +23,23 @@ type Result struct {
 	// Verdicts holds the [Verdict.Items] of every question with an answered
 	// part, by question id. Teacher overrides do not change them.
 	Verdicts map[string]map[string]bool
+	// Pending counts the written answers waiting for the teacher (see
+	// [IsPending]). They score 0 until the teacher sets their points.
+	Pending int
 }
 
 // Verdict is the outcome of judging one answer. Items says, for each part of
 // the answer the type judges, whether it is right; its keys are option ids for
-// the choice types, gap ids for gaps and "" for the one answer of a short text
-// or number question.
+// the choice and label types, gap ids for gaps, word indexes for highlighting
+// and "" for the one answer of a short text, number or hotspot question.
 type Verdict struct {
 	Points float64
 	Items  map[string]bool
 }
 
-// Judge scores the answer to the question and rates its parts. An answer to a
-// question whose type is not judged earns 0.
+// Judge scores the answer to the question and rates its parts. A written
+// answer, and an answer to a question whose type is not judged, earns 0 and
+// has no verdict items.
 func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
 	switch q.Type {
 	case "single", "multi":
@@ -54,6 +58,12 @@ func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
 		return judgeNumber(q, a)
 	case "gaps":
 		return judgeGaps(q, a)
+	case "hotspot":
+		return judgeHotspot(q, a)
+	case "label":
+		return judgeLabels(q, a)
+	case "highlight":
+		return judgeHighlight(q, a)
 	}
 	return Verdict{}
 }
@@ -72,9 +82,12 @@ func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[stri
 		if len(v.Items) > 0 {
 			r.Verdicts[q.ID] = v.Items
 		}
-		pts, ok := overrides[q.ID]
-		if !ok {
+		pts, overridden := overrides[q.ID]
+		if !overridden {
 			pts = v.Points
+		}
+		if IsPending(q, answers[q.ID], overridden) {
+			r.Pending++
 		}
 		r.PerQuestion[q.ID] = pts
 		r.Earned += pts

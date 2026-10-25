@@ -39,7 +39,7 @@ func (a *api) listAssignments(w http.ResponseWriter, r *http.Request) {
 		}
 		sum, n := 0, 0
 		for _, rr := range res.Rows {
-			if !rr.Writing {
+			if !rr.Writing && rr.Pending == 0 {
 				sum, n = sum+rr.Grade, n+1
 			}
 		}
