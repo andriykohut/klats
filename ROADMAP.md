@@ -14,7 +14,7 @@ to Excel.
 *Why first:* it proves the hardest promise, that no answer is ever lost on
 a flaky network, end to end, with the simplest question types.
 
-## M2: every question type, with media
+## M2: every question type, with media (done)
 
 - **The other 13 question types:**
   - true/false grid and choice grid;
@@ -24,7 +24,8 @@ a flaky network, end to end, with the simplest question types.
   - clicking a spot on a picture, and labelling a picture;
   - highlighting words in a text;
   - a written answer, graded by the teacher.
-- **Media:** images, formulas and audio, in questions and answers.
+- **Media:** images, formulas, audio, tables and code, in questions and
+  answers.
 
 *Why next:* variety is what lets a teacher move all their tests to Klats.
 Each type reuses the sync, grading and results paths that M1 proved.

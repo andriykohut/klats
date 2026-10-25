@@ -9,8 +9,12 @@ school's local network, with no accounts, no internet and nothing to
 install. Answers survive network drops and restarts, and the teacher
 watches the class live and gets graded results.
 
-**Status:** milestone 1, pre-release. The core loop works end to end, with
-single- and multiple-choice questions. There are no installers yet.
+**Status:** milestone 2, pre-release. The core loop works end to end, with
+15 question types: single and multiple choice, true/false, choice grids,
+short text, numbers, gaps, ordering, matching, grouping, word banks, clicking
+a spot on a picture, labelling a picture, highlighting words and written
+answers, which the teacher grades. Questions and answers can hold pictures,
+audio, formulas, tables and code. There are no installers yet.
 
 ## Quick start
 

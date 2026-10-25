@@ -23,6 +23,8 @@ result (pass, or what went wrong) in the release pull request.
   test with:
   - a single-choice and a multiple-choice question;
   - a question of about 1,500 characters with nine answers.
+  - for the checks of M2, a test with one question of each of the 15 types,
+    with a picture, a formula and a sound. `make demo` builds one.
 - **Network.** The teacher computer and the student computers are on one
   LAN, as in a lab. Each student computer opens the address the board view
   («Показати на дошці») shows.
@@ -60,6 +62,34 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
    Internet Explorer 11 or Chrome 100.
    - *Expected:* only «Цей браузер застарий. Відкрийте тест у Chrome або
      Firefox.» and its English line.
+7. **Every type, mouse.** Open a test with one question of each of the 15
+   types (`make demo` builds one) and answer each with the mouse only.
+   - *Expected:* every answer shows at once, survives a reload and counts in
+     the grade the teacher sees.
+8. **Every type, keyboard.** Answer one question of each type with the
+   keyboard only: `Tab`, the arrow keys, `Space` and `Enter`. A card can
+   move by `Enter` on its drag handle, then `Tab` to a place and `Enter`.
+   - *Expected:* every type can be answered and the focus is always visible.
+9. **Dragging.** Drag with the mouse in the ordering, matching, grouping,
+   word bank and label questions.
+   - *Expected:* the card follows the pointer, lands where it is dropped and
+     is kept after a reload.
+10. **Audio.** Play the question with sound, then seek and pause.
+    - *Expected:* it plays, seeks and pauses in Chrome and Firefox.
+    - In Firefox on a Windows N edition without the Media Feature Pack, play
+      a WAV and an Ogg clip, then an MP3 and an M4A clip. *Expected:* WAV and
+      Ogg play. For MP3 and M4A, note what the student sees; the question
+      must stay answerable.
+11. **Formulas offline.** Open a test with formulas and let every page show
+    its formulas. Disable the PC's network adapter and move between the
+    questions with formulas, then reload the page.
+    - *Expected:* the formulas stay set in the KaTeX fonts, with no boxes or
+      fallback letters, until the reload.
+12. **1024×768.** Set the screen to 1024×768 and go through one question of
+    each type.
+    - *Expected:* the question, its answers and «Далі» fit or scroll with
+      «Ще N відповідей нижче», and nothing is cut off or overlaps, the
+      picture questions and the long code or table included.
 
 ## 2. The Windows teacher app (Windows 10)
 
@@ -165,3 +195,51 @@ and run one sitting with one student browser.
 | Debian 13 | Starts and works. |
 | Fedora 40 | Starts and works. |
 | One version older (macOS 12, Ubuntu 22.04) | Does not start, or the package refuses to install. Note what the teacher sees, for the user docs. |
+
+## 6. The teacher program, M2 checks
+
+The builder and the results use browser features that differ between the
+three desktop webviews, and the tests cannot reach them. Run the checks on
+Windows 10 (WebView2), macOS 13 or newer (WKWebView) and Ubuntu 24.04
+(WebKitGTK), and note which system each result is from. A check marked with a
+system is for that system only. Each line says what to do, then what should
+happen.
+
+### Dragging, typing and pasting
+
+- In the builder, drag items to a new place in the lists of an ordering, a
+  matching, a grouping and a word bank question. *Expected:* the item
+  follows the pointer and the new order is saved.
+- On a picture, drag an area of a hotspot question and a point of a label
+  question. *Expected:* they follow the pointer and stay where they are
+  dropped.
+- In a number field, type «.». *Expected:* it turns into the decimal comma «,».
+- Windows only: double-click a word in a gaps question and press
+  `Ctrl+Shift+G`, then double-click another and press `Ctrl+K` in a
+  highlight question. *Expected:* the gap or the mark covers the word and
+  not the space after it.
+- In the picture field, click it and paste a picture, then drop another
+  picture file on it. *Expected:* each shows in the field.
+- Paste a PNG, or a WebP, that WebKit must re-encode, and a HEIC photo from
+  an iPhone. *Expected:* each is stored as a picture the students see; if a
+  format is not supported, a clear message names the formats that are.
+- Copy text that holds only a picture from Word and paste it into a question.
+  *Expected:* the picture shows and nothing else is added.
+- Add a WAV over 10 MiB as a sound. *Expected:* it is refused with a message
+  that says audio is limited to 10 MB, and the test is unchanged.
+
+### Layout
+
+- At 1366×768, open the picture field of a hotspot question and a long
+  question's answer-review drawer in the results. *Expected:* nothing is cut
+  off or overlaps, and the drawer scrolls inside the window.
+
+### Students and the program
+
+- With formulas on a student page in Chrome 109 and Firefox 115 and the KaTeX
+  fonts already loaded, disable the student PC's network. *Expected:* the
+  formulas on the pages already opened stay set in the KaTeX fonts.
+- While a sitting runs with student pages open, close the program, then kill
+  it (Task Manager, `kill -9`), then start it again. *Expected:* the student
+  pages reconnect with «Зв’язок відновлено», and every answer given before
+  and during the break is in the results.
