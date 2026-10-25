@@ -305,7 +305,13 @@ export function convertQuestion(q: Question, type: string): Question {
         correct: correct && o.correct,
       };
       if (o.image) kept.image = o.image;
-      if (targeted && o.target && !(type === "match" && taken.has(o.target))) {
+      const known = q.targets?.some((t) => t.id === o.target);
+      if (
+        targeted &&
+        o.target &&
+        known &&
+        !(type === "match" && taken.has(o.target))
+      ) {
         taken.add(o.target);
         kept.target = o.target;
       }
@@ -333,6 +339,26 @@ export function convertQuestion(q: Question, type: string): Question {
     out.image = q.image;
   }
   return out;
+}
+
+/**
+ * Returns `words` with the target cleared on each word that names a gap of
+ * `live` already named by a word in `taken` or by an earlier one of `words`,
+ * so that no gap ends up with two words. A word whose target is not in `live`
+ * is left as it is.
+ */
+export function clearTakenTargets(
+  words: Option[],
+  taken: Option[],
+  live: string[],
+): Option[] {
+  const used = new Set(taken.map((o) => o.target));
+  return words.map((o) => {
+    if (!o.target || !live.includes(o.target)) return o;
+    if (used.has(o.target)) return { ...o, target: "" };
+    used.add(o.target);
+    return o;
+  });
 }
 
 /** Returns `node` without the nodes and marks whose type is in `drop`. */

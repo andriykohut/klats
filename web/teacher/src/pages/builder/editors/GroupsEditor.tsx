@@ -1,9 +1,9 @@
 import type { Option, Target } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { Icon } from "../../../ui/icons";
-import { insertAt, newOption, newTarget, plainText } from "../model";
+import { insertAt, MAX_LIST, newOption, newTarget, plainText } from "../model";
 import { RichField } from "../RichField";
 import { ItemImage, ItemList, itemNames } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
@@ -32,7 +32,24 @@ export function GroupsEditor({
   const groups = q.targets ?? [];
   const [focus, setFocus] = useState({ id: "", n: 0 });
   const [imageError, setImageError] = useState("");
+  // The item whose group was just changed: its row is rebuilt in another
+  // column, which drops focus, so its group choice takes focus back.
+  const [moved, setMoved] = useState({ id: "", n: 0 });
+  const root = useRef<HTMLDivElement>(null);
   const loose = q.options.filter((o) => !groups.some((g) => g.id === o.target));
+
+  useEffect(() => {
+    if (!moved.n) return;
+    root.current
+      ?.querySelector<HTMLElement>(
+        `[data-item="${CSS.escape(moved.id)}"] .b-group-sel`,
+      )
+      ?.focus();
+  }, [moved]);
+
+  /** What the items of a list may grow by: the rest of the question's 50. */
+  const room = (items: Option[]) =>
+    MAX_LIST - (q.options.length - items.length);
 
   const editGroup = (id: string, patch: Partial<Target>) =>
     onChange((x) => ({
@@ -92,14 +109,14 @@ export function GroupsEditor({
       className="b-group-sel"
       aria-label={m.builder_group_item_group({ item: name })}
       value={groups.some((g) => g.id === o.target) ? o.target : ""}
-      onChange={(e) =>
+      onChange={(e) => {
+        const target = e.target.value;
         onChange((x) => ({
           ...x,
-          options: x.options.map((y) =>
-            y.id === o.id ? { ...y, target: e.target.value } : y,
-          ),
-        }))
-      }
+          options: x.options.map((y) => (y.id === o.id ? { ...y, target } : y)),
+        }));
+        setMoved((s) => ({ id: o.id, n: s.n + 1 }));
+      }}
     >
       {!groups.some((g) => g.id === o.target) && (
         <option value="">{m.builder_group_none()}</option>
@@ -113,7 +130,7 @@ export function GroupsEditor({
   );
 
   return (
-    <>
+    <div ref={root}>
       <div className="b-lbl">
         {m.builder_groups()}
         <em>{m.builder_groups_hint()}</em>
@@ -161,6 +178,7 @@ export function GroupsEditor({
               </header>
               <ItemList
                 items={q.options.filter((o) => o.target === g.id)}
+                max={room(q.options.filter((o) => o.target === g.id))}
                 names={names}
                 addLabel={m.builder_add_group_item({ group: gi + 1 })}
                 create={() => ({ ...newOption(), target: g.id })}
@@ -192,6 +210,7 @@ export function GroupsEditor({
           <div className="b-lbl">{m.builder_group_none()}</div>
           <ItemList
             items={loose}
+            max={room(loose)}
             names={LOOSE}
             create={newOption}
             onChange={(fn) => editItems("", fn)}
@@ -200,6 +219,6 @@ export function GroupsEditor({
           />
         </fieldset>
       )}
-    </>
+    </div>
   );
 }

@@ -21,6 +21,7 @@
   "answer_false": "False",
   "number_placeholder": "For example, 9.8",
   "gap_label": "Gap {number}",
+  "gap_label_word": "Gap {number}: {word}",
   "gap_choose": "Choose",
   "cards_tray": "Cards",
   "card_label": "Card {number}",

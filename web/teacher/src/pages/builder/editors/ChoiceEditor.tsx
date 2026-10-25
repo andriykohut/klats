@@ -2,7 +2,7 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { BADGE_LETTERS } from "@klats/shared/student-ui/badges.ts";
 import { ToggleButton } from "react-aria-components";
 import { Icon } from "../../../ui/icons";
-import { newOption } from "../model";
+import { MAX_LIST, newOption } from "../model";
 import { ItemList, type ItemNames } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
 
@@ -54,6 +54,7 @@ export function ChoiceEditor({
         names={NAMES}
         addLabel={m.builder_add_answer()}
         create={newOption}
+        max={MAX_LIST}
         onChange={(fn) => onChange((x) => ({ ...x, options: fn(x.options) }))}
         onRemoveItem={onRemoveItem}
         marked={(o) => o.correct}

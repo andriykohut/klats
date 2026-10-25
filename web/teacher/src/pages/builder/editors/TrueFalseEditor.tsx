@@ -1,5 +1,5 @@
 import { m } from "@klats/shared/paraglide/messages.js";
-import { newOption } from "../model";
+import { MAX_LIST, newOption } from "../model";
 import { ItemList, itemNames, RowChoice } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
 
@@ -25,6 +25,7 @@ export function TrueFalseEditor({
         names={NAMES}
         addLabel={m.builder_add_statement()}
         create={newOption}
+        max={MAX_LIST}
         onChange={(fn) => onChange((x) => ({ ...x, options: fn(x.options) }))}
         onRemoveItem={onRemoveItem}
         trailing={(o, i) => (

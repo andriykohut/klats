@@ -253,6 +253,15 @@ export function ItemList<T extends Option | Target>(props: {
                   }
                 : undefined
             }
+            onDragLeave={
+              movable
+                ? (e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setOver((id) => (id === o.id ? "" : id));
+                    }
+                  }
+                : undefined
+            }
             onDrop={
               movable
                 ? (e) => {

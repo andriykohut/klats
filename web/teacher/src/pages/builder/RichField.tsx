@@ -22,6 +22,7 @@ import {
   type KeyboardEvent,
   useEffect,
   useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 import { Button, FileTrigger } from "react-aria-components";
@@ -201,8 +202,10 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * without the whitespace at the selection's ends, and the button is disabled
  * once the body holds {@link MAX_LIST} gaps. Before the node goes in, `onGap`
  * gets its new id and the text it replaces (empty without a selection).
- * `gapName` names the gap button instead of «Пропуск». The chips show the
- * text `gapWords` has for their id instead of their number.
+ * `gapName` names the gap button instead of «Пропуск». `gapDisabled` turns
+ * the button and the shortcut off, for a caller that has a limit of its own
+ * on what a gap adds. The chips show the text `gapWords` has for their id
+ * instead of their number, and are named «Пропуск N: слово» then.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -213,6 +216,7 @@ export function RichField(props: {
   gapped?: boolean;
   onGap?: (id: string, selected: string) => void;
   gapName?: string;
+  gapDisabled?: boolean;
   gapWords?: Map<string, string>;
   focus?: number;
   onEnter?: () => void;
@@ -340,6 +344,10 @@ export function RichField(props: {
     editor.view.focus();
   }, [focus, editor]);
 
+  // The editor's key handler outlives the render that made it, so it reads
+  // the latest value through a ref.
+  const gapOff = useRef(false);
+  gapOff.current = props.gapDisabled ?? false;
   const words = props.gapWords;
   const wordsKey = JSON.stringify([...(words ?? [])]);
   useEffect(() => {
@@ -397,7 +405,7 @@ export function RichField(props: {
   };
 
   const putGap = () => {
-    if (gapCount(editor) >= MAX_LIST) return;
+    if (gapOff.current || gapCount(editor) >= MAX_LIST) return;
     const live = liveRange(editor.view);
     const { from, to } = trimmedRange(editor.state.doc, live.from, live.to);
     const id = newId();
@@ -528,7 +536,7 @@ export function RichField(props: {
               aria-label={props.gapName ?? m.rich_gap()}
               tabIndex={-1}
               title={`${props.gapName ?? m.rich_gap()} (${MOD}${SHIFT}G)`}
-              disabled={state.gaps >= MAX_LIST}
+              disabled={props.gapDisabled || state.gaps >= MAX_LIST}
               // Keeps the selection in the editor.
               onMouseDown={(e) => e.preventDefault()}
               onClick={putGap}

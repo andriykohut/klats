@@ -1,5 +1,5 @@
 import { m } from "@klats/shared/paraglide/messages.js";
-import { newOption, newTarget, plainText } from "../model";
+import { MAX_LIST, newOption, newTarget, plainText } from "../model";
 import { ItemList, itemNames, type RemoveItem, RowChoice } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
 
@@ -80,6 +80,7 @@ export function GridEditor({
         names={ROWS}
         addLabel={m.builder_add_row()}
         create={newOption}
+        max={MAX_LIST}
         onChange={(fn) => onChange((x) => ({ ...x, options: fn(x.options) }))}
         onRemoveItem={onRemoveItem}
         trailing={(o, i) => (

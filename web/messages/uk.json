@@ -21,6 +21,7 @@
   "answer_false": "Неправда",
   "number_placeholder": "Наприклад, 9,8",
   "gap_label": "Пропуск {number}",
+  "gap_label_word": "Пропуск {number}: {word}",
   "gap_choose": "Оберіть",
   "cards_tray": "Картки",
   "card_label": "Картка {number}",

@@ -2,7 +2,14 @@ import type { Option } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { RichDoc } from "@klats/shared/rich/RichView.tsx";
 import { useState } from "react";
-import { gapsInBody, MAX_LIST, newOption, plainText, textDoc } from "../model";
+import {
+  clearTakenTargets,
+  gapsInBody,
+  MAX_LIST,
+  newOption,
+  plainText,
+  textDoc,
+} from "../model";
 import { RichField } from "../RichField";
 import { ItemImage, ItemList, itemNames } from "./ItemList";
 import type { EditorProps } from "./QuestionEditor";
@@ -70,6 +77,7 @@ export function BankEditor({
         onChange={(doc) => onChange((x) => ({ ...x, body: doc }))}
         onGap={startGap}
         gapName={m.builder_bank_make_gap()}
+        gapDisabled={q.options.length >= MAX_LIST}
         gapWords={shown}
         label={m.builder_bank_body()}
         placeholder={m.builder_bank_body_placeholder()}
@@ -131,11 +139,14 @@ export function BankEditor({
             const live = gapsInBody((x.body ?? textDoc("")) as RichDoc);
             const isExtra = (o: Option) =>
               !o.target || !live.includes(o.target);
+            const kept = x.options.filter((o) => !isExtra(o));
             return {
               ...x,
+              // A word brought back by an undo may name a gap that has a word
+              // by now; it returns as an extra word then.
               options: [
-                ...x.options.filter((o) => !isExtra(o)),
-                ...fn(x.options.filter(isExtra)),
+                ...kept,
+                ...clearTakenTargets(fn(x.options.filter(isExtra)), kept, live),
               ],
             };
           })

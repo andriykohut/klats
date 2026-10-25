@@ -2,6 +2,7 @@ import { QUESTION_TYPES } from "@klats/shared/questionTypes.ts";
 import { Fragment, Schema, Slice } from "@tiptap/pm/model";
 import { expect, test } from "vitest";
 import {
+  clearTakenTargets,
   convertQuestion,
   fromPasted,
   gapInMode,
@@ -595,4 +596,34 @@ test("trimmedRange leaves the whitespace at the ends of a selection out", () => 
   expect(trimmedRange(doc, 3, 20)).toEqual({ from: 3, to: 20 });
   // An inline atom is not whitespace.
   expect(trimmedRange(doc, 18, 21)).toEqual({ from: 20, to: 21 });
+});
+
+test("convertQuestion drops an option's target that names none of the question's targets", () => {
+  const groups = {
+    ...newQuestion("groups"),
+    options: [newOption("а"), newOption("б")],
+  };
+  groups.options[0].target = groups.targets?.[0].id;
+  groups.options[1].target = "removed-group";
+  const match = convertQuestion(groups, "match");
+  const named = match.options.map((o) => o.target);
+  expect(named[0]).toBe(groups.targets?.[0].id);
+  expect(named[1] && named[1] !== "removed-group").toBeTruthy();
+  expect(match.targets?.some((t) => t.id === named[1])).toBe(true);
+});
+
+test("clearTakenTargets leaves a restored word a decoy when its gap has a word", () => {
+  const word = (id: string, target: string) => ({
+    ...newOption(id),
+    id,
+    target,
+  });
+  const taken = [word("a", "g1")];
+  const restored = [word("b", "g1"), word("c", "g2"), word("d", "g2")];
+  const out = clearTakenTargets(restored, taken, ["g1", "g2"]);
+  expect(out.map((o) => o.target)).toEqual(["", "g2", ""]);
+  // A target of a gap that is gone is not a conflict.
+  expect(
+    clearTakenTargets([word("e", "gone")], [word("f", "gone")], ["g1"]),
+  ).toEqual([word("e", "gone")]);
 });

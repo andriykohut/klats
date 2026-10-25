@@ -49,7 +49,7 @@ export function setGapWords(view: EditorView, words: Map<string, string>) {
  * A blank in the text of a gaps question, stored as `{type: "gap", attrs:
  * {id}}`. It is an atom drawn as a chip numbered by its place in the text, or
  * showing its word once {@link setGapWords} gives it one, and named «Пропуск N»
- * for assistive technology (all set by a decoration, so they follow the text as
+ * (with its word, «Пропуск N: слово», once it has one) for assistive technology (all set by a decoration, so they follow the text as
  * gaps are added, moved and removed), and the id links it to the entry in the
  * question's `gaps` or the word option of a bank that holds its answers.
  *
@@ -114,7 +114,9 @@ export const GapNode = Node.create({
               chips.push(
                 Decoration.node(pos, pos + n.nodeSize, {
                   role: "img",
-                  "aria-label": m.gap_label({ number }),
+                  "aria-label": word
+                    ? m.gap_label_word({ number, word })
+                    : m.gap_label({ number }),
                   "data-n": String(number),
                   ...(word ? { "data-word": word } : {}),
                 }),
