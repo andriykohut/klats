@@ -39,8 +39,15 @@ export interface ItemNames {
   down?: (i: number) => string;
 }
 
-/** Returns the names of a list whose item `i` is called `label(i)`, in the order a teacher sees. */
-export function itemNames(label: (i: number) => string): ItemNames {
+/**
+ * Returns the names of a list whose item `i` is called `label(i)`, in the
+ * order a teacher sees. Without `movable` they leave out the names of the
+ * move buttons, and so the list has none.
+ */
+export function itemNames(
+  label: (i: number) => string,
+  movable = true,
+): ItemNames {
   const item = (i: number) => ({ item: label(i) });
   return {
     field: label,
@@ -48,17 +55,75 @@ export function itemNames(label: (i: number) => string): ItemNames {
     imageRemove: (i) => m.builder_item_image_remove(item(i)),
     remove: (i) => m.builder_item_delete(item(i)),
     removed: (i) => m.builder_item_removed(item(i)),
-    up: (i) => m.builder_item_up(item(i)),
-    down: (i) => m.builder_item_down(item(i)),
+    up: movable ? (i) => m.builder_item_up(item(i)) : undefined,
+    down: movable ? (i) => m.builder_item_down(item(i)) : undefined,
   };
+}
+
+/**
+ * The picture controls of an option or target: a thumbnail with a × that
+ * removes it (when there is one), and a button that picks an image file. The
+ * picture is set through `onChange` only once it is uploaded; a failure leaves
+ * the item as it was, and `onError` gets its message, or an empty string when
+ * a new pick starts.
+ */
+export function ItemImage(props: {
+  image: Option["image"];
+  addLabel: string;
+  removeLabel: string;
+  onChange: (image: Option["image"]) => void;
+  onError: (message: string) => void;
+}) {
+  const { image } = props;
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    props.onError("");
+    try {
+      props.onChange(await addImage(file));
+    } catch (err) {
+      props.onError(mediaMessage(err));
+    }
+  };
+  return (
+    <>
+      {image && (
+        <span className="b-opt-pic">
+          <MediaImage
+            src={image.src}
+            w={image.w}
+            h={image.h}
+            className="b-opt-thumb"
+          />
+          <Button
+            className="t-icon-btn b-opt-pic-x"
+            data-variant="danger"
+            aria-label={props.removeLabel}
+            onPress={() => props.onChange(undefined)}
+          >
+            <Icon name="close" />
+          </Button>
+        </span>
+      )}
+      <FileTrigger
+        acceptedFileTypes={["image/*"]}
+        onSelect={(files) => void pick(files?.[0])}
+      >
+        <Button className="t-icon-btn b-opt-img" aria-label={props.addLabel}>
+          <Icon name="image" />
+        </Button>
+      </FileTrigger>
+    </>
+  );
 }
 
 /**
  * The rows of options or targets of one question. Each row is an inline rich
  * field with an image button, a thumbnail with a × that removes the picture,
  * a delete button, and, when `names` has `up` and `down`, buttons that move the
- * row. `leading` and `trailing` put the type's own controls before the field
- * and before the delete button.
+ * row and a handle that drags it to another row's place. The handle is for
+ * the pointer only; the buttons are the keyboard's way to move a row.
+ * `leading` and `trailing` put the type's own controls before the field and
+ * before the delete button.
  *
  * Enter in a field moves to the next row if that one is empty and adds a row
  * after it otherwise; Backspace in an empty field removes the row and moves to
@@ -66,12 +131,12 @@ export function itemNames(label: (i: number) => string): ItemNames {
  * goes through `onChange` as a function of the newest list; removing a row goes
  * through `onRemoveItem`, which owns the undo. A picture is set only once it is
  * uploaded, so a failure leaves the row as it was and shows a message under
- * the list.
+ * the list. Without `addLabel` the list has no button that adds a row.
  */
 export function ItemList<T extends Option | Target>(props: {
   items: T[];
   names: ItemNames;
-  addLabel: string;
+  addLabel?: string;
   create: () => T;
   onChange: (fn: (items: T[]) => T[]) => void;
   onRemoveItem: RemoveItem;
@@ -93,6 +158,9 @@ export function ItemList<T extends Option | Target>(props: {
   // second click of a double-click.
   const [mayDelete] = useState(() => cooldown());
   const [imageError, setImageError] = useState("");
+  // The row being dragged by its handle, and the row it is over.
+  const dragged = useRef("");
+  const [over, setOver] = useState("");
   const focusOn = (id: string) => setFocus((f) => ({ id, n: f.n + 1 }));
 
   useEffect(() => {
@@ -111,16 +179,6 @@ export function ItemList<T extends Option | Target>(props: {
 
   const setImage = (id: string, image: T["image"]) =>
     onChange((xs) => xs.map((x) => (x.id === id ? { ...x, image } : x)));
-
-  const pickImage = async (id: string, file: File | undefined) => {
-    if (!file) return;
-    setImageError("");
-    try {
-      setImage(id, await addImage(file));
-    } catch (err) {
-      setImageError(mediaMessage(err));
-    }
-  };
 
   const addAfter = (index: number) => {
     if (items.length >= max) return;
@@ -159,6 +217,22 @@ export function ItemList<T extends Option | Target>(props: {
     setMoved((s) => ({ id, dir: by < 0 ? "up" : "down", n: s.n + 1 }));
   };
 
+  /** Puts the dragged row where row `id` is. */
+  const drop = (id: string) => {
+    const from = dragged.current;
+    dragged.current = "";
+    setOver("");
+    if (!from || from === id) return;
+    onChange((xs) => {
+      const i = xs.findIndex((x) => x.id === from);
+      const j = xs.findIndex((x) => x.id === id);
+      if (i < 0 || j < 0) return xs;
+      const out = [...xs];
+      out.splice(j, 0, ...out.splice(i, 1));
+      return out;
+    });
+  };
+
   const movable = names.up && names.down;
   return (
     <>
@@ -169,7 +243,48 @@ export function ItemList<T extends Option | Target>(props: {
             className="b-opt"
             data-item={o.id}
             data-correct={props.marked?.(o) || undefined}
+            data-over={over === o.id || undefined}
+            onDragOver={
+              movable
+                ? (e) => {
+                    if (!dragged.current) return;
+                    e.preventDefault();
+                    setOver(o.id);
+                  }
+                : undefined
+            }
+            onDrop={
+              movable
+                ? (e) => {
+                    if (!dragged.current) return;
+                    e.preventDefault();
+                    drop(o.id);
+                  }
+                : undefined
+            }
           >
+            {movable && (
+              <span
+                className="b-opt-grip"
+                data-grip
+                draggable
+                aria-hidden="true"
+                onDragStart={(e) => {
+                  dragged.current = o.id;
+                  // A type of our own: the rich fields read the text types of a drop.
+                  e.dataTransfer.setData("application/x-klats-item", o.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  const row = e.currentTarget.closest("li");
+                  if (row) e.dataTransfer.setDragImage(row, 0, 0);
+                }}
+                onDragEnd={() => {
+                  dragged.current = "";
+                  setOver("");
+                }}
+              >
+                <Icon name="grip" />
+              </span>
+            )}
             {props.leading?.(o, i)}
             <RichField
               inline
@@ -185,35 +300,13 @@ export function ItemList<T extends Option | Target>(props: {
               onEnter={() => enterFrom(i)}
               onEmptyBackspace={() => remove(i, true)}
             />
-            {o.image && (
-              <span className="b-opt-pic">
-                <MediaImage
-                  src={o.image.src}
-                  w={o.image.w}
-                  h={o.image.h}
-                  className="b-opt-thumb"
-                />
-                <Button
-                  className="t-icon-btn b-opt-pic-x"
-                  data-variant="danger"
-                  aria-label={names.imageRemove(i)}
-                  onPress={() => setImage(o.id, undefined)}
-                >
-                  <Icon name="close" />
-                </Button>
-              </span>
-            )}
-            <FileTrigger
-              acceptedFileTypes={["image/*"]}
-              onSelect={(files) => void pickImage(o.id, files?.[0])}
-            >
-              <Button
-                className="t-icon-btn b-opt-img"
-                aria-label={names.image(i)}
-              >
-                <Icon name="image" />
-              </Button>
-            </FileTrigger>
+            <ItemImage
+              image={o.image}
+              addLabel={names.image(i)}
+              removeLabel={names.imageRemove(i)}
+              onChange={(image) => setImage(o.id, image)}
+              onError={setImageError}
+            />
             {movable && (
               <>
                 <Button
@@ -254,15 +347,17 @@ export function ItemList<T extends Option | Target>(props: {
           {imageError}
         </p>
       )}
-      <Button
-        className="t-btn b-add-opt"
-        data-variant="dashed"
-        isDisabled={items.length >= max}
-        onPress={() => addAfter(items.length - 1)}
-      >
-        <Icon name="plus" />
-        {props.addLabel}
-      </Button>
+      {props.addLabel && (
+        <Button
+          className="t-btn b-add-opt"
+          data-variant="dashed"
+          isDisabled={items.length >= max}
+          onPress={() => addAfter(items.length - 1)}
+        >
+          <Icon name="plus" />
+          {props.addLabel}
+        </Button>
+      )}
     </>
   );
 }

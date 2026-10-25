@@ -209,3 +209,116 @@
 .b-choice {
   flex: 1 1 160px;
 }
+
+/* The drag handle of a row that can move. */
+.b-opt-grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  width: 20px;
+  height: 32px;
+  margin-right: -6px;
+  color: var(--k-muted);
+  cursor: grab;
+}
+
+.b-opt .b-opt-grip .t-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
+}
+
+.b-opt[data-over] {
+  border-color: var(--k-field);
+  box-shadow: 0 -3px 0 var(--k-field);
+}
+
+/* The arrow between the two sides of a matching pair. */
+.b-pair-to {
+  flex: none;
+  display: flex;
+  color: var(--k-muted);
+}
+
+.b-opt .b-pair-to .t-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* The groups of a grouping question sit side by side where there is room. */
+.b-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.b-group {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1.5px solid var(--t-line);
+  border-radius: 13px;
+  background: var(--k-soft);
+}
+
+.b-group .b-opt {
+  background: var(--k-paper);
+}
+
+.b-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.b-group-head .b-rich[data-inline] {
+  flex: 1 1 120px;
+  font-weight: 800;
+}
+
+.b-group-sel {
+  flex: 0 1 120px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-small);
+  background: var(--k-paper);
+  color: var(--k-ink);
+  font: 700 13px var(--k-font-text);
+}
+
+.b-group-sel:focus-visible {
+  outline: var(--t-focus);
+  outline-offset: 1px;
+}
+
+/* A bank's gap shows its word: the chip grows to fit it, up to a limit. */
+.b-gap[data-word] {
+  max-width: 200px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.b-gap[data-word]::before {
+  content: attr(data-word);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A pair's two sides share one line; the narrow editor shrinks their fields. */
+.b-opt.b-pair {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.b-opt.b-pair .b-rich[data-inline] {
+  flex: 1 1 80px;
+  min-width: 0;
+}
+
+.b-group .b-opt .b-rich[data-inline] {
+  flex-basis: 100px;
+}

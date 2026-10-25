@@ -1,7 +1,7 @@
 import { m } from "@klats/shared/paraglide/messages.js";
 import { Fragment, type Node as PMNode, Slice } from "@tiptap/pm/model";
-import { Plugin } from "@tiptap/pm/state";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { mergeAttributes, Node } from "@tiptap/react";
 import { MAX_LIST, newId } from "../model";
 
@@ -35,12 +35,23 @@ function renewTaken(fragment: Fragment, taken: Set<string>): Fragment {
   return Fragment.fromArray(out);
 }
 
+const wordsKey = new PluginKey<Map<string, string>>("gapWords");
+
+/**
+ * Makes the chips of the gaps in `view` show the text in `words`, by gap id,
+ * instead of their number. A gap with no entry keeps its number.
+ */
+export function setGapWords(view: EditorView, words: Map<string, string>) {
+  view.dispatch(view.state.tr.setMeta(wordsKey, words));
+}
+
 /**
  * A blank in the text of a gaps question, stored as `{type: "gap", attrs:
- * {id}}`. It is an atom drawn as a chip numbered by its place in the text and
- * named «Пропуск N» for assistive technology (both set by a decoration, so
- * they follow the text as gaps are added, moved and removed), and the id links
- * it to the entry in the question's `gaps` that holds its answers.
+ * {id}}`. It is an atom drawn as a chip numbered by its place in the text, or
+ * showing its word once {@link setGapWords} gives it one, and named «Пропуск N»
+ * for assistive technology (all set by a decoration, so they follow the text as
+ * gaps are added, moved and removed), and the id links it to the entry in the
+ * question's `gaps` or the word option of a bank that holds its answers.
  *
  * Ids are unique within the question and a question holds at most
  * {@link MAX_LIST} gaps, as internal/testfmt requires: the node refuses an edit
@@ -83,6 +94,11 @@ export const GapNode = Node.create({
   addProseMirrorPlugins() {
     return [
       new Plugin({
+        key: wordsKey,
+        state: {
+          init: () => new Map<string, string>(),
+          apply: (tr, words) => tr.getMeta(wordsKey) ?? words,
+        },
         filterTransaction: (tr) => {
           if (!tr.docChanged) return true;
           const ids = gapIds(tr.doc);
@@ -94,11 +110,13 @@ export const GapNode = Node.create({
             state.doc.descendants((n, pos) => {
               if (n.type.name !== "gap") return;
               const number = chips.length + 1;
+              const word = wordsKey.getState(state)?.get(n.attrs.id);
               chips.push(
                 Decoration.node(pos, pos + n.nodeSize, {
                   role: "img",
                   "aria-label": m.gap_label({ number }),
                   "data-n": String(number),
+                  ...(word ? { "data-word": word } : {}),
                 }),
               );
             });

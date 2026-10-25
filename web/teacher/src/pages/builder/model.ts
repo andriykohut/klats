@@ -277,7 +277,8 @@ export function newQuestion(type: string): Question {
  * and shuffling, and what the two types share: the options' contents and
  * images; `correct` among single, multiple choice and true/false; the targets
  * and each option's target among grid, matching and grouping (matching keeps a
- * target for the first option that names it); the body among gaps, word bank
+ * target for the first option that names it, and gives every other option a
+ * new empty one, so that each pair has its own); the body among gaps, word bank
  * and highlight, without the target marks going to gaps or bank, and without
  * the gaps and formulas going to highlight; and the image between hotspot and
  * labels. Every other field starts as {@link newQuestion} has it. Converting to
@@ -311,6 +312,16 @@ export function convertQuestion(q: Question, type: string): Question {
       return kept;
     });
     if (targeted) out.targets = q.targets ?? [];
+    if (type === "match") {
+      const targets = targeted ? [...(q.targets ?? [])] : [];
+      out.options = out.options.map((o) => {
+        if (o.target) return o;
+        const t = newTarget();
+        targets.push(t);
+        return { ...o, target: t.id };
+      });
+      out.targets = targets;
+    }
   }
   if (HAS_BODY.has(q.type) && HAS_BODY.has(type) && q.body) {
     out.body = without(

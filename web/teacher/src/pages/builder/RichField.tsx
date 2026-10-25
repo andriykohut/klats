@@ -18,7 +18,12 @@ import {
   useEditorState,
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { type KeyboardEvent, useLayoutEffect, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { Button, FileTrigger } from "react-aria-components";
 import { flushSync } from "react-dom";
 import { lowlight } from "../../code";
@@ -34,7 +39,7 @@ import {
 import { AudioNode } from "./rich/AudioNode";
 import { CodeLanguageSelect } from "./rich/CodeLanguageSelect";
 import { FormulaDialog } from "./rich/FormulaDialog";
-import { GapNode } from "./rich/GapNode";
+import { GapNode, setGapWords } from "./rich/GapNode";
 import { ImageNode } from "./rich/ImageNode";
 import { MathNode } from "./rich/MathNode";
 
@@ -196,6 +201,8 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * without the whitespace at the selection's ends, and the button is disabled
  * once the body holds {@link MAX_LIST} gaps. Before the node goes in, `onGap`
  * gets its new id and the text it replaces (empty without a selection).
+ * `gapName` names the gap button instead of «Пропуск». The chips show the
+ * text `gapWords` has for their id instead of their number.
  */
 export function RichField(props: {
   value: RichDoc;
@@ -205,6 +212,8 @@ export function RichField(props: {
   inline?: boolean;
   gapped?: boolean;
   onGap?: (id: string, selected: string) => void;
+  gapName?: string;
+  gapWords?: Map<string, string>;
   focus?: number;
   onEnter?: () => void;
   onEmptyBackspace?: () => void;
@@ -330,6 +339,12 @@ export function RichField(props: {
     // The command moves focus a frame later; a key typed sooner must land here.
     editor.view.focus();
   }, [focus, editor]);
+
+  const words = props.gapWords;
+  const wordsKey = JSON.stringify([...(words ?? [])]);
+  useEffect(() => {
+    if (words && !editor.isDestroyed) setGapWords(editor.view, words);
+  }, [wordsKey, editor]);
 
   const state = useEditorState({
     editor,
@@ -510,9 +525,9 @@ export function RichField(props: {
               type="button"
               className="b-rich-btn"
               data-mark="gap"
-              aria-label={m.rich_gap()}
+              aria-label={props.gapName ?? m.rich_gap()}
               tabIndex={-1}
-              title={`${m.rich_gap()} (${MOD}${SHIFT}G)`}
+              title={`${props.gapName ?? m.rich_gap()} (${MOD}${SHIFT}G)`}
               disabled={state.gaps >= MAX_LIST}
               // Keeps the selection in the editor.
               onMouseDown={(e) => e.preventDefault()}

@@ -332,10 +332,25 @@ test("convertQuestion gives a match each right-hand target once", () => {
   grid.options[0].target = grid.targets?.[0].id;
   grid.options[1].target = grid.targets?.[0].id;
   const match = convertQuestion(grid, "match");
-  expect(match.options.map((o) => o.target)).toEqual([
-    grid.targets?.[0].id,
-    undefined,
+  const [first, second] = match.options.map((o) => o.target);
+  expect(first).toBe(grid.targets?.[0].id);
+  expect(second && second !== first).toBeTruthy();
+  // The grid's other column stays as an extra choice, and the second option owns a new target.
+  expect(match.targets?.map((t) => t.id)).toEqual([
+    ...(grid.targets?.map((t) => t.id) ?? []),
+    second,
   ]);
+});
+
+test("convertQuestion gives each option of a new match a target of its own", () => {
+  const order = {
+    ...newQuestion("order"),
+    options: [newOption("а"), newOption("б"), newOption("в")],
+  };
+  const match = convertQuestion(order, "match");
+  const named = match.options.map((o) => o.target);
+  expect(new Set(named).size).toBe(3);
+  expect(match.targets?.map((t) => t.id)).toEqual(named);
 });
 
 test("convertQuestion moves a body between gaps, bank and highlight", () => {

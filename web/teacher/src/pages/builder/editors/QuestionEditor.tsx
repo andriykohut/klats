@@ -2,12 +2,16 @@ import type { Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { ComponentType } from "react";
 import { RichField } from "../RichField";
+import { BankEditor } from "./BankEditor";
 import { ChoiceEditor } from "./ChoiceEditor";
 import { EditorHead, Grading } from "./EditorHead";
 import { GapsEditor } from "./GapsEditor";
 import { GridEditor } from "./GridEditor";
+import { GroupsEditor } from "./GroupsEditor";
 import type { RemoveItem } from "./ItemList";
+import { MatchEditor } from "./MatchEditor";
 import { NumberEditor } from "./NumberEditor";
+import { OrderEditor } from "./OrderEditor";
 import { ShortEditor } from "./ShortEditor";
 import { TrueFalseEditor } from "./TrueFalseEditor";
 
@@ -26,6 +30,10 @@ const EDITORS: Record<string, ComponentType<EditorProps>> = {
   short: ShortEditor,
   number: NumberEditor,
   gaps: GapsEditor,
+  order: OrderEditor,
+  match: MatchEditor,
+  groups: GroupsEditor,
+  bank: BankEditor,
 };
 
 /**
