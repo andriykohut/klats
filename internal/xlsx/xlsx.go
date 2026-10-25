@@ -37,8 +37,8 @@ var (
 // results sheet are headed by question number, and the questions sheet maps
 // the numbers to text cut at 200 characters. A row with a written answer
 // waiting for the teacher has an empty grade cell, and that answer an empty
-// points cell. On the questions sheet the percent is blank while every row's
-// answer to the question waits for the teacher.
+// points cell. On the questions sheet the percent is blank for a question with
+// no [wire.ResultQuestion.CorrectPct].
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
 	if lang == "en" {
@@ -115,10 +115,8 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		qs.put(1, i+2, i+1, 0)
 		qs.put(2, i+2, questionText(q), 0)
 		qs.put(3, i+2, q.Correct, 0)
-		// The percent is of the answers already rated, so it stays blank while
-		// every row's answer waits for the teacher.
-		if len(r.Rows) == 0 || slices.ContainsFunc(r.Rows, func(row wire.ResultRow) bool { return !slices.Contains(row.PendingIDs, q.Question.ID) }) {
-			qs.put(4, i+2, q.CorrectPct, 0)
+		if q.CorrectPct != nil {
+			qs.put(4, i+2, *q.CorrectPct, 0)
 		}
 	}
 	qs.width(1, 1, 6)

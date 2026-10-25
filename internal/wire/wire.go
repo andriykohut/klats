@@ -286,13 +286,13 @@ type AssignmentResults struct {
 // snapshot has it, answer key included: the teacher may have edited the test
 // since. Correct is the number of rows that scored full points on it, and
 // CorrectPct is that count as a percent of the rows whose answer is not
-// waiting for the teacher's points (see ResultRow.PendingIDs), 0 when none is. A highlight question also
-// carries Words, its body as students got it (see testfmt.Question.Words),
+// waiting for the teacher's points (see ResultRow.PendingIDs), or nil when
+// there is no such row. A highlight question also carries Words, its body as students got it (see testfmt.Question.Words),
 // and TargetWords, the indexes of its marked words.
 type ResultQuestion struct {
 	Question    testfmt.Question `json:"question"`
 	Correct     int              `json:"correct"`
-	CorrectPct  int              `json:"correctPct"`
+	CorrectPct  *int             `json:"correctPct"`
 	Words       json.RawMessage  `json:"words,omitempty"`
 	TargetWords []string         `json:"targetWords,omitempty"`
 }

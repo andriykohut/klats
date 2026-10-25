@@ -90,7 +90,8 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			}
 		}
 		if rated[i] > 0 {
-			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(rated[i])))
+			pct := int(math.Round(100 * float64(full[i]) / float64(rated[i])))
+			rq.CorrectPct = &pct
 		}
 		out.Questions = append(out.Questions, rq)
 	}

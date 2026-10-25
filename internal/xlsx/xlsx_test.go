@@ -22,8 +22,8 @@ func sample() wire.AssignmentResults {
 	return wire.AssignmentResults{
 		TestTitle: "Дроби", ClassName: "7-А",
 		Questions: []wire.ResultQuestion{
-			{Question: testfmt.Question{ID: "q1", Text: para("Скільки?")}, Correct: 1, CorrectPct: 50},
-			{Question: testfmt.Question{ID: "q2", Text: para(strings.Repeat("я", 250))}, Correct: 2, CorrectPct: 100},
+			{Question: testfmt.Question{ID: "q1", Text: para("Скільки?")}, Correct: 1, CorrectPct: new(50)},
+			{Question: testfmt.Question{ID: "q2", Text: para(strings.Repeat("я", 250))}, Correct: 2, CorrectPct: new(100)},
 			{Question: testfmt.Question{ID: "q3", Text: []byte(`{"type":"nope"}`)}},
 		},
 		Rows: []wire.ResultRow{
@@ -99,7 +99,7 @@ func TestExportCells(t *testing.T) {
 	eq(t, "questions header", row(t, f, "Питання", 1, false), []string{"№", "Питання", "Правильно", "%"})
 	eq(t, "question 1", row(t, f, "Питання", 2, false), []string{"1", "Скільки?", "1", "50"})
 	eq(t, "question 2", row(t, f, "Питання", 3, false), []string{"2", strings.Repeat("я", 200) + "…", "2", "100"})
-	eq(t, "question 3", row(t, f, "Питання", 4, false), []string{"3", "", "0", "0"})
+	eq(t, "question 3", row(t, f, "Питання", 4, false), []string{"3", "", "0"})
 	if got, _ := f.GetCellType("Питання", "D3"); got != excelize.CellTypeUnset {
 		t.Errorf("type of D3 = %v", got)
 	}
@@ -130,15 +130,11 @@ func TestExportPendingGrade(t *testing.T) {
 	eq(t, "unanswered row", row(t, f, "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "0.0", "3.0", "0.0", "3.0", "7", "", "21.10.2026"})
 }
 
-func TestExportQuestionPctBlankWhileEveryAnswerIsPending(t *testing.T) {
+func TestExportQuestionPctBlankWithoutOne(t *testing.T) {
 	r := sample()
-	r.Questions[0].Question.Type = "open"
-	r.Questions[0].CorrectPct = 0
-	for i := range r.Rows {
-		r.Rows[i].PendingIDs = []string{"q1"}
-	}
+	r.Questions[0].CorrectPct = nil
 	f := open(t, r, "uk")
-	eq(t, "all pending", row(t, f, "Питання", 2, false), []string{"1", "Скільки?", "1"})
+	eq(t, "no percent", row(t, f, "Питання", 2, false), []string{"1", "Скільки?", "1"})
 	eq(t, "answered", row(t, f, "Питання", 3, false), []string{"2", strings.Repeat("я", 200) + "…", "2", "100"})
 }
 

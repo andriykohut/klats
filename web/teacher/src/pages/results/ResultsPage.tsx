@@ -123,11 +123,7 @@ export function ResultsPage() {
             : []
         }
         after={after}
-        pct={res.questions.map((q) =>
-          res.rows.some((r) => !r.pendingIds.includes(q.question.id))
-            ? q.correctPct
-            : null,
-        )}
+        pct={res.questions.map((q) => q.correctPct ?? null)}
         footLabel={m.live_class_correct()}
         barLabel={(t) =>
           m.live_bar({ correct: t.good, wrong: t.bad, left: t.left })

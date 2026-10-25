@@ -209,7 +209,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	finish(t, e, devA)
 
 	r := resultsOf(t, e, info.AssignmentID)
-	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].Question.ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
+	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].Question.ID != "q1" || *r.Questions[0].CorrectPct != 0 || *r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
 		t.Errorf("results = %+v", r)
 	}
 	if len(r.Rows) != 2 || r.Rows[0].Name != "Франко Учень" || r.Rows[1].Name != p.Name {
@@ -235,8 +235,8 @@ func TestOverrideChangesResults(t *testing.T) {
 	if row := r.Rows[1]; !slices.Equal(row.Points, []float64{2, 3}) || row.Earned != 5 || row.Grade != 12 || !slices.Equal(row.Overridden, []string{"q1"}) || !r.ExportStale {
 		t.Errorf("overridden row = %+v, stale %v", row, r.ExportStale)
 	}
-	if r.Questions[0].CorrectPct != 50 {
-		t.Errorf("q1 correct pct = %d, want 50", r.Questions[0].CorrectPct)
+	if *r.Questions[0].CorrectPct != 50 {
+		t.Errorf("q1 correct pct = %d, want 50", *r.Questions[0].CorrectPct)
 	}
 	if r.Questions[0].Correct != 1 {
 		t.Errorf("q1 correct = %d, want 1", r.Questions[0].Correct)

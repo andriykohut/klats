@@ -180,19 +180,19 @@ func TestResultsPctLeavesOutPendingAnswers(t *testing.T) {
 	)
 	submit(t, e, devB, typedChange(b, "q4", 1, testfmt.Answer{Text: "Тому"}))
 
-	pct := func() (hotspot, open int) {
+	pct := func() (hotspot, open *int) {
 		qs := resultsOf(t, e, info.AssignmentID).Questions
 		return qs[0].CorrectPct, qs[3].CorrectPct
 	}
-	if hotspot, open := pct(); hotspot != 50 || open != 0 {
-		t.Errorf("percents with both written answers pending = %d, %d, want 50, 0", hotspot, open)
+	if hotspot, open := pct(); hotspot == nil || *hotspot != 50 || open != nil {
+		t.Errorf("percents with both written answers pending = %v, %v, want 50, none", hotspot, open)
 	}
 	four := 4.0
 	if err := e.SetOverride(info.AssignmentID, a.ID, "q4", &four); err != nil {
 		t.Fatal(err)
 	}
-	if _, open := pct(); open != 100 {
-		t.Errorf("open percent with one pending and one full = %d, want 100", open)
+	if _, open := pct(); open == nil || *open != 100 {
+		t.Errorf("open percent with one pending and one full = %v, want 100", open)
 	}
 }
 
