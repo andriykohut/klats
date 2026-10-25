@@ -4,6 +4,7 @@ import { expect, test } from "vitest";
 import {
   convertQuestion,
   fromPasted,
+  gapInMode,
   gapsInBody,
   newOption,
   newQuestion,
@@ -12,6 +13,7 @@ import {
   syncGaps,
   textDoc,
   toStored,
+  trimmedRange,
 } from "./model";
 
 test("toStored keeps only the keys the server allows", () => {
@@ -531,4 +533,51 @@ test("syncGaps keeps the entries of the gaps in the body, in body order, and sta
     { id: "g3" },
   ]);
   expect(syncGaps(undefined, textDoc(""), stash)).toEqual([]);
+});
+
+test("gapInMode saves only the fields of the mode and gives the other mode's data back", () => {
+  const blank = () => [{ id: "b", text: "", correct: false }];
+  const typed = { id: "g", accepted: ["Київ"] };
+
+  const list = gapInMode(typed, true, undefined, blank);
+  expect(list).toEqual({ id: "g", choices: blank() });
+  expect(list).not.toHaveProperty("accepted");
+
+  // Back to typed: the accepted texts return and no choices are kept.
+  expect(gapInMode(list, false, typed, blank)).toEqual(typed);
+  const edited = {
+    id: "g",
+    choices: [{ id: "c", text: "три", correct: true }],
+  };
+  expect(gapInMode(edited, false, undefined, blank)).toEqual({ id: "g" });
+
+  // A list whose choices were all removed stays a list, with no stale texts.
+  const emptied = gapInMode({ id: "g", choices: [] }, true, typed, blank);
+  expect(emptied).toEqual({ id: "g", choices: [] });
+  // Switching to list again gives back the choices the gap had.
+  expect(gapInMode(typed, true, edited, blank).choices).toEqual(edited.choices);
+});
+
+test("trimmedRange leaves the whitespace at the ends of a selection out", () => {
+  const schema = new Schema({
+    nodes: {
+      doc: { content: "paragraph+" },
+      paragraph: { content: "inline*", group: "block" },
+      text: { group: "inline" },
+      gap: { group: "inline", inline: true, atom: true },
+    },
+  });
+  const doc = schema.node("doc", null, [
+    schema.node("paragraph", null, [schema.text("Київ є столицею")]),
+    schema.node("paragraph", null, [schema.text("  "), schema.node("gap")]),
+  ]);
+  // Positions: the first paragraph's text starts at 1.
+  expect(trimmedRange(doc, 1, 6)).toEqual({ from: 1, to: 5 });
+  expect(trimmedRange(doc, 5, 9)).toEqual({ from: 6, to: 9 });
+  expect(trimmedRange(doc, 1, 5)).toEqual({ from: 1, to: 5 });
+  // Only whitespace, and a selection across paragraphs, stay as they are.
+  expect(trimmedRange(doc, 5, 6)).toEqual({ from: 5, to: 6 });
+  expect(trimmedRange(doc, 3, 20)).toEqual({ from: 3, to: 20 });
+  // An inline atom is not whitespace.
+  expect(trimmedRange(doc, 18, 21)).toEqual({ from: 20, to: 21 });
 });

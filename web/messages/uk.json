@@ -741,6 +741,5 @@
   "builder_gap_choice_correct": "Варіант {number} правильний",
   "builder_gap_add_choice": "Додати варіант",
   "builder_gap_accepted": "Пропуск {number}: прийнятні відповіді",
-  "builder_gap_accepted_add": "Пропуск {number}: нова прийнятна відповідь",
-  "builder_gap_list_removed": "Список пропуску {number} видалено"
+  "builder_gap_accepted_add": "Пропуск {number}: нова прийнятна відповідь"
 }

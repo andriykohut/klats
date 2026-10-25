@@ -1,6 +1,6 @@
 import type { Match, Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Button,
   Input,
@@ -33,6 +33,7 @@ export function AcceptedList(props: {
 }) {
   const { values, onChange } = props;
   const [text, setText] = useState("");
+  const field = useRef<HTMLInputElement>(null);
 
   const add = () => {
     const t = text.trim();
@@ -46,6 +47,8 @@ export function AcceptedList(props: {
 
   const remove = (t: string) => {
     const index = values.indexOf(t);
+    // The chips unmount with the last one, which would drop focus to the page.
+    if (values.length === 1) field.current?.focus();
     props.onRemoveItem(
       m.builder_item_removed({ item: `«${t}»` }),
       () => onChange((xs) => xs.filter((x) => x !== t)),
@@ -90,6 +93,7 @@ export function AcceptedList(props: {
         isDisabled={values.length >= MAX_LIST}
       >
         <Input
+          ref={field}
           autoComplete="off"
           spellCheck={false}
           maxLength={MAX_TEXT}

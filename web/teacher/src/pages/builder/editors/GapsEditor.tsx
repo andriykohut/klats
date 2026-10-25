@@ -11,6 +11,7 @@ import {
 } from "react-aria-components";
 import { Icon } from "../../../ui/icons";
 import {
+  gapInMode,
   gapsInBody,
   insertAt,
   MAX_LIST,
@@ -32,8 +33,8 @@ import { AcceptedList, MatchSwitches } from "./Typed";
  * The question's `gaps` hold only the entries of gaps that are in the body, in
  * body order (see {@link syncGaps}); the entry of a gap that has left the body
  * waits in this editor, so that an undo in the text brings the gap back with
- * its answers. A gap is a list gap while it has choices, or from the moment
- * «Вибрати зі списку» is chosen.
+ * its answers. A gap is a list gap while its entry has `choices`, even an empty
+ * list, and saves only that mode's fields (see {@link gapInMode}).
  */
 export function GapsEditor({
   question: q,
@@ -42,11 +43,8 @@ export function GapsEditor({
 }: EditorProps) {
   const body = (q.body ?? textDoc("")) as RichDoc;
   const stash = useRef(new Map<string, Gap>());
-  // Gaps set to a list before their first choice is typed, which an entry
-  // without choices can't say.
-  const [lists, setLists] = useState(
-    () => new Set(q.gaps?.filter((g) => g.choices?.length).map((g) => g.id)),
-  );
+  // Each gap's entry as it was before its last switch between typed and list.
+  const spare = useRef(new Map<string, Gap>());
   const ids = gapsInBody(body);
   const entries = new Map(q.gaps?.map((g) => [g.id, g]));
 
@@ -95,36 +93,15 @@ export function GapsEditor({
           key={id}
           number={i + 1}
           gap={entries.get(id) ?? { id }}
-          isList={lists.has(id)}
+          isList={entries.get(id)?.choices !== undefined}
           onMode={(list) => {
-            setLists((s) => {
-              const next = new Set(s);
-              if (list) next.add(id);
-              else next.delete(id);
-              return next;
-            });
-            if (list) {
-              editGap(id, (g) => ({
-                ...g,
-                choices: g.choices?.length
-                  ? g.choices
-                  : [newChoice(), newChoice()],
-              }));
-              return;
-            }
-            const choices = entries.get(id)?.choices;
-            const drop = () => editGap(id, ({ choices: _, ...g }) => g);
-            if (!choices?.some((c) => c.text)) drop();
-            else {
-              onRemoveItem(
-                m.builder_gap_list_removed({ number: i + 1 }),
-                drop,
-                () => {
-                  setLists((s) => new Set(s).add(id));
-                  editGap(id, (g) => ({ ...g, choices }));
-                },
-              );
-            }
+            const g = entries.get(id) ?? { id };
+            const next = gapInMode(g, list, spare.current.get(id), () => [
+              newChoice(),
+              newChoice(),
+            ]);
+            spare.current.set(id, g);
+            editGap(id, () => next);
           }}
           onChange={(fn) => editGap(id, fn)}
           onRemoveItem={onRemoveItem}

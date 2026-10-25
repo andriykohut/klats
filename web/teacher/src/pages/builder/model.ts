@@ -1,5 +1,6 @@
 import { CODE_LANGUAGES } from "@klats/shared/code/registry.ts";
 import type {
+  Choice,
   Gap,
   Option,
   Question,
@@ -132,11 +133,9 @@ export function gapsInBody(doc: RichDoc): string[] {
 
 /**
  * Returns the entries of the gaps in `doc`, in body order, for a question's
- * `gaps`: the server rejects a list of over 50 or with a repeated id before it
- * drops the entries of removed gaps, so only live ones are saved. An entry
- * whose gap node is gone moves into `stash`, and a node that has an entry
- * there gets it back, so an undo restores a gap whole. A node with no entry
- * anywhere gets an empty one.
+ * `gaps`. An entry whose gap node is gone moves into `stash`, and a node that
+ * has an entry there gets it back, so an undo restores a gap whole. A node
+ * with no entry anywhere gets an empty one.
  */
 export function syncGaps(
   gaps: Gap[] | undefined,
@@ -144,11 +143,59 @@ export function syncGaps(
   stash: Map<string, Gap>,
 ): Gap[] {
   const ids = gapsInBody(doc);
+  // Only live entries are returned: the server rejects a list of over 50 or
+  // with a repeated id before it drops the entries of removed gaps.
   for (const g of gaps ?? []) if (!ids.includes(g.id)) stash.set(g.id, g);
   return ids.map(
     (id) =>
       gaps?.find((g) => g.id === id) ?? stash.get(id) ?? ({ id } satisfies Gap),
   );
+}
+
+/**
+ * Returns the range `from` to `to` of `doc` without the whitespace at its
+ * ends, so a gap made of a double-clicked word (which some platforms select
+ * with the space after it) leaves that space in the text. A range across
+ * blocks, or of nothing but whitespace, is returned as it is.
+ */
+export function trimmedRange(
+  doc: Node,
+  from: number,
+  to: number,
+): { from: number; to: number } {
+  if (!doc.resolve(from).sameParent(doc.resolve(to))) return { from, to };
+  // An inline atom counts as one character, so offsets are positions.
+  const text = doc.textBetween(from, to, "", "\uFFFC");
+  if (!text.trim()) return { from, to };
+  return {
+    from: from + text.length - text.trimStart().length,
+    to: to - (text.length - text.trimEnd().length),
+  };
+}
+
+/**
+ * Returns gap `g` as a list gap (`list`) or a typed one, carrying only the
+ * fields of that mode: `choices` for a list gap (empty once all are removed,
+ * and then still a list for the editor) and `accepted` for a typed gap. The
+ * server grades a gap without choices by its accepted texts, so a list gap
+ * must not keep any. `spare` is the entry as it was before the last switch;
+ * it gives back the other mode's data when switching again. A new list gap
+ * starts with the choices `blank` makes.
+ */
+export function gapInMode(
+  g: Gap,
+  list: boolean,
+  spare: Gap | undefined,
+  blank: () => Choice[],
+): Gap {
+  if (list) {
+    return {
+      id: g.id,
+      choices: g.choices ?? (spare?.choices?.length ? spare.choices : blank()),
+    };
+  }
+  const accepted = g.accepted ?? spare?.accepted;
+  return accepted ? { id: g.id, accepted } : { id: g.id };
 }
 
 /** Returns the document's text on one line, formatting dropped. */

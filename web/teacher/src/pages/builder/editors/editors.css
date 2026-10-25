@@ -147,14 +147,7 @@
   width: 150px;
 }
 
-/*
- * A gap in the text is a chip numbered by its place: the counter runs over the
- * field, so the numbers follow the body as gaps are added, moved and removed.
- */
-.b-rich-input {
-  counter-reset: b-gap;
-}
-
+/* A gap in the text is a chip numbered by its place; the number is its `data-n`. */
 .b-gap {
   display: inline-flex;
   align-items: center;
@@ -174,8 +167,7 @@
 }
 
 .b-gap::before {
-  counter-increment: b-gap;
-  content: counter(b-gap);
+  content: attr(data-n);
 }
 
 .b-gap.ProseMirror-selectednode {

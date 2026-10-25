@@ -707,6 +707,5 @@
   "builder_gap_choice_correct": "Choice {number} is right",
   "builder_gap_add_choice": "Add a choice",
   "builder_gap_accepted": "Gap {number}: accepted answers",
-  "builder_gap_accepted_add": "Gap {number}: new accepted answer",
-  "builder_gap_list_removed": "The list of gap {number} was removed"
+  "builder_gap_accepted_add": "Gap {number}: new accepted answer"
 }

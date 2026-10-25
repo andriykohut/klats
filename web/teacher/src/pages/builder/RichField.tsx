@@ -23,7 +23,14 @@ import { Button, FileTrigger } from "react-aria-components";
 import { flushSync } from "react-dom";
 import { lowlight } from "../../code";
 import { addImage, mediaMessage, uploadMedia } from "./media";
-import { MAX_LIST, newId, oneParagraph, textDoc, toStored } from "./model";
+import {
+  MAX_LIST,
+  newId,
+  oneParagraph,
+  textDoc,
+  toStored,
+  trimmedRange,
+} from "./model";
 import { AudioNode } from "./rich/AudioNode";
 import { CodeLanguageSelect } from "./rich/CodeLanguageSelect";
 import { FormulaDialog } from "./rich/FormulaDialog";
@@ -36,9 +43,9 @@ import { MathNode } from "./rich/MathNode";
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
  * code; Subscript, Superscript, the table nodes, the formula node and, in
  * block fields, the image and audio nodes are added beside it. Gapped fields
- * keep the inline set and add the gap node. Block fields
- * swap StarterKit's codeBlock for CodeBlockLowlight, which highlights the
- * block and adds its `language` attr.
+ * keep the inline set and add the gap node. Block fields swap StarterKit's
+ * codeBlock for CodeBlockLowlight, which highlights the block and adds its
+ * `language` attr.
  * Pasted content is parsed against this schema, so headings, quotes, links
  * and the like arrive as plain paragraphs and text. Undo, the drop cursor
  * and the gap cursor stay: they add no nodes.
@@ -184,10 +191,11 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  *
  * `gapped` makes it the body of a gaps question: paragraphs and formatting
  * like an option but with more than one paragraph, formulas, and gaps; it has
- * no lists, code, tables or media. Its toolbar's «Пропуск» button puts a gap at
- * the caret, or in place of the selected text, and is disabled once the body
- * holds {@link MAX_LIST} gaps. Before the node goes in, `onGap` gets its new id
- * and the text it replaces (empty without a selection).
+ * no lists, code, tables or media. Its toolbar's «Пропуск» button, or
+ * Mod-Shift-G, puts a gap at the caret, or in place of the selected text
+ * without the whitespace at the selection's ends, and the button is disabled
+ * once the body holds {@link MAX_LIST} gaps. Before the node goes in, `onGap`
+ * gets its new id and the text it replaces (empty without a selection).
  */
 export function RichField(props: {
   value: RichDoc;
@@ -250,11 +258,11 @@ export function RichField(props: {
         "aria-multiline": inline ? "false" : "true",
         "aria-placeholder": props.placeholder,
       },
-      // Mod-Shift-L, by key position so it works in any keyboard layout.
+      // Mod-Shift-L (formula) and, in a gapped field, Mod-Shift-G (gap), by
+      // key position so they work in any keyboard layout.
       handleKeyDown: (view, e) => {
         const { selection } = view.state;
         if (
-          e.code !== "KeyL" ||
           !e.shiftKey ||
           e.altKey ||
           !(MAC ? e.metaKey : e.ctrlKey) ||
@@ -262,6 +270,12 @@ export function RichField(props: {
         ) {
           return false;
         }
+        if (e.code === "KeyG" && gapped) {
+          e.preventDefault();
+          putGap();
+          return true;
+        }
+        if (e.code !== "KeyL") return false;
         e.preventDefault();
         setFormula(selectedFormula(view.state));
         return true;
@@ -330,7 +344,7 @@ export function RichField(props: {
       language:
         (e.getAttributes("codeBlock").language as string | null) ?? null,
       table: e.isActive("table"),
-      gaps: gapCount(e),
+      gaps: gapped ? gapCount(e) : 0,
     }),
   });
 
@@ -368,10 +382,18 @@ export function RichField(props: {
   };
 
   const putGap = () => {
-    const { from, to } = editor.state.selection;
+    const { from, to } = trimmedRange(
+      editor.state.doc,
+      editor.state.selection.from,
+      editor.state.selection.to,
+    );
     const id = newId();
-    props.onGap?.(id, editor.state.doc.textBetween(from, to, " ").trim());
-    editor.chain().focus().insertContent({ type: "gap", attrs: { id } }).run();
+    props.onGap?.(id, editor.state.doc.textBetween(from, to, " "));
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from, to }, { type: "gap", attrs: { id } })
+      .run();
   };
 
   return (
@@ -392,9 +414,10 @@ export function RichField(props: {
             {props.placeholder}
           </span>
         )}
-        {/* The format, table and formula buttons are out of the tab order: each
-          has a shortcut, named in its title. The image and audio buttons and
-          the code language select have none, so they stay in the tab order.
+        {/* The format, table, formula and gap buttons are out of the tab order:
+          each has a shortcut, named in its title. The image and audio buttons
+          and the code language select have none, so they stay in the tab
+          order.
           While the select's list is open, focus is outside the field and the
           bar is kept shown for the list to anchor to. */}
         <div
@@ -487,11 +510,11 @@ export function RichField(props: {
           {gapped && (
             <button
               type="button"
-              tabIndex={-1}
               className="b-rich-btn"
               data-mark="gap"
               aria-label={m.rich_gap()}
-              title={m.rich_gap()}
+              tabIndex={-1}
+              title={`${m.rich_gap()} (${MOD}${SHIFT}G)`}
               disabled={state.gaps >= MAX_LIST}
               // Keeps the selection in the editor.
               onMouseDown={(e) => e.preventDefault()}

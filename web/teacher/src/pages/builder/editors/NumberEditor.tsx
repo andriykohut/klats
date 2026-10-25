@@ -34,10 +34,11 @@ const FIELDS: Record<Mode, [Field, () => string][]> = {
 };
 
 /**
- * An input for a number field that turns a typed or pasted dot into the uk
- * decimal comma before React Aria sees the text, which would drop the dot
- * («10.5» would read as 105). uk-UA groups thousands with a space, so no dot
- * is ever meant as a separator.
+ * An input for a number field that turns a dot typed into it, or pasted into
+ * part of it, into the uk decimal comma before React Aria sees the text, which
+ * would drop the dot («10.5» would read as 105). uk-UA groups thousands with a
+ * space, so no dot is ever meant as a separator. A paste that replaces the
+ * whole field goes through React Aria's own paste handling and parse instead.
  */
 function DecimalInput() {
   const input = useRef<HTMLInputElement>(null);
@@ -48,7 +49,16 @@ function DecimalInput() {
       const text = e.data ?? e.dataTransfer?.getData("text/plain");
       if (!text?.includes(".")) return;
       e.preventDefault();
-      document.execCommand("insertText", false, text.replaceAll(".", ","));
+      const comma = text.replaceAll(".", ",");
+      if (document.execCommand("insertText", false, comma)) return;
+      // Without execCommand, the same edit made by hand.
+      el.setRangeText(
+        comma,
+        el.selectionStart ?? 0,
+        el.selectionEnd ?? 0,
+        "end",
+      );
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: comma }));
     };
     // In the capture phase, to run before React Aria's own listener.
     el.addEventListener("beforeinput", dotToComma, true);
@@ -72,12 +82,11 @@ function keyOf(mode: Mode, fields: Fields): NumberKey | undefined {
 /**
  * The right answer of a number question: exactly a value, a value with a
  * margin, or a range. The fields are in the uk-UA locale: the comma is the
- * decimal separator, and a typed or pasted dot becomes one (see
- * {@link DecimalInput}). The
- * question's `number` stays unset until every field of the chosen mode is
+ * decimal separator, and a typed dot becomes one (see {@link DecimalInput}).
+ * The question's `number` stays unset until every field of the chosen mode is
  * filled, and each mode keeps what was typed in its fields while another is
- * chosen. A range that is reversed or a negative margin is the server's
- * check to report.
+ * chosen. A range that is reversed or a negative margin is the server's check
+ * to report.
  */
 export function NumberEditor({ question: q, onChange }: EditorProps) {
   const [mode, setMode] = useState<Mode>((q.number?.mode as Mode) ?? "exact");

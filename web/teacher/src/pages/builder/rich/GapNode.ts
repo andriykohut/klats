@@ -1,5 +1,7 @@
+import { m } from "@klats/shared/paraglide/messages.js";
 import { Fragment, type Node as PMNode, Slice } from "@tiptap/pm/model";
 import { Plugin } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { mergeAttributes, Node } from "@tiptap/react";
 import { MAX_LIST, newId } from "../model";
 
@@ -12,27 +14,40 @@ function gapIds(node: PMNode | Fragment): string[] {
   return ids;
 }
 
-/** Returns `fragment` with a new id on every gap node in it. */
-function withNewIds(fragment: Fragment): Fragment {
+/**
+ * Returns `fragment` with a new id on every gap node whose id is in `taken`.
+ * The new ids join `taken`.
+ */
+function renewTaken(fragment: Fragment, taken: Set<string>): Fragment {
   const out: PMNode[] = [];
   fragment.forEach((n) => {
-    if (n.type.name === "gap") out.push(n.type.create({ id: newId() }));
-    else out.push(n.isLeaf ? n : n.copy(withNewIds(n.content)));
+    if (n.type.name === "gap") {
+      if (!taken.has(n.attrs.id)) {
+        taken.add(n.attrs.id);
+        out.push(n);
+      } else {
+        const id = newId();
+        taken.add(id);
+        out.push(n.type.create({ id }));
+      }
+    } else out.push(n.isLeaf ? n : n.copy(renewTaken(n.content, taken)));
   });
   return Fragment.fromArray(out);
 }
 
 /**
  * A blank in the text of a gaps question, stored as `{type: "gap", attrs:
- * {id}}`. It is an atom drawn as a chip numbered by its place in the text
- * (a CSS counter in editors.css), and the id links it to the entry in the
- * question's `gaps` that holds its answers.
+ * {id}}`. It is an atom drawn as a chip numbered by its place in the text and
+ * named «Пропуск N» for assistive technology (both set by a decoration, so
+ * they follow the text as gaps are added, moved and removed), and the id links
+ * it to the entry in the question's `gaps` that holds its answers.
  *
  * Ids are unique within the question and a question holds at most
  * {@link MAX_LIST} gaps, as internal/testfmt requires: the node refuses an edit
- * that would repeat an id or add a gap past the limit. A gap pasted in, from
- * this question or another, gets a new id and so starts without answers; a gap
- * moved by dragging keeps its id. A custom node for the same reason as
+ * that would repeat an id or add a gap past the limit. A gap pasted in gets a
+ * new id, and so starts without answers, only when a gap with its id is still
+ * in the text (a copy pasted into the same question); a gap that was cut and
+ * pasted, or moved by dragging, keeps its id. A custom node for the same reason as
  * {@link ImageNode}, and likewise parsed only from markup this editor wrote.
  */
 export const GapNode = Node.create({
@@ -74,10 +89,38 @@ export const GapNode = Node.create({
           return ids.length <= MAX_LIST && new Set(ids).size === ids.length;
         },
         props: {
+          decorations: (state) => {
+            const chips: Decoration[] = [];
+            state.doc.descendants((n, pos) => {
+              if (n.type.name !== "gap") return;
+              const number = chips.length + 1;
+              chips.push(
+                Decoration.node(pos, pos + n.nodeSize, {
+                  role: "img",
+                  "aria-label": m.gap_label({ number }),
+                  "data-n": String(number),
+                }),
+              );
+            });
+            return DecorationSet.create(state.doc, chips);
+          },
           handlePaste: (view, _event, slice) => {
-            if (gapIds(slice.content).length === 0) return false;
+            // Gaps outside the selection stay, so their ids are taken.
+            const { doc, selection } = view.state;
+            const taken = new Set<string>();
+            doc.descendants((n, pos) => {
+              if (
+                n.type.name === "gap" &&
+                (pos + n.nodeSize <= selection.from || pos >= selection.to)
+              ) {
+                taken.add(n.attrs.id);
+              }
+            });
+            if (!gapIds(slice.content).some((id) => taken.has(id))) {
+              return false;
+            }
             const fresh = new Slice(
-              withNewIds(slice.content),
+              renewTaken(slice.content, taken),
               slice.openStart,
               slice.openEnd,
             );

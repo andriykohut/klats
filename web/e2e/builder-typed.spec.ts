@@ -99,6 +99,15 @@ test("a short question keeps its accepted answers and matching switches", async 
   await expect
     .poll(async () => (await question(page)).accepted)
     .toEqual(["Київ", "Kyiv"]);
+
+  // When the last chip goes, focus moves to the field and not to the page.
+  for (const text of ["Київ", "Kyiv"]) {
+    await main
+      .getByRole("button", { name: m.builder_accepted_remove({ text }) })
+      .click();
+  }
+  await expect(chips).toHaveCount(0);
+  await expect(input).toBeFocused();
 });
 
 test("a number question stays without a key until its fields are filled", async ({
@@ -136,7 +145,7 @@ test("a number question stays without a key until its fields are filled", async 
     .poll(async () => (await question(page)).number)
     .toMatchObject({ mode: "tolerance", value: 9.8, tolerance: 0.1 });
 
-  // A dot reads as the decimal comma, typed or filled in.
+  // A dot reads as the decimal comma, typed or pasted into part of the field.
   await main.getByRole("radio", { name: m.builder_number_exact() }).click();
   const value = field(m.builder_number_value);
   await value.fill("");
@@ -145,8 +154,16 @@ test("a number question stays without a key until its fields are filled", async 
   await expect
     .poll(async () => (await question(page)).number)
     .toMatchObject({ mode: "exact", value: 10.5 });
+
+  // The copy comes from the question text, in the page.
+  const text = main.getByRole("textbox", { name: m.builder_question_text() });
+  await text.fill(".25");
+  await text.press("ControlOrMeta+a");
+  await text.press("ControlOrMeta+c");
   await value.fill("");
-  await value.pressSequentially("7.25");
+  await value.pressSequentially("7");
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(value).toHaveValue("7,25");
   await value.press("Tab");
   await expect
     .poll(async () => (await question(page)).number)
@@ -170,6 +187,7 @@ test("a gaps question saves a gap made of the selected text, and an undo brings 
 
   const chip = body.locator("[data-klats-gap]");
   await expect(chip).toHaveCount(1);
+  await expect(chip).toHaveAccessibleName(m.gap_label({ number: 1 }));
   const card = (n: number) =>
     main.getByRole("group", { name: m.builder_gap({ number: n }) });
   await expect(card(1)).toBeVisible();
@@ -239,6 +257,20 @@ test("a gaps question saves a gap made of the selected text, and an undo brings 
     .poll(async () => (await question(page)).gaps?.map((g) => g.accepted ?? []))
     .toEqual([["Київ"], []]);
 
+  // A gap that is cut and pasted back keeps its id, and its answers with it.
+  const idsBefore = (await question(page)).gaps?.map((g) => g.id);
+  await chip.first().click();
+  await page.keyboard.press("ControlOrMeta+x");
+  await expect(chip).toHaveCount(1);
+  await page.keyboard.press("ControlOrMeta+v");
+  await expect(chip).toHaveCount(2);
+  await expect(
+    card(1).getByRole("row", { name: "Київ", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await question(page)).gaps?.map((g) => g.id))
+    .toEqual(idsBefore);
+
   // A copied gap pastes as a new gap: its own id, and no answers.
   await chip.first().click();
   await page.keyboard.press("ControlOrMeta+c");
@@ -260,4 +292,25 @@ test("a gaps question saves a gap made of the selected text, and an undo brings 
     })
     .toMatchObject({ ids: 3, inBody: 3, pasted: { id: expect.any(String) } });
   expect((await question(page)).gaps?.[2].accepted).toBeUndefined();
+});
+
+test("a gap is inserted from the keyboard", async ({ klats }) => {
+  const page = await newTest(klats);
+  await add(page, m.type_gaps_desc);
+  const main = editor(page);
+  const body = main.getByRole("textbox", { name: m.builder_gaps_body() });
+  await body.click();
+  await body.pressSequentially("Столиця — Київ");
+  for (let i = 0; i < 4; i++) await body.press("Shift+ArrowLeft");
+  await page.keyboard.press("ControlOrMeta+Shift+g");
+
+  await expect(body.locator("[data-klats-gap]")).toHaveCount(1);
+  await expect(body).toBeFocused();
+  const q = await question(page);
+  expect(q.gaps?.[0]).toMatchObject({ accepted: ["Київ"] });
+  const para = (q.body as { content: { content: object[] }[] }).content[0];
+  expect(para.content).toEqual([
+    { type: "text", text: "Столиця — " },
+    { type: "gap", attrs: { id: q.gaps?.[0].id } },
+  ]);
 });
