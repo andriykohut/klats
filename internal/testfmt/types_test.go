@@ -146,6 +146,7 @@ func TestDecodeRejectsOversize(t *testing.T) {
 		"point x":         labelQ([]Target{spot("p1", 1.1, 0)}, row("l1", "x", "p1")),
 		"point y":         labelQ([]Target{spot("p1", 0, -0.1)}, row("l1", "x", "p1")),
 		"area width":      {ID: "q1", Type: "hotspot", Points: 1, Areas: []Area{{ID: "a", Shape: "rect", W: 2}}},
+		"area shape":      {ID: "q1", Type: "hotspot", Points: 1, Areas: []Area{{ID: "a", Shape: "circle", W: 0.1, H: 0.1}}},
 		"target bad img":  grid([]Target{{ID: "c1", Image: &Image{Src: "x.png", W: 1, H: 1}}}),
 		"question no img": {ID: "q1", Type: "hotspot", Points: 1, Image: &Image{Src: img + ".mp3", W: 1, H: 1}},
 	} {

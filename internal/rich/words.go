@@ -6,9 +6,11 @@ import (
 	"unicode"
 )
 
-// joiners are the apostrophes (' U+0027, ’ U+2019, ʼ U+02BC) and hyphens
-// (- U+002D, ‐ U+2010, ‑ U+2011) that join two word characters into one word.
-const joiners = "'’ʼ-‐‑"
+// joiners are the apostrophes (' U+0027, ’ U+2019) and hyphens (- U+002D,
+// ‐ U+2010, ‑ U+2011) that join two word characters into one word. The
+// apostrophe ʼ U+02BC is a letter (category Lm), so it is a word character
+// even at the edge of a word.
+const joiners = "'’-‐‑"
 
 // Word is a word of a document split by [Doc.Words]: its text, and whether any
 // of its characters carries the target mark.

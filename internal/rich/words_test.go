@@ -15,8 +15,8 @@ func wordTexts(words []Word) []string {
 	return out
 }
 
-// TestWords pins the word rule with the sample sentence the student app's
-// preview tokenizer is checked against.
+// TestWords pins the word rule with the sample sentence the builder's preview
+// tokenizer is checked against.
 func TestWords(t *testing.T) {
 	d, err := Parse([]byte(para(
 		`{"type":"text","text":"Кіт "},`+

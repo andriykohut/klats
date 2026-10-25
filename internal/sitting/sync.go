@@ -45,8 +45,8 @@ type delivery struct {
 // The device may send changes for the participant it writes as, and for
 // participants moved off it to another device. Changes for anyone else, and
 // malformed changes (a missing or over-long change id, a seq below 1, an
-// unknown question, an option of another question, more than 20 option ids)
-// are acked but counted in Rejected.
+// unknown question, an answer its question's CleanAnswer rejects) are acked
+// but counted in Rejected.
 // Any stored change marks the assignment's export stale and bumps its
 // results revision, once per call and assignment. After the sitting has ended,
 // changes from participants it finished are still stored, flagged late: the

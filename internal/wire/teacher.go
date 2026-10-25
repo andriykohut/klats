@@ -96,10 +96,10 @@ type LabelRequest struct {
 // AssignmentSummary is a row of the results list. Participants does not count
 // kicked ones. AverageGrade is the mean grade of those participants who are no
 // longer writing and have no written answer waiting for the teacher, as the
-// grade of either is partial; it is nil while there are none. ExportStale is [AssignmentResults.ExportStale] without
-// Exported beside it: it ignores whether a file was ever exported, so it is
-// also set for an assignment never exported, and alone it does not mean an
-// exported file is out of date.
+// grade of either is partial; it is nil while there are none. ExportStale is
+// [AssignmentResults.ExportStale] without Exported beside it: it ignores
+// whether a file was ever exported, so it is also set for an assignment never
+// exported, and alone it does not mean an exported file is out of date.
 type AssignmentSummary struct {
 	ID           string   `json:"id"`
 	TestTitle    string   `json:"testTitle"`

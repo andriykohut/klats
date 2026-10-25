@@ -227,9 +227,8 @@ type FinishResult struct {
 // the next one starts, of the last ended one. Kicked participants are left
 // out. QuestionPct has one entry per question: the percent of answers to it
 // that score full points, or nil while there are none; written answers waiting
-// for the teacher are left out. Events lists
-// the pinned events waiting for a decision, then the 20 newest others, newest
-// first.
+// for the teacher are left out. Events lists the pinned events waiting for a
+// decision, then the 20 newest others, newest first.
 type LiveSnapshot struct {
 	Sitting     SittingInfo `json:"sitting"`
 	Counts      Counts      `json:"counts"`
