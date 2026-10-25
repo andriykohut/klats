@@ -1,9 +1,13 @@
 import type { Answer } from "../../generated/testfmt";
 import type { StudentQuestion } from "../../generated/wire";
+import { BankAnswers } from "./BankAnswers";
 import { ChoiceAnswers } from "./ChoiceAnswers";
 import { GapsAnswer } from "./GapsAnswer";
 import { GridAnswers } from "./GridAnswers";
+import { GroupsAnswers } from "./GroupsAnswers";
+import { MatchAnswers } from "./MatchAnswers";
 import { NumberAnswer } from "./NumberAnswer";
+import { OrderAnswers } from "./OrderAnswers";
 import { TextAnswer } from "./TextAnswer";
 import { TrueFalseAnswers } from "./TrueFalseAnswers";
 
@@ -47,6 +51,14 @@ export function AnswerArea({
       return <NumberAnswer {...props} />;
     case "gaps":
       return <GapsAnswer {...props} />;
+    case "order":
+      return <OrderAnswers {...props} />;
+    case "match":
+      return <MatchAnswers {...props} />;
+    case "groups":
+      return <GroupsAnswers {...props} />;
+    case "bank":
+      return <BankAnswers {...props} />;
     default:
       return null;
   }

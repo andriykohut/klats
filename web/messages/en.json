@@ -21,6 +21,13 @@
   "number_placeholder": "For example, 9.8",
   "gap_label": "Gap {number}",
   "gap_choose": "Choose",
+  "cards_tray": "Cards",
+  "card_label": "Card {number}",
+  "slot_label": "Place {number}",
+  "card_place": "Put it here: {slot}",
+  "card_return": "Back to the cards",
+  "order_up": "Move up: {item}",
+  "order_down": "Move down: {item}",
   "answers_below": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

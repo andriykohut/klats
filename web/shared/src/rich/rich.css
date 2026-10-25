@@ -68,7 +68,8 @@
  */
 .k-img,
 .k-tile-img,
-.k-pick-img {
+.k-pick-img,
+.k-card-img {
   width: min(
     var(--img-cap, 100%),
     var(--img-w),

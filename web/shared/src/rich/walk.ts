@@ -4,6 +4,7 @@ import type { StudentQuestion, StudentTest } from "../generated/wire";
 /** A rich-text node, read without assuming its type is known. */
 export interface WalkedNode {
   type?: string;
+  text?: string;
   attrs?: { src?: string; latex?: string; language?: string; id?: string };
   content?: WalkedNode[];
 }

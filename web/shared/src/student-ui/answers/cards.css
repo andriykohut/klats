@@ -1,0 +1,332 @@
+/* Ordering, matching, groups and the word bank: cards, trays and places. */
+fieldset.k-set {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.k-board,
+.k-order {
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(22 * var(--k-px));
+  font-size: max(16px, calc(20 * var(--k-px)));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.k-board p,
+.k-order p {
+  margin: 0;
+}
+
+.k-board strong,
+.k-order strong {
+  font-weight: 800;
+}
+
+/* A card has the depth of an answer tile; picked, it takes the palette's selection colour. */
+.k-card {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: calc(10 * var(--k-px));
+  min-width: 0;
+  max-width: 100%;
+  padding: calc(10 * var(--k-px)) calc(18 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  box-shadow: 0 var(--k-depth) 0 var(--k-tile-shadow);
+  color: var(--k-ink);
+  overflow-wrap: anywhere;
+  cursor: grab;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+}
+
+.k-card[data-hovered] {
+  transform: translateY(calc(-2 * var(--k-px)));
+}
+
+.k-card[data-picked] {
+  border-color: var(--k-sel);
+  background: var(--k-sel);
+  box-shadow: 0 var(--k-depth) 0 var(--k-sel-dark);
+  color: var(--k-on-dark);
+}
+
+.k-card[data-dragging] {
+  opacity: 0.45;
+}
+
+.k-card[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+/* The handle that starts a keyboard or screen reader drag, as React Aria asks. */
+.k-grip {
+  flex: none;
+  box-sizing: border-box;
+  width: 1.2em;
+  height: 1.6em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--k-muted);
+  cursor: grab;
+  outline: none;
+}
+
+.k-grip svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.k-card[data-picked] .k-grip {
+  color: var(--k-on-dark-soft);
+}
+
+.k-grip[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.k-card-face {
+  min-width: 0;
+}
+
+.k-card-img {
+  --img-max: calc(96 * var(--k-px));
+  display: block;
+  margin: 0 0 calc(6 * var(--k-px));
+  border-radius: calc(10 * var(--k-px));
+}
+
+/* The tray and the places are dashed boxes; one a card is over takes the selection colour. */
+.k-tray,
+.k-slot {
+  position: relative;
+}
+
+.k-tray-list,
+.k-slot-list {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: calc(12 * var(--k-px));
+  min-height: calc(64 * var(--k-px));
+  padding: calc(10 * var(--k-px)) calc(10 * var(--k-px))
+    calc(10 * var(--k-px) + var(--k-depth));
+  border: calc(2 * var(--k-px)) dashed var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  outline: none;
+}
+
+.k-slot-list {
+  border-color: var(--k-muted);
+}
+
+.k-tray-list[data-drop-target],
+.k-slot-list[data-drop-target] {
+  border-color: var(--k-sel);
+  background: var(--k-soft);
+}
+
+.k-tray-list[data-focus-visible],
+.k-slot-list[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+/* The press target over a tray or a place while a card is picked. */
+.k-slot-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  padding: 0;
+  border: calc(3 * var(--k-px)) dashed var(--k-sel);
+  border-radius: var(--k-radius-tile);
+  background: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.k-board[data-pressing] .k-slot-hit {
+  pointer-events: none;
+}
+
+.k-slot-hit[data-hovered] {
+  border-style: solid;
+}
+
+.k-slot-hit[data-focus-visible] {
+  border-style: solid;
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+.k-tray {
+  margin-bottom: calc(18 * var(--k-px));
+}
+
+/* Matching: the left item and its place side by side. */
+.k-pairs {
+  display: grid;
+  gap: calc(14 * var(--k-px));
+}
+
+.k-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(18 * var(--k-px));
+  align-items: center;
+}
+
+.k-pair-left {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Groups: a box for each group, as many to a row as fit. */
+.k-groups {
+  display: grid;
+  grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, calc(280 * var(--k-px))), 1fr)
+    );
+  gap: calc(18 * var(--k-px));
+}
+
+.k-group-name {
+  margin-bottom: calc(8 * var(--k-px));
+  font-weight: 800;
+}
+
+.k-group .k-slot-list {
+  min-height: calc(120 * var(--k-px));
+}
+
+/* The word bank: the body's text, with a place for a word in each gap. */
+.k-bank {
+  font-size: max(18px, calc(24 * var(--k-px)));
+  line-height: 2.1;
+  overflow-wrap: anywhere;
+}
+
+.k-bank .k-slot {
+  display: inline-block;
+  min-width: 8ch;
+  max-width: 100%;
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+.k-bank .k-slot-list {
+  min-height: 1.6em;
+  padding: calc(4 * var(--k-px)) calc(6 * var(--k-px));
+  flex-wrap: nowrap;
+}
+
+.k-bank .k-card {
+  padding: calc(2 * var(--k-px)) calc(12 * var(--k-px));
+  box-shadow: 0 calc(3 * var(--k-px)) 0 var(--k-tile-shadow);
+}
+
+.k-bank .k-card[data-picked] {
+  box-shadow: 0 calc(3 * var(--k-px)) 0 var(--k-sel-dark);
+}
+
+/* Ordering: a column of rows, each with its number and its move buttons. */
+.k-order {
+  outline: none;
+}
+
+.k-order-row {
+  gap: calc(14 * var(--k-px));
+  margin-bottom: calc(12 * var(--k-px) + var(--k-depth));
+}
+
+.k-order-no {
+  flex: none;
+  width: calc(36 * var(--k-px));
+  height: calc(36 * var(--k-px));
+  border-radius: 50%;
+  background: var(--k-soft);
+  color: var(--k-muted);
+  font-weight: 800;
+  line-height: calc(36 * var(--k-px));
+  text-align: center;
+}
+
+.k-order-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-order-move {
+  flex: none;
+  box-sizing: border-box;
+  width: max(36px, calc(44 * var(--k-px)));
+  height: max(36px, calc(44 * var(--k-px)));
+  padding: 0;
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: calc(12 * var(--k-px));
+  background: var(--k-paper);
+  cursor: pointer;
+  outline: none;
+}
+
+.k-order-move svg {
+  display: block;
+  margin: auto;
+  width: 60%;
+  height: 60%;
+  fill: none;
+  stroke: var(--k-sel);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-order-move[data-hovered] {
+  background: var(--k-soft);
+}
+
+.k-order-move[data-disabled] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.k-order-move[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-order .react-aria-DropIndicator {
+  position: relative;
+  height: 0;
+  z-index: 3;
+}
+
+.k-order .react-aria-DropIndicator[data-drop-target]::after {
+  content: "";
+  position: absolute;
+  top: calc(-10 * var(--k-px));
+  right: 0;
+  left: 0;
+  height: calc(5 * var(--k-px));
+  border-radius: calc(3 * var(--k-px));
+  background: var(--k-sel);
+}

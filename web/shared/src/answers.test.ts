@@ -17,8 +17,8 @@ test("isAnswered", () => {
   ).toEqual([true, true, true]);
 });
 
-test("true/false and grid are answered only when every row has a value", () => {
-  for (const type of ["truefalse", "grid"]) {
+test("true/false, grid, match and groups are answered only when every option has a value", () => {
+  for (const type of ["truefalse", "grid", "match", "groups"]) {
     const q = { type, options };
     expect(isAnswered(q, undefined)).toBe(false);
     expect(isAnswered(q, { pairs: { a: "x", b: "y" } })).toBe(false);
@@ -36,6 +36,27 @@ test("gaps are answered only when every gap has non-blank text", () => {
   expect(isAnswered(q, { pairs: { a: "x", b: "y" } })).toBe(false);
   expect(isAnswered(q, { pairs: { a: "x", b: "y", c: "z" } })).toBe(true);
   expect(isAnswered(q, { pairs: { a: "x", b: " ", c: "z" } })).toBe(false);
+});
+
+test("bank is answered only when every gap of the body has a word", () => {
+  const gap = (id: string) => ({ type: "gap", attrs: { id } });
+  const q = {
+    type: "bank",
+    options,
+    body: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [gap("g1"), gap("g2")] }],
+    },
+  };
+  expect(isAnswered(q, undefined)).toBe(false);
+  expect(isAnswered(q, { pairs: { g1: "a" } })).toBe(false);
+  expect(isAnswered(q, { pairs: { g1: "a", g2: "b" } })).toBe(true);
+});
+
+test("order is answered once it has items", () => {
+  const q = { type: "order", options };
+  expect(isAnswered(q, undefined)).toBe(false);
+  expect(isAnswered(q, { items: ["b", "a", "c"] })).toBe(true);
 });
 
 test("short and number are answered by any non-blank text", () => {

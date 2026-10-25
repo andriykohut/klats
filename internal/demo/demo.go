@@ -154,12 +154,13 @@ func numberAnswer(id string, text json.RawMessage, value, tolerance float64) tes
 // gap is the place in a gaps body where the gap with the given id goes.
 func gap(id string) rich.Node { return rich.Node{Type: "gap", Attrs: &rich.Attrs{ID: id}} }
 
-// sampleTest is thirteen questions, single and multiple choice, with bold,
+// sampleTest is seventeen questions, single and multiple choice, with bold,
 // sub- and superscript text, formulas in the text and options of the sixth, a
 // table and a code block in the seventh, and the stored image pic and audio
 // sound in the eighth, then a true/false question with a picture beside one
 // statement, a choice grid, a short answer, a number and a gaps question with a
-// formula, a typed gap and a list gap.
+// formula, a typed gap and a list gap, then an ordering, a matching, a grouping
+// (with a picture on one item) and a word bank question.
 func sampleTest(id, pic, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
@@ -202,7 +203,67 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 				{ID: "g2", Accepted: []string{"Київ"}},
 				{ID: "g3", Choices: []testfmt.Choice{{ID: "c1", Text: "4"}, {ID: "c2", Text: "8", Correct: true}, {ID: "c3", Text: "16"}}},
 			}},
+		ordering("q14", 3, para(plain("Розташуйте етапи розв’язування задачі в правильному порядку.")),
+			para(plain("Прочитати умову")), para(plain("Скласти план")), para(plain("Виконати обчислення")), para(plain("Перевірити відповідь"))),
+		matching("q15", 3, para(plain("З’єднайте країни зі столицями.")),
+			[]json.RawMessage{para(plain("Київ")), para(plain("Варшава")), para(plain("Берлін")), para(plain("Париж"))},
+			pair{para(plain("Україна")), 0}, pair{para(plain("Польща")), 1}, pair{para(plain("Німеччина")), 2}),
+		withImage(grouping("q16", 4, para(plain("Розкладіть пристрої за групами.")),
+			[]json.RawMessage{para(plain("Введення")), para(plain("Виведення"))},
+			pair{para(plain("Клавіатура")), 0}, pair{para(plain("Мишка")), 0}, pair{para(plain("Монітор")), 1},
+			pair{para(plain("Принтер")), 1}, pair{para(plain("Колонки")), 1}), 2, testfmt.Image{Src: pic, W: diagramW, H: diagramH}),
+		{ID: "q17", Type: "bank", Points: 3, Partial: true, Text: para(plain("Вставте слова в текст.")),
+			Body: doc(rich.Node{Type: "paragraph", Content: []rich.Node{
+				plain("Значення "), formula(`2^3`), plain(" дорівнює "), gap("g1"),
+				plain(". Столиця України — "), gap("g2"), plain(". Вісім бітів утворюють "), gap("g3"), plain(".")}}),
+			Options: []testfmt.Option{
+				{ID: "q17o0", Content: para(plain("8")), Target: "g1"},
+				{ID: "q17o1", Content: para(plain("Київ")), Target: "g2"},
+				{ID: "q17o2", Content: para(plain("байт")), Target: "g3"},
+				{ID: "q17o3", Content: para(plain("16"))},
+				{ID: "q17o4", Content: para(plain("Львів"))},
+			}},
 	}}
+}
+
+// pair is a left-hand item of a matching or grouping question and the index
+// of its right-hand card or group.
+type pair struct {
+	content json.RawMessage
+	target  int
+}
+
+// ordering returns a question worth points whose items are in the right order
+// as given.
+func ordering(id string, points int, text json.RawMessage, items ...json.RawMessage) testfmt.Question {
+	q := testfmt.Question{ID: id, Type: "order", Text: text, Points: points, Partial: true}
+	for i, content := range items {
+		q.Options = append(q.Options, testfmt.Option{ID: fmt.Sprintf("%so%d", id, i), Content: content})
+	}
+	return q
+}
+
+// matching returns a question worth points with a left-hand item for each of
+// pairs and the cards as its right-hand side, one of which is a decoy.
+func matching(id string, points int, text json.RawMessage, cards []json.RawMessage, pairs ...pair) testfmt.Question {
+	return arranged("match", id, points, text, cards, pairs)
+}
+
+// grouping returns a question worth points with a group for each of groups
+// and the items given.
+func grouping(id string, points int, text json.RawMessage, groups []json.RawMessage, items ...pair) testfmt.Question {
+	return arranged("groups", id, points, text, groups, items)
+}
+
+func arranged(typ, id string, points int, text json.RawMessage, targets []json.RawMessage, options []pair) testfmt.Question {
+	q := testfmt.Question{ID: id, Type: typ, Text: text, Points: points, Partial: true}
+	for i, content := range targets {
+		q.Targets = append(q.Targets, testfmt.Target{ID: fmt.Sprintf("%st%d", id, i), Content: content})
+	}
+	for i, o := range options {
+		q.Options = append(q.Options, testfmt.Option{ID: fmt.Sprintf("%so%d", id, i), Content: o.content, Target: q.Targets[o.target].ID})
+	}
+	return q
 }
 
 // withImage shows img with option i of q.
@@ -224,7 +285,7 @@ func storeMedia(ms *media.Store) (pic, sound string, err error) {
 	return pic, sound, err
 }
 
-// Seed starts a sitting of the thirteen-question sample test for class 7-Б, of 25
+// Seed starts a sitting of the seventeen-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
 // earlier run in the same data folder did, and the test's image and audio in
 // ms. If a sitting already runs, demo or

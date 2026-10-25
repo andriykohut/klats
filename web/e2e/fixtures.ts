@@ -125,8 +125,8 @@ export interface Klats {
   results(id: string): Promise<AssignmentResults>;
   /** Renames the computer the student `name` writes on. */
   rename(name: string, label: string): Promise<void>;
-  /** A student computer: a 1024×768 page in a browser context of its own. */
-  computer(): Promise<Page>;
+  /** A student computer: a 1024×768 page in a browser context of its own, with a touch screen when `touch`. */
+  computer(touch?: boolean): Promise<Page>;
   /** The teacher app at `path`: a 1366×768 page in a context of its own. */
   teacher(path?: string): Promise<Page>;
 }
@@ -178,8 +178,11 @@ export const test = base.extend<{ klats: Klats }>({
     };
     const live = () => api<LiveSnapshot>("GET", "/api/sittings/current");
     const contexts: BrowserContext[] = [];
-    const open = async (width: number, height: number) => {
-      const context = await browser.newContext({ viewport: { width, height } });
+    const open = async (width: number, height: number, hasTouch = false) => {
+      const context = await browser.newContext({
+        viewport: { width, height },
+        hasTouch,
+      });
       contexts.push(context);
       return context.newPage();
     };
@@ -226,7 +229,7 @@ export const test = base.extend<{ klats: Klats }>({
         if (!row) throw new Error(`${name} is not in the sitting`);
         await api("PUT", `/api/devices/${row.deviceToken}`, { label });
       },
-      computer: () => open(1024, 768),
+      computer: (touch) => open(1024, 768, touch),
       async teacher(path = "/live") {
         const page = await open(1366, 768);
         await page.goto(teacherURL.href); // sets the launch-token cookie

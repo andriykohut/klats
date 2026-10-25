@@ -21,6 +21,13 @@
   "number_placeholder": "Наприклад, 9,8",
   "gap_label": "Пропуск {number}",
   "gap_choose": "Оберіть",
+  "cards_tray": "Картки",
+  "card_label": "Картка {number}",
+  "slot_label": "Місце {number}",
+  "card_place": "Покласти сюди: {slot}",
+  "card_return": "Повернути до карток",
+  "order_up": "Підняти: {item}",
+  "order_down": "Опустити: {item}",
   "answers_below": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

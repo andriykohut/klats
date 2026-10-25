@@ -1,4 +1,5 @@
 import type { Answer } from "./generated/testfmt";
+import { walkNodes } from "./rich/walk";
 
 /**
  * Whether `a` holds anything: items, pairs, non-blank text or a point. Mirrors
@@ -15,23 +16,35 @@ export function hasAnswer(a: Answer | undefined): boolean {
 }
 
 /**
- * Whether a student has finished answering `question`. A true/false or grid
- * question counts only when every statement or row has a value, and a gaps
- * question only when every gap has non-blank text or a choice, so a partly
- * filled one still shows as open in the progress bar and the review; the
- * server grades what is given. Any other type counts as soon as
- * {@link hasAnswer} does.
+ * Whether a student has finished answering `question`. A true/false, grid,
+ * matching or grouping question counts only when every statement, row, left
+ * item or item has a value, a gaps question only when every gap has non-blank
+ * text or a choice, and a word bank only when every gap of its body has a
+ * word, so a partly filled one still shows as open in the progress bar and
+ * the review; the server grades what is given. Any other type counts as soon
+ * as {@link hasAnswer} does, which for ordering means once the student has
+ * moved a card.
  */
 export function isAnswered(
   question: {
     type: string;
     options: { id: string }[];
     gaps?: { id: string }[];
+    body?: unknown;
   },
   a: Answer | undefined,
 ): boolean {
-  if (question.type === "truefalse" || question.type === "grid") {
+  if (["truefalse", "grid", "match", "groups"].includes(question.type)) {
     return question.options.every((o) => !!a?.pairs?.[o.id]);
+  }
+  if (question.type === "bank") {
+    const open: string[] = [];
+    walkNodes(question.body, (n) => {
+      if (n.type === "gap" && n.attrs?.id && !a?.pairs?.[n.attrs.id]) {
+        open.push(n.attrs.id);
+      }
+    });
+    return open.length === 0;
   }
   if (question.type === "gaps") {
     return (question.gaps ?? []).every(
