@@ -504,20 +504,6 @@
   font-size: 14px;
 }
 
-/* A pending cell is a button above the row's own, so it opens its question. */
-button.j-cell {
-  position: relative;
-  z-index: 2;
-  padding: 0;
-  cursor: pointer;
-  outline: none;
-}
-
-button.j-cell[data-focus-visible] {
-  outline: var(--t-focus);
-  outline-offset: 2px;
-}
-
 /* A review of the parts of an answer */
 
 .r-rows {
@@ -709,15 +695,6 @@ button.j-cell[data-focus-visible] {
   height: 14px;
   margin-right: 6px;
   vertical-align: -2px;
-}
-
-.r-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 .r-written,

@@ -10,6 +10,7 @@ import {
   RichView,
 } from "@klats/shared/rich/RichView.tsx";
 import type { ReactNode } from "react";
+import { VisuallyHidden } from "react-aria-components/VisuallyHidden";
 import { Icon } from "../../ui/icons";
 import { type ReviewRow, reviewRows } from "./review";
 
@@ -62,25 +63,29 @@ export function AnswerReview(props: {
       );
     case "order": {
       const given = answer?.items ?? [];
-      if (given.length === 0) return null;
       const text = (id: string) => (
         <Rich value={q.options.find((o) => o.id === id)?.content ?? ""} />
       );
       return (
         <div className="r-orders">
-          <section>
-            <h4>{m.review_order_student()}</h4>
-            <ol>
-              {given.map((id) => (
-                <li key={id} data-moved={verdicts?.[id] === false || undefined}>
-                  {text(id)}
-                  {verdicts?.[id] === false && (
-                    <small className="r-moved">{m.review_moved()}</small>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </section>
+          {given.length > 0 && (
+            <section>
+              <h4>{m.review_order_student()}</h4>
+              <ol>
+                {given.map((id) => (
+                  <li
+                    key={id}
+                    data-moved={verdicts?.[id] === false || undefined}
+                  >
+                    {text(id)}
+                    {verdicts?.[id] === false && (
+                      <small className="r-moved">{m.review_moved()}</small>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
           <section>
             <h4>{m.review_order_key()}</h4>
             <ol>
@@ -113,7 +118,7 @@ export function AnswerReview(props: {
               className="r-dot"
               data-ok={String(verdicts?.[""] === true)}
               role="img"
-              aria-label={m.review_click()}
+              aria-label={`${m.review_click()}: ${verdicts?.[""] ? m.review_right() : m.review_wrong()}`}
               style={{
                 left: `${answer.point.x * 100}%`,
                 top: `${answer.point.y * 100}%`,
@@ -165,7 +170,7 @@ export function AnswerReview(props: {
                   <span className="r-word" data-state={state}>
                     {children}
                     {state && (
-                      <span className="r-sr">{WORD_TEXT[state]()}</span>
+                      <VisuallyHidden>{WORD_TEXT[state]()}</VisuallyHidden>
                     )}
                   </span>
                 );

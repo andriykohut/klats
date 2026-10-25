@@ -123,7 +123,11 @@ function Live({ snap }: { snap: LiveSnapshot }) {
     { head: m.col_status(), width: 210 },
     {
       head: m.col_grade(),
-      width: snap.rows.some((r) => r.pending > 0) ? 190 : 64,
+      // Wide only while a pending grade is drawn: a finished row's, with names shown.
+      width:
+        !hidden && snap.rows.some((r) => r.grade != null && r.pending > 0)
+          ? 190
+          : 64,
       className: "j-grade",
     },
   ];

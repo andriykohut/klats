@@ -162,6 +162,20 @@
   background: var(--t-line-strong);
 }
 
+/* A pending cell is a button above the row's own, so it opens its question. */
+button.j-cell {
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+button.j-cell[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
 .j-cell[data-state="pending"] {
   background: var(--t-tang-soft);
   border: 1.5px dashed var(--k-accent);
