@@ -2,8 +2,8 @@
  * Hotspot and labelling pictures. The picture takes the height the viewport
  * has left after the sheet's text and footer (--pic-reserve, in design pixels
  * that a type's answers add), never less than 180 px, at its aspect ratio and
- * never wider than its file or the sheet. Rich text's --img-w and --img-r give
- * the file's width and aspect ratio.
+ * never wider than its file or the sheet. Picture.tsx sets --img-w and --img-r
+ * on the box: the file's width and aspect ratio.
  */
 .k-pic {
   --pic-reserve: calc(380 * var(--k-px));

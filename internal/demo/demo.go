@@ -338,7 +338,7 @@ func storeMedia(ms *media.Store) (pic, scenePic, sound string, err error) {
 
 // Seed starts a sitting of the twenty-one-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
-// earlier run in the same data folder did, and the test's image and audio in
+// earlier run in the same data folder did, and the test's two images and audio in
 // ms. If a sitting already runs, demo or
 // not, it stores and starts nothing and returns that sitting.
 func Seed(st *store.Store, eng *sitting.Engine, ms *media.Store) (wire.SittingInfo, error) {

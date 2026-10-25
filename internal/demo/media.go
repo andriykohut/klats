@@ -24,10 +24,12 @@ var (
 	green = color.RGBA{0x2a, 0xa1, 0x6a, 0xff}
 )
 
+// fill paints the rectangle r of img in colour c.
 func fill(img *image.RGBA, r image.Rectangle, c color.Color) {
 	draw.Draw(img, r, image.NewUniform(c), image.Point{}, draw.Src)
 }
 
+// disc paints the disc of radius r around (cx, cy) on img in colour c.
 func disc(img *image.RGBA, cx, cy, r int, c color.Color) {
 	for y := cy - r; y <= cy+r; y++ {
 		for x := cx - r; x <= cx+r; x++ {
@@ -38,6 +40,7 @@ func disc(img *image.RGBA, cx, cy, r int, c color.Color) {
 	}
 }
 
+// encode returns img as a PNG file.
 func encode(img image.Image) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {

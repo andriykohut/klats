@@ -33,8 +33,8 @@ function png(): Buffer {
 
 /**
  * Clicks `fraction` of the way across and down the image, once the sheet has
- * stopped moving: its entry animation scales it, and a box measured during
- * that is not the one the click lands on.
+ * stopped moving: its entry animation rotates and moves it, and the bounding
+ * box of the rotated sheet is not the picture's own box.
  */
 async function clickAt(img: Locator, fraction: number) {
   let box = await img.boundingBox();
@@ -154,7 +154,16 @@ test("hotspot, labels, highlight and a written answer, with the pending finish",
   await place("Сонце", "1");
   await place("Хмара", "2");
   await expect(next).toBeDisabled();
-  await place("Місяць", "3");
+  // Space picks the decoy and moves focus to the only place with room, and
+  // Enter puts it down.
+  await tray.getByRole("row", { name: "Місяць" }).focus();
+  await page.keyboard.press("Space");
+  await expect(
+    page.getByRole("button", {
+      name: m.card_place({ slot: m.point_label({ number: 3 }) }),
+    }),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(next).toBeEnabled();
   await expect(
     page
@@ -179,18 +188,30 @@ test("hotspot, labels, highlight and a written answer, with the pending finish",
   await expect(word("дме")).toHaveAttribute("aria-pressed", "false");
   await next.click();
 
-  // Written answer: Enter is a new line, the counter counts characters, and
-  // 5,000 of them are the most the field takes.
+  // Written answer: Enter is a new line and the counter counts characters.
+  // 5,000 of them are the most the field takes: a paste into the middle of a
+  // long text keeps the student's text and trims only the paste, and a key
+  // typed into a full field changes nothing.
   const box4 = page.getByRole("textbox", { name: open.title });
+  const caretAt = (n: number) =>
+    box4.evaluate(
+      (el: HTMLTextAreaElement, at) => el.setSelectionRange(at, at),
+      n,
+    );
   await box4.fill("а");
   await box4.press("Enter");
   await expect(box4).toHaveValue("а\n");
-  await box4.fill("ж".repeat(5000));
+  await box4.fill("ж".repeat(4000));
+  await caretAt(100);
+  await page.keyboard.insertText("б".repeat(2000));
+  const full = `${"ж".repeat(100)}${"б".repeat(1000)}${"ж".repeat(3900)}`;
+  await expect(box4).toHaveValue(full);
   await expect(
     page.getByText(m.open_count({ count: 5000, max: 5000 })),
   ).toBeVisible();
+  await caretAt(10);
   await box4.pressSequentially("з");
-  await expect(box4).toHaveValue("ж".repeat(5000));
+  await expect(box4).toHaveValue(full);
   await page.getByRole("button", { name: m.test_finish() }).click();
   await page.getByRole("button", { name: m.review_finish() }).click();
 
@@ -225,10 +246,9 @@ test("hotspot, labels, highlight and a written answer, with the pending finish",
     .locator("img");
   await clickAt(otherImg, 0.31);
   await other.getByRole("button", { name: m.test_next() }).click();
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     await other.getByRole("button", { name: m.test_skip() }).click();
   }
-  await other.getByRole("button", { name: m.test_skip() }).click();
   await other.getByRole("button", { name: m.review_finish() }).click();
   await until(
     klats,
@@ -237,4 +257,29 @@ test("hotspot, labels, highlight and a written answer, with the pending finish",
   );
   const { rows } = await klats.results(assignmentId);
   expect(rows.find((r) => r.name === "Гнатюк Ігор")?.points[0]).toBe(0);
+});
+
+test("a pending grade reaches the finish screen after the event stream has dropped", async ({
+  klats,
+}) => {
+  const open = questionOf("open", "q1", "Опишіть погоду", { points: 2 });
+  const { code, assignmentId } = await klats.start([open]);
+  const page = await klats.computer();
+  // An EventSource closes for good on its first error, as after a Wi-Fi blip.
+  await page.route("**/api/events*", (route) => route.abort());
+  await joinAs(page, klats, code, "Бондаренко Олена");
+  await page.getByRole("textbox", { name: open.title }).fill("Сонячно");
+  await page.getByRole("button", { name: m.test_finish() }).click();
+  await page.getByRole("button", { name: m.review_finish() }).click();
+  await expect(page.locator(".k-finish-note")).toBeVisible();
+  await until(klats, (live) => live.rows[0]?.status === "finished");
+  const { rows } = await klats.results(assignmentId);
+  await klats.override(assignmentId, rows[0].participantId, "q1", 2);
+  const graded = await klats.results(assignmentId);
+  // The student app asks again every 10 s while the grade is pending.
+  await expect(
+    page.getByRole("img", {
+      name: m.finish_grade({ grade: graded.rows[0].grade }),
+    }),
+  ).toBeVisible({ timeout: 20_000 });
 });

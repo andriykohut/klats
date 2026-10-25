@@ -99,8 +99,8 @@ function Row({
               className="k-grid-field"
               aria-labelledby={columnId(i)}
             >
-              <RadioButton className="k-dot">
-                <span className="k-dot-mark" />
+              <RadioButton className="k-grid-dot">
+                <span className="k-grid-dot-mark" />
               </RadioButton>
             </RadioField>
           ))}

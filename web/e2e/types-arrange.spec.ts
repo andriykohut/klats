@@ -78,12 +78,17 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
   // The right arrow from a row reaches its drag handle and then its ↑ button.
   const shifted = async (label: string) => {
     const before = await sequence();
-    await page.getByRole("row", { name: label }).focus();
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    await expect(
-      page.getByRole("button", { name: m.order_up({ item: label }) }),
-    ).toBeFocused();
+    // React Aria restores focus to a moved row a few frames after the move,
+    // and a key pressed before that lands on the wrong element, so the walk
+    // from the row to its button runs again until it ends there.
+    await expect(async () => {
+      await page.getByRole("row", { name: label }).focus();
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      await expect(
+        page.getByRole("button", { name: m.order_up({ item: label }) }),
+      ).toBeFocused({ timeout: 1000 });
+    }).toPass({ timeout: 10_000 });
     await page.keyboard.press("Enter");
     await expect.poll(sequence).not.toEqual(before);
     // Focus stays on a button of the moved card, whose button at the end is off.
@@ -108,6 +113,9 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
   for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await expect.poll(async () => (await sequence()).at(-1)).toBe(top);
+  // React Aria moves focus to the dropped card a moment after the drop; the
+  // next key press must come after that.
+  await expect.poll(inList).toBe(true);
   await expect(next).toBeEnabled();
   const want = [
     "Поснідати",
@@ -171,10 +179,15 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
 
   // Groups, with the mouse: three of four cards are dragged, one stays in the tray.
   const group = (name: string) => page.getByRole("grid", { name });
-  // A drop leaves nothing picked.
+  // A drop leaves nothing picked. A drag started while the tray is still
+  // reflowing from the last drop can miss, so it is tried again.
   const drag = async (label: string, to: string) => {
-    await card(label).dragTo(group(to));
-    await expect(group(to).getByRole("row", { name: label })).toBeVisible();
+    await expect(async () => {
+      await card(label).dragTo(group(to), { timeout: 2000 });
+      await expect(group(to).getByRole("row", { name: label })).toBeVisible({
+        timeout: 1000,
+      });
+    }).toPass({ timeout: 10_000 });
     await expect(picked).toHaveCount(0);
   };
   await drag("Кіт", "Ссавці");
@@ -227,11 +240,19 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
 
   // Enter picks a card without moving on, though the question is answered, and
   // Escape unpicks it and returns focus to it.
-  // React Aria moves focus to the dropped card up to 50 ms after the drop.
-  await page.waitForTimeout(200);
-  await card("хмарі").focus();
-  await page.keyboard.press("Enter");
-  await expect(picked).toHaveAttribute("aria-label", "хмарі");
+  // React Aria moves focus to the dropped card's handle a moment after the
+  // drop, and an Enter before that is lost, so the key is tried again until
+  // it picks the card.
+  await expect(
+    inGap(2, "килимку").getByRole("button", { name: /^Перетягнути/ }),
+  ).toBeFocused();
+  await expect(async () => {
+    await card("хмарі").focus();
+    await page.keyboard.press("Enter");
+    await expect(picked).toHaveAttribute("aria-label", "хмарі", {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 10_000 });
   await expect(page.locator(".k-slot-hit").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(picked).toHaveCount(0);

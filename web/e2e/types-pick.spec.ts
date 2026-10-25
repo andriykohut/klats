@@ -85,8 +85,8 @@ test("true/false and grid answers are chosen, saved and graded", async ({
   await pressLetter(page, "А");
   await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
   // A radio's own input is a hidden pixel, so the mouse takes its round mark.
-  await group("Кіт").locator(".k-dot").first().click();
-  await group("Горобець").locator(".k-dot").first().click();
+  await group("Кіт").locator(".k-grid-dot").first().click();
+  await group("Горобець").locator(".k-grid-dot").first().click();
   const whale = group("Кит").getByRole("radio", { name: "Ссавці" });
   for (let i = 0; i < 8; i++) {
     if (await whale.evaluate((el) => el === document.activeElement)) break;

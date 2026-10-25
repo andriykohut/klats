@@ -41,7 +41,7 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 		t.Fatalf("sitting %q is not the running one", info.SittingID)
 	}
 	if info.ClassName != "7-Б" || info.QuestionCount != 21 {
-		t.Errorf("sitting of class %q with %d questions, want 7-Б with 21",info.ClassName, info.QuestionCount)
+		t.Errorf("sitting of class %q with %d questions, want 7-Б with 21", info.ClassName, info.QuestionCount)
 	}
 
 	join, err := eng.Join(info.Code, strings.Repeat("a", 26), "10.0.0.5")

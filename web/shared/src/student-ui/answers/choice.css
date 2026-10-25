@@ -93,7 +93,7 @@ fieldset.k-tf {
 }
 
 .k-pick[data-focus-visible],
-.k-dot[data-focus-visible] {
+.k-grid-dot[data-focus-visible] {
   outline: 3px solid var(--k-focus);
   outline-offset: 3px;
 }
@@ -174,7 +174,7 @@ fieldset.k-tf {
   justify-content: center;
 }
 
-.k-dot {
+.k-grid-dot {
   position: relative;
   display: block;
   box-sizing: border-box;
@@ -188,16 +188,16 @@ fieldset.k-tf {
   -webkit-tap-highlight-color: transparent;
 }
 
-.k-dot[data-hovered] {
+.k-grid-dot[data-hovered] {
   border-color: var(--k-sel);
 }
 
-.k-dot[data-selected] {
+.k-grid-dot[data-selected] {
   border-color: var(--k-sel);
   background: var(--k-sel);
 }
 
-.k-dot-mark {
+.k-grid-dot-mark {
   position: absolute;
   inset: 28%;
   border-radius: 50%;
@@ -206,7 +206,7 @@ fieldset.k-tf {
   transition: transform var(--k-dur-badge) var(--k-ease-spring);
 }
 
-.k-dot[data-selected] .k-dot-mark {
+.k-grid-dot[data-selected] .k-grid-dot-mark {
   transform: none;
 }
 

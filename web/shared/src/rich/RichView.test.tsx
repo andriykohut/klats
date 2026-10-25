@@ -3,24 +3,38 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 import { type RichDoc, RichView } from "./RichView";
 
-const word = (text: string) => ({
-  type: "word",
-  content: [{ type: "text", text }],
-});
+const word = (...content: object[]) => ({ type: "word", content });
 const para = (...content: object[]) => ({ type: "paragraph", content });
-const text = (t: string) => ({ type: "text", text: t });
+const text = (t: string, ...marks: string[]) => ({
+  type: "text",
+  text: t,
+  ...(marks.length && { marks: marks.map((type) => ({ type })) }),
+});
 
-// The server numbers words in document order with one counter (Go's
-// rich.Doc.Words), so the second paragraph carries on from the first.
+// What Go's rich.Doc.Words makes of «Кіт **біж**ить, м’ята й пів-яблука.»
+// split over two paragraphs: five words, and the bold syllable stays a text
+// node inside the word «біжить».
 const doc = {
   type: "doc",
   content: [
-    para(word("Сонце"), text(", "), word("вітер")),
-    para(word("хмари")),
+    para(
+      word(text("Кіт")),
+      text(" "),
+      word(text("біж", "bold"), text("ить")),
+      text(","),
+    ),
+    para(
+      word(text("м’ята")),
+      text(" "),
+      word(text("й")),
+      text(" "),
+      word(text("пів-яблука")),
+      text("."),
+    ),
   ],
 } as RichDoc;
 
-test("word numbers the word nodes across paragraphs", () => {
+test("word numbers the word nodes through the whole document", () => {
   const html = renderToStaticMarkup(
     <RichView
       doc={doc}
@@ -28,12 +42,13 @@ test("word numbers the word nodes across paragraphs", () => {
     />,
   );
   expect(html).toBe(
-    '<p><b data-i="0">Сонце</b>, <b data-i="1">вітер</b></p><p><b data-i="2">хмари</b></p>',
+    '<p><b data-i="0">Кіт</b> <b data-i="1"><strong>біж</strong>ить</b>,</p>' +
+      '<p><b data-i="2">м’ята</b> <b data-i="3">й</b> <b data-i="4">пів-яблука</b>.</p>',
   );
 });
 
 test("a word renders its text without the prop", () => {
   expect(renderToStaticMarkup(<RichView doc={doc} />)).toBe(
-    "<p>Сонце, вітер</p><p>хмари</p>",
+    "<p>Кіт <strong>біж</strong>ить,</p><p>м’ята й пів-яблука.</p>",
   );
 });

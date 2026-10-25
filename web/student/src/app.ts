@@ -111,7 +111,30 @@ const listeners = new Set<() => void>();
 
 function update(patch: Partial<State>): void {
   state = { ...state, ...patch };
+  pollPending();
   for (const l of listeners) l();
+}
+
+/** How often a finish screen with a pending grade asks the server whether it is graded. */
+const PENDING_POLL_MS = 10_000;
+let pendingPoll: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Keeps a poll running while the finish screen shows a pending grade and no
+ * session syncs. The event stream announces the teacher's grade, but it closes
+ * for good on its first error, so the poll is what delivers it after a drop.
+ */
+function pollPending(): void {
+  const waiting =
+    state.screen.name === "finish" && !!state.result?.pending && !session;
+  if (waiting && pendingPoll === undefined) {
+    pendingPoll = setInterval(() => {
+      api.heartbeat(0).then(follow, () => {});
+    }, PENDING_POLL_MS);
+  } else if (!waiting && pendingPoll !== undefined) {
+    clearInterval(pendingPoll);
+    pendingPoll = undefined;
+  }
 }
 
 /** Subscribes to state changes, as useSyncExternalStore takes it. */
