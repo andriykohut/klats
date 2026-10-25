@@ -168,6 +168,12 @@ test("an image and a sound stay in the question when it is edited", async ({
   const again = page.getByRole("textbox", { name: m.builder_question_text() });
   await expect(again.locator("img")).toBeVisible();
   await expect(again.locator("audio")).toBeAttached();
+  // A selected picture is outlined.
+  await again.locator("img").click();
+  await expect(again.locator(".b-media").first()).not.toHaveCSS(
+    "outline-style",
+    "none",
+  );
   await again.getByText("Послухайте").click();
   await page.keyboard.press("End");
   await page.keyboard.type(" уважно");

@@ -200,10 +200,7 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
   const s = { queue, conn };
   session = s;
   conn.onState((st, pending) => {
-    if (st === "online" && state.net.state !== "online") {
-      retryMedia();
-      if (state.test) loadFormulas(state.test);
-    }
+    if (st === "online" && state.net.state !== "online") retryMedia();
     update({ net: { state: st, pending } });
   });
   conn.onStatus((st) => {
@@ -214,8 +211,8 @@ function sync(id: string, res?: TestResponse): AnswerQueue {
 }
 
 /**
- * Loads KaTeX when `test` has formulas. A failed load shows the formulas as
- * LaTeX until the connection returns and this runs again.
+ * Loads KaTeX when `test` has formulas. It is not retried: when the load
+ * fails, the formulas keep showing their LaTeX source.
  */
 function loadFormulas(test: StudentTest): void {
   if (hasMath(test)) loadMath().catch(() => {});

@@ -1,3 +1,4 @@
+import { katexWoff2Only } from "@klats/shared/katexFonts.ts";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -9,7 +10,11 @@ import { defineConfig } from "vite";
 const teacher = new URL(process.env.KLATS_TEACHER_API ?? "http://127.0.0.1:0/");
 
 export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()] }),
+    katexWoff2Only,
+  ],
   // The app loads from this computer, never over the network, so its size
   // is no concern and the minified-size warning only adds noise.
   build: { chunkSizeWarningLimit: 2000 },

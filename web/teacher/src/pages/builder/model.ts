@@ -40,7 +40,8 @@ export const STORED_ATTRS: Record<string, (keyof RichAttrs)[]> = {
 
 /**
  * Returns `node` with only the keys internal/rich accepts: type, text, the
- * mark types, non-empty content, and for the node types in
+ * mark types of text nodes (ProseMirror also marks formulas and hard breaks,
+ * which the server refuses), non-empty content, and for the node types in
  * {@link STORED_ATTRS} their listed attrs. Null attrs and spans of 1 are
  * dropped, as is every attr of other nodes (so an ordered list always starts
  * at 1 and a table has no column widths).
@@ -55,7 +56,9 @@ export function toStored(node: EditorNode): RichNode {
   }
   if (Object.keys(attrs).length) out.attrs = attrs as RichAttrs;
   if (node.text !== undefined) out.text = node.text;
-  if (node.marks?.length) out.marks = node.marks.map((m) => ({ type: m.type }));
+  if (node.text !== undefined && node.marks?.length) {
+    out.marks = node.marks.map((m) => ({ type: m.type }));
+  }
   if (node.content?.length) out.content = node.content.map(toStored);
   return out;
 }

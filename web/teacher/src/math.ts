@@ -4,7 +4,7 @@ import "katex/dist/katex.min.css";
 
 setMathRenderer((latex, el) => katex.render(latex, el, KATEX_OPTIONS));
 
-/** Reports whether KaTeX can't read `latex`; the formula dialog disables «Вставити» on it. */
+/** Reports whether KaTeX throws on `latex`. */
 export function latexBroken(latex: string): boolean {
   try {
     katex.renderToString(latex, { ...KATEX_OPTIONS, throwOnError: true });

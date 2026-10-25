@@ -474,7 +474,7 @@
   border-radius: 8px;
 }
 
-.b-media.ProseMirror-selectednode {
+.ProseMirror-selectednode > .b-media {
   outline: var(--t-focus);
   outline-offset: 2px;
 }

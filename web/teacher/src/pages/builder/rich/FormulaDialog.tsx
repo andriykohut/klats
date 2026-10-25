@@ -48,6 +48,8 @@ export function FormulaDialog(props: {
     );
     // The caret can only be set once the field holds the new text.
     flushSync(() => setLatex(next.latex));
+    // A key press on a palette button focuses the button, not the field.
+    field.focus();
     field.setSelectionRange(next.caret, next.caret);
   };
 

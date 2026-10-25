@@ -63,6 +63,27 @@ test("toStored keeps only the keys the server allows", () => {
   });
 });
 
+test("toStored keeps marks on text only", () => {
+  const bold = [{ type: "bold" }];
+  expect(
+    toStored({
+      type: "paragraph",
+      content: [
+        { type: "text", text: "x=", marks: bold },
+        { type: "math", attrs: { latex: "\\pi" }, marks: bold },
+        { type: "hardBreak", marks: bold },
+      ],
+    }),
+  ).toEqual({
+    type: "paragraph",
+    content: [
+      { type: "text", text: "x=", marks: bold },
+      { type: "math", attrs: { latex: "\\pi" } },
+      { type: "hardBreak" },
+    ],
+  });
+});
+
 test("toStored keeps table spans and drops widths", () => {
   const cell = (type: string, attrs: Record<string, unknown>) => ({
     type,

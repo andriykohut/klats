@@ -1,4 +1,5 @@
 import type { StudentTest } from "../generated/wire";
+import { fieldsOf, walkNodes } from "../rich/walk";
 
 /*
  * Formulas are drawn by KaTeX, which the student app loads only for a test
@@ -42,30 +43,16 @@ export const KATEX_OPTIONS = {
   maxExpand: 200,
 } as const;
 
-interface Picture {
-  content?: unknown;
-}
-
-/** A question as the server sends it, with the fields of every type. */
-type Question = StudentTest["questions"][number] & {
-  body?: unknown;
-  targets?: Picture[];
-};
-
 /**
  * Reports whether any rich text of `test` holds a formula: a question's text
  * and body, its options and its targets.
  */
 export function hasMath(test: StudentTest): boolean {
-  const walk = (node: unknown): boolean => {
-    const n = node as { type?: string; content?: unknown[] } | null;
-    return n?.type === "math" || (n?.content?.some(walk) ?? false);
-  };
-  return (test.questions as Question[]).some(
-    (q) =>
-      walk(q.text) ||
-      walk(q.body) ||
-      q.options.some((o) => walk(o.content)) ||
-      (q.targets?.some((t) => walk(t.content)) ?? false),
-  );
+  let found = false;
+  for (const f of fieldsOf(test)) {
+    walkNodes(f.content, (n) => {
+      found ||= n.type === "math";
+    });
+  }
+  return found;
 }

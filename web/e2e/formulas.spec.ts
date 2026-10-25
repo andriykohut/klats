@@ -60,6 +60,10 @@ test("a fraction is built from the palette and Tab moves to its denominator", as
     attrs: { latex: "\\frac{1}{2}" },
   });
 
+  // Arrowing onto the formula selects it, and the selection shows.
+  await page.keyboard.press("ArrowLeft");
+  await expect(text.locator(".b-math")).not.toHaveCSS("outline-style", "none");
+
   // Clicking the formula reopens the dialog on it, and the edit replaces it.
   await text.locator(".katex").click();
   const field = dialog(page).getByLabel(m.formula_latex());
@@ -156,4 +160,47 @@ test("an answer option takes a formula, and Enter in the dialog inserts it witho
   await expect(dialog(page)).toHaveCount(0);
   await expect(option.locator(".katex .sqrt")).toBeVisible();
   await expect(page.getByRole("listitem")).toHaveCount(before);
+});
+
+test("a palette button pressed from the keyboard returns the caret to the field", async ({
+  klats,
+}) => {
+  const page = await newQuestion(klats);
+  await page.getByRole("textbox", { name: m.builder_question_text() }).click();
+  await page.getByRole("button", { name: m.rich_formula() }).click();
+  const field = dialog(page).getByLabel(m.formula_latex());
+
+  await dialog(page).getByRole("button", { name: "π", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("r");
+  await expect(field).toHaveValue("\\pi r");
+});
+
+test("a line with a formula can be made bold and still saves", async ({
+  klats,
+}) => {
+  const page = await newQuestion(klats);
+  const text = page.getByRole("textbox", { name: m.builder_question_text() });
+  await text.click();
+  await page.keyboard.type("S=");
+  await page.keyboard.press("ControlOrMeta+Shift+L");
+  await dialog(page).getByLabel(m.formula_latex()).fill("\\pi r^2");
+  await page.keyboard.press("Enter");
+  await expect(text.locator(".katex")).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.press("ControlOrMeta+B");
+  await expect(text.locator("strong")).toBeVisible();
+  await expect(page.getByText(m.builder_saved())).toBeVisible();
+  await expect
+    .poll(async () => {
+      const doc = (await saved(page)).questions[0].text as {
+        content: { content: { type: string; marks?: unknown[] }[] }[];
+      };
+      return doc.content[0].content.map((n) => [n.type, n.marks?.length ?? 0]);
+    })
+    .toEqual([
+      ["text", 1],
+      ["math", 0],
+    ]);
 });

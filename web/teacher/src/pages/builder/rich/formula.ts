@@ -4,29 +4,33 @@ export interface Key {
   snippet: string;
 }
 
-/** The formula dialog's buttons, in the order they are shown. */
+/**
+ * The formula dialog's buttons, in the order they are shown. A snippet
+ * that ends in a letter command ends in a space, so a letter typed after it
+ * doesn't join it into an unknown command.
+ */
 export const PALETTE: Key[] = [
   { caption: "a/b", snippet: "\\frac{}{}" },
   { caption: "x²", snippet: "^{}" },
   { caption: "x₂", snippet: "_{}" },
   { caption: "√", snippet: "\\sqrt{}" },
   { caption: "ⁿ√", snippet: "\\sqrt[]{}" },
-  { caption: "×", snippet: "\\times" },
-  { caption: "÷", snippet: "\\div" },
-  { caption: "·", snippet: "\\cdot" },
-  { caption: "±", snippet: "\\pm" },
-  { caption: "≠", snippet: "\\neq" },
-  { caption: "≈", snippet: "\\approx" },
-  { caption: "≤", snippet: "\\leq" },
-  { caption: "≥", snippet: "\\geq" },
-  { caption: "π", snippet: "\\pi" },
+  { caption: "×", snippet: "\\times " },
+  { caption: "÷", snippet: "\\div " },
+  { caption: "·", snippet: "\\cdot " },
+  { caption: "±", snippet: "\\pm " },
+  { caption: "≠", snippet: "\\neq " },
+  { caption: "≈", snippet: "\\approx " },
+  { caption: "≤", snippet: "\\leq " },
+  { caption: "≥", snippet: "\\geq " },
+  { caption: "π", snippet: "\\pi " },
   { caption: "°", snippet: "^{\\circ}" },
-  { caption: "α", snippet: "\\alpha" },
-  { caption: "β", snippet: "\\beta" },
-  { caption: "γ", snippet: "\\gamma" },
-  { caption: "Δ", snippet: "\\Delta" },
-  { caption: "∞", snippet: "\\infty" },
-  { caption: "→", snippet: "\\rightarrow" },
+  { caption: "α", snippet: "\\alpha " },
+  { caption: "β", snippet: "\\beta " },
+  { caption: "γ", snippet: "\\gamma " },
+  { caption: "Δ", snippet: "\\Delta " },
+  { caption: "∞", snippet: "\\infty " },
+  { caption: "→", snippet: "\\rightarrow " },
 ];
 
 /**

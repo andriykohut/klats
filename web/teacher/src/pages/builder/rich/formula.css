@@ -10,7 +10,7 @@
   background: var(--t-hover);
 }
 
-.b-math.ProseMirror-selectednode {
+.ProseMirror-selectednode > .b-math {
   outline: var(--t-focus);
   outline-offset: 1px;
 }

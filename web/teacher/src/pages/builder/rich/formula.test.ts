@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { insertSnippet, nextHole } from "./formula";
+import { insertSnippet, nextHole, PALETTE } from "./formula";
 
 test("insertSnippet", () => {
   expect(insertSnippet("x+", 2, 2, "\\frac{}{}")).toEqual({
@@ -15,6 +15,10 @@ test("insertSnippet", () => {
     latex: "\\frac{ab}{}",
     caret: 10,
   });
+});
+
+test("a palette snippet ends in a brace or a space", () => {
+  for (const { snippet } of PALETTE) expect(snippet).toMatch(/[} ]$/);
 });
 
 test("nextHole", () => {

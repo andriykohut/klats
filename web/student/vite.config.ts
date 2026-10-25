@@ -1,4 +1,5 @@
 import { buildTarget, cssTargets } from "@klats/shared/browsers.ts";
+import { katexWoff2Only } from "@klats/shared/katexFonts.ts";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -8,7 +9,11 @@ import { defineConfig } from "vite";
 const api = process.env.KLATS_API ?? "http://127.0.0.1:8080";
 
 export default defineConfig({
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+  plugins: [
+    react(),
+    babel({ presets: [reactCompilerPreset()] }),
+    katexWoff2Only,
+  ],
   build: {
     target: buildTarget,
     // `make check` holds the app to 350 KB of gzipped JS, which is what
