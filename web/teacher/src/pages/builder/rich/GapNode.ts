@@ -48,10 +48,11 @@ export function setGapWords(view: EditorView, words: Map<string, string>) {
 /**
  * A blank in the text of a gaps question, stored as `{type: "gap", attrs:
  * {id}}`. It is an atom drawn as a chip numbered by its place in the text, or
- * showing its word once {@link setGapWords} gives it one, and named «Пропуск N»
- * (with its word, «Пропуск N: слово», once it has one) for assistive technology (all set by a decoration, so they follow the text as
- * gaps are added, moved and removed), and the id links it to the entry in the
- * question's `gaps` or the word option of a bank that holds its answers.
+ * showing its word once {@link setGapWords} gives it one, and named
+ * «Пропуск N», or «Пропуск N: слово» once it has a word, for assistive
+ * technology. A decoration sets all three, so they follow the text as gaps are
+ * added, moved and removed. The id links the gap to the entry in the
+ * question's `gaps`, or to the bank's word option, that holds its answers.
  *
  * Ids are unique within the question and a question holds at most
  * {@link MAX_LIST} gaps, as internal/testfmt requires: the node refuses an edit
