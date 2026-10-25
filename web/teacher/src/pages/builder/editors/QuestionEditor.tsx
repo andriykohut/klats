@@ -4,8 +4,11 @@ import type { ComponentType } from "react";
 import { RichField } from "../RichField";
 import { ChoiceEditor } from "./ChoiceEditor";
 import { EditorHead, Grading } from "./EditorHead";
+import { GapsEditor } from "./GapsEditor";
 import { GridEditor } from "./GridEditor";
 import type { RemoveItem } from "./ItemList";
+import { NumberEditor } from "./NumberEditor";
+import { ShortEditor } from "./ShortEditor";
 import { TrueFalseEditor } from "./TrueFalseEditor";
 
 /** What the editor of one question type takes: the part of the editor under the question text. */
@@ -20,6 +23,9 @@ const EDITORS: Record<string, ComponentType<EditorProps>> = {
   multi: ChoiceEditor,
   truefalse: TrueFalseEditor,
   grid: GridEditor,
+  short: ShortEditor,
+  number: NumberEditor,
+  gaps: GapsEditor,
 };
 
 /**

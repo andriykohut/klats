@@ -23,10 +23,11 @@ import { Button, FileTrigger } from "react-aria-components";
 import { flushSync } from "react-dom";
 import { lowlight } from "../../code";
 import { addImage, mediaMessage, uploadMedia } from "./media";
-import { oneParagraph, textDoc, toStored } from "./model";
+import { MAX_LIST, newId, oneParagraph, textDoc, toStored } from "./model";
 import { AudioNode } from "./rich/AudioNode";
 import { CodeLanguageSelect } from "./rich/CodeLanguageSelect";
 import { FormulaDialog } from "./rich/FormulaDialog";
+import { GapNode } from "./rich/GapNode";
 import { ImageNode } from "./rich/ImageNode";
 import { MathNode } from "./rich/MathNode";
 
@@ -34,7 +35,8 @@ import { MathNode } from "./rich/MathNode";
  * StarterKit trimmed to internal/rich's schema: doc, paragraph, text,
  * hardBreak, the two lists and listItem, and codeBlock, with bold, italic and
  * code; Subscript, Superscript, the table nodes, the formula node and, in
- * block fields, the image and audio nodes are added beside it. Block fields
+ * block fields, the image and audio nodes are added beside it. Gapped fields
+ * keep the inline set and add the gap node. Block fields
  * swap StarterKit's codeBlock for CodeBlockLowlight, which highlights the
  * block and adds its `language` attr.
  * Pasted content is parsed against this schema, so headings, quotes, links
@@ -84,6 +86,14 @@ const INLINE_EXTENSIONS = [
   Subscript,
   Superscript,
   MathNode,
+];
+
+const GAPPED_EXTENSIONS = [
+  StarterKit.configure(INLINE),
+  Subscript,
+  Superscript,
+  MathNode,
+  GapNode,
 ];
 
 const MARKS = [
@@ -171,6 +181,13 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * or for the formula that is selected, and clicking a formula reopens it.
  * Each time `focus` changes to a number other than 0, the field takes focus
  * with the caret at the end.
+ *
+ * `gapped` makes it the body of a gaps question: paragraphs and formatting
+ * like an option but with more than one paragraph, formulas, and gaps; it has
+ * no lists, code, tables or media. Its toolbar's «Пропуск» button puts a gap at
+ * the caret, or in place of the selected text, and is disabled once the body
+ * holds {@link MAX_LIST} gaps. Before the node goes in, `onGap` gets its new id
+ * and the text it replaces (empty without a selection).
  */
 export function RichField(props: {
   value: RichDoc;
@@ -178,11 +195,15 @@ export function RichField(props: {
   label: string;
   placeholder: string;
   inline?: boolean;
+  gapped?: boolean;
+  onGap?: (id: string, selected: string) => void;
   focus?: number;
   onEnter?: () => void;
   onEmptyBackspace?: () => void;
 }) {
   const inline = props.inline ?? false;
+  const gapped = props.gapped ?? false;
+  const block = !(inline || gapped);
   const focus = props.focus ?? 0;
   const [error, setError] = useState("");
   const [languageOpen, setLanguageOpen] = useState(false);
@@ -214,7 +235,11 @@ export function RichField(props: {
 
   const editor = useEditor({
     immediatelyRender: true,
-    extensions: inline ? INLINE_EXTENSIONS : BLOCK_EXTENSIONS,
+    extensions: gapped
+      ? GAPPED_EXTENSIONS
+      : inline
+        ? INLINE_EXTENSIONS
+        : BLOCK_EXTENSIONS,
     // A stored empty document has no paragraph, which ProseMirror requires.
     content: props.value.content?.length ? props.value : textDoc(""),
     editorProps: {
@@ -251,7 +276,7 @@ export function RichField(props: {
         : undefined,
       // A screenshot or copied picture has no text; a copy from a document
       // carries both, and the text is what the teacher meant.
-      handlePaste: inline
+      handlePaste: !block
         ? undefined
         : (view, event) => {
             const data = event.clipboardData;
@@ -261,7 +286,7 @@ export function RichField(props: {
             void add(view, files);
             return true;
           },
-      handleDrop: inline
+      handleDrop: !block
         ? undefined
         : (view, event, _slice, moved) => {
             const files = [...(event.dataTransfer?.files ?? [])];
@@ -305,6 +330,7 @@ export function RichField(props: {
       language:
         (e.getAttributes("codeBlock").language as string | null) ?? null,
       table: e.isActive("table"),
+      gaps: gapCount(e),
     }),
   });
 
@@ -339,6 +365,13 @@ export function RichField(props: {
     }
     chain.run();
     setFormula(null);
+  };
+
+  const putGap = () => {
+    const { from, to } = editor.state.selection;
+    const id = newId();
+    props.onGap?.(id, editor.state.doc.textBetween(from, to, " ").trim());
+    editor.chain().focus().insertContent({ type: "gap", attrs: { id } }).run();
   };
 
   return (
@@ -387,7 +420,7 @@ export function RichField(props: {
               {b.glyph}
             </button>
           ))}
-          {!inline &&
+          {block &&
             BLOCKS.map((b) => (
               <button
                 key={b.key}
@@ -406,7 +439,7 @@ export function RichField(props: {
                 {b.glyph}
               </button>
             ))}
-          {!inline && state.codeBlock && (
+          {block && state.codeBlock && (
             <CodeLanguageSelect
               value={state.language}
               onChange={(language) =>
@@ -419,7 +452,7 @@ export function RichField(props: {
               onOpenChange={setLanguageOpen}
             />
           )}
-          {!inline &&
+          {block &&
             MEDIA.map((b) => (
               <FileTrigger
                 key={b.kind}
@@ -451,6 +484,22 @@ export function RichField(props: {
           >
             π
           </button>
+          {gapped && (
+            <button
+              type="button"
+              tabIndex={-1}
+              className="b-rich-btn"
+              data-mark="gap"
+              aria-label={m.rich_gap()}
+              title={m.rich_gap()}
+              disabled={state.gaps >= MAX_LIST}
+              // Keeps the selection in the editor.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={putGap}
+            >
+              [ ]
+            </button>
+          )}
           {state.table &&
             TABLE_EDITS.map((b) => (
               <button
@@ -515,6 +564,15 @@ function insertMedia(
   if (below) tr.setSelection(below);
   view.dispatch(tr.scrollIntoView());
   view.focus();
+}
+
+/** Returns how many gap nodes `editor` holds. */
+function gapCount(editor: Editor): number {
+  let n = 0;
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === "gap") n++;
+  });
+  return n;
 }
 
 function toggle(editor: Editor, mark: (typeof MARKS)[number]["mark"]): void {

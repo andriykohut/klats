@@ -74,3 +74,146 @@
   outline: var(--t-focus);
   outline-offset: 1px;
 }
+
+/* Accepted answers: chips with a field under them. */
+.b-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.b-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 4px 4px 14px;
+  border: 1.5px solid var(--b-ok-line);
+  border-radius: 999px;
+  background: var(--b-ok-bg);
+  color: var(--k-ink);
+  font: 700 15px / 24px var(--k-font-text);
+  overflow-wrap: anywhere;
+  outline: none;
+}
+
+.b-chip[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.t-icon-btn.b-chip-x {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  color: var(--t-red);
+}
+
+.t-icon-btn.b-chip-x .t-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.4;
+}
+
+.b-chip-add {
+  max-width: 420px;
+}
+
+/* The matching switches stack, each with its hint under it. */
+.b-match {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.b-match .b-tog {
+  margin-left: 0;
+}
+
+.b-match .b-hint {
+  margin: 4px 0 0 47px;
+}
+
+/* Number fields. */
+.b-num-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.b-num {
+  width: 150px;
+}
+
+/*
+ * A gap in the text is a chip numbered by its place: the counter runs over the
+ * field, so the numbers follow the body as gaps are added, moved and removed.
+ */
+.b-rich-input {
+  counter-reset: b-gap;
+}
+
+.b-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  margin: 0 2px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--k-field);
+  border-radius: 11px;
+  background: var(--k-soft);
+  color: var(--k-ink);
+  font: 800 12px / 1 var(--k-font-text);
+  vertical-align: 1px;
+  user-select: none;
+}
+
+.b-gap::before {
+  counter-increment: b-gap;
+  content: counter(b-gap);
+}
+
+.b-gap.ProseMirror-selectednode {
+  background: var(--k-field);
+  color: var(--k-on-dark);
+}
+
+/* One card for each gap of a gaps question. */
+.b-gap-card {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding: 14px;
+  border: 1.5px solid var(--t-line);
+  border-radius: 13px;
+  background: var(--k-paper);
+}
+
+.b-gap-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.b-gap-n {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  background: var(--k-soft);
+  border: 1.5px solid var(--k-field);
+  font: 800 12px / 1 var(--k-font-text);
+}
+
+.b-choice {
+  flex: 1 1 160px;
+}

@@ -4,10 +4,12 @@ import { expect, test } from "vitest";
 import {
   convertQuestion,
   fromPasted,
+  gapsInBody,
   newOption,
   newQuestion,
   oneParagraph,
   plainText,
+  syncGaps,
   textDoc,
   toStored,
 } from "./model";
@@ -470,4 +472,63 @@ test("oneParagraph keeps a one-paragraph paste as it is, open to merge", () => {
   expect(out.content.toJSON()).toEqual([
     { type: "paragraph", content: [{ type: "text", text: "слово" }] },
   ]);
+});
+
+const gapBody = (...ids: string[]) => ({
+  type: "doc" as const,
+  content: [
+    {
+      type: "paragraph",
+      content: ids.flatMap((id) => [
+        { type: "text", text: "a " },
+        { type: "gap", attrs: { id } },
+      ]),
+    },
+    {
+      type: "paragraph",
+      content: [{ type: "math", attrs: { latex: "x" } }],
+    },
+  ],
+});
+
+test("gapsInBody lists the gap ids in document order", () => {
+  expect(gapsInBody(gapBody("g2", "g1"))).toEqual(["g2", "g1"]);
+  expect(gapsInBody(textDoc("Кіт"))).toEqual([]);
+  const nested = {
+    type: "doc" as const,
+    content: [
+      { type: "paragraph", content: [{ type: "gap", attrs: { id: "x" } }] },
+      { type: "paragraph", content: [{ type: "gap", attrs: { id: "y" } }] },
+    ],
+  };
+  expect(gapsInBody(nested)).toEqual(["x", "y"]);
+});
+
+test("toStored keeps the id of a gap", () => {
+  expect(toStored({ type: "gap", attrs: { id: "g1", extra: 1 } })).toEqual({
+    type: "gap",
+    attrs: { id: "g1" },
+  });
+});
+
+test("syncGaps keeps the entries of the gaps in the body, in body order, and stashes the rest", () => {
+  const stash = new Map();
+  const g1 = { id: "g1", accepted: ["Київ"] };
+  const g2 = {
+    id: "g2",
+    choices: [{ id: "c", text: "три", correct: true }],
+  };
+
+  // g2 is first in the body, g3 is new, g1 is gone.
+  const gaps = syncGaps([g1, g2], gapBody("g2", "g3"), stash);
+  expect(gaps).toEqual([g2, { id: "g3" }]);
+  expect(stash.get("g1")).toBe(g1);
+
+  // An undo brings g1 back with its answers.
+  expect(syncGaps(gaps, gapBody("g1", "g2", "g3"), stash)).toEqual([
+    g1,
+    g2,
+    { id: "g3" },
+  ]);
+  expect(syncGaps(undefined, textDoc(""), stash)).toEqual([]);
 });

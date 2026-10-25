@@ -1,5 +1,6 @@
 import { CODE_LANGUAGES } from "@klats/shared/code/registry.ts";
 import type {
+  Gap,
   Option,
   Question,
   Target,
@@ -27,6 +28,12 @@ import {
 /** The points a question can carry, as internal/testfmt allows. */
 export const MIN_POINTS = 1;
 export const MAX_POINTS = 12;
+
+/** The longest a typed text may be, in characters, as internal/testfmt allows. */
+export const MAX_TEXT = 200;
+
+/** The most entries a list of texts, choices or gaps may hold, as internal/testfmt allows. */
+export const MAX_LIST = 50;
 
 /** Editor JSON as TipTap produces it: any node, possibly with attrs. */
 export interface EditorNode {
@@ -110,6 +117,38 @@ export function textDoc(text: string): RichDoc {
         : { type: "paragraph" },
     ],
   };
+}
+
+/** Returns the ids of the gap nodes in `doc`, in document order. */
+export function gapsInBody(doc: RichDoc): string[] {
+  const ids: string[] = [];
+  const walk = (n: RichNode) => {
+    if (n.type === "gap" && n.attrs?.id) ids.push(n.attrs.id);
+    n.content?.forEach(walk);
+  };
+  doc.content?.forEach(walk);
+  return ids;
+}
+
+/**
+ * Returns the entries of the gaps in `doc`, in body order, for a question's
+ * `gaps`: the server rejects a list of over 50 or with a repeated id before it
+ * drops the entries of removed gaps, so only live ones are saved. An entry
+ * whose gap node is gone moves into `stash`, and a node that has an entry
+ * there gets it back, so an undo restores a gap whole. A node with no entry
+ * anywhere gets an empty one.
+ */
+export function syncGaps(
+  gaps: Gap[] | undefined,
+  doc: RichDoc,
+  stash: Map<string, Gap>,
+): Gap[] {
+  const ids = gapsInBody(doc);
+  for (const g of gaps ?? []) if (!ids.includes(g.id)) stash.set(g.id, g);
+  return ids.map(
+    (id) =>
+      gaps?.find((g) => g.id === id) ?? stash.get(id) ?? ({ id } satisfies Gap),
+  );
 }
 
 /** Returns the document's text on one line, formatting dropped. */

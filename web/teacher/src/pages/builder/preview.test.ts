@@ -61,3 +61,42 @@ test("toStudent leaves out a highlight body and an open question's rubric", () =
   const open = toStudent({ ...base, type: "open" });
   expect(JSON.stringify(open)).not.toMatch(/rubric|Критерії/);
 });
+
+test("toStudent keeps a gaps question's body and the texts of a list gap's choices, not its key", () => {
+  const body = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "gap", attrs: { id: "g1" } },
+          { type: "gap", attrs: { id: "g2" } },
+        ],
+      },
+    ],
+  };
+  const gaps = toStudent({
+    ...base,
+    type: "gaps",
+    body,
+    gaps: [
+      { id: "g1", accepted: ["Київ"] },
+      {
+        id: "g2",
+        choices: [
+          { id: "c1", text: "Львів", correct: false },
+          { id: "c2", text: "Харків", correct: true },
+        ],
+      },
+    ],
+  });
+  expect(gaps.body).toEqual(body);
+  expect(gaps.gaps?.[1]).toEqual({
+    id: "g2",
+    choices: [
+      { id: "c1", text: "Львів" },
+      { id: "c2", text: "Харків" },
+    ],
+  });
+  expect(JSON.stringify(gaps)).not.toMatch(/correct|accepted|Київ/);
+});
