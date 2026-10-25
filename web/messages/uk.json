@@ -18,6 +18,9 @@
   "answer_open": "Напишіть відповідь",
   "answer_true": "Правда",
   "answer_false": "Неправда",
+  "number_placeholder": "Наприклад, 9,8",
+  "gap_label": "Пропуск {number}",
+  "gap_choose": "Оберіть",
   "answers_below": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

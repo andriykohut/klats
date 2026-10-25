@@ -1,0 +1,183 @@
+/* Short text, number and gaps answers. */
+.k-line {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(26 * var(--k-px));
+  padding: calc(12 * var(--k-px)) calc(18 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  color: var(--k-ink);
+  font: inherit;
+  font-size: max(18px, calc(24 * var(--k-px)));
+  font-weight: 600;
+  outline: none;
+}
+
+.k-line::placeholder {
+  color: var(--k-muted);
+  font-weight: 500;
+}
+
+.k-line:focus {
+  border-color: var(--k-sel);
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+fieldset.k-gaps {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.k-gaps {
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(26 * var(--k-px));
+  font-size: max(18px, calc(24 * var(--k-px)));
+  font-weight: 600;
+  line-height: 2.1;
+  overflow-wrap: anywhere;
+}
+
+.k-gaps p {
+  margin: 0;
+}
+
+.k-gaps strong {
+  font-weight: 800;
+}
+
+/*
+ * A typed gap is a grid of one cell holding the input and a hidden copy of
+ * its text, so the cell is as wide as the text, and at least 8 characters.
+ */
+.k-gap-typed {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 0.4em;
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: 0.35em;
+  background: var(--k-tile);
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.k-gap-typed:focus-within {
+  border-color: var(--k-sel);
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-gap-mirror,
+.k-gap-typed input {
+  grid-area: 1 / 1;
+  min-width: 0;
+  font: inherit;
+  white-space: pre;
+}
+
+.k-gap-mirror {
+  min-width: 8ch;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.k-gap-typed input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--k-ink);
+  outline: none;
+}
+
+.k-gap-list {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  line-height: 1.5;
+}
+
+.k-gap-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 8ch;
+  padding: 0 0.4em;
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: 0.35em;
+  background: var(--k-tile);
+  color: var(--k-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.k-gap-pick[data-pressed] {
+  background: var(--k-soft);
+}
+
+.k-gap-pick[data-focus-visible] {
+  border-color: var(--k-sel);
+  outline: 3px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.k-gap-pick [data-placeholder] {
+  color: var(--k-muted);
+  font-weight: 500;
+}
+
+.k-gap-pick svg {
+  flex: none;
+  width: 0.8em;
+  height: 0.8em;
+  fill: none;
+  stroke: var(--k-sel);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-pop.k-gap-pop {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: var(--trigger-width);
+  padding: calc(6 * var(--k-px));
+  font-family: var(--k-font-text);
+  font-size: max(16px, calc(20 * var(--k-px)));
+  font-weight: 600;
+}
+
+.k-gap-options {
+  flex: 1;
+  overflow: auto;
+  outline: none;
+}
+
+.k-gap-option {
+  padding: calc(8 * var(--k-px)) calc(14 * var(--k-px));
+  border-radius: calc(10 * var(--k-px));
+  color: var(--k-ink);
+  cursor: pointer;
+  outline: none;
+}
+
+.k-gap-option[data-focused],
+.k-gap-option[data-hovered] {
+  background: var(--k-soft);
+}
+
+.k-gap-option[data-selected] {
+  color: var(--k-sel);
+  font-weight: 800;
+}

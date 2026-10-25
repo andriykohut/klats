@@ -1,7 +1,10 @@
 import type { Answer } from "../../generated/testfmt";
 import type { StudentQuestion } from "../../generated/wire";
 import { ChoiceAnswers } from "./ChoiceAnswers";
+import { GapsAnswer } from "./GapsAnswer";
 import { GridAnswers } from "./GridAnswers";
+import { NumberAnswer } from "./NumberAnswer";
+import { TextAnswer } from "./TextAnswer";
 import { TrueFalseAnswers } from "./TrueFalseAnswers";
 
 /** What every question type's answer component takes. */
@@ -38,6 +41,12 @@ export function AnswerArea({
       return <TrueFalseAnswers {...props} />;
     case "grid":
       return <GridAnswers {...props} />;
+    case "short":
+      return <TextAnswer {...props} />;
+    case "number":
+      return <NumberAnswer {...props} />;
+    case "gaps":
+      return <GapsAnswer {...props} />;
     default:
       return null;
   }

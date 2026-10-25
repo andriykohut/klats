@@ -11,8 +11,9 @@ import { keyToOption } from "../input/keyboard";
  * One question of the test on its sheet, with Skip and Next (Finish on the
  * last question, which leads to the review). Next waits for an answer; Skip
  * never does. For single and multiple choice, keys pick answers (see
- * {@link keyToOption}). Enter means Next, except while a text field or the
- * question grid has focus.
+ * {@link keyToOption}). Enter means Next, except while a text field other than
+ * a one-line answer field (marked `data-enter-next`) or the question grid has
+ * focus.
  */
 export function TakeTest({
   test,
@@ -41,7 +42,13 @@ export function TakeTest({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!present || e.altKey || e.ctrlKey || e.metaKey || typing()) return;
+      if (!present || e.altKey || e.ctrlKey || e.metaKey) return;
+      // A one-line answer field hands Enter on; any other field keeps it.
+      const line =
+        e.key === "Enter" &&
+        !e.isComposing &&
+        (e.target as Element).closest("[data-enter-next]");
+      if (typing() && !line) return;
       if (e.key === "Enter") {
         const onButton = (e.target as Element).closest("button");
         if (onButton || e.repeat || !answered) return;

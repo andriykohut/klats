@@ -140,11 +140,26 @@ func grid(id string, points int, text json.RawMessage, columns []json.RawMessage
 	return q
 }
 
-// sampleTest is ten questions, single and multiple choice, with bold, sub-
-// and superscript text, formulas in the text and options of the sixth, a table
-// and a code block in the seventh, and the stored image pic and audio sound in
-// the eighth, then a true/false question with a picture beside one statement
-// and a choice grid.
+// shortAnswer returns a one-point question answered by typing one of accepted.
+func shortAnswer(id string, text json.RawMessage, accepted ...string) testfmt.Question {
+	return testfmt.Question{ID: id, Type: "short", Text: text, Points: 1, Accepted: accepted}
+}
+
+// numberAnswer returns a one-point question whose answer is value, give or
+// take tolerance.
+func numberAnswer(id string, text json.RawMessage, value, tolerance float64) testfmt.Question {
+	return testfmt.Question{ID: id, Type: "number", Text: text, Points: 1, Number: &testfmt.NumberKey{Mode: "tolerance", Value: value, Tolerance: tolerance}}
+}
+
+// gap is the place in a gaps body where the gap with the given id goes.
+func gap(id string) rich.Node { return rich.Node{Type: "gap", Attrs: &rich.Attrs{ID: id}} }
+
+// sampleTest is thirteen questions, single and multiple choice, with bold,
+// sub- and superscript text, formulas in the text and options of the sixth, a
+// table and a code block in the seventh, and the stored image pic and audio
+// sound in the eighth, then a true/false question with a picture beside one
+// statement, a choice grid, a short answer, a number and a gaps question with a
+// formula, a typed gap and a list gap.
 func sampleTest(id, pic, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
@@ -176,6 +191,17 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 			[]json.RawMessage{para(plain("Введення")), para(plain("Виведення"))},
 			gridRow{para(plain("Клавіатура")), 0}, gridRow{para(plain("Монітор")), 1},
 			gridRow{para(plain("Мишка")), 0}, gridRow{para(plain("Принтер")), 1}),
+		shortAnswer("q11", para(plain("Яка столиця України?")), "Київ", "м. Київ"),
+		numberAnswer("q12", para(plain("Чому дорівнює прискорення вільного падіння, у м/с"), sup("2"), plain("?")), 9.8, 0.1),
+		{ID: "q13", Type: "gaps", Points: 3, Partial: true, Text: para(plain("Заповніть пропуски.")),
+			Body: doc(rich.Node{Type: "paragraph", Content: []rich.Node{
+				plain("Якщо "), formula(`x+3=5`), plain(", то x дорівнює "), gap("g1"),
+				plain(". Столиця України — "), gap("g2"), plain(", а байт містить "), gap("g3"), plain(" бітів.")}}),
+			Gaps: []testfmt.Gap{
+				{ID: "g1", Accepted: []string{"2", "два"}},
+				{ID: "g2", Accepted: []string{"Київ"}},
+				{ID: "g3", Choices: []testfmt.Choice{{ID: "c1", Text: "4"}, {ID: "c2", Text: "8", Correct: true}, {ID: "c3", Text: "16"}}},
+			}},
 	}}
 }
 
@@ -198,7 +224,7 @@ func storeMedia(ms *media.Store) (pic, sound string, err error) {
 	return pic, sound, err
 }
 
-// Seed starts a sitting of the ten-question sample test for class 7-Б, of 25
+// Seed starts a sitting of the thirteen-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
 // earlier run in the same data folder did, and the test's image and audio in
 // ms. If a sitting already runs, demo or

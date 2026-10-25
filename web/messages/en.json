@@ -18,6 +18,9 @@
   "answer_open": "Write your answer",
   "answer_true": "True",
   "answer_false": "False",
+  "number_placeholder": "For example, 9.8",
+  "gap_label": "Gap {number}",
+  "gap_choose": "Choose",
   "answers_below": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

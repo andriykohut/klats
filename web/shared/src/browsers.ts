@@ -9,10 +9,11 @@
  * lack and the build does not polyfill:
  * - JS: `Array.prototype.toSorted`, `toReversed`, `toSpliced` and `with`;
  *   `Object.groupBy`; `Promise.withResolvers`; the new `Set` methods;
- *   `structuredClone` of class instances.
- * - CSS: `:has()` (Firefox 115), `color-mix()` with CSS variables (Chrome 109,
- *   and Lightning CSS cannot lower it; precompute shades as hex instead),
- *   View Transitions, `@property` and `linear()` easing.
+ *   `structuredClone` of class instances; `Intl.Segmenter` (Firefox 125).
+ * - CSS: `:has()` (Firefox 115), `field-sizing` (Chrome 123), `color-mix()`
+ *   with CSS variables (Chrome 109, and Lightning CSS cannot lower it;
+ *   precompute shades as hex instead), View Transitions, `@property` and
+ *   `linear()` easing.
  */
 const FLOOR = { chrome: 109, firefox: 115 };
 
