@@ -382,13 +382,14 @@ export function RichField(props: {
   };
 
   const putGap = () => {
+    if (gapCount(editor) >= MAX_LIST) return;
     const { from, to } = trimmedRange(
       editor.state.doc,
       editor.state.selection.from,
       editor.state.selection.to,
     );
     const id = newId();
-    props.onGap?.(id, editor.state.doc.textBetween(from, to, " "));
+    props.onGap?.(id, editor.state.doc.textBetween(from, to, " ").trim());
     editor
       .chain()
       .focus()

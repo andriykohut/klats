@@ -47,8 +47,8 @@ function renewTaken(fragment: Fragment, taken: Set<string>): Fragment {
  * that would repeat an id or add a gap past the limit. A gap pasted in gets a
  * new id, and so starts without answers, only when a gap with its id is still
  * in the text (a copy pasted into the same question); a gap that was cut and
- * pasted, or moved by dragging, keeps its id. A custom node for the same reason as
- * {@link ImageNode}, and likewise parsed only from markup this editor wrote.
+ * pasted, or moved by dragging, keeps its id. A custom node for the same reason
+ * as {@link ImageNode}, and likewise parsed only from markup this editor wrote.
  */
 export const GapNode = Node.create({
   name: "gap",
