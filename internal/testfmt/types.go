@@ -48,7 +48,7 @@ var kinds = map[string]kind{
 	"number":    {uses: useNumber, problems: numberProblems, clean: cleanText},
 	"gaps":      {uses: useBody | useGaps | useMatch | usePartial, bodyMode: rich.Gapped, problems: gapsProblems, clean: cleanGaps},
 	"order":     {uses: useOptions | usePartial, problems: orderProblems, clean: cleanOrder},
-	"match":     {uses: useOptions | useTarget | useTargets | usePartial, problems: matchProblems, clean: cleanMatch},
+	"match":     {uses: useOptions | useTarget | useTargets | usePartial, problems: matchProblems, clean: cleanMatch, validate: checkMatchPairs},
 	"groups":    {uses: useOptions | useTarget | useTargets | usePartial, problems: groupsProblems, clean: cleanGrid},
 	"bank":      {uses: useBody | useOptions | useTarget | usePartial, bodyMode: rich.Gapped, problems: bankProblems, clean: cleanBank, validate: checkBankWords},
 	"hotspot":   {uses: useImage | useAreas},
@@ -108,7 +108,8 @@ func (q *Question) dropUnused(u use) {
 // CleanAnswer returns the answer reduced to the field its type uses, and
 // whether the answer is valid for the question: every id it names belongs to
 // the question and its values are among those the type allows. A repeated item
-// is dropped. An unknown type, or one without answer rules, has no valid
+// is dropped, except in an ordering answer, which must list every option
+// exactly once. An unknown type, or one without answer rules, has no valid
 // answer.
 func (q Question) CleanAnswer(a Answer) (Answer, bool) {
 	k, ok := kinds[q.Type]

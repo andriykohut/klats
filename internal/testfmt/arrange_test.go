@@ -38,12 +38,14 @@ func bankQ(gaps int, words ...Option) Question {
 }
 
 func TestProblemsArrange(t *testing.T) {
-	ps := wantCodes(t, testOf(t, orderQ("a")), "too_few_options")
-	if ps[0].Count != 2 || ps[0].Severity != "error" {
-		t.Errorf("order problem = %+v", ps[0])
+	for _, q := range []Question{orderQ("a"), orderQ("a", "b")} {
+		ps := wantCodes(t, testOf(t, q), "too_few_options")
+		if ps[0].Count != 3 || ps[0].Severity != "error" {
+			t.Errorf("order problem = %+v", ps[0])
+		}
 	}
-	wantCodes(t, testOf(t, orderQ("a", "b")))
-	blank := orderQ("a", "b")
+	wantCodes(t, testOf(t, orderQ("a", "b", "c")))
+	blank := orderQ("a", "b", "c")
 	blank.Options[1].Content = rj("")
 	wantCodes(t, testOf(t, blank), "empty_option")
 
@@ -53,7 +55,7 @@ func TestProblemsArrange(t *testing.T) {
 	wantCodes(t, testOf(t, matchQ([]Option{rows[0], row("l2", "y", "")}, "r1", "r2")), "no_target")
 
 	two := []Target{col("g1", "A"), col("g2", "B")}
-	ps = wantCodes(t, testOf(t, groupsQ(two[:1], row("i1", "x", "g1"), row("i2", "y", "g1"))), "too_few_targets")
+	ps := wantCodes(t, testOf(t, groupsQ(two[:1], row("i1", "x", "g1"), row("i2", "y", "g1"))), "too_few_targets")
 	if ps[0].Count != 2 || ps[0].Severity != "error" {
 		t.Errorf("groups problem = %+v", ps[0])
 	}
@@ -81,6 +83,15 @@ func TestDecodeRejectsTwoWordsForOneGap(t *testing.T) {
 	// A target that names no gap is cleared before the check.
 	if _, err := decodeQ(t, bankQ(1, row("w1", "a", "zz"), row("w2", "b", "zz"))); err != nil {
 		t.Errorf("dangling targets are decoys: %v", err)
+	}
+}
+
+func TestDecodeRejectsTwoLeftItemsForOneTarget(t *testing.T) {
+	if _, err := decodeQ(t, matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r1")}, "r1", "r2")); err == nil {
+		t.Error("two left items for r1 must be rejected")
+	}
+	if _, err := decodeQ(t, matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r2")}, "r1", "r2", "decoy")); err != nil {
+		t.Errorf("a decoy target is fine: %v", err)
 	}
 }
 

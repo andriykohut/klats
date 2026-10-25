@@ -8,10 +8,11 @@ import (
 )
 
 // orderProblems reports the findings of an ordering question: its options,
-// listed in the correct order, need two items.
+// listed in the correct order, need three items, since the order of two is
+// settled by a swap.
 func orderProblems(q Question, add report) {
-	if len(q.Options) < 2 {
-		add("too_few_options", "error", 2)
+	if len(q.Options) < 3 {
+		add("too_few_options", "error", 3)
 	}
 	if hasEmptyItem(q) {
 		add("empty_option", "warning", 0)
@@ -82,17 +83,35 @@ func (q Question) bodyGapIDs() []string {
 // checkBankWords rejects a word bank whose gap has more than one word. Decoys
 // all have an empty target.
 func checkBankWords(q Question) error {
+	if id, ok := repeatedTarget(q.Options); ok {
+		return fmt.Errorf("gap %q has more than one word", id)
+	}
+	return nil
+}
+
+// checkMatchPairs rejects a matching question in which two left items share a
+// right-hand target, since an answer uses each target once and so could not
+// give the key. A target no item points to is a decoy.
+func checkMatchPairs(q Question) error {
+	if id, ok := repeatedTarget(q.Options); ok {
+		return fmt.Errorf("right-hand target %q belongs to more than one left item", id)
+	}
+	return nil
+}
+
+// repeatedTarget returns a non-empty target that more than one option names.
+func repeatedTarget(opts []Option) (string, bool) {
 	seen := map[string]bool{}
-	for _, o := range q.Options {
+	for _, o := range opts {
 		if o.Target == "" {
 			continue
 		}
 		if seen[o.Target] {
-			return fmt.Errorf("gap %q has more than one word", o.Target)
+			return o.Target, true
 		}
 		seen[o.Target] = true
 	}
-	return nil
+	return "", false
 }
 
 // cleanOrder validates the answer of an ordering question: its items are every
