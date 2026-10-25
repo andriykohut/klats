@@ -163,10 +163,6 @@ fieldset.k-set {
   outline: none;
 }
 
-.k-board[data-pressing] .k-slot-hit {
-  pointer-events: none;
-}
-
 .k-slot-hit[data-hovered] {
   border-style: solid;
 }
@@ -179,6 +175,11 @@ fieldset.k-set {
 
 .k-tray {
   margin-bottom: calc(18 * var(--k-px));
+}
+
+/* Tray cards stay pressable above the tray's overlay, so a card can be picked in place of a placed one. */
+.k-tray .k-card {
+  z-index: 3;
 }
 
 /* Matching: the left item and its place side by side. */
@@ -219,8 +220,11 @@ fieldset.k-set {
 }
 
 /* The word bank: the body's text, with a place for a word in each gap. */
-.k-bank {
+fieldset.k-bank-set .k-board {
   font-size: max(18px, calc(24 * var(--k-px)));
+}
+
+.k-bank {
   line-height: 2.1;
   overflow-wrap: anywhere;
 }
@@ -239,12 +243,12 @@ fieldset.k-set {
   flex-wrap: nowrap;
 }
 
-.k-bank .k-card {
+.k-bank-set .k-card {
   padding: calc(2 * var(--k-px)) calc(12 * var(--k-px));
   box-shadow: 0 calc(3 * var(--k-px)) 0 var(--k-tile-shadow);
 }
 
-.k-bank .k-card[data-picked] {
+.k-bank-set .k-card[data-picked] {
   box-shadow: 0 calc(3 * var(--k-px)) 0 var(--k-sel-dark);
 }
 

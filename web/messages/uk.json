@@ -26,6 +26,8 @@
   "slot_label": "Місце {number}",
   "card_place": "Покласти сюди: {slot}",
   "card_return": "Повернути до карток",
+  "card_picked": "Вибрано: {card}. Оберіть місце",
+  "card_placed": "{card}: {slot}",
   "order_up": "Підняти: {item}",
   "order_down": "Опустити: {item}",
   "answers_below": [

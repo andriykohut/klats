@@ -31,7 +31,7 @@ export function BankAnswers({
   }));
   return (
     <fieldset
-      className="k-set"
+      className="k-set k-bank-set"
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
     >

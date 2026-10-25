@@ -26,6 +26,8 @@
   "slot_label": "Place {number}",
   "card_place": "Put it here: {slot}",
   "card_return": "Back to the cards",
+  "card_picked": "Picked: {card}. Choose a place",
+  "card_placed": "{card}: {slot}",
   "order_up": "Move up: {item}",
   "order_down": "Move down: {item}",
   "answers_below": [

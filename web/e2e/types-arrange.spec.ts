@@ -93,9 +93,16 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
     );
   };
   await expect(next).toBeDisabled();
-  // React Aria's keyboard drag makes the first move: the top card goes to the end.
+  // Tab from the sheet reaches the list, and React Aria's keyboard drag makes
+  // the first move: the top card goes to the end.
+  const inList = () =>
+    rows.evaluateAll((els) => els.some((e) => e === document.activeElement));
+  for (let i = 0; i < 10 && !(await inList()); i++) {
+    await page.keyboard.press("Tab");
+  }
+  expect(await inList()).toBe(true);
   const [top] = await sequence();
-  await page.getByRole("row", { name: top }).focus();
+  await expect(page.getByRole("row", { name: top ?? "" })).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("Enter");
   for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowDown");
@@ -124,7 +131,18 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
     page.getByRole("button", { name: m.card_place({ slot }) });
   await card("Київ").tap();
   await here("Україна").tap();
+  // A tray card pressed while a placed card is picked is picked instead.
+  const picked = page.locator("[data-picked]");
+  await page
+    .getByRole("grid", { name: "Україна" })
+    .getByRole("row", { name: "Київ" })
+    .tap();
+  await expect(picked).toHaveAttribute("aria-label", "Київ");
   await card("Варшава").tap();
+  await expect(picked).toHaveAttribute("aria-label", "Варшава");
+  await expect(
+    page.getByRole("grid", { name: "Україна" }).getByRole("row"),
+  ).toHaveCount(1);
   await here("Польща").tap();
   // The place is full only until a second card arrives: Атлантида swaps out Берлін's seat.
   await card("Берлін").tap();
@@ -153,11 +171,11 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
 
   // Groups, with the mouse: three of four cards are dragged, one stays in the tray.
   const group = (name: string) => page.getByRole("grid", { name });
-  // A drop leaves nothing selected once React Aria's own drop handling is over.
+  // A drop leaves nothing picked.
   const drag = async (label: string, to: string) => {
     await card(label).dragTo(group(to));
     await expect(group(to).getByRole("row", { name: label })).toBeVisible();
-    await expect(page.locator("[aria-selected=true]")).toHaveCount(0);
+    await expect(picked).toHaveCount(0);
   };
   await drag("Кіт", "Ссавці");
   await drag("Горобець", "Птахи");
@@ -166,10 +184,10 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
   await expect(tray.getByRole("row")).toHaveCount(1);
   await page.getByRole("button", { name: m.test_skip() }).click();
 
-  // Word bank, with keys. Space picks a word, Tab goes past the word's drag
-  // handle to the gap's press target, and Enter puts the word down. React
-  // Aria's own keyboard drag takes the other word: Enter on its drag handle
-  // starts it, Tab visits the places, and Enter drops.
+  // Word bank, with keys. Space picks a word and moves focus to the first gap,
+  // Enter puts the word down and focus goes on to the next word in the tray.
+  // React Aria's own keyboard drag takes the other word: Enter on its drag
+  // handle starts it, Tab visits the places, and Enter drops.
   const gapName = (n: number) => m.gap_label({ number: n });
   const inGap = (n: number, word: string) =>
     page
@@ -177,12 +195,11 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
       .getByRole("row", { name: word });
   await card("Кіт").focus();
   await page.keyboard.press("Space");
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
   await expect(here(gapName(1))).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(inGap(1, "Кіт")).toBeFocused();
-  await expect(page.locator("[data-picked]")).toHaveCount(0);
+  await expect(inGap(1, "Кіт")).toBeVisible();
+  await expect(page.locator(".k-tray-list [data-card]:focus")).toHaveCount(1);
+  await expect(picked).toHaveCount(0);
 
   await card("килимку").focus();
   await page.keyboard.press("Tab");
@@ -202,7 +219,24 @@ test("ordering, matching, groups and word bank are answered by keyboard, touch a
     await page.keyboard.press("Tab");
   }
   await page.keyboard.press("Enter");
+  // A key pressed at once after the drop leaves nothing picked.
+  await page.keyboard.press("Tab");
   await expect(inGap(2, "килимку")).toBeVisible();
+  await expect(picked).toHaveCount(0);
+  await expect(page.locator(".k-slot-hit")).toHaveCount(0);
+
+  // Enter picks a card without moving on, though the question is answered, and
+  // Escape unpicks it and returns focus to it.
+  // React Aria moves focus to the dropped card up to 50 ms after the drop.
+  await page.waitForTimeout(200);
+  await card("хмарі").focus();
+  await page.keyboard.press("Enter");
+  await expect(picked).toHaveAttribute("aria-label", "хмарі");
+  await expect(page.locator(".k-slot-hit").first()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(picked).toHaveCount(0);
+  await expect(page.locator(".k-slot-hit")).toHaveCount(0);
+  await expect(card("хмарі")).toBeFocused();
   await page.getByRole("button", { name: m.test_finish() }).click();
   await page.getByRole("button", { name: m.review_finish() }).click();
 

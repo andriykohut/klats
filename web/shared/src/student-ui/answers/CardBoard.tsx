@@ -1,6 +1,5 @@
 import {
-  type MouseEvent,
-  type PointerEvent,
+  type KeyboardEvent,
   type ReactNode,
   useEffect,
   useMemo,
@@ -10,6 +9,7 @@ import {
 import { Button } from "react-aria-components/Button";
 import { GridList, GridListItem } from "react-aria-components/GridList";
 import { useDragAndDrop } from "react-aria-components/useDragAndDrop";
+import { VisuallyHidden } from "react-aria-components/VisuallyHidden";
 import type { Image } from "../../generated/testfmt";
 import { m } from "../../paraglide/messages.js";
 import { MediaImage, type RichDoc, RichView } from "../../rich/RichView";
@@ -55,13 +55,16 @@ export function CardFace({ card }: { card: Card }) {
  * bank. `placed` maps each placed card's id to its slot's id, and a card
  * missing from it is in the tray. `onChange` gets the whole new map.
  *
- * The tray and every slot are React Aria grid lists, so a card moves three
- * ways: dragged with the mouse, dragged by the keyboard (Enter on the card's
- * drag handle starts, Tab goes to a place, Enter drops), or picked and then
- * put down. A click, a tap or Space picks a card; a press on a slot's overlay
- * button puts it there, and a press on the tray's takes it back. A slot that
- * is full sends its card back to the tray (see {@link place}). Escape
- * unpicks. Focus follows a moved card.
+ * The tray and every slot are React Aria grid lists without selection, so a
+ * card moves three ways: dragged with the mouse, dragged by the keyboard
+ * (Enter on the card's drag handle starts, Tab goes to a place, Enter drops),
+ * or picked and then put down. A click, a tap, Enter or Space picks a card, or
+ * unpicks it; while one is picked, each slot (and the tray, if the picked card
+ * is placed) has an overlay button that puts it there. A keyboard pick moves
+ * focus to the first slot with room, and the card put down there is followed
+ * by focus on the next card in the tray. A slot that is full sends its card
+ * back to the tray (see {@link place}). Escape unpicks. A hidden live region
+ * says which card is picked and where one was put.
  *
  * The caller lays out the slots: `children` gets a function that draws the
  * slot with a given id, and returns the markup around them.
@@ -81,43 +84,32 @@ export function CardBoard({
   readOnly?: boolean;
   children: (slot: (id: string) => ReactNode) => ReactNode;
 }) {
-  // The card React Aria has selected. After a drop it selects the card the
-  // drop inserted, which the student has not picked: `settling` holds from the
-  // start of a drag to the next input, and then `held` is empty. The selection
-  // is cleared only after React Aria's own 50 ms drop window, since it
-  // selects again while that window is open and nothing has changed.
   const [picked, setPicked] = useState<string | null>(null);
-  const [settling, setSettling] = useState(false);
-  const held = settling ? null : picked;
-  // A press selects its card at once, but the press targets that appear for a
-  // picked card must not get in the way of a drag the press may become.
-  const [pressing, setPressing] = useState(false);
+  const [said, setSaid] = useState("");
   const root = useRef<HTMLDivElement>(null);
   const refocus = useRef<string | null>(null);
+  // Set by Enter on a card, which React Aria turns into an action on key up.
+  const enterPending = useRef(false);
+  // Set when a keyboard pick should move focus to a slot.
+  const focusSlot = useRef(false);
   const capacity = useMemo(
     () => Object.fromEntries(slots.map((s) => [s.id, s.capacity])),
     [slots],
   );
   const live = !readOnly && !!onChange;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: each selection restarts the wait
-  useEffect(() => {
-    if (!settling) return;
-    const timer = setTimeout(() => setPicked(null), 100);
-    return () => clearTimeout(timer);
-  }, [settling, picked]);
-  useEffect(() => {
-    if (!pressing) return;
-    const release = () => setPressing(false);
-    document.addEventListener("pointerup", release, true);
-    document.addEventListener("pointercancel", release, true);
-    return () => {
-      document.removeEventListener("pointerup", release, true);
-      document.removeEventListener("pointercancel", release, true);
-    };
-  }, [pressing]);
-  const move = (card: string, slot: string | null) => {
-    refocus.current = card;
+  const nameOfCard = (id: string) => {
+    const i = cards.findIndex((c) => c.id === id);
+    return nameOf(cards[i]?.content, m.card_label({ number: i + 1 }));
+  };
+  const pick = (card: string | null) => {
+    setPicked(card);
+    setSaid(card ? m.card_picked({ card: nameOfCard(card) }) : "");
+  };
+  const move = (card: string, slot: string | null, then?: string) => {
+    refocus.current = then ?? card;
     setPicked(null);
+    const to = slots.find((s) => s.id === slot)?.name ?? m.cards_tray();
+    setSaid(m.card_placed({ card: nameOfCard(card), slot: to }));
     onChange?.(place(placed, card, slot, capacity));
   };
   // A drag moves its card when it ends, not when the drop lands: a card that
@@ -127,8 +119,6 @@ export function CardBoard({
   const drag: Drag = {
     start(card) {
       dragged.current = { card };
-      setPressing(false);
-      setSettling(true);
       setPicked(null);
     },
     drop(slot) {
@@ -143,19 +133,56 @@ export function CardBoard({
     },
   };
 
-  // React Aria renders a collection one frame after its items change, so the
-  // moved card's row is found on the next one.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when a move changes `placed`
+  // After a keyboard pick, the first slot with room takes focus.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the pick changes
+  useEffect(() => {
+    if (!picked || !focusSlot.current) return;
+    focusSlot.current = false;
+    const free = slots.find(
+      (s) =>
+        cards.filter((c) => placed[c.id] === s.id).length < s.capacity &&
+        placed[picked] !== s.id,
+    );
+    const target =
+      root.current?.querySelector<HTMLElement>(
+        `.k-slot-hit[data-slot="${CSS.escape(free?.id ?? slots[0]?.id ?? "")}"]`,
+      ) ?? root.current?.querySelector<HTMLElement>(".k-slot-hit");
+    target?.focus();
+  }, [picked]);
+
+  // React Aria renders a collection one frame after its items change, so a
+  // moved card's row is found on the next one. Focus goes there only if the
+  // move left it nowhere, as when the element that had it is gone. Only a
+  // pending move does anything, so this can run after every render.
   useEffect(() => {
     const id = refocus.current;
     if (!id) return;
     refocus.current = null;
-    requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (document.activeElement && document.activeElement !== document.body) {
+        return;
+      }
       root.current
         ?.querySelector<HTMLElement>(`[data-card="${CSS.escape(id)}"]`)
-        ?.focus(),
-    );
-  }, [placed]);
+        ?.focus();
+    });
+  });
+
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (!live) return;
+    const onCard = (e.target as Element).matches("[data-card]");
+    if (e.key === "Escape" && picked) {
+      refocus.current = picked;
+      pick(null);
+    } else if (onCard && e.key === " ") {
+      e.preventDefault();
+      const id = (e.target as HTMLElement).dataset.card ?? null;
+      focusSlot.current = id !== picked;
+      pick(id === picked ? null : id);
+    } else if (onCard && e.key === "Enter") {
+      enterPending.current = true;
+    }
+  };
 
   const list = (
     name: string,
@@ -168,16 +195,13 @@ export function CardBoard({
         name={name}
         slot={slot}
         className={className}
-        cards={here.map((c) => ({
-          card: c,
-          name: nameOf(
-            c.content,
-            m.card_label({ number: cards.indexOf(c) + 1 }),
-          ),
-        }))}
+        cards={here.map((c) => ({ card: c, name: nameOfCard(c.id) }))}
         picked={picked}
-        held={held}
-        onPick={setPicked}
+        onAction={(card) => {
+          focusSlot.current = enterPending.current && card !== picked;
+          enterPending.current = false;
+          pick(card === picked ? null : card);
+        }}
         drag={drag}
         live={live}
       />
@@ -185,27 +209,20 @@ export function CardBoard({
   };
   const hit = (name: string, slot: string | null) =>
     live &&
-    held && (
+    picked && (
       <Button
         className="k-slot-hit"
         aria-label={name}
-        onPress={() => move(held, slot)}
+        data-slot={slot ?? undefined}
+        onPress={() => {
+          // Focus goes on to the next card in the tray, or stays with the card put down.
+          const next = cards.find(
+            (c) => c.id !== picked && placed[c.id] === undefined,
+          );
+          move(picked, slot, slot === null ? undefined : next?.id);
+        }}
       />
     );
-  // A click is input when it lands on a card or a press target; the browser
-  // can also send one to the board after a drag.
-  const clicked = (e: MouseEvent<HTMLElement>) => {
-    if ((e.target as Element).closest("[data-card], .k-slot-hit")) {
-      setSettling(false);
-    }
-  };
-  const pressed = (e: PointerEvent<HTMLElement>) => {
-    const onCard = !!(e.target as Element).closest("[data-card]");
-    if (onCard || (e.target as Element).closest(".k-slot-hit")) {
-      setSettling(false);
-    }
-    setPressing(onCard);
-  };
   const slotOf = (id: string) => {
     const slot = slots.find((s) => s.id === id);
     if (!slot) return null;
@@ -218,16 +235,15 @@ export function CardBoard({
   };
 
   return (
-    <div
-      className="k-board"
-      ref={root}
-      data-pressing={pressing || undefined}
-      onPointerDownCapture={pressed}
-      onKeyDownCapture={() => setSettling(false)}
-      onClickCapture={clicked}
-    >
+    // biome-ignore lint/a11y/noStaticElementInteractions: the keys belong to the cards and buttons inside; React Aria's presses stop them before they bubble
+    <div className="k-board" ref={root} onKeyDownCapture={onKeyDown}>
+      <VisuallyHidden>
+        <div aria-live="polite">{said}</div>
+      </VisuallyHidden>
       <div className="k-tray">
-        {held && placed[held] !== undefined ? hit(m.card_return(), null) : null}
+        {picked && placed[picked] !== undefined
+          ? hit(m.card_return(), null)
+          : null}
         {list(m.cards_tray(), null, "k-tray-list")}
       </div>
       {children(slotOf)}
@@ -249,8 +265,7 @@ function CardList({
   className,
   cards,
   picked,
-  held,
-  onPick,
+  onAction,
   drag,
   live,
 }: {
@@ -259,8 +274,7 @@ function CardList({
   className: string;
   cards: { card: Card; name: string }[];
   picked: string | null;
-  held: string | null;
-  onPick: (card: string | null) => void;
+  onAction: (card: string) => void;
   drag: Drag;
   live: boolean;
 }) {
@@ -278,14 +292,8 @@ function CardList({
       aria-label={name}
       layout="grid"
       orientation="horizontal"
-      selectionMode={live ? "single" : "none"}
-      selectedKeys={
-        picked && cards.some((c) => c.card.id === picked) ? [picked] : []
-      }
-      onSelectionChange={(keys) => {
-        const [key] = keys === "all" ? [] : keys;
-        onPick(key === undefined ? null : String(key));
-      }}
+      selectionMode="none"
+      onAction={live ? (key) => onAction(String(key)) : undefined}
       dragAndDropHooks={live ? dragAndDropHooks : undefined}
     >
       {cards.map(({ card, name }) => (
@@ -296,7 +304,7 @@ function CardList({
           textValue={name}
           aria-label={name}
           data-card={card.id}
-          data-picked={held === card.id || undefined}
+          data-picked={picked === card.id || undefined}
         >
           {live && (
             <Button slot="drag" className="k-grip">
