@@ -45,9 +45,9 @@ func lis(positions []int) []bool {
 // judgeOrder judges an ordering answer. Ids that are unknown or repeated are
 // ignored, and an answer that then lacks an option earns 0 and has no verdict.
 // ([testfmt.Question.CleanAnswer] rejects such answers before they are
-// stored.) With n options, of which L belong
-// to a longest subsequence of the answer that is in the key's order, the points
-// are points * (L - 1) / (n - 1), or, without Partial, all points when L is n.
+// stored.) With n options, of which L belong to a longest subsequence of the
+// answer that is in the key's order, the points are
+// points * (L - 1) / (n - 1), or, without Partial, all points when L is n.
 // The verdict holds each option, as whether it is in that subsequence.
 func judgeOrder(q testfmt.Question, a testfmt.Answer) Verdict {
 	n := len(q.Options)
@@ -81,9 +81,9 @@ func judgeOrder(q testfmt.Question, a testfmt.Answer) Verdict {
 // judgeBank judges a word bank answer: a gap is right when its word has the
 // same text as the word that belongs there, so equal words swap freely. A word
 // whose target is empty is a decoy, right only where its text equals the
-// expected word's. With N gaps that have a
-// word, c right and w wrong answers, the points are
-// points * max(0, (c - w) / N), or, without Partial, all points when c is N.
+// expected word's. With N gaps that have a word, c right and w wrong answers,
+// the points are points * max(0, (c - w) / N), or, without Partial, all points
+// when c is N.
 // The verdict holds each filled gap.
 func judgeBank(q testfmt.Question, a testfmt.Answer) Verdict {
 	v := Verdict{Items: map[string]bool{}}
