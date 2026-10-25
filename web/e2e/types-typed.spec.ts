@@ -62,9 +62,14 @@ test("short, number and gaps answers are typed, saved and graded", async ({
 
   // Enter moves on from a short answer once it is not blank.
   const field = page.getByRole("textbox", { name: capital.title });
+  await expect(field).toHaveAttribute("maxlength", "200");
   await field.click();
   await page.keyboard.press("Enter");
   await expect(field).toBeVisible();
+  await expect(next).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: m.progress_question_open({ number: 1 }) }),
+  ).toHaveAttribute("aria-current", "step");
   await field.fill("київ ");
   await page.keyboard.press("Enter");
 
@@ -80,8 +85,17 @@ test("short, number and gaps answers are typed, saved and graded", async ({
     page.getByRole("textbox", { name: m.gap_label({ number: n }) });
   const list = page.getByRole("button", { name: m.gap_label({ number: 3 }) });
   await expect(gapField(1)).toBeVisible();
-  // A gap field starts narrow and grows with what is typed.
+  // A gap field starts at least 8 characters wide and grows with what is typed.
   const before = (await gapField(2).boundingBox())?.width ?? 0;
+  const ch = await gapField(2).evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden;width:8ch";
+    el.parentElement?.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  expect(before).toBeGreaterThanOrEqual(ch);
   await gapField(2).fill("12345678901234567890");
   expect((await gapField(2).boundingBox())?.width ?? 0).toBeGreaterThan(
     before + 40,
@@ -91,6 +105,7 @@ test("short, number and gaps answers are typed, saved and graded", async ({
   // Two of three gaps are filled, so the question is still open.
   await expect(next).toBeDisabled();
   await list.click();
+  await expect(page.locator(".k-gap-pop")).toHaveAttribute("data-keys-off");
   // The popover's hidden dismiss button is labelled by React Aria itself, from
   // its uk-UA strings, which the build keeps and the app's locale selects.
   await expect(

@@ -89,7 +89,7 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
           >
             {current + 1} / {total}
           </Button>
-          <Popover className="k-pop" placement="bottom">
+          <Popover className="k-pop" placement="bottom" data-keys-off>
             <Dialog className="k-qgrid" aria-label={m.progress_all()}>
               {({ close }) =>
                 answered.map((_, i) => (

@@ -1,8 +1,8 @@
 import type { AnswerProps } from "./AnswerArea";
 import "./typed.css";
 
-/** The longest typed answer the server accepts, in characters. */
-const MAX_LENGTH = 200;
+/** The longest typed answer or gap the server accepts, in characters. */
+export const MAX_LENGTH = 200;
 
 /**
  * A short-answer question: one line of text, committed on every change as the

@@ -93,13 +93,13 @@ export function TakeTest({
 }
 
 /**
- * Whether the keys belong elsewhere: a field that takes text has focus, or
- * the question grid popover is open. Answer tiles are radio and checkbox
- * inputs, so those do not count.
+ * Whether the keys belong elsewhere: a field that takes text has focus, or a
+ * popover marked `data-keys-off` is open (the question grid, a gap's choice
+ * list). Answer tiles are radio and checkbox inputs, so those do not count.
  */
 function typing(): boolean {
   const el = document.activeElement;
-  if (document.querySelector(".k-pop")) return true;
+  if (document.querySelector("[data-keys-off]")) return true;
   if (el instanceof HTMLInputElement) {
     return !["radio", "checkbox", "button", "submit"].includes(el.type);
   }

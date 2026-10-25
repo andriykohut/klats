@@ -9,10 +9,8 @@ import { m } from "../../paraglide/messages.js";
 import { RichView } from "../../rich/RichView";
 import { walkNodes } from "../../rich/walk";
 import type { AnswerProps } from "./AnswerArea";
+import { MAX_LENGTH } from "./TextAnswer";
 import "./typed.css";
-
-/** The longest typed gap the server accepts, in characters. */
-const MAX_LENGTH = 200;
 
 /**
  * A fill-in-the-blanks question: the body with a field in each gap. A typed
@@ -116,7 +114,11 @@ function ListGap({ gap, label, value, readOnly, onChange }: GapFieldProps) {
           <path d="M6 9.5l6 6 6-6" />
         </svg>
       </Button>
-      <Popover className="k-pop k-gap-pop" placement="bottom start">
+      <Popover
+        className="k-pop k-gap-pop"
+        placement="bottom start"
+        data-keys-off
+      >
         <ListBox className="k-gap-options">
           {(gap.choices ?? []).map((c) => (
             <ListBoxItem
