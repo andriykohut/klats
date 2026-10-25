@@ -6,8 +6,9 @@ import { fieldsOf, walkNodes } from "../rich/walk";
  * Code blocks are highlighted by lowlight, which the student app loads only
  * for a test that has a code block with a language, so this module imports it
  * for types only (the instance is built in lowlight.ts). Each app registers a
- * highlighter once; `CodeView` reads it with `useSyncExternalStore` over {@link subscribeCode} and
- * {@link getHighlighter}, and redraws when one arrives.
+ * highlighter once; `CodeView` reads it with `useSyncExternalStore` over
+ * {@link subscribeCode} and {@link getHighlighter}, and redraws when one
+ * arrives.
  */
 
 /** A language a code block can have, with the highlight.js grammar for it. */

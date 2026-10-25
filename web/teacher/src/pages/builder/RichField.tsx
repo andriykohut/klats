@@ -161,9 +161,10 @@ const SHIFT = MAC ? "⇧" : "Shift+";
  * while the caret is in a code block it adds a select for the block's
  * language, and while the caret is in a table it adds buttons to add or
  * delete a row or column and to delete the table. Table cells hold
- * paragraphs only, and cells are never merged or split here. A block field also takes images and audio:
- * its toolbar has an image and an audio button, and an image file pasted or
- * dropped into it is uploaded and inserted at the caret or drop point. The
+ * paragraphs only, and cells are never merged or split here. A block field
+ * also takes images and audio: its toolbar has an image and an audio button,
+ * and an image file pasted or dropped into it is uploaded and inserted at the
+ * caret or drop point. The
  * node goes in only after the upload succeeds; a failure shows a message under
  * the field until the next edit or upload. Both kinds of field take formulas:
  * the toolbar's formula button, or Mod-Shift-L, opens a dialog for a new one,
