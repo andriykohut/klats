@@ -2,6 +2,7 @@ package grading
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"klats/internal/testfmt"
@@ -98,5 +99,64 @@ func TestGrade12(t *testing.T) {
 		if got := Grade12(c.earned, c.max); got != c.want {
 			t.Errorf("Grade12(%v, %v) = %d, want %d", c.earned, c.max, got, c.want)
 		}
+	}
+}
+
+func tfQuestion(partial bool) testfmt.Question {
+	return testfmt.Question{ID: "q", Type: "truefalse", Points: 2, Partial: partial, Options: []testfmt.Option{
+		{ID: "s1", Correct: true}, {ID: "s2"}, {ID: "s3", Correct: true}, {ID: "s4"},
+	}}
+}
+
+func pairs(kv ...string) testfmt.Answer {
+	a := testfmt.Answer{Pairs: map[string]string{}}
+	for i := 0; i < len(kv); i += 2 {
+		a.Pairs[kv[i]] = kv[i+1]
+	}
+	return a
+}
+
+func TestJudgeTrueFalse(t *testing.T) {
+	v := Judge(tfQuestion(true), pairs("s1", "true", "s2", "false", "s3", "false"))
+	near(t, v.Points, 0.5) // 2 × (2 − 1) / 4: s4 is unanswered
+	if want := map[string]bool{"s1": true, "s2": true, "s3": false}; !reflect.DeepEqual(v.Items, want) {
+		t.Errorf("Items = %v, want %v", v.Items, want)
+	}
+
+	all := pairs("s1", "true", "s2", "false", "s3", "true", "s4", "false")
+	near(t, Judge(tfQuestion(false), all).Points, 2)
+	one := pairs("s1", "true", "s2", "false", "s3", "true", "s4", "true")
+	near(t, Judge(tfQuestion(false), one).Points, 0)
+	near(t, Judge(tfQuestion(false), pairs("s1", "true")).Points, 0)
+	near(t, Judge(tfQuestion(true), pairs("s1", "false", "s2", "true", "s3", "false")).Points, 0)
+	near(t, Judge(tfQuestion(true), testfmt.Answer{}).Points, 0)
+}
+
+func TestJudgeGrid(t *testing.T) {
+	g := testfmt.Question{ID: "q", Type: "grid", Points: 3, Partial: true, Options: []testfmt.Option{
+		{ID: "r1", Target: "A"}, {ID: "r2", Target: "B"}, {ID: "r3", Target: "A"}, {ID: "r4"},
+	}}
+	v := Judge(g, pairs("r1", "A", "r2", "A", "r3", "A"))
+	near(t, v.Points, 1) // 3 × (2 − 1) / 3: the row without a target is not counted
+	if want := map[string]bool{"r1": true, "r2": false, "r3": true}; !reflect.DeepEqual(v.Items, want) {
+		t.Errorf("Items = %v, want %v", v.Items, want)
+	}
+	g.Partial = false
+	near(t, Judge(g, pairs("r1", "A", "r2", "A", "r3", "A")).Points, 0)
+	near(t, Judge(g, pairs("r1", "A", "r2", "B", "r3", "A")).Points, 3)
+}
+
+func TestJudgePickItems(t *testing.T) {
+	v := Judge(q("multi", true, "a", "b"), testfmt.Answer{Items: []string{"a", "c", "zzz"}})
+	if want := map[string]bool{"a": true, "c": false}; !reflect.DeepEqual(v.Items, want) {
+		t.Errorf("Items = %v, want %v", v.Items, want)
+	}
+}
+
+func TestTotalCarriesVerdicts(t *testing.T) {
+	test := testfmt.Test{Questions: []testfmt.Question{tfQuestion(true)}}
+	r := Total(test, map[string]testfmt.Answer{"q": pairs("s1", "true")}, nil)
+	if want := map[string]map[string]bool{"q": {"s1": true}}; !reflect.DeepEqual(r.Verdicts, want) {
+		t.Errorf("Verdicts = %v, want %v", r.Verdicts, want)
 	}
 }

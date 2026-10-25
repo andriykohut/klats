@@ -77,7 +77,11 @@ func studentTest(t testfmt.Test, device string) wire.StudentTest {
 			seed := h.Sum64()
 			rand.New(rand.NewPCG(seed, seed)).Shuffle(len(opts), func(i, j int) { opts[i], opts[j] = opts[j], opts[i] })
 		}
-		out.Questions[i] = wire.StudentQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Options: opts}
+		sq := wire.StudentQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Options: opts}
+		for _, g := range q.Targets {
+			sq.Targets = append(sq.Targets, wire.StudentTarget{ID: g.ID, Content: g.Content, Image: g.Image, X: g.X, Y: g.Y})
+		}
+		out.Questions[i] = sq
 	}
 	return out
 }

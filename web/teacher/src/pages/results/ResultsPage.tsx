@@ -165,7 +165,7 @@ function cellsOf(
   r: ResultRow,
   pts: (n: number) => string,
 ): JournalCell[] {
-  return res.questions.map((q, i) => {
+  return res.questions.map(({ question: q }, i) => {
     const got = r.points[i];
     const overridden = r.overridden.includes(q.id);
     const answered = q.id in r.answers || overridden;

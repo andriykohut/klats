@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
+	"unicode/utf8"
 
 	"klats/internal/rich"
 )
@@ -21,21 +23,90 @@ type Test struct {
 	Questions []Question `json:"questions"`
 }
 
+// Question is one question of a test. Type is one of the ids in kinds, and the
+// type's row there says which of the other fields it keeps: [Decode] drops the
+// rest.
 type Question struct {
 	ID             string          `json:"id"`
-	Type           string          `json:"type"` // "single" or "multi"
+	Type           string          `json:"type"`
 	Text           json.RawMessage `json:"text"`
 	Points         int             `json:"points"`
 	ShuffleOptions bool            `json:"shuffleOptions"`
 	Partial        bool            `json:"partial"`
 	Options        []Option        `json:"options"`
+	Targets        []Target        `json:"targets,omitempty"`
+	Body           json.RawMessage `json:"body,omitempty"`
+	Gaps           []Gap           `json:"gaps,omitempty"`
+	Image          *Image          `json:"image,omitempty"`
+	Areas          []Area          `json:"areas,omitempty"`
+	Accepted       []string        `json:"accepted,omitempty"`
+	Match          *Match          `json:"match,omitempty"`
+	Number         *NumberKey      `json:"number,omitempty"`
+	Rubric         string          `json:"rubric,omitempty"`
 }
 
+// Option is a choice, statement, row, item, word or label. Target is the id of
+// the target or body gap it belongs under, or empty for none.
 type Option struct {
 	ID      string          `json:"id"`
 	Content json.RawMessage `json:"content"`
 	Correct bool            `json:"correct"`
+	Target  string          `json:"target,omitempty"`
 	Image   *Image          `json:"image,omitempty"`
+}
+
+// Target is a column, group, right-hand side or point that options go under.
+// X and Y place a point on the question's image, as fractions of its size.
+type Target struct {
+	ID      string          `json:"id"`
+	Content json.RawMessage `json:"content"`
+	Image   *Image          `json:"image,omitempty"`
+	X       float64         `json:"x"`
+	Y       float64         `json:"y"`
+}
+
+// Gap is a blank in a question's body. A gap with Choices is a list the
+// student picks from; one without takes typed text equal to one of Accepted.
+type Gap struct {
+	ID       string   `json:"id"`
+	Accepted []string `json:"accepted,omitempty"`
+	Choices  []Choice `json:"choices,omitempty"`
+}
+
+// Choice is an entry of a list gap.
+type Choice struct {
+	ID      string `json:"id"`
+	Text    string `json:"text"`
+	Correct bool   `json:"correct"`
+}
+
+// Area is a region of a hotspot question's image, as fractions of its size.
+// Shape is "rect" or "ellipse".
+type Area struct {
+	ID    string  `json:"id"`
+	Shape string  `json:"shape"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	W     float64 `json:"w"`
+	H     float64 `json:"h"`
+}
+
+// Match holds the switches for comparing typed text with the accepted answers.
+type Match struct {
+	CaseSensitive     bool `json:"caseSensitive"`
+	StrictApostrophes bool `json:"strictApostrophes"`
+	StrictLetters     bool `json:"strictLetters"`
+	AllowTypo         bool `json:"allowTypo"`
+}
+
+// NumberKey is the right answer of a number question. Mode is "exact" (Value),
+// "tolerance" (Value within Tolerance) or "range" (Min to Max).
+type NumberKey struct {
+	Mode      string  `json:"mode"`
+	Value     float64 `json:"value"`
+	Tolerance float64 `json:"tolerance"`
+	Min       float64 `json:"min"`
+	Max       float64 `json:"max"`
 }
 
 // Image is a picture shown with an option: a media name and its size in pixels.
@@ -50,6 +121,12 @@ const (
 	minPoints      = 1
 	maxPoints      = 12
 	maxImageSide   = 10000
+
+	// maxListLen caps the entries of every list of a question, maxTextRunes an
+	// accepted text or a choice and maxRubricRunes a rubric.
+	maxListLen     = 50
+	maxTextRunes   = 200
+	maxRubricRunes = 2000
 )
 
 var palettes = []string{DefaultPalette, "grape", "coral", "lavender", "classic"}
@@ -62,8 +139,12 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // version above 1. An empty palette becomes DefaultPalette. Every rich-text
 // field is replaced by the canonical JSON of its parsed rich.Doc (a missing or
 // null field becomes an empty document), so callers persist the result rather
-// than the input. Content problems such as a missing correct option are not
-// errors here; see Test.Problems.
+// than the input. Each question keeps only the fields its type uses, and an
+// option's Target that names no target or body gap is cleared. A list of over
+// 50 entries or with a repeated id, an accepted text or choice of over 200
+// characters, a rubric of over 2,000 and a coordinate outside 0 to 1 are
+// errors. Content problems such as a missing correct option are not errors
+// here; see Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test
 	if err := json.Unmarshal(raw, &t); err != nil {
@@ -80,32 +161,196 @@ func Decode(raw []byte) (Test, error) {
 	}
 	for i := range t.Questions {
 		q := &t.Questions[i]
-		if q.Type != "single" && q.Type != "multi" {
-			return Test{}, fmt.Errorf("testfmt: question %q: unknown type %q", q.ID, q.Type)
-		}
-		if q.Points < minPoints || q.Points > maxPoints {
-			return Test{}, fmt.Errorf("testfmt: question %q: points %d outside %d-%d", q.ID, q.Points, minPoints, maxPoints)
-		}
-		var err error
-		if q.Text, err = canonical(q.Text, rich.Block); err != nil {
-			return Test{}, fmt.Errorf("testfmt: question %q text: %w", q.ID, err)
-		}
-		for j := range q.Options {
-			o := &q.Options[j]
-			if o.Content, err = canonical(o.Content, rich.Inline); err != nil {
-				return Test{}, fmt.Errorf("testfmt: question %q option %q: %w", q.ID, o.ID, err)
-			}
-			if im := o.Image; im != nil && (rich.MediaKind(im.Src) != "image" || im.W < 1 || im.W > maxImageSide || im.H < 1 || im.H > maxImageSide) {
-				return Test{}, fmt.Errorf("testfmt: question %q option %q: invalid image", q.ID, o.ID)
-			}
+		if err := q.decode(); err != nil {
+			return Test{}, fmt.Errorf("testfmt: question %q: %w", q.ID, err)
 		}
 	}
 	return t, nil
 }
 
+func (q *Question) decode() error {
+	k, ok := kinds[q.Type]
+	if !ok {
+		return fmt.Errorf("unknown type %q", q.Type)
+	}
+	if q.Points < minPoints || q.Points > maxPoints {
+		return fmt.Errorf("points %d outside %d-%d", q.Points, minPoints, maxPoints)
+	}
+	q.dropUnused(k.uses)
+	var err error
+	if q.Text, err = canonical(q.Text, rich.Block); err != nil {
+		return fmt.Errorf("text: %w", err)
+	}
+	if k.uses&useBody != 0 {
+		if q.Body, err = canonical(q.Body, k.bodyMode); err != nil {
+			return fmt.Errorf("body: %w", err)
+		}
+	}
+	if err := checkImage(q.Image); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(q.Rubric) > maxRubricRunes {
+		return fmt.Errorf("rubric over %d characters", maxRubricRunes)
+	}
+	if err := checkTexts("accepted", q.Accepted); err != nil {
+		return err
+	}
+	if err := q.decodeOptions(); err != nil {
+		return err
+	}
+	if err := q.decodeTargets(); err != nil {
+		return err
+	}
+	if err := q.checkGapsAndAreas(); err != nil {
+		return err
+	}
+	q.clearDanglingTargets()
+	return nil
+}
+
+func (q *Question) decodeOptions() error {
+	if err := checkIDs("options", q.Options, func(o Option) string { return o.ID }); err != nil {
+		return err
+	}
+	for i := range q.Options {
+		o := &q.Options[i]
+		var err error
+		if o.Content, err = canonical(o.Content, rich.Inline); err != nil {
+			return fmt.Errorf("option %q: %w", o.ID, err)
+		}
+		if err := checkImage(o.Image); err != nil {
+			return fmt.Errorf("option %q: %w", o.ID, err)
+		}
+	}
+	return nil
+}
+
+func (q *Question) decodeTargets() error {
+	if err := checkIDs("targets", q.Targets, func(g Target) string { return g.ID }); err != nil {
+		return err
+	}
+	for i := range q.Targets {
+		g := &q.Targets[i]
+		var err error
+		if g.Content, err = canonical(g.Content, rich.Inline); err != nil {
+			return fmt.Errorf("target %q: %w", g.ID, err)
+		}
+		if err := checkImage(g.Image); err != nil {
+			return fmt.Errorf("target %q: %w", g.ID, err)
+		}
+		if !inUnit(g.X, g.Y) {
+			return fmt.Errorf("target %q: position outside 0-1", g.ID)
+		}
+	}
+	return nil
+}
+
+func (q *Question) checkGapsAndAreas() error {
+	if err := checkIDs("gaps", q.Gaps, func(g Gap) string { return g.ID }); err != nil {
+		return err
+	}
+	for _, g := range q.Gaps {
+		if err := checkTexts("accepted", g.Accepted); err != nil {
+			return fmt.Errorf("gap %q: %w", g.ID, err)
+		}
+		if err := checkIDs("choices", g.Choices, func(c Choice) string { return c.ID }); err != nil {
+			return fmt.Errorf("gap %q: %w", g.ID, err)
+		}
+		for _, c := range g.Choices {
+			if utf8.RuneCountInString(c.Text) > maxTextRunes {
+				return fmt.Errorf("gap %q: choice over %d characters", g.ID, maxTextRunes)
+			}
+		}
+	}
+	if err := checkIDs("areas", q.Areas, func(a Area) string { return a.ID }); err != nil {
+		return err
+	}
+	for _, a := range q.Areas {
+		if !inUnit(a.X, a.Y, a.W, a.H) {
+			return fmt.Errorf("area %q: outside 0-1", a.ID)
+		}
+	}
+	return nil
+}
+
+// clearDanglingTargets empties the Target of every option that names neither a
+// target nor a gap of the body.
+func (q *Question) clearDanglingTargets() {
+	known := map[string]bool{}
+	for _, g := range q.Targets {
+		known[g.ID] = true
+	}
+	if doc, err := rich.Parse(q.Body, kinds[q.Type].bodyMode); err == nil {
+		for _, id := range doc.GapIDs() {
+			known[id] = true
+		}
+	}
+	for i := range q.Options {
+		if !known[q.Options[i].Target] {
+			q.Options[i].Target = ""
+		}
+	}
+}
+
+// checkIDs rejects a list that is too long or repeats an id.
+func checkIDs[T any](list string, items []T, id func(T) string) error {
+	if len(items) > maxListLen {
+		return fmt.Errorf("%s: %d entries, at most %d", list, len(items), maxListLen)
+	}
+	seen := make(map[string]bool, len(items))
+	for _, it := range items {
+		if seen[id(it)] {
+			return fmt.Errorf("%s: repeated id %q", list, id(it))
+		}
+		seen[id(it)] = true
+	}
+	return nil
+}
+
+func checkTexts(list string, texts []string) error {
+	if len(texts) > maxListLen {
+		return fmt.Errorf("%s: %d entries, at most %d", list, len(texts), maxListLen)
+	}
+	for _, s := range texts {
+		if utf8.RuneCountInString(s) > maxTextRunes {
+			return fmt.Errorf("%s: text over %d characters", list, maxTextRunes)
+		}
+	}
+	return nil
+}
+
+func checkImage(im *Image) error {
+	if im != nil && (rich.MediaKind(im.Src) != "image" || im.W < 1 || im.W > maxImageSide || im.H < 1 || im.H > maxImageSide) {
+		return errors.New("invalid image")
+	}
+	return nil
+}
+
+func inUnit(vs ...float64) bool {
+	for _, v := range vs {
+		if !(v >= 0 && v <= 1) {
+			return false
+		}
+	}
+	return true
+}
+
+// PlainText returns the plain text of the question's text, then of its body on
+// a new line. An empty or unparseable part gives nothing.
+func (q Question) PlainText() string {
+	var parts []string
+	if doc, err := rich.Parse(q.Text, rich.Block); err == nil && doc.PlainText() != "" {
+		parts = append(parts, doc.PlainText())
+	}
+	if doc, err := rich.Parse(q.Body, kinds[q.Type].bodyMode); err == nil && doc.PlainText() != "" {
+		parts = append(parts, doc.PlainText())
+	}
+	return strings.Join(parts, "\n")
+}
+
 // Media returns the name of every image and audio file the test uses, in
-// question order, without repeats: those in question text, in option content
-// and in option images.
+// question order, without repeats: those in question text, the question's
+// image, target content and images, option content and option images.
 func (t Test) Media() []string {
 	var out []string
 	add := func(name string) {
@@ -123,6 +368,15 @@ func (t Test) Media() []string {
 	}
 	for _, q := range t.Questions {
 		addDoc(q.Text, rich.Block)
+		if q.Image != nil {
+			add(q.Image.Src)
+		}
+		for _, g := range q.Targets {
+			addDoc(g.Content, rich.Inline)
+			if g.Image != nil {
+				add(g.Image.Src)
+			}
+		}
 		for _, o := range q.Options {
 			addDoc(o.Content, rich.Inline)
 			if o.Image != nil {

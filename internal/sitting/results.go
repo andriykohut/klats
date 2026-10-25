@@ -45,7 +45,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			row := wire.ResultRow{
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade,
-				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Overridden: []string{}, Late: []string{},
+				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Verdicts: r.Verdicts, Overridden: []string{}, Late: []string{},
 				Writing: p.state == stateWriting,
 			}
 			if p.finishedAt > 0 {
@@ -70,13 +70,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		}
 	}
 	for i, question := range t.Questions {
-		rq := wire.ResultQuestion{
-			ID: question.ID, Type: question.Type, Text: question.Text, Points: question.Points,
-			Options: make([]wire.ResultOption, len(question.Options)), Correct: full[i],
-		}
-		for j, o := range question.Options {
-			rq.Options[j] = wire.ResultOption{ID: o.ID, Content: o.Content, Correct: o.Correct}
-		}
+		rq := wire.ResultQuestion{Question: question, Correct: full[i]}
 		if len(out.Rows) > 0 {
 			rq.CorrectPct = int(math.Round(100 * float64(full[i]) / float64(len(out.Rows))))
 		}

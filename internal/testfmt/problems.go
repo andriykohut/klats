@@ -15,43 +15,29 @@ type Problem struct {
 }
 
 // Problems lists the findings for every question, in question order and, within
-// a question, in this order: no_text, no_correct, too_few_options,
-// single_many_correct (Count is the number of correct options), empty_option,
-// weak_partial.
+// a question, in this order: no_text (no_body for a type with a body), then the
+// type's own findings. Those of single and multiple choice are no_correct,
+// too_few_options, single_many_correct (Count is the number of correct
+// options), empty_option and weak_partial; true/false has too_few_options and
+// empty_option; the choice grid has too_few_options, too_few_targets, no_target
+// and empty_option. Count is the least number the question needs for
+// too_few_options and too_few_targets.
 func (t Test) Problems() []Problem {
 	var out []Problem
 	for _, q := range t.Questions {
 		add := func(code, severity string, count int) {
 			out = append(out, Problem{QuestionID: q.ID, Code: code, Severity: severity, Count: count})
 		}
-		correct, wrong, hasEmpty := 0, 0, false
-		for _, o := range q.Options {
-			if o.Correct {
-				correct++
-			} else {
-				wrong++
+		k := kinds[q.Type]
+		if k.uses&useBody != 0 {
+			if isEmpty(q.Body, k.bodyMode) {
+				add("no_body", "error", 0)
 			}
-			hasEmpty = hasEmpty || isEmpty(o.Content, rich.Inline)
-		}
-		if isEmpty(q.Text, rich.Block) {
+		} else if isEmpty(q.Text, rich.Block) {
 			add("no_text", "error", 0)
 		}
-		if correct == 0 {
-			add("no_correct", "error", 0)
-		}
-		if len(q.Options) < 2 {
-			add("too_few_options", "error", 0)
-		}
-		// Scoring needs every correct option, and a single-answer question
-		// takes one pick, so nobody could score.
-		if q.Type == "single" && correct > 1 {
-			add("single_many_correct", "error", correct)
-		}
-		if hasEmpty {
-			add("empty_option", "warning", 0)
-		}
-		if q.Type == "multi" && q.Partial && wrong <= 1 {
-			add("weak_partial", "warning", 0)
+		if k.problems != nil {
+			k.problems(q, add)
 		}
 	}
 	return out
@@ -61,6 +47,22 @@ func (t Test) Problems() []Problem {
 func (t Test) HasBlocking() bool {
 	for _, p := range t.Problems() {
 		if p.Severity == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+// hasEmptyItem reports whether an option or target of the question has neither
+// content nor an image.
+func hasEmptyItem(q Question) bool {
+	for _, o := range q.Options {
+		if o.Image == nil && isEmpty(o.Content, rich.Inline) {
+			return true
+		}
+	}
+	for _, g := range q.Targets {
+		if g.Image == nil && isEmpty(g.Content, rich.Inline) {
 			return true
 		}
 	}

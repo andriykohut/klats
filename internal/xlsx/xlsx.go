@@ -13,7 +13,6 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"klats/internal/rich"
 	"klats/internal/wire"
 )
 
@@ -170,11 +169,7 @@ func (s *sheet) header(cells []string, bold int) {
 // questionText is the plain text of the question, empty when it does not
 // parse.
 func questionText(q wire.ResultQuestion) string {
-	doc, err := rich.Parse(q.Text, rich.Block)
-	if err != nil {
-		return ""
-	}
-	s := []rune(doc.PlainText())
+	s := []rune(q.Question.PlainText())
 	if len(s) > maxQuestionRunes {
 		return string(s[:maxQuestionRunes]) + "…"
 	}

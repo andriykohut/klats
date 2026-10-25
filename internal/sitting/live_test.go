@@ -209,7 +209,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	finish(t, e, devA)
 
 	r := resultsOf(t, e, info.AssignmentID)
-	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
+	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].Question.ID != "q1" || r.Questions[0].CorrectPct != 0 || r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
 		t.Errorf("results = %+v", r)
 	}
 	if len(r.Rows) != 2 || r.Rows[0].Name != "Франко Учень" || r.Rows[1].Name != p.Name {
@@ -353,22 +353,22 @@ func TestResultQuestionsAreTheSnapshot(t *testing.T) {
 	if len(qs) != 2 {
 		t.Fatalf("questions = %+v", qs)
 	}
-	if qs[0].Type != "single" || qs[1].Type != "multi" {
-		t.Errorf("types = %q, %q", qs[0].Type, qs[1].Type)
+	if qs[0].Question.Type != "single" || qs[1].Question.Type != "multi" {
+		t.Errorf("types = %q, %q", qs[0].Question.Type, qs[1].Question.Type)
 	}
-	if qs[0].Points != 2 || qs[1].Points != 3 {
-		t.Errorf("points = %d, %d", qs[0].Points, qs[1].Points)
+	if qs[0].Question.Points != 2 || qs[1].Question.Points != 3 {
+		t.Errorf("points = %d, %d", qs[0].Question.Points, qs[1].Question.Points)
 	}
-	want := []wire.ResultOption{{ID: "o0", Content: rich("варіант 0"), Correct: true}, {ID: "o1", Content: rich("варіант 1")}}
-	if got := qs[0].Options; !reflect.DeepEqual(got, want) {
+	want := []testfmt.Option{{ID: "o0", Content: rich("варіант 0"), Correct: true}, {ID: "o1", Content: rich("варіант 1")}}
+	if got := qs[0].Question.Options; !reflect.DeepEqual(got, want) {
 		t.Errorf("q1 options = %s, want %s", optionsText(got), optionsText(want))
 	}
-	if len(qs[1].Options) != 6 || !qs[1].Options[0].Correct || qs[1].Options[5].Correct {
-		t.Errorf("q2 options = %s", optionsText(qs[1].Options))
+	if o := qs[1].Question.Options; len(o) != 6 || !o[0].Correct || o[5].Correct {
+		t.Errorf("q2 options = %s", optionsText(o))
 	}
 }
 
-func optionsText(os []wire.ResultOption) string {
+func optionsText(os []testfmt.Option) string {
 	var b strings.Builder
 	for _, o := range os {
 		fmt.Fprintf(&b, "{%s %s %v} ", o.ID, o.Content, o.Correct)

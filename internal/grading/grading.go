@@ -1,5 +1,5 @@
-// Package grading scores single- and multiple-choice answers and converts a
-// total into the Ukrainian 12-point grade.
+// Package grading scores answers to the choice questions (single, multiple,
+// true/false and grid) and converts a total into the Ukrainian 12-point grade.
 package grading
 
 import (
@@ -19,64 +19,50 @@ type Result struct {
 	Correct int
 	// PerQuestion holds the final points for every question, unanswered ones as 0.
 	PerQuestion map[string]float64
+	// Verdicts holds the [Verdict.Items] of every question with an answered
+	// part, by question id. Teacher overrides do not change them.
+	Verdicts map[string]map[string]bool
 }
 
-// Score returns the points earned for one question given the answer's items,
-// the selected option ids.
-//
-// Unknown option ids are ignored and duplicates count once. A single question
-// scores full points only for exactly the one correct option. A multi question
-// scores full points only on an exact set match, or, when Partial is set,
-// points * max(0, (c - w) / C) for c correct picks, w wrong picks and C correct
-// options. A question with no correct option scores 0.
+// Verdict is the outcome of judging one answer. Items says, for each part of
+// the answer the type judges, whether it is right; its keys are option ids for
+// the choice types.
+type Verdict struct {
+	Points float64
+	Items  map[string]bool
+}
+
+// Judge scores the answer to the question and rates its parts. An answer to a
+// question whose type is not judged earns 0.
+func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
+	switch q.Type {
+	case "single", "multi":
+		return judgePick(q, a)
+	case "truefalse":
+		return judgeStatements(q, a)
+	case "grid":
+		return judgeGrid(q, a)
+	}
+	return Verdict{}
+}
+
+// Score returns the points the answer earns for the question, as [Judge] does.
 func Score(q testfmt.Question, a testfmt.Answer) float64 {
-	selected := a.Items
-	known := make(map[string]bool, len(q.Options)) // option id -> correct
-	totalCorrect := 0
-	for _, o := range q.Options {
-		known[o.ID] = o.Correct
-		if o.Correct {
-			totalCorrect++
-		}
-	}
-	if totalCorrect == 0 {
-		return 0
-	}
-
-	picked := make(map[string]bool, len(selected))
-	c, w := 0, 0
-	for _, id := range selected {
-		correct, ok := known[id]
-		if !ok || picked[id] {
-			continue
-		}
-		picked[id] = true
-		if correct {
-			c++
-		} else {
-			w++
-		}
-	}
-
-	points := float64(q.Points)
-	switch {
-	case q.Type == "multi" && q.Partial:
-		return points * math.Max(0, float64(c-w)/float64(totalCorrect))
-	case c == totalCorrect && w == 0:
-		return points
-	default:
-		return 0
-	}
+	return Judge(q, a).Points
 }
 
 // Total grades a whole test. answers maps question id to the student's answer;
 // overrides maps question id to teacher-set points that replace Score.
 func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[string]float64) Result {
-	r := Result{PerQuestion: make(map[string]float64, len(t.Questions))}
+	r := Result{PerQuestion: make(map[string]float64, len(t.Questions)), Verdicts: map[string]map[string]bool{}}
 	for _, q := range t.Questions {
+		v := Judge(q, answers[q.ID])
+		if len(v.Items) > 0 {
+			r.Verdicts[q.ID] = v.Items
+		}
 		pts, ok := overrides[q.ID]
 		if !ok {
-			pts = Score(q, answers[q.ID])
+			pts = v.Points
 		}
 		r.PerQuestion[q.ID] = pts
 		r.Earned += pts

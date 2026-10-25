@@ -86,7 +86,7 @@ export function StudentDetail(props: {
             <ol className="r-qs">
               {props.results.questions.map((q, i) => (
                 <QuestionResult
-                  key={q.id}
+                  key={q.question.id}
                   number={i + 1}
                   question={q}
                   row={row}
@@ -109,7 +109,8 @@ function QuestionResult(props: {
   points: number;
   assignmentId: string;
 }) {
-  const { question: q, row } = props;
+  const { row } = props;
+  const q = props.question.question;
   const override = useSetOverride(props.assignmentId);
   const picked = row.answers[q.id]?.items ?? [];
   const overridden = row.overridden.includes(q.id);

@@ -9,6 +9,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
+	"klats/internal/testfmt"
 	"klats/internal/wire"
 )
 
@@ -21,9 +22,9 @@ func sample() wire.AssignmentResults {
 	return wire.AssignmentResults{
 		TestTitle: "Дроби", ClassName: "7-А",
 		Questions: []wire.ResultQuestion{
-			{ID: "q1", Text: para("Скільки?"), Correct: 1, CorrectPct: 50},
-			{ID: "q2", Text: para(strings.Repeat("я", 250)), Correct: 2, CorrectPct: 100},
-			{ID: "q3", Text: []byte(`{"type":"nope"}`), Correct: 0, CorrectPct: 0},
+			{Question: testfmt.Question{ID: "q1", Text: para("Скільки?")}, Correct: 1, CorrectPct: 50},
+			{Question: testfmt.Question{ID: "q2", Text: para(strings.Repeat("я", 250))}, Correct: 2, CorrectPct: 100},
+			{Question: testfmt.Question{ID: "q3", Text: []byte(`{"type":"nope"}`)}},
 		},
 		Rows: []wire.ResultRow{
 			{Name: "=1+1", ClassName: "7-А", Points: []float64{2, 1.5, 0}, Earned: 3.5, Max: 5, Grade: 8, DurationSec: 75*60 + 3, SittingDate: noon},
@@ -174,7 +175,7 @@ func TestQuestionCut(t *testing.T) {
 		{200, strings.Repeat("я", 200)},
 		{201, strings.Repeat("я", 200) + "…"},
 	} {
-		r := wire.AssignmentResults{Questions: []wire.ResultQuestion{{Text: para(strings.Repeat("я", tc.runes))}}}
+		r := wire.AssignmentResults{Questions: []wire.ResultQuestion{{Question: testfmt.Question{Text: para(strings.Repeat("я", tc.runes))}}}}
 		f := open(t, r, "uk")
 		if got, _ := f.GetCellValue("Питання", "B2"); got != tc.want {
 			t.Errorf("%d runes: got %d runes, want %d", tc.runes, len([]rune(got)), len([]rune(tc.want)))

@@ -112,17 +112,46 @@ type TestResponse struct {
 	Status        Status         `json:"status"`
 }
 
+// StudentQuestion is a question as a student sees it: what is shown and what
+// can be picked, never what is right.
 type StudentQuestion struct {
 	ID      string          `json:"id"`
 	Type    string          `json:"type"`
 	Text    json.RawMessage `json:"text"`
 	Options []StudentOption `json:"options"`
+	Targets []StudentTarget `json:"targets,omitempty"`
+	Body    json.RawMessage `json:"body,omitempty"`
+	Gaps    []StudentGap    `json:"gaps,omitempty"`
+	Image   *testfmt.Image  `json:"image,omitempty"`
 }
 
 type StudentOption struct {
 	ID      string          `json:"id"`
 	Content json.RawMessage `json:"content"`
 	Image   *testfmt.Image  `json:"image,omitempty"`
+}
+
+// StudentTarget is a target of a [StudentQuestion]. X and Y place a point on
+// the question's image.
+type StudentTarget struct {
+	ID      string          `json:"id"`
+	Content json.RawMessage `json:"content"`
+	Image   *testfmt.Image  `json:"image,omitempty"`
+	X       float64         `json:"x"`
+	Y       float64         `json:"y"`
+}
+
+// StudentGap is a gap of a [StudentQuestion]'s body. A gap typed into has no
+// choices.
+type StudentGap struct {
+	ID      string          `json:"id"`
+	Choices []StudentChoice `json:"choices,omitempty"`
+}
+
+// StudentChoice is an entry of a list gap, without whether it is right.
+type StudentChoice struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
 // Event is an entry in the teacher's events panel. The teacher UI renders its
@@ -249,25 +278,13 @@ type AssignmentResults struct {
 }
 
 // ResultQuestion is a question of the results table, as the assignment's test
-// snapshot has it, correct options included: the teacher may have edited the
-// test since. Correct is the number of rows that scored full points on it, and
+// snapshot has it, answer key included: the teacher may have edited the test
+// since. Correct is the number of rows that scored full points on it, and
 // CorrectPct is that count as a percent of all rows.
 type ResultQuestion struct {
-	ID         string          `json:"id"`
-	Type       string          `json:"type"`
-	Text       json.RawMessage `json:"text"`
-	Points     int             `json:"points"`
-	Options    []ResultOption  `json:"options"`
-	Correct    int             `json:"correct"`
-	CorrectPct int             `json:"correctPct"`
-}
-
-// ResultOption is an option of a [ResultQuestion]. It goes to the teacher
-// only: student devices never get Correct.
-type ResultOption struct {
-	ID      string          `json:"id"`
-	Content json.RawMessage `json:"content"`
-	Correct bool            `json:"correct"`
+	Question   testfmt.Question `json:"question"`
+	Correct    int              `json:"correct"`
+	CorrectPct int              `json:"correctPct"`
 }
 
 // ResultRow is one participant's result, in Ukrainian order of Name. Points
@@ -275,20 +292,23 @@ type ResultOption struct {
 // ids of the overridden questions. Writing is set while the participant is
 // still writing in the running sitting, and DurationSec is 0 until they
 // finish. SittingDate is when the participant's sitting started.
-// Answers maps question id to the answer, for answered questions;
-// Late lists the questions whose answer arrived after the sitting ended.
+// Answers maps question id to the answer, for answered questions; Verdicts
+// maps question id to whether each part of the answer is right (see
+// grading.Verdict), for the questions with an answered part; Late lists the
+// questions whose answer arrived after the sitting ended.
 type ResultRow struct {
-	ParticipantID string                    `json:"participantId"`
-	Name          string                    `json:"name"`
-	ClassName     string                    `json:"className"`
-	Points        []float64                 `json:"points"`
-	Earned        float64                   `json:"earned"`
-	Max           float64                   `json:"max"`
-	Grade         int                       `json:"grade"`
-	Writing       bool                      `json:"writing"`
-	DurationSec   int                       `json:"durationSec"`
-	SittingDate   int64                     `json:"sittingDate"`
-	Answers       map[string]testfmt.Answer `json:"answers"`
-	Overridden    []string                  `json:"overridden"`
-	Late          []string                  `json:"late"`
+	ParticipantID string                     `json:"participantId"`
+	Name          string                     `json:"name"`
+	ClassName     string                     `json:"className"`
+	Points        []float64                  `json:"points"`
+	Earned        float64                    `json:"earned"`
+	Max           float64                    `json:"max"`
+	Grade         int                        `json:"grade"`
+	Writing       bool                       `json:"writing"`
+	DurationSec   int                        `json:"durationSec"`
+	SittingDate   int64                      `json:"sittingDate"`
+	Answers       map[string]testfmt.Answer  `json:"answers"`
+	Verdicts      map[string]map[string]bool `json:"verdicts"`
+	Overridden    []string                   `json:"overridden"`
+	Late          []string                   `json:"late"`
 }

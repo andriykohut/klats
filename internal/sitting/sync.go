@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	// maxChanges caps the changes in one Submit call, maxPicks the option ids
-	// in one change and maxChangeID the length of a change id in bytes.
+	// maxChanges caps the changes in one Submit call and maxChangeID the
+	// length of a change id in bytes.
 	maxChanges  = 200
-	maxPicks    = 20
 	maxChangeID = 64
 
 	// offlineAfter is how long a writing participant's device may stay silent
@@ -210,26 +209,16 @@ func (e *Engine) writer(q *db.Queries, loaded map[string]*active, device, partic
 	return a, p, nil
 }
 
-// checkChange returns the change's answer cleaned for the question, and
-// whether the change is well formed for the test: a change id of 1 to 64
-// bytes, a seq of at least 1, and a question of the test. A choice question
-// keeps only the answer's items, which must be at most 20 option ids of the
-// question, repeats dropped; its other fields are discarded.
+// checkChange returns the change's answer cleaned for the question (see
+// [testfmt.Question.CleanAnswer]), and whether the change is well formed for
+// the test: a change id of 1 to 64 bytes, a seq of at least 1, a question of
+// the test and an answer valid for it.
 func checkChange(t testfmt.Test, c wire.AnswerChange) (testfmt.Answer, bool) {
 	i := slices.IndexFunc(t.Questions, func(q testfmt.Question) bool { return q.ID == c.QuestionID })
-	if c.ChangeID == "" || len(c.ChangeID) > maxChangeID || c.Seq < 1 || i < 0 || len(c.Answer.Items) > maxPicks {
+	if c.ChangeID == "" || len(c.ChangeID) > maxChangeID || c.Seq < 1 || i < 0 {
 		return testfmt.Answer{}, false
 	}
-	var items []string
-	for _, id := range c.Answer.Items {
-		if !slices.ContainsFunc(t.Questions[i].Options, func(o testfmt.Option) bool { return o.ID == id }) {
-			return testfmt.Answer{}, false
-		}
-		if !slices.Contains(items, id) {
-			items = append(items, id)
-		}
-	}
-	return testfmt.Answer{Items: items}, true
+	return t.Questions[i].CleanAnswer(c.Answer)
 }
 
 // touch records a request from the device: the participant it writes as in

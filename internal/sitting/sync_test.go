@@ -199,10 +199,9 @@ func TestSubmitRejectsInvalidChanges(t *testing.T) {
 	other := enter(t, e, info.Code, devB, "Франко")
 
 	bad := []wire.AnswerChange{
-		change(p, "q9", 1, "o0"),                                 // unknown question
-		change(p, "q1", 1, "o5"),                                 // an option of q2
-		change(p, "q1", 0, "o0"),                                 // seq below 1
-		change(p, "q2", 1, slices.Repeat([]string{"o0"}, 21)...), // too many option ids
+		change(p, "q9", 1, "o0"), // unknown question
+		change(p, "q1", 1, "o5"), // an option of q2
+		change(p, "q1", 0, "o0"), // seq below 1
 		{ParticipantID: p.ID, QuestionID: "q1", Answer: testfmt.Answer{Items: []string{"o0"}}, Seq: 1}, // no change id
 		change(wire.Participant{ID: "nobody"}, "q1", 1, "o0"),                                          // unknown participant
 		change(other, "q1", 1, "o0"),                                                                   // another device's participant
