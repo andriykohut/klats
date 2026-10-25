@@ -1,0 +1,215 @@
+/* True/false statements and the choice grid. */
+.k-tf,
+.k-grid {
+  max-width: calc(900 * var(--k-px));
+  margin-top: calc(26 * var(--k-px));
+  font-size: max(16px, calc(20 * var(--k-px)));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.k-tf p,
+.k-grid p {
+  margin: 0;
+}
+
+.k-tf strong,
+.k-grid strong {
+  font-weight: 800;
+}
+
+.k-pick-img {
+  --img-max: calc(96 * var(--k-px));
+  display: block;
+  margin: 0 0 calc(6 * var(--k-px));
+  border-radius: calc(10 * var(--k-px));
+}
+
+fieldset.k-tf {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.k-tf-row {
+  display: flex;
+  align-items: center;
+  gap: calc(24 * var(--k-px));
+  padding: calc(12 * var(--k-px)) 0 calc(12 * var(--k-px) + var(--k-depth));
+  border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
+}
+
+.k-tf-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.k-tf-pick {
+  flex: none;
+  display: flex;
+  gap: calc(12 * var(--k-px));
+}
+
+/* A pill with the depth of an answer tile; picked, it takes the sheet's colour. */
+.k-pick {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  min-width: calc(128 * var(--k-px));
+  padding: calc(10 * var(--k-px)) calc(22 * var(--k-px));
+  border: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  border-radius: var(--k-radius-tile);
+  background: var(--k-tile);
+  box-shadow: 0 var(--k-depth) 0 var(--k-tile-shadow);
+  color: var(--k-ink);
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--k-dur-fast) var(--k-ease-spring);
+}
+
+.k-pick[data-hovered] {
+  transform: translateY(calc(-2 * var(--k-px)));
+}
+
+.k-pick[data-pressed] {
+  transform: translateY(calc(var(--k-depth) - var(--k-px)));
+  box-shadow: 0 var(--k-px) 0 var(--k-tile-shadow);
+  transition-duration: var(--k-dur-press);
+}
+
+.k-pick[data-selected] {
+  border-color: var(--k-sel);
+  background: var(--k-sel);
+  box-shadow: 0 var(--k-depth) 0 var(--k-sel-dark);
+  color: var(--k-on-dark);
+}
+
+.k-pick[data-selected][data-pressed] {
+  box-shadow: 0 var(--k-px) 0 var(--k-sel-dark);
+}
+
+.k-pick[data-focus-visible],
+.k-dot[data-focus-visible] {
+  outline: 3px solid var(--k-focus);
+  outline-offset: 3px;
+}
+
+/*
+ * The grid's table is fixed-layout so every column but the first is as wide
+ * as the others, and each row's radios sit in a grid of the same columns.
+ */
+.k-grid {
+  width: 100%;
+  margin-top: calc(10 * var(--k-px));
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.k-grid th,
+.k-grid td {
+  padding: 0;
+}
+
+/*
+ * The header row stays at the top of the sheet's scroller. Sticky offsets
+ * count from the scroller's content box, so the offset cancels its 40px of
+ * top padding (.k-sheet-scroll in QuestionSheet.css), and the header's own
+ * top padding stands in for it.
+ */
+.k-grid thead th,
+.k-grid-corner {
+  position: sticky;
+  top: calc(-40 * var(--k-px));
+  z-index: 2;
+  background: var(--k-paper);
+  border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
+}
+
+.k-grid thead th {
+  padding: calc(16 * var(--k-px)) calc(6 * var(--k-px)) calc(10 * var(--k-px));
+  font-weight: 700;
+  text-align: center;
+  vertical-align: bottom;
+  overflow-wrap: anywhere;
+}
+
+.k-grid .k-pick-img {
+  --img-max: calc(64 * var(--k-px));
+}
+
+.k-grid thead .k-pick-img {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.k-grid-corner {
+  width: 36%;
+}
+
+.k-grid-row {
+  padding: calc(12 * var(--k-px)) calc(16 * var(--k-px)) calc(12 * var(--k-px))
+    0;
+  border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.k-grid tbody td {
+  border-bottom: calc(2 * var(--k-px)) solid var(--k-tile-border);
+}
+
+.k-grid-cells {
+  display: grid;
+}
+
+.k-grid-field {
+  display: flex;
+  justify-content: center;
+}
+
+.k-dot {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: max(28px, calc(44 * var(--k-px)));
+  height: max(28px, calc(44 * var(--k-px)));
+  border: calc(2 * var(--k-px)) solid var(--k-muted);
+  border-radius: 50%;
+  background: var(--k-paper);
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.k-dot[data-hovered] {
+  border-color: var(--k-sel);
+}
+
+.k-dot[data-selected] {
+  border-color: var(--k-sel);
+  background: var(--k-sel);
+}
+
+.k-dot-mark {
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: var(--k-on-dark);
+  transform: scale(0);
+  transition: transform var(--k-dur-badge) var(--k-ease-spring);
+}
+
+.k-dot[data-selected] .k-dot-mark {
+  transform: none;
+}
+
+/* A focused radio scrolls into view below the sticky header, not under it. */
+.k-grid input {
+  scroll-margin-top: calc(150 * var(--k-px));
+}

@@ -62,11 +62,13 @@
  * (324 of the design's 720 px), keeping the aspect ratio. MediaImage sets
  * --img-w (the file's width) and --img-r (width over height) and the box's
  * aspect ratio, so the box has its final size before the file decodes. The
- * answer tiles' pictures (AnswerTile.css) use the same sizing with their own
+ * answer tiles' pictures (AnswerTile.css) and those of true/false statements
+ * and grid cells (answers/choice.css) use the same sizing with their own
  * --img-max and --img-cap.
  */
 .k-img,
-.k-tile-img {
+.k-tile-img,
+.k-pick-img {
   width: min(
     var(--img-cap, 100%),
     var(--img-w),

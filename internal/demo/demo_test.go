@@ -40,8 +40,8 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	if !eng.Active() || eng.SittingID() != info.SittingID {
 		t.Fatalf("sitting %q is not the running one", info.SittingID)
 	}
-	if info.ClassName != "7-Б" || info.QuestionCount != 8 {
-		t.Errorf("sitting of class %q with %d questions, want 7-Б with 8", info.ClassName, info.QuestionCount)
+	if info.ClassName != "7-Б" || info.QuestionCount != 10 {
+		t.Errorf("sitting of class %q with %d questions, want 7-Б with 10", info.ClassName, info.QuestionCount)
 	}
 
 	join, err := eng.Join(info.Code, strings.Repeat("a", 26), "10.0.0.5")
@@ -67,8 +67,10 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 	for _, q := range test.Questions {
 		types[q.Type] = true
 	}
-	if !types["single"] || !types["multi"] {
-		t.Errorf("question types %v, want single and multi", types)
+	for _, want := range []string{"single", "multi", "truefalse", "grid"} {
+		if !types[want] {
+			t.Errorf("question types %v, want %s among them", types, want)
+		}
 	}
 	for _, mark := range []string{"bold", "subscript", "superscript"} {
 		if !strings.Contains(tests[0].Doc, `{"type":"`+mark+`"}`) {
@@ -117,8 +119,8 @@ func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {
 			}
 		}
 	}
-	if withImage != 1 {
-		t.Errorf("%d options with an image, want 1", withImage)
+	if withImage != 2 {
+		t.Errorf("%d options with an image, want 2", withImage)
 	}
 }
 

@@ -5,6 +5,7 @@ import { QuestionSheet } from "@klats/shared/student-ui/QuestionSheet.tsx";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "react-aria-components";
 import { Icon } from "../../ui/icons";
+import { toStudent } from "./preview";
 
 /** The student screen the preview draws, in design pixels. */
 const STAGE_WIDTH = 1280;
@@ -117,15 +118,7 @@ function Stage({
               key={q.id}
               number={index + 1}
               total={total}
-              text={q.text}
-              options={q.options.map((o) => ({
-                id: o.id,
-                content: o.content,
-                image: o.image,
-              }))}
-              multi={q.type === "multi"}
-              selected={[]}
-              onChange={() => {}}
+              question={toStudent(q)}
             >
               <span className="b-s-btn" data-quiet>
                 <span className="b-s-face">{m.test_skip()}</span>

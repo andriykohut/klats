@@ -28,7 +28,8 @@ import {
 
 export { expect, m };
 
-const doc = (text: string) => ({
+/** A one-paragraph rich-text document of `text`. */
+export const doc = (text: string) => ({
   type: "doc",
   content: [{ type: "paragraph", content: [{ type: "text", text }] }],
 });
@@ -58,6 +59,30 @@ export function question(
       content: doc(o.replace(/^\*/, "")),
       correct: o.startsWith("*"),
     })),
+  };
+}
+
+/**
+ * Returns a question of any `type` worth one point, with partial credit on
+ * and options in the order given. `fields` set or replace the rest, such as
+ * `options`, `targets` and `points`.
+ */
+export function questionOf(
+  type: string,
+  id: string,
+  text: string,
+  fields: Partial<Question> = {},
+): Question & { title: string } {
+  return {
+    id,
+    title: text,
+    type,
+    text: doc(text),
+    points: 1,
+    shuffleOptions: false,
+    partial: true,
+    options: [],
+    ...fields,
   };
 }
 

@@ -10,8 +10,9 @@ import { keyToOption } from "../input/keyboard";
 /**
  * One question of the test on its sheet, with Skip and Next (Finish on the
  * last question, which leads to the review). Next waits for an answer; Skip
- * never does. Keys pick answers (see {@link keyToOption}) and Enter means
- * Next, except while a text field or the question grid has focus.
+ * never does. For single and multiple choice, keys pick answers (see
+ * {@link keyToOption}). Enter means Next, except while a text field or the
+ * question grid has focus.
  */
 export function TakeTest({
   test,
@@ -30,6 +31,7 @@ export function TakeTest({
 }) {
   const q = test.questions[index];
   const multi = q.type === "multi";
+  const keyed = multi || q.type === "single";
   const selected = answers[q.id]?.items ?? [];
   const answered = isAnswered(answers[q.id]);
   const last = index === test.questions.length - 1;
@@ -47,7 +49,7 @@ export function TakeTest({
         next();
         return;
       }
-      const i = keyToOption(e.key, q.options.length);
+      const i = keyed ? keyToOption(e.key, q.options.length) : null;
       if (i === null) return;
       e.preventDefault();
       const id = q.options[i].id;
@@ -64,11 +66,9 @@ export function TakeTest({
     <QuestionSheet
       number={index + 1}
       total={test.questions.length}
-      text={q.text}
-      options={q.options}
-      multi={multi}
-      selected={selected}
-      onChange={(items) => onAnswer(q.id, { items })}
+      question={q}
+      answer={answers[q.id]}
+      onChange={(a) => onAnswer(q.id, a)}
     >
       <button type="button" className="s-btn s-btn-quiet" onClick={next}>
         <span>{m.test_skip()}</span>

@@ -42,6 +42,7 @@ export function AnswerTile({
     <motion.div
       className="k-tile-wrap"
       data-option={id}
+      data-more-item
       onFocus={(e) =>
         e.currentTarget.scrollIntoView({
           block: "nearest",

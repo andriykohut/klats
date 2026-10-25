@@ -111,10 +111,40 @@ func choice(id string, points int, text json.RawMessage, correct []int, options 
 	return q
 }
 
-// sampleTest is eight questions, single and multiple choice, with bold, sub-
+// trueFalse returns a question worth points whose statements are true where
+// right says so.
+func trueFalse(id string, points int, text json.RawMessage, right []bool, statements ...json.RawMessage) testfmt.Question {
+	q := testfmt.Question{ID: id, Type: "truefalse", Text: text, Points: points, Partial: true}
+	for i, content := range statements {
+		q.Options = append(q.Options, testfmt.Option{ID: fmt.Sprintf("%so%d", id, i), Content: content, Correct: right[i]})
+	}
+	return q
+}
+
+// gridRow is a row of a choice grid and the index of its right column.
+type gridRow struct {
+	content json.RawMessage
+	column  int
+}
+
+// grid returns a choice-grid question worth points, with a column for each of
+// columns and the rows given.
+func grid(id string, points int, text json.RawMessage, columns []json.RawMessage, rows ...gridRow) testfmt.Question {
+	q := testfmt.Question{ID: id, Type: "grid", Text: text, Points: points, Partial: true}
+	for i, content := range columns {
+		q.Targets = append(q.Targets, testfmt.Target{ID: fmt.Sprintf("%sc%d", id, i), Content: content})
+	}
+	for i, r := range rows {
+		q.Options = append(q.Options, testfmt.Option{ID: fmt.Sprintf("%so%d", id, i), Content: r.content, Target: q.Targets[r.column].ID})
+	}
+	return q
+}
+
+// sampleTest is ten questions, single and multiple choice, with bold, sub-
 // and superscript text, formulas in the text and options of the sixth, a table
 // and a code block in the seventh, and the stored image pic and audio sound in
-// the eighth.
+// the eighth, then a true/false question with a picture beside one statement
+// and a choice grid.
 func sampleTest(id, pic, sound string) testfmt.Test {
 	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
@@ -139,6 +169,13 @@ func sampleTest(id, pic, sound string) testfmt.Test {
 			rich.Node{Type: "image", Attrs: &rich.Attrs{Src: pic, W: diagramW, H: diagramH}},
 			rich.Node{Type: "audio", Attrs: &rich.Attrs{Src: sound}}), []int{1},
 			para(plain("2")), para(plain("3")), para(plain("4"))), 1, testfmt.Image{Src: pic, W: diagramW, H: diagramH}),
+		withImage(trueFalse("q9", 2, para(plain("Які з цих тверджень правдиві?")), []bool{true, false, true, true},
+			para(plain("Байт складається з 8 бітів")), para(plain("Монітор є пристроєм введення")),
+			para(plain("Firefox є браузером")), para(plain("На схемі є зелене коло"))), 3, testfmt.Image{Src: pic, W: diagramW, H: diagramH}),
+		grid("q10", 3, para(plain("До якого типу належить кожен пристрій?")),
+			[]json.RawMessage{para(plain("Введення")), para(plain("Виведення"))},
+			gridRow{para(plain("Клавіатура")), 0}, gridRow{para(plain("Монітор")), 1},
+			gridRow{para(plain("Мишка")), 0}, gridRow{para(plain("Принтер")), 1}),
 	}}
 }
 
@@ -161,7 +198,7 @@ func storeMedia(ms *media.Store) (pic, sound string, err error) {
 	return pic, sound, err
 }
 
-// Seed starts a sitting of the eight-question sample test for class 7-Б, of 25
+// Seed starts a sitting of the ten-question sample test for class 7-Б, of 25
 // students, and returns it. It stores the class and the test first, unless an
 // earlier run in the same data folder did, and the test's image and audio in
 // ms. If a sitting already runs, demo or
