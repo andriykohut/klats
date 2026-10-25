@@ -363,7 +363,21 @@
   "checks_ok": "Усі питання мають текст і правильні відповіді.",
   "problem_no_text": "Питання {number} без тексту.",
   "problem_no_correct": "Питання {number}: позначте хоча б одну правильну відповідь.",
-  "problem_too_few_options": "Питання {number}: потрібно щонайменше дві відповіді.",
+  "problem_too_few_options": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} відповідь.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} відповіді.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} відповідей."
+      }
+    }
+  ],
   "problem_single_many_correct": [
     {
       "declarations": [
@@ -518,5 +532,180 @@
   "detail_no_answer": "Без відповіді",
   "detail_clear": "Скинути",
   "ev_finished_hidden": "{name} завершує тест.",
-  "detail_score": "Бали: {earned} з {max}"
+  "detail_score": "Бали: {earned} з {max}",
+  "type_truefalse_name": "Правда чи ні",
+  "type_truefalse_desc": "Кілька тверджень, кожне так або ні",
+  "type_grid_name": "Таблиця вибору",
+  "type_grid_desc": "Один вибір у кожному рядку",
+  "type_short_name": "Коротка відповідь",
+  "type_short_desc": "Слово або фраза",
+  "type_number_name": "Число",
+  "type_number_desc": "Точне, з похибкою або діапазон",
+  "type_gaps_name": "Пропуски в тексті",
+  "type_gaps_desc": "Вписати або вибрати зі списку",
+  "type_order_name": "Послідовність",
+  "type_order_desc": "Розставити в правильному порядку",
+  "type_match_name": "Відповідності",
+  "type_match_desc": "З’єднати пари",
+  "type_groups_name": "Групування",
+  "type_groups_desc": "Розкласти за групами",
+  "type_bank_name": "Слова в текст",
+  "type_bank_desc": "Перетягнути слова в пропуски",
+  "type_hotspot_name": "Точка на зображенні",
+  "type_hotspot_desc": "Клацнути потрібне місце",
+  "type_label_name": "Підписи",
+  "type_label_desc": "Перетягнути підписи на місця",
+  "type_highlight_name": "Виділення слів",
+  "type_highlight_desc": "Знайти помилки чи потрібні слова",
+  "type_open_name": "Розгорнута відповідь",
+  "type_open_desc": "Перевіряє вчитель",
+  "type_group_choice": "Вибір",
+  "type_group_input": "Введення",
+  "type_group_arrange": "Упорядкування",
+  "type_group_image": "На зображенні",
+  "type_group_text": "У тексті",
+  "type_group_open": "Відкрита відповідь",
+  "builder_item_delete": "Видалити: {item}",
+  "builder_item_removed": "{item} видалено",
+  "builder_item_image": "Зображення: {item}",
+  "builder_item_image_remove": "Прибрати зображення: {item}",
+  "builder_item_up": "Підняти: {item}",
+  "builder_item_down": "Опустити: {item}",
+  "builder_statements": "Твердження",
+  "builder_statements_hint": "позначте, правдиве воно чи ні",
+  "builder_statement": "Твердження {number}",
+  "builder_statement_value": "Твердження {number}: правдиве чи ні",
+  "builder_add_statement": "Додати твердження",
+  "builder_rows": "Рядки",
+  "builder_rows_hint": "позначте правильний стовпець у кожному",
+  "builder_row": "Рядок {number}",
+  "builder_row_right": "Рядок {number}: правильний стовпець",
+  "builder_add_row": "Додати рядок",
+  "builder_columns": "Стовпці",
+  "builder_columns_hint": "від 2 до 6",
+  "builder_column": "Стовпець {number}",
+  "builder_add_column": "Додати стовпець",
+  "builder_all_hint_every": "Бал лише тоді, коли все правильно й нічого зайвого.",
+  "builder_partial_hint_truefalse": "Бал ділиться між твердженнями. Кожна помилка знімає частку балів.",
+  "builder_partial_hint_grid": "Бал ділиться між рядками. Кожна помилка знімає частку балів.",
+  "builder_partial_hint_order": "Кожен елемент, який довелося б переставити, знімає частку балів.",
+  "builder_partial_hint_match": "Бал ділиться між парами. Кожна помилка знімає частку балів.",
+  "builder_partial_hint_groups": "Бал ділиться між елементами. Кожна помилка знімає частку балів.",
+  "builder_partial_hint_gaps": "Бал ділиться між пропусками. Помилка у виборі зі списку знімає частку балів, а неправильно вписане слово не знімає нічого.",
+  "builder_partial_hint_bank": "Бал ділиться між пропусками. Кожне слово не на своєму місці знімає частку балів.",
+  "builder_partial_hint_label": "Бал ділиться між підписами. Кожен підпис не на своєму місці, зокрема зайвий, знімає частку балів.",
+  "builder_partial_hint_highlight": "Бал ділиться між виділеними словами. Кожне зайве слово знімає частку балів.",
+  "problem_no_body_gaps": "Питання {number}: напишіть текст із пропусками.",
+  "problem_no_body_highlight": "Питання {number}: напишіть текст, у якому учні виділятимуть слова.",
+  "problem_empty_statement": "Питання {number}: є порожнє твердження.",
+  "problem_empty_row": "Питання {number}: є порожній рядок або стовпець.",
+  "problem_empty_item": "Питання {number}: є порожній елемент.",
+  "problem_empty_pair": "Питання {number}: в одній із пар є порожнє поле.",
+  "problem_empty_group": "Питання {number}: є порожній елемент або група.",
+  "problem_empty_word": "Питання {number}: є порожнє слово.",
+  "problem_empty_label": "Питання {number}: є порожній підпис.",
+  "problem_too_few_statements": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} твердження.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} твердження.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} тверджень."
+      }
+    }
+  ],
+  "problem_too_few_rows": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} рядок.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} рядки.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} рядків."
+      }
+    }
+  ],
+  "problem_too_few_items": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} елемент.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} елементи.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} елементів."
+      }
+    }
+  ],
+  "problem_too_few_pairs": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} пару.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} пари.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} пар."
+      }
+    }
+  ],
+  "problem_too_few_columns": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} стовпець.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} стовпці.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} стовпців."
+      }
+    }
+  ],
+  "problem_too_few_groups": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Питання {number}: додайте щонайменше {count} групу.",
+        "countPlural=few": "Питання {number}: додайте щонайменше {count} групи.",
+        "countPlural=*": "Питання {number}: додайте щонайменше {count} груп."
+      }
+    }
+  ],
+  "problem_no_target_grid": "Питання {number}: позначте правильний стовпець у кожному рядку.",
+  "problem_no_target_match": "Питання {number}: не в кожного елемента ліворуч є пара.",
+  "problem_no_target_groups": "Питання {number}: не для кожного елемента вибрано групу.",
+  "problem_no_accepted": "Питання {number}: додайте хоча б одну правильну відповідь.",
+  "problem_one_accepted": "Питання {number}: вказано лише одну правильну відповідь. Додайте інші написання, які теж варто зарахувати.",
+  "problem_no_number": "Питання {number}: вкажіть правильне число. Похибка не може бути від’ємною, а початок діапазону — більшим за кінець.",
+  "problem_no_gaps": "Питання {number}: у тексті немає жодного пропуску.",
+  "problem_gap_no_answer_gaps": "Питання {number}: у пропуску {count} немає правильної відповіді (у списку потрібно щонайменше два варіанти й один правильний).",
+  "problem_gap_no_answer_bank": "Питання {number}: для пропуску {count} не вибрано слово.",
+  "problem_no_image": "Питання {number}: додайте зображення.",
+  "problem_no_areas": "Питання {number}: позначте на зображенні хоча б одну область.",
+  "problem_no_points": "Питання {number}: поставте на зображенні хоча б одну точку.",
+  "problem_point_no_label": "Питання {number}: до точки {count} не додано підпис.",
+  "problem_no_words": "Питання {number}: позначте хоча б одне слово."
 }

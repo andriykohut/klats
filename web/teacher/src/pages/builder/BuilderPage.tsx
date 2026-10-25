@@ -21,8 +21,8 @@ import { LoadError } from "../../ui/LoadError";
 import { notify, toasts } from "../../ui/Toasts";
 import { autosave, type SaveState } from "./autosave";
 import { Checks } from "./Checks";
-import { ChoiceEditor, letter } from "./ChoiceEditor";
-import { fromPasted, newQuestion } from "./model";
+import { QuestionEditor } from "./editors/QuestionEditor";
+import { fromPasted, insertAt, newQuestion } from "./model";
 import { PasteDialog } from "./PasteDialog";
 import { PreviewPane } from "./PreviewPane";
 import { QuestionList } from "./QuestionList";
@@ -33,6 +33,7 @@ import "./topbar.css";
 import "./list.css";
 import "./editor.css";
 import "./preview.css";
+import "./editors/editors.css";
 import "./dialogs.css";
 
 const PALETTE_NAMES: Record<PaletteId, () => string> = {
@@ -111,7 +112,7 @@ function BackLink() {
  * {@link autosave}). Leaving saves what is pending; when that save fails, the
  * edits wait in memory, with a toast «Зміни не збережено» that goes back to
  * them, until the test is opened again. Deleting a question or an
- * option takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
+ * item of one takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
  * that puts it back where it was.
  */
 function Builder({ doc }: { doc: TestDoc }) {
@@ -237,20 +238,16 @@ function Builder({ doc }: { doc: TestDoc }) {
     });
   };
 
-  const removeOption = (questionId: string, optionId: string) => {
-    const q = latest.current.questions.find((x) => x.id === questionId);
-    const index = q?.options.findIndex((o) => o.id === optionId) ?? -1;
-    if (!q || index < 0) return;
-    const gone = q.options[index];
-    updateQuestion(questionId, (x) => ({
-      ...x,
-      options: x.options.filter((o) => o.id !== optionId),
-    }));
-    offerUndo(m.builder_answer_deleted({ letter: letter(index) }), () => {
-      updateQuestion(questionId, (x) => ({
-        ...x,
-        options: insertAt(x.options, index, gone),
-      }));
+  /** Takes an item out of a question now and offers to put it back. */
+  const removeItem = (
+    questionId: string,
+    text: string,
+    remove: () => void,
+    restore: () => void,
+  ) => {
+    remove();
+    offerUndo(text, () => {
+      restore();
       select(questionId);
     });
   };
@@ -354,13 +351,15 @@ function Builder({ doc }: { doc: TestDoc }) {
         </QuestionList>
         <main className="t-panel b-ed">
           {question ? (
-            <ChoiceEditor
+            <QuestionEditor
               key={question.id}
               question={question}
               focusText={fresh === question.id ? 1 : 0}
               onChange={(fn) => updateQuestion(question.id, fn)}
               onDelete={() => mayDelete() && removeQuestion(question.id)}
-              onRemoveOption={(optionId) => removeOption(question.id, optionId)}
+              onRemoveItem={(text, remove, restore) =>
+                removeItem(question.id, text, remove, restore)
+              }
             />
           ) : (
             <div className="b-ed-empty">
@@ -392,9 +391,4 @@ function Builder({ doc }: { doc: TestDoc }) {
       </div>
     </div>
   );
-}
-
-function insertAt<T>(items: T[], index: number, item: T): T[] {
-  const at = Math.min(index, items.length);
-  return [...items.slice(0, at), item, ...items.slice(at)];
 }

@@ -1,7 +1,11 @@
+import { QUESTION_TYPES } from "@klats/shared/questionTypes.ts";
 import { Fragment, Schema, Slice } from "@tiptap/pm/model";
 import { expect, test } from "vitest";
 import {
+  convertQuestion,
   fromPasted,
+  newOption,
+  newQuestion,
   oneParagraph,
   plainText,
   textDoc,
@@ -213,6 +217,202 @@ test("fromPasted builds questions with fresh ids", () => {
   const ids = [q.id, ...q.options.map((o) => o.id)];
   expect(new Set(ids).size).toBe(3);
   expect(ids.every((id) => /^[a-z0-9]{16}$/.test(id))).toBe(true);
+});
+
+/** The least options and targets each type needs, as internal/testfmt checks. */
+const LEAST: Record<string, { options?: number; targets?: number }> = {
+  single: { options: 2 },
+  multi: { options: 2 },
+  truefalse: { options: 1 },
+  grid: { options: 1, targets: 2 },
+  order: { options: 3 },
+  match: { options: 2 },
+  groups: { options: 2, targets: 2 },
+};
+
+test("newQuestion shapes", () => {
+  for (const { type } of QUESTION_TYPES) {
+    const q = newQuestion(type);
+    expect(q.type).toBe(type);
+    expect(q.points).toBe(1);
+    expect(q.partial).toBe(true);
+    expect(q.shuffleOptions).toBe(true);
+    expect(q.options.length).toBeGreaterThanOrEqual(LEAST[type]?.options ?? 0);
+    expect((q.targets ?? []).length).toBeGreaterThanOrEqual(
+      LEAST[type]?.targets ?? 0,
+    );
+  }
+  expect(newQuestion("truefalse").options).toHaveLength(2);
+  const grid = newQuestion("grid");
+  expect([grid.options.length, grid.targets?.length]).toEqual([2, 2]);
+  expect(newQuestion("order").options).toHaveLength(3);
+  const match = newQuestion("match");
+  expect(match.options.map((o) => o.target)).toEqual(
+    match.targets?.map((t) => t.id),
+  );
+  const groups = newQuestion("groups");
+  expect([groups.options.length, groups.targets?.length]).toEqual([2, 2]);
+  expect(groups.options.map((o) => o.target)).toEqual(
+    groups.targets?.map((t) => t.id),
+  );
+  for (const type of ["gaps", "bank", "highlight"]) {
+    expect(newQuestion(type).body).toEqual(textDoc(""));
+  }
+  for (const type of ["short", "number", "hotspot", "label", "open"]) {
+    expect(newQuestion(type).options).toEqual([]);
+  }
+});
+
+const abvg = ["А", "Б", "В", "Г"];
+
+/** A single-choice question worth 3 points with four options, the second correct. */
+function filled() {
+  return {
+    ...newQuestion("single"),
+    text: textDoc("Т"),
+    points: 3,
+    shuffleOptions: false,
+    options: abvg.map((t, i) => newOption(t, i === 1)),
+  };
+}
+
+test("convertQuestion keeps what it can", () => {
+  const single = filled();
+  const order = convertQuestion(single, "order");
+  expect(order.type).toBe("order");
+  expect(order.id).toBe(single.id);
+  expect(order.text).toEqual(textDoc("Т"));
+  expect(order.points).toBe(3);
+  expect(order.shuffleOptions).toBe(false);
+  expect(order.options.map((o) => o.content)).toEqual(abvg.map(textDoc));
+  expect(order.options.map((o) => o.id)).toEqual(
+    single.options.map((o) => o.id),
+  );
+  expect(order.options.some((o) => o.correct)).toBe(false);
+
+  const multi = convertQuestion(single, "multi");
+  expect(multi.options.map((o) => o.correct)).toEqual([
+    false,
+    true,
+    false,
+    false,
+  ]);
+  expect(
+    convertQuestion(multi, "truefalse").options.map((o) => o.correct),
+  ).toEqual([false, true, false, false]);
+
+  const groups = {
+    ...newQuestion("groups"),
+    text: textDoc("Т"),
+    options: [newOption("а"), newOption("б")],
+    targets: [
+      { id: "g1", content: textDoc("1"), x: 0, y: 0 },
+      { id: "g2", content: textDoc("2"), x: 0, y: 0 },
+    ],
+  };
+  groups.options[0].target = "g2";
+  groups.options[1].target = "g1";
+  const grid = convertQuestion(groups, "grid");
+  expect(grid.targets?.map((t) => t.id)).toEqual(["g1", "g2"]);
+  expect(grid.options.map((o) => o.target)).toEqual(["g2", "g1"]);
+  const single2 = convertQuestion(grid, "single");
+  expect(single2.targets ?? []).toEqual([]);
+  expect(single2.options.map((o) => o.target)).toEqual([undefined, undefined]);
+});
+
+test("convertQuestion gives a match each right-hand target once", () => {
+  const grid = {
+    ...newQuestion("grid"),
+    options: [newOption("а"), newOption("б")],
+  };
+  grid.options[0].target = grid.targets?.[0].id;
+  grid.options[1].target = grid.targets?.[0].id;
+  const match = convertQuestion(grid, "match");
+  expect(match.options.map((o) => o.target)).toEqual([
+    grid.targets?.[0].id,
+    undefined,
+  ]);
+});
+
+test("convertQuestion moves a body between gaps, bank and highlight", () => {
+  const marked = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Кіт",
+            marks: [{ type: "bold" }, { type: "target" }],
+          },
+          { type: "text", text: " спить" },
+        ],
+      },
+    ],
+  };
+  const highlight = { ...newQuestion("highlight"), body: marked };
+  const gaps = convertQuestion(highlight, "gaps");
+  expect(gaps.body).toEqual({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Кіт", marks: [{ type: "bold" }] },
+          { type: "text", text: " спить" },
+        ],
+      },
+    ],
+  });
+  expect(convertQuestion(highlight, "bank").body).toEqual(gaps.body);
+
+  const gapped = {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Кіт " },
+          { type: "gap", attrs: { id: "a" } },
+          { type: "math", attrs: { latex: "x" } },
+          { type: "text", text: " спить" },
+        ],
+      },
+    ],
+  };
+  const bank = { ...newQuestion("bank"), body: gapped };
+  expect(convertQuestion(bank, "gaps").body).toEqual(gapped);
+  expect(convertQuestion(bank, "highlight").body).toEqual({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "Кіт " },
+          { type: "text", text: " спить" },
+        ],
+      },
+    ],
+  });
+  expect(convertQuestion(bank, "single").body).toBeUndefined();
+});
+
+test("convertQuestion moves the image between hotspot and label only", () => {
+  const image = { src: `${"a".repeat(64)}.png`, w: 10, h: 20 };
+  const hotspot = { ...newQuestion("hotspot"), image };
+  expect(convertQuestion(hotspot, "label").image).toEqual(image);
+  expect(convertQuestion(hotspot, "open").image).toBeUndefined();
+});
+
+test("convertQuestion leaves a label's points behind", () => {
+  const label = {
+    ...newQuestion("label"),
+    targets: [{ id: "p", content: textDoc(""), x: 0.5, y: 0.5 }],
+  };
+  const grid = convertQuestion(label, "grid");
+  expect(grid.targets).toHaveLength(2);
+  expect(grid.targets?.some((t) => t.id === "p")).toBe(false);
 });
 
 /** The inline schema of an option, as TipTap builds it: paragraphs of inline nodes. */

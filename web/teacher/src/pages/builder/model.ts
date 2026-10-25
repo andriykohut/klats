@@ -1,5 +1,9 @@
 import { CODE_LANGUAGES } from "@klats/shared/code/registry.ts";
-import type { Option, Question } from "@klats/shared/generated/testfmt.ts";
+import type {
+  Option,
+  Question,
+  Target,
+} from "@klats/shared/generated/testfmt.ts";
 import type {
   RichAttrs,
   RichDoc,
@@ -7,6 +11,13 @@ import type {
 } from "@klats/shared/rich/RichView.tsx";
 import { Fragment, type Node, type Schema, Slice } from "@tiptap/pm/model";
 import type { PastedQuestion } from "./pasteParse";
+import {
+  HAS_BODY,
+  HAS_CORRECT,
+  HAS_IMAGE,
+  HAS_OPTIONS,
+  HAS_TARGETS,
+} from "./types";
 
 /*
  * The builder's pieces of a test document: new questions and options, and the
@@ -125,17 +136,124 @@ export function newOption(text = "", correct = false): Option {
   return { id: newId(), content: textDoc(text), correct };
 }
 
-/** Returns an empty question of `type` with two empty options. */
-export function newQuestion(type: "single" | "multi"): Question {
-  return {
+export function newTarget(text = ""): Target {
+  return { id: newId(), content: textDoc(text), x: 0, y: 0 };
+}
+
+/**
+ * Returns a question of `type` ready to edit: worth one point, with partial
+ * credit and shuffling on, and the least its type needs to pass the checks
+ * for missing items: two answers for single and multiple choice, two
+ * statements, two rows and two columns, three items to order, two pairs, two
+ * groups of one item each, or an empty body. A grid starts with no right
+ * column marked.
+ */
+export function newQuestion(type: string): Question {
+  const q: Question = {
     id: newId(),
     type,
     text: textDoc(""),
     points: MIN_POINTS,
     shuffleOptions: true,
     partial: true,
-    options: [newOption(), newOption()],
+    options: [],
   };
+  switch (type) {
+    case "single":
+    case "multi":
+    case "truefalse":
+      return { ...q, options: [newOption(), newOption()] };
+    case "grid":
+      return {
+        ...q,
+        options: [newOption(), newOption()],
+        targets: [newTarget(), newTarget()],
+      };
+    case "order":
+      return { ...q, options: [newOption(), newOption(), newOption()] };
+    case "match":
+    case "groups": {
+      const targets = [newTarget(), newTarget()];
+      const options = targets.map((t) => ({ ...newOption(), target: t.id }));
+      return { ...q, options, targets };
+    }
+    case "gaps":
+    case "bank":
+    case "highlight":
+      return { ...q, body: textDoc("") };
+    default:
+      return q;
+  }
+}
+
+/**
+ * Returns `q` as a question of `type`. It keeps the id, text, points, scoring
+ * and shuffling, and what the two types share: the options' contents and
+ * images; `correct` among single, multiple choice and true/false; the targets
+ * and each option's target among grid, matching and grouping (matching keeps a
+ * target for the first option that names it); the body among gaps, word bank
+ * and highlight, without the target marks going to gaps or bank, and without
+ * the gaps and formulas going to highlight; and the image between hotspot and
+ * labels. Every other field starts as {@link newQuestion} has it.
+ */
+export function convertQuestion(q: Question, type: string): Question {
+  const out: Question = {
+    ...newQuestion(type),
+    id: q.id,
+    text: q.text,
+    points: q.points,
+    partial: q.partial,
+    shuffleOptions: q.shuffleOptions,
+  };
+  if (HAS_OPTIONS.has(q.type) && HAS_OPTIONS.has(type) && q.options.length) {
+    const correct = HAS_CORRECT.has(q.type) && HAS_CORRECT.has(type);
+    const targeted = HAS_TARGETS.has(q.type) && HAS_TARGETS.has(type);
+    const taken = new Set<string>();
+    out.options = q.options.map((o) => {
+      const kept: Option = {
+        id: o.id,
+        content: o.content,
+        correct: correct && o.correct,
+      };
+      if (o.image) kept.image = o.image;
+      if (targeted && o.target && !(type === "match" && taken.has(o.target))) {
+        taken.add(o.target);
+        kept.target = o.target;
+      }
+      return kept;
+    });
+    if (targeted) out.targets = q.targets ?? [];
+  }
+  if (HAS_BODY.has(q.type) && HAS_BODY.has(type) && q.body) {
+    out.body = without(
+      q.body,
+      type === "highlight" ? ["gap", "math"] : ["target"],
+    );
+  }
+  if (HAS_IMAGE.has(q.type) && HAS_IMAGE.has(type) && q.image) {
+    out.image = q.image;
+  }
+  return out;
+}
+
+/** Returns `node` without the nodes and marks whose type is in `drop`. */
+function without(node: RichNode, drop: string[]): RichNode {
+  const out = { ...node };
+  const marks = node.marks?.filter((x) => !drop.includes(x.type));
+  if (marks?.length) out.marks = marks;
+  else delete out.marks;
+  if (node.content) {
+    out.content = node.content
+      .filter((n) => !drop.includes(n.type))
+      .map((n) => without(n, drop));
+  }
+  return out;
+}
+
+/** Returns `items` with `item` put in at `index`, or at the end when that is past it. */
+export function insertAt<T>(items: T[], index: number, item: T): T[] {
+  const at = Math.min(index, items.length);
+  return [...items.slice(0, at), item, ...items.slice(at)];
 }
 
 /** Turns parsed paste into questions, each worth one point. */

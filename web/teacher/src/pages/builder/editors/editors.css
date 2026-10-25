@@ -1,0 +1,76 @@
+/* A row moves its type's own control onto a second line where the editor is narrow. */
+.b-opt {
+  flex-wrap: wrap;
+}
+
+.b-opt .b-rich[data-inline] {
+  flex: 1 1 160px;
+}
+
+.b-opt .b-opt-del {
+  margin-left: auto;
+}
+
+.t-icon-btn.b-opt-move {
+  width: 28px;
+  height: 28px;
+}
+
+.t-icon-btn.b-opt-move .t-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+
+.t-icon-btn.b-opt-move[data-disabled] {
+  opacity: 0.3;
+}
+
+/* A row's one-of-several choice: chips in a track, like the scoring buttons. */
+.b-rc {
+  flex: 0 1 auto;
+  display: flex;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: var(--t-radius-field);
+  background: var(--t-track);
+}
+
+.b-rc > * {
+  min-width: 0;
+}
+
+/* Positioned, so the radio's hidden input scrolls with the editor and not the page. */
+.b-rc-chip {
+  position: relative;
+  display: block;
+  max-width: 150px;
+  height: 28px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: var(--t-radius-segment);
+  color: var(--k-muted);
+  font: 700 13px / 28px var(--k-font-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+
+.b-rc-chip[data-hovered] {
+  color: var(--k-ink);
+}
+
+.b-rc-chip[data-selected] {
+  background: var(--k-paper);
+  color: var(--k-ink);
+  box-shadow: var(--t-shadow-seg);
+}
+
+.b-rc-chip[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 1px;
+}

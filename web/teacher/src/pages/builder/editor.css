@@ -607,7 +607,7 @@
   outline: none;
 }
 
-.b-opts[data-type="single"] .b-ok {
+.b-ok[data-round] {
   border-radius: 50%;
 }
 

@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { ListBox, ListBoxItem } from "react-aria-components";
 import { Icon } from "../../ui/icons";
 import { plainText } from "./model";
+import { typeIcon } from "./types";
 
 /**
  * The left column: every question with its number, type, first two lines of
@@ -61,7 +62,7 @@ export function QuestionList(props: {
             >
               <span className="b-qi-n">{i + 1}</span>
               <span className="b-ic">
-                <Icon name={q.type === "multi" ? "multi" : "single"} />
+                <Icon name={typeIcon(q.type)} />
               </span>
               <span className="b-qi-tx" data-empty={!text || undefined}>
                 {text ? <RichView doc={q.text} /> : m.builder_new_question()}

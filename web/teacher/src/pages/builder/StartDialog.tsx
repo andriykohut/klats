@@ -103,6 +103,7 @@ function StartForm(props: StartProps & { close: () => void }) {
   });
 
   const number = new Map(props.questions.map((q, i) => [q.id, i + 1]));
+  const type = new Map(props.questions.map((q) => [q.id, q.type]));
   const blocking = (refused ?? props.problems).filter(
     (p) => p.severity === "error" && number.has(p.questionId),
   );
@@ -145,7 +146,7 @@ function StartForm(props: StartProps & { close: () => void }) {
             <p>{m.start_problems()}</p>
             <ul>
               {blocking.map((p) => (
-                <li key={`${p.questionId} ${p.code}`}>
+                <li key={`${p.questionId} ${p.code} ${p.count ?? 0}`}>
                   <Button
                     className="b-tip-link"
                     onPress={() => {
@@ -153,7 +154,11 @@ function StartForm(props: StartProps & { close: () => void }) {
                       props.onGoTo(p.questionId);
                     }}
                   >
-                    {problemText(p, number.get(p.questionId) ?? 0)}
+                    {problemText(
+                      p,
+                      number.get(p.questionId) ?? 0,
+                      type.get(p.questionId) ?? "",
+                    )}
                   </Button>
                 </li>
               ))}

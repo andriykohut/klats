@@ -353,7 +353,20 @@
   "checks_ok": "Every question has text and correct answers.",
   "problem_no_text": "Question {number} has no text.",
   "problem_no_correct": "Question {number}: mark at least one correct answer.",
-  "problem_too_few_options": "Question {number}: add at least two answers.",
+  "problem_too_few_options": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} answer.",
+        "countPlural=*": "Question {number}: add at least {count} answers."
+      }
+    }
+  ],
   "problem_single_many_correct": "Question {number} takes one answer, but {count} are marked correct. A student can pick only one, so no one can score on it.",
   "problem_make_multi": "Make it multiple answers",
   "problem_empty_option": "Question {number}: an answer is empty.",
@@ -491,5 +504,174 @@
   "detail_no_answer": "Not answered",
   "detail_clear": "Reset",
   "ev_finished_hidden": "{name} finishes the test.",
-  "detail_score": "Points: {earned} of {max}"
+  "detail_score": "Points: {earned} of {max}",
+  "type_truefalse_name": "True or false",
+  "type_truefalse_desc": "Several statements, each true or false",
+  "type_grid_name": "Choice grid",
+  "type_grid_desc": "One choice in each row",
+  "type_short_name": "Short answer",
+  "type_short_desc": "A word or phrase",
+  "type_number_name": "Number",
+  "type_number_desc": "Exact, with a tolerance or a range",
+  "type_gaps_name": "Gaps in text",
+  "type_gaps_desc": "Type in or pick from a list",
+  "type_order_name": "Ordering",
+  "type_order_desc": "Put in the right order",
+  "type_match_name": "Matching",
+  "type_match_desc": "Connect the pairs",
+  "type_groups_name": "Grouping",
+  "type_groups_desc": "Sort into groups",
+  "type_bank_name": "Words into text",
+  "type_bank_desc": "Drag words into the gaps",
+  "type_hotspot_name": "Point on an image",
+  "type_hotspot_desc": "Click the right spot",
+  "type_label_name": "Labels",
+  "type_label_desc": "Drag labels into place",
+  "type_highlight_name": "Highlight words",
+  "type_highlight_desc": "Find mistakes or the right words",
+  "type_open_name": "Written answer",
+  "type_open_desc": "Checked by the teacher",
+  "type_group_choice": "Choice",
+  "type_group_input": "Typing",
+  "type_group_arrange": "Arranging",
+  "type_group_image": "On an image",
+  "type_group_text": "In text",
+  "type_group_open": "Open answer",
+  "builder_item_delete": "Delete: {item}",
+  "builder_item_removed": "{item} deleted",
+  "builder_item_image": "Image: {item}",
+  "builder_item_image_remove": "Remove the image: {item}",
+  "builder_item_up": "Move up: {item}",
+  "builder_item_down": "Move down: {item}",
+  "builder_statements": "Statements",
+  "builder_statements_hint": "mark each true or false",
+  "builder_statement": "Statement {number}",
+  "builder_statement_value": "Statement {number}: true or false",
+  "builder_add_statement": "Add statement",
+  "builder_rows": "Rows",
+  "builder_rows_hint": "mark the right column in each",
+  "builder_row": "Row {number}",
+  "builder_row_right": "Row {number}: the right column",
+  "builder_add_row": "Add row",
+  "builder_columns": "Columns",
+  "builder_columns_hint": "2 to 6",
+  "builder_column": "Column {number}",
+  "builder_add_column": "Add column",
+  "builder_all_hint_every": "Points only when everything is right and nothing is extra.",
+  "builder_partial_hint_truefalse": "The points are split between the statements. Each mistake takes a share away.",
+  "builder_partial_hint_grid": "The points are split between the rows. Each mistake takes a share away.",
+  "builder_partial_hint_order": "Each item that would have to move takes a share of the points away.",
+  "builder_partial_hint_match": "The points are split between the pairs. Each mistake takes a share away.",
+  "builder_partial_hint_groups": "The points are split between the items. Each mistake takes a share away.",
+  "builder_partial_hint_gaps": "The points are split between the gaps. A wrong pick from a list takes a share away; a wrongly typed word takes nothing.",
+  "builder_partial_hint_bank": "The points are split between the gaps. Each word in the wrong place takes a share away.",
+  "builder_partial_hint_label": "The points are split between the labels. Each label in the wrong place, spare ones included, takes a share away.",
+  "builder_partial_hint_highlight": "The points are split between the marked words. Each extra word takes a share away.",
+  "problem_no_body_gaps": "Question {number}: write the text with gaps.",
+  "problem_no_body_highlight": "Question {number}: write the text in which students highlight words.",
+  "problem_empty_statement": "Question {number}: a statement is empty.",
+  "problem_empty_row": "Question {number}: a row or column is empty.",
+  "problem_empty_item": "Question {number}: an item is empty.",
+  "problem_empty_pair": "Question {number}: a pair has an empty field.",
+  "problem_empty_group": "Question {number}: an item or group is empty.",
+  "problem_empty_word": "Question {number}: a word is empty.",
+  "problem_empty_label": "Question {number}: a label is empty.",
+  "problem_too_few_statements": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} statement.",
+        "countPlural=*": "Question {number}: add at least {count} statements."
+      }
+    }
+  ],
+  "problem_too_few_rows": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} row.",
+        "countPlural=*": "Question {number}: add at least {count} rows."
+      }
+    }
+  ],
+  "problem_too_few_items": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} item.",
+        "countPlural=*": "Question {number}: add at least {count} items."
+      }
+    }
+  ],
+  "problem_too_few_pairs": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} pair.",
+        "countPlural=*": "Question {number}: add at least {count} pairs."
+      }
+    }
+  ],
+  "problem_too_few_columns": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} column.",
+        "countPlural=*": "Question {number}: add at least {count} columns."
+      }
+    }
+  ],
+  "problem_too_few_groups": [
+    {
+      "declarations": [
+        "input number",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Question {number}: add at least {count} group.",
+        "countPlural=*": "Question {number}: add at least {count} groups."
+      }
+    }
+  ],
+  "problem_no_target_grid": "Question {number}: mark the right column in every row.",
+  "problem_no_target_match": "Question {number}: not every item on the left has a pair.",
+  "problem_no_target_groups": "Question {number}: not every item has a group.",
+  "problem_no_accepted": "Question {number}: add at least one correct answer.",
+  "problem_one_accepted": "Question {number}: only one correct answer is given. Add other spellings worth accepting.",
+  "problem_no_number": "Question {number}: give the correct number. A tolerance cannot be negative, and a range cannot start above its end.",
+  "problem_no_gaps": "Question {number}: the text has no gap.",
+  "problem_gap_no_answer_gaps": "Question {number}: gap {count} has no correct answer (a list needs at least two choices and one correct).",
+  "problem_gap_no_answer_bank": "Question {number}: gap {count} has no word.",
+  "problem_no_image": "Question {number}: add an image.",
+  "problem_no_areas": "Question {number}: mark at least one area on the image.",
+  "problem_no_points": "Question {number}: place at least one point on the image.",
+  "problem_point_no_label": "Question {number}: point {count} has no label.",
+  "problem_no_words": "Question {number}: mark at least one word."
 }

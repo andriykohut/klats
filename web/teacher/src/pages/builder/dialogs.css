@@ -1,20 +1,41 @@
 .t-dialog.b-types {
-  width: min(640px, 92vw);
+  width: min(940px, 94vw);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding-block: 22px 14px;
+}
+
+.t-dialog.b-types > p {
+  margin-bottom: 12px;
+}
+
+.b-tgrp {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 14px;
+  padding: 8px 0;
+  border-top: 1.5px solid var(--t-hair);
+}
+
+.b-tgrp h3 {
+  margin: 0;
+  padding-top: 6px;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .b-tcards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 12px;
-  border-top: 1.5px solid var(--t-hair);
 }
 
 .b-tc {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 11px 12px;
+  padding: 9px 10px;
   border: 1.5px solid var(--t-line);
   border-radius: 13px;
   background: var(--k-paper);

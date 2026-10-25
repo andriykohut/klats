@@ -56,7 +56,9 @@ export function ChoiceAnswers({
   }, [onDensity]);
 
   // Keyed on content, so a caller rebuilding the array costs no remeasure.
-  useLayoutEffect(restart, [optionsKey]);
+  // Single and multiple choice share this component, so a builder preview that
+  // switches between them refits as well.
+  useLayoutEffect(restart, [optionsKey, question.type]);
 
   useLayoutEffect(() => {
     const scroller = rootRef.current?.closest<HTMLElement>(".k-sheet-scroll");

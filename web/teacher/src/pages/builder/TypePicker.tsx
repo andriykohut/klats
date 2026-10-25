@@ -1,5 +1,6 @@
 import { m } from "@klats/shared/paraglide/messages.js";
-import { useRef } from "react";
+import { QUESTION_TYPES, type TypeGroup } from "@klats/shared/questionTypes.ts";
+import { useId, useRef } from "react";
 import {
   Button,
   Dialog,
@@ -9,21 +10,21 @@ import {
   ModalOverlay,
 } from "react-aria-components";
 import { Icon } from "../../ui/icons";
-import { typeName } from "./ChoiceEditor";
+import { GROUP_NAMES, TYPE_INFO, typeIcon } from "./types";
 
-type QuestionType = "single" | "multi";
-
-const TYPES: { type: QuestionType; text: () => string }[] = [
-  { type: "single", text: m.type_single_desc },
-  { type: "multi", text: m.type_multi_desc },
-];
+/** The groups of {@link QUESTION_TYPES}, in order, with their types. */
+const GROUPS = QUESTION_TYPES.reduce<{ group: TypeGroup; types: string[] }[]>(
+  (groups, { type, group }) => {
+    const last = groups[groups.length - 1];
+    if (last?.group === group) last.types.push(type);
+    else groups.push({ group, types: [type] });
+    return groups;
+  },
+  [],
+);
 
 /** «Додати питання»: a dialog of the question types; picking one calls `onPick`. */
-export function TypePicker({
-  onPick,
-}: {
-  onPick: (type: QuestionType) => void;
-}) {
+export function TypePicker({ onPick }: { onPick: (type: string) => void }) {
   return (
     <DialogTrigger>
       <Button className="t-btn b-add" data-variant="teal">
@@ -48,34 +49,44 @@ export function TypePicker({
   );
 }
 
-function Types({ onPick }: { onPick: (type: QuestionType) => void }) {
+function Types({ onPick }: { onPick: (type: string) => void }) {
   // A double-click must add one question, not two.
   const picked = useRef(false);
+  const id = useId();
   return (
     <>
       <Heading slot="title">{m.types_title()}</Heading>
       <p>{m.types_text()}</p>
-      <div className="b-tcards">
-        {TYPES.map((t) => (
-          <Button
-            key={t.type}
-            className="b-tc"
-            onPress={() => {
-              if (picked.current) return;
-              picked.current = true;
-              onPick(t.type);
-            }}
-          >
-            <span className="b-ic b-ic-lg">
-              <Icon name={t.type} />
-            </span>
-            <span>
-              <b>{typeName(t.type)}</b>
-              <span className="b-tc-text">{t.text()}</span>
-            </span>
-          </Button>
-        ))}
-      </div>
+      {GROUPS.map(({ group, types }) => (
+        <section
+          key={group}
+          className="b-tgrp"
+          aria-labelledby={`${id}-${group}`}
+        >
+          <h3 id={`${id}-${group}`}>{GROUP_NAMES[group]()}</h3>
+          <div className="b-tcards">
+            {types.map((type) => (
+              <Button
+                key={type}
+                className="b-tc"
+                onPress={() => {
+                  if (picked.current) return;
+                  picked.current = true;
+                  onPick(type);
+                }}
+              >
+                <span className="b-ic b-ic-lg">
+                  <Icon name={typeIcon(type)} />
+                </span>
+                <span>
+                  <b>{TYPE_INFO[type].name()}</b>
+                  <span className="b-tc-text">{TYPE_INFO[type].desc()}</span>
+                </span>
+              </Button>
+            ))}
+          </div>
+        </section>
+      ))}
     </>
   );
 }
