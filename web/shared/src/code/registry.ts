@@ -1,11 +1,12 @@
+import type { createLowlight } from "lowlight";
 import type { StudentTest } from "../generated/wire";
 import { fieldsOf, walkNodes } from "../rich/walk";
 
 /*
  * Code blocks are highlighted by lowlight, which the student app loads only
- * for a test that has a code block with a language, so shared code never
- * imports it. Each app registers a highlighter once; {@link CodeView} reads it
- * with `useSyncExternalStore` over {@link subscribeCode} and
+ * for a test that has a code block with a language, so this module imports it
+ * for types only (the instance is built in lowlight.ts). Each app registers a
+ * highlighter once; `CodeView` reads it with `useSyncExternalStore` over {@link subscribeCode} and
  * {@link getHighlighter}, and redraws when one arrives.
  */
 
@@ -47,20 +48,14 @@ export const TOKEN_COLOURS: Record<string, string> = {
   meta: "#5B6470",
 };
 
-/**
- * The part of a hast node that {@link CodeView} reads: text nodes carry
- * `value`, element nodes `properties.className` and `children`. lowlight's
- * trees fit it, without the shared package depending on the hast types.
- */
-export interface HastNode {
-  type: string;
-  value?: string;
-  properties?: { className?: unknown };
-  children?: HastNode[];
-}
+/** A hast root, as lowlight returns it. */
+export type Root = ReturnType<ReturnType<typeof createLowlight>["highlight"]>;
+
+/** A child of a {@link Root}; an element's children are of this type too. */
+export type HastNode = Root["children"][number];
 
 /** Highlights `code` in the language with id `language`, as a hast root. */
-type Highlighter = (code: string, language: string) => { children: HastNode[] };
+type Highlighter = (code: string, language: string) => Root;
 
 let highlighter: Highlighter | null = null;
 const listeners = new Set<() => void>();

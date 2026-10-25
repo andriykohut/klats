@@ -13,8 +13,8 @@ import {
 
 /**
  * A code block: `code` in a `pre`, with its tokens coloured when `language`
- * is one of {@link CODE_LANGUAGES} and a highlighter is registered (see
- * {@link setHighlighter}). Until then, and for a language it does not know, it
+ * is one of `CODE_LANGUAGES` and a highlighter is registered (see
+ * `setHighlighter`). Until then, and for a language it does not know, it
  * shows the plain text; it is highlighted as soon as a highlighter arrives.
  * The highlighter's tree is turned into elements, never into HTML.
  */
@@ -41,7 +41,8 @@ export function CodeView({
 function renderToken(node: HastNode, key: number): ReactNode {
   if (node.type === "text") return node.value;
   if (node.type !== "element") return null;
-  const classes = (node.properties?.className as string[] | undefined) ?? [];
+  const className = node.properties?.className;
+  const classes = Array.isArray(className) ? className.map(String) : [];
   const token = classes
     .filter((c) => c.startsWith("hljs-"))
     .map((c) => c.slice(5))

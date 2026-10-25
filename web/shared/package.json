@@ -12,6 +12,8 @@
     "typecheck": "pnpm i18n && tsc --noEmit"
   },
   "dependencies": {
+    "highlight.js": "11.11.2",
+    "lowlight": "3.3.0",
     "motion": "14.5.0",
     "react-aria-components": "1.22.1"
   },

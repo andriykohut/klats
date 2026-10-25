@@ -145,12 +145,12 @@ var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": tr
 
 // Parse decodes raw and validates it against mode. It rejects object keys
 // other than exactly type, attrs, text, marks and content (case-sensitive, no
-// duplicates) at every level, and attrs keys other than src, w, h, latex, language,
-// id, colspan and rowspan. It also rejects nodes and marks the mode does not
-// permit, attrs a node type does not take or whose values are out of range,
-// children a node may not hold (inline nodes only in a paragraph, block nodes
-// only in the doc, list items and cells, table, row and cell nesting, and
-// unmarked text only in a codeBlock), a table or row with no children,
+// duplicates) at every level, and attrs keys other than src, w, h, latex,
+// language, id, colspan and rowspan. It also rejects nodes and marks the mode
+// does not permit, attrs a node type does not take or whose values are out of
+// range, children a node may not hold (inline nodes only in a paragraph, block
+// nodes only in the doc, list items and cells, table, row and cell nesting,
+// and unmarked text only in a codeBlock), a table or row with no children,
 // repeated gap ids, text and LaTeX totalling more than 20,000 runes, and
 // nesting deeper than 8 levels below the doc node. Every error wraps
 // [ErrInvalid].

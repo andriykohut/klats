@@ -24,34 +24,47 @@ test("a code block's language is chosen in the builder and saved with the test",
     .click();
 
   const text = page.getByRole("textbox", { name: m.builder_question_text() });
-  await text.click();
-  await page.getByRole("button", { name: m.rich_code_block() }).click();
   const language = page.getByRole("button", { name: m.rich_code_language() });
-  await language.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("option", { name: "Python" }).click();
+  const codeBlock = page.getByRole("button", { name: m.rich_code_block() });
+  const block = async () => {
+    const doc = (await saved(page)).questions[0].text as {
+      content: {
+        type: string;
+        attrs?: unknown;
+        content?: { text?: string }[];
+      }[];
+    };
+    const b = doc.content.find((n) => n.type === "codeBlock");
+    return b && [b.attrs, b.content?.[0].text];
+  };
+  const choose = async (name: string) => {
+    // Tab from the code block reaches the select, which opens with Enter.
+    await page.keyboard.press("Tab");
+    await expect(language).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.getByRole("option", { name }).click();
+  };
+
+  await text.click();
+  await expect(language).toHaveCount(0);
+  await codeBlock.click();
+  await choose("Python");
   await page.keyboard.type("def f():");
 
   // The editor colours the tokens it decorates.
   const keyword = text.locator("pre code .hljs-keyword");
   await expect(keyword).toHaveText("def");
   await expect(keyword).toHaveCSS("color", "rgb(166, 36, 74)");
+  await expect.poll(block).toEqual([{ language: "python" }, "def f():"]);
 
-  await expect
-    .poll(async () => {
-      const doc = (await saved(page)).questions[0].text as {
-        content: { attrs?: unknown; content?: { text?: string }[] }[];
-      };
-      const block = doc.content.find((n) => n.attrs);
-      return [block?.attrs, block?.content?.[0].text];
-    })
-    .toEqual([{ language: "python" }, "def f():"]);
+  // Choosing no highlighting drops the language from the saved test.
+  await choose(m.rich_code_plain());
+  await expect(keyword).toHaveCount(0);
+  await expect.poll(block).toEqual([undefined, "def f():"]);
 
-  // The choice is back to none when the language is cleared.
-  await language.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("option", { name: m.rich_code_plain() }).click();
-  await expect(text.locator("pre code .hljs-keyword")).toHaveCount(0);
+  // The select goes with the code block.
+  await codeBlock.click();
+  await expect(language).toHaveCount(0);
 });
 
 test("code is highlighted on the student's page after the network drops", async ({
