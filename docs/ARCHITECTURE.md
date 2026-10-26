@@ -265,6 +265,12 @@ clock, never below 0, so neither a reload nor a wrong lab clock can stretch
 it. The server never finishes anyone when time runs out: a computer that died
 stays writing until the teacher gives it more time or ends the sitting.
 
+The teacher app shows a common end time in its live bar, with a countdown on
+`Date.now()`: it runs on the server's own machine, so its clock is the
+server's. The start dialog asks for the end time only for a "common" test and
+sends `endsAt`; the live rows carry no time left, and a row menu's «+5 хв»
+(timed sitting, row not finished) is the only way to add time.
+
 A change stored more than 10 s (`lateGrace`) after the participant's deadline
 is still stored and graded, but flagged late, as after the end. The grace
 covers a change made just before the deadline and still in flight. While the

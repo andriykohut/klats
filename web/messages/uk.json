@@ -563,7 +563,7 @@
   "legend_partial": "частково",
   "legend_zero": "0 балів",
   "legend_overridden": "змінено вчителем",
-  "legend_late": "надійшла після завершення",
+  "legend_late": "надійшла пізно",
   "legend_absent": "не було в тесті учня",
   "detail_question": "Питання {number}",
   "detail_picked": "Обрано",
@@ -870,5 +870,12 @@
   "grade_average_pass": "{percent}% зараховано",
   "scale_points12": "12-бальна",
   "scale_percent": "Відсотки",
-  "scale_pass": "Зараховано / не зараховано"
+  "scale_pass": "Зараховано / не зараховано",
+  "time_add_five": "+5 хв",
+  "live_time_student": "{minutes} хв на учня",
+  "live_time_until": "до {time}",
+  "start_end_at": "Закінчити о",
+  "start_end_past": "Цей час уже минув",
+  "ev_extra_time": "{name}: +{minutes} хв",
+  "ev_overtime": "{name} надсилає відповіді після закінчення часу: {count}."
 }

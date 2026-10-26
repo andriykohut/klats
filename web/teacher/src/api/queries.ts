@@ -244,6 +244,12 @@ function useLiveAction<T>(key: string, fn: (vars: T) => Promise<void>) {
 /** Kicks a participant by id. Key: "kick". */
 export const useKick = () => useLiveAction("kick", api.kick);
 
+/** Gives a participant more minutes. Key: "addTime". */
+export const useAddTime = () =>
+  useLiveAction("addTime", (v: { id: string; minutes: number }) =>
+    api.addTime(v.id, v.minutes),
+  );
+
 /** Answers a pinned event. Key: "resolve". */
 export const useResolveEvent = () =>
   useLiveAction("resolve", (v: { id: string; action: string }) =>

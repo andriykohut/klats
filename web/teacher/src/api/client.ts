@@ -146,6 +146,15 @@ export const kick = (participantId: string) =>
 /** Moves a participant onto the device with token `device`. */
 export const move = (participantId: string, device: string) =>
   call<void>("POST", `/api/participants/${id(participantId)}/move`, { device });
+/**
+ * Gives a writing participant `minutes` more time, 1 to 60. A participant who
+ * is finished, kicked or in a test without a time limit rejects with an
+ * ApiError.
+ */
+export const addTime = (participantId: string, minutes: number) =>
+  call<void>("POST", `/api/participants/${id(participantId)}/time`, {
+    minutes,
+  });
 /** Answers a pinned event with one of its `actions`. */
 export const resolveEvent = (eventId: string, action: string) =>
   call<void>("POST", `/api/events/${id(eventId)}/resolve`, { action });

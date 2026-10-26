@@ -1,6 +1,8 @@
 import type { SittingInfo } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
+import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
 import { Icon } from "../../ui/icons";
 import { EndDialog } from "./EndDialog";
@@ -12,10 +14,35 @@ const SCALE_NAMES = {
 };
 
 /**
- * The live view's own bar: the test, its class, question count and scale, the join
- * code with «Показати на дошці», and «Завершити тест». Once the sitting has
- * ended, the code goes and the button opens the results instead. The mark
- * leads back to «Мої тести».
+ * The time left until `endsAt` (unix ms) on the teacher's own clock, which
+ * is the server's, since the teacher app runs on the server's machine: m:ss,
+ * or h:mm:ss from an hour up, ticking every second.
+ */
+function Remaining({ endsAt }: { endsAt: number }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  const secs = String(left % 60).padStart(2, "0");
+  const mins = Math.floor(left / 60) % 60;
+  const hours = Math.floor(left / 3600);
+  return (
+    <strong role="timer" aria-label={m.timer_label()}>
+      {hours > 0
+        ? `${hours}:${String(mins).padStart(2, "0")}:${secs}`
+        : `${mins}:${secs}`}
+    </strong>
+  );
+}
+
+/**
+ * The live view's own bar: the test, its class, question count, scale and
+ * per-student time limit, the end time with the time left when the sitting
+ * has a common one, the join code with «Показати на дошці», and «Завершити
+ * тест». Once the sitting has ended, the time and the code go and the button
+ * opens the results instead. The mark leads back to «Мої тести».
  */
 export function LiveTopBar(props: {
   sitting: SittingInfo;
@@ -27,6 +54,7 @@ export function LiveTopBar(props: {
     s.className,
     m.builder_count_questions({ count: s.questionCount }),
     SCALE_NAMES[s.scale as keyof typeof SCALE_NAMES]?.(),
+    s.timeMode === "student" && m.live_time_student({ minutes: s.minutes }),
   ]
     .filter(Boolean)
     .join(", ");
@@ -53,6 +81,18 @@ export function LiveTopBar(props: {
         </>
       ) : (
         <>
+          {s.timeMode === "common" && (
+            <div className="l-time">
+              <small>
+                {m.live_time_until({
+                  time: new Intl.DateTimeFormat(getLocale(), {
+                    timeStyle: "short",
+                  }).format(s.endsAt),
+                })}
+              </small>
+              <Remaining endsAt={s.endsAt} />
+            </div>
+          )}
           <div className="l-code">
             <small>{m.live_code()}</small>
             <strong>{s.code}</strong>
@@ -60,7 +100,6 @@ export function LiveTopBar(props: {
               {m.live_show_board()}
             </Button>
           </div>
-          {/* shortcut: no time remaining here, as tests in this version have no time limit; show it beside the end button once tests can have one. */}
           <EndDialog writing={props.writing} assignmentId={s.assignmentId} />
         </>
       )}

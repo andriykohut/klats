@@ -534,7 +534,7 @@
   "legend_partial": "partly",
   "legend_zero": "0 points",
   "legend_overridden": "changed by the teacher",
-  "legend_late": "arrived after the end",
+  "legend_late": "arrived late",
   "legend_absent": "not in this student’s test",
   "detail_question": "Question {number}",
   "detail_picked": "Chosen",
@@ -835,5 +835,12 @@
   "grade_average_pass": "{percent}% passed",
   "scale_points12": "12-point",
   "scale_percent": "Percent",
-  "scale_pass": "Pass / fail"
+  "scale_pass": "Pass / fail",
+  "time_add_five": "+5 min",
+  "live_time_student": "{minutes} min per student",
+  "live_time_until": "until {time}",
+  "start_end_at": "End at",
+  "start_end_past": "That time has passed",
+  "ev_extra_time": "{name}: +{minutes} min",
+  "ev_overtime": "{name} sent answers after time ran out: {count}."
 }

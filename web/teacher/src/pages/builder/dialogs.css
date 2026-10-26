@@ -190,6 +190,14 @@
   padding: 2px;
 }
 
+.b-end {
+  margin-bottom: 18px;
+}
+
+.b-end input {
+  align-self: flex-start;
+}
+
 .b-class {
   display: flex;
   flex-direction: column;

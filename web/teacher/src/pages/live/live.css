@@ -83,6 +83,25 @@
   letter-spacing: 0.06em;
 }
 
+.l-time {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+
+.l-time small {
+  color: var(--k-on-field-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.l-time strong {
+  font: 700 22px var(--k-font-display);
+  font-variant-numeric: tabular-nums;
+}
+
 .l-ghost {
   height: 40px;
   padding: 0 14px;

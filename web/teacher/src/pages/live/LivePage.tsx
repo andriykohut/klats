@@ -177,7 +177,11 @@ function Live({ snap }: { snap: LiveSnapshot }) {
           ? []
           : [
               <td key="menu" className="j-act">
-                <RowActions row={r} name={who(r.name)} />
+                <RowActions
+                  row={r}
+                  name={who(r.name)}
+                  timed={snap.sitting.timeMode !== "none"}
+                />
               </td>,
             ]),
       ],

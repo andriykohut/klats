@@ -17,20 +17,31 @@ import {
   Popover,
   TextField,
 } from "react-aria-components";
-import { busy, useKick, useRenameDevice } from "../../api/queries";
+import { busy, useAddTime, useKick, useRenameDevice } from "../../api/queries";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { Icon } from "../../ui/icons";
 
+/** The minutes «+5 хв» gives. */
+const EXTRA_MINUTES = 5;
+
 /**
  * The «⋯» menu of a journal row and the dialogs it opens: «Від’єднати»,
- * confirmed first, and «Перейменувати комп’ютер». `name` is the student as
- * the journal shows them, initials while names are hidden, in the menu's
- * label and the confirmation alike.
+ * confirmed first, and «Перейменувати комп’ютер». A student still writing in
+ * a timed test (`timed`) also gets «+5 хв», which gives them five minutes at
+ * once and can be pressed again. `name` is the student as the journal shows
+ * them, initials while names are hidden, in the menu's label and the
+ * confirmation alike.
  */
-export function RowActions({ row, name }: { row: LiveRow; name: string }) {
+export function RowActions(props: {
+  row: LiveRow;
+  name: string;
+  timed: boolean;
+}) {
+  const { row, name } = props;
   const [kicking, setKicking] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const kick = useKick();
+  const addTime = useAddTime();
   return (
     <>
       <MenuTrigger>
@@ -43,10 +54,22 @@ export function RowActions({ row, name }: { row: LiveRow; name: string }) {
         <Popover placement="bottom end" className="j-menu-pop">
           <Menu
             className="j-menu"
-            onAction={(key) =>
-              key === "kick" ? setKicking(true) : setRenaming(true)
-            }
+            onAction={(key) => {
+              if (key === "kick") setKicking(true);
+              else if (key === "time") {
+                if (busy("addTime")) return;
+                addTime.mutate({
+                  id: row.participantId,
+                  minutes: EXTRA_MINUTES,
+                });
+              } else setRenaming(true);
+            }}
           >
+            {props.timed && row.status !== "finished" && (
+              <MenuItem id="time" className="j-menu-item">
+                {m.time_add_five()}
+              </MenuItem>
+            )}
             <MenuItem id="rename" className="j-menu-item">
               {m.live_rename()}
             </MenuItem>

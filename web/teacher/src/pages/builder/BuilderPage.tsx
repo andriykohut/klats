@@ -348,6 +348,7 @@ function Builder({ doc }: { doc: TestDoc }) {
           isDisabled={test.questions.length === 0}
           testId={doc.id}
           questions={test.questions}
+          settings={test.settings}
           problems={problems}
           flush={saver.flush}
           onGoTo={select}

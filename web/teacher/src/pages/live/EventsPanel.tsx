@@ -193,6 +193,16 @@ function describe(
       };
     case "late_answers":
       return { tone: "tang", text: m.ev_late({ name, count: p.count ?? "" }) };
+    case "overtime_answers":
+      return {
+        tone: "tang",
+        text: m.ev_overtime({ name, count: p.count ?? "" }),
+      };
+    case "extra_time":
+      return {
+        tone: undefined,
+        text: m.ev_extra_time({ name, minutes: p.minutes ?? "" }),
+      };
     default:
       return { tone: undefined, text: m.ev_unknown() };
   }
