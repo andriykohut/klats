@@ -82,9 +82,9 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
       must stay answerable.
 11. **Formulas offline.** Open a test with formulas and let every page show
     its formulas. Disable the PC's network adapter and move between the
-    questions with formulas, then reload the page.
+    questions with formulas.
     - *Expected:* the formulas stay set in the KaTeX fonts, with no boxes or
-      fallback letters, until the reload.
+      fallback letters.
 12. **1024×768.** Set the screen to 1024×768 and go through one question of
     each type.
     - *Expected:* the question, its answers and «Далі» fit or scroll with
@@ -222,7 +222,7 @@ happen.
   picture file on it. *Expected:* each shows in the field.
 - Paste a PNG, or a WebP, that WebKit must re-encode, and a HEIC photo from
   an iPhone. *Expected:* each is stored as a picture the students see; if a
-  format is not supported, a clear message names the formats that are.
+  format is not supported, the message asks to save it as JPG or PNG.
 - Copy text that holds only a picture from Word and paste it into a question.
   *Expected:* the picture shows and nothing else is added.
 - Add a WAV over 10 MiB as a sound. *Expected:* it is refused with a message
@@ -239,7 +239,8 @@ happen.
 - With formulas on a student page in Chrome 109 and Firefox 115 and the KaTeX
   fonts already loaded, disable the student PC's network. *Expected:* the
   formulas on the pages already opened stay set in the KaTeX fonts.
-- While a sitting runs with student pages open, close the program, then kill
-  it (Task Manager, `kill -9`), then start it again. *Expected:* the student
+- While a sitting runs with student pages open, stop the program and start it
+  again, once by closing it and once by killing it (Task Manager,
+  `kill -9`). *Expected:* each time, the student
   pages reconnect with «Зв’язок відновлено», and every answer given before
   and during the break is in the results.
