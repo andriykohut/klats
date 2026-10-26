@@ -381,6 +381,16 @@ func TestFinishResultReveal(t *testing.T) {
 		}
 	}
 
+	// Questions a subset left out are not asked, so they are no mistakes.
+	e, _ = setupSettings(t, 5, testfmt.Settings{Subset: 3, Reveal: "mistakes"})
+	info = start(t, e, nil)
+	p = enter(t, e, info.Code, devA, "Шевченко")
+	ids, _ := resumed(t, e, devA)
+	submit(t, e, devA, change(p, ids[1], 1, "o0"))
+	if got := finish(t, e, devA); got.Total != 3 || !slices.Equal(got.Wrong, []int{1, 3}) {
+		t.Errorf("mistakes for 3 of 5 %v: Finish = %+v, want wrong 1 and 3 of 3", ids, got)
+	}
+
 	// withWritten returns an engine whose test "t1" holds two choice
 	// questions and then a written one worth 2 points.
 	withWritten := func(reveal string) (*Engine, *store.Store) {

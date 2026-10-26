@@ -60,6 +60,9 @@ export function FinishScreen({
   }, [grade, target, reduced]);
 
   const gradeName = graded ? gradeText(graded.scale, graded.grade) : "";
+  // A pass/fail ring is named by the word under it.
+  const ringName =
+    verdict === null ? m.finish_grade({ grade: gradeName }) : gradeName;
   let mistakes: string | null = null;
   if (result?.show === "mistakes") {
     const wrong = result.wrong ?? [];
@@ -67,7 +70,7 @@ export function FinishScreen({
     else if (!result.pending) mistakes = m.finish_no_wrong();
   }
   const announce = graded
-    ? m.finish_announce({ ...graded, grade: gradeName })
+    ? `${ringName}. ${m.finish_correct(graded)}`
     : result && (sent ? m.finish_sent() : m.finish_pending());
 
   return (
@@ -79,13 +82,7 @@ export function FinishScreen({
         <div
           className="k-ring"
           role="img"
-          aria-label={
-            graded
-              ? verdict === null
-                ? m.finish_grade({ grade: gradeName })
-                : gradeName
-              : undefined
-          }
+          aria-label={graded ? ringName : undefined}
           aria-hidden={graded ? undefined : true}
         >
           <svg viewBox="0 0 240 240" aria-hidden="true">

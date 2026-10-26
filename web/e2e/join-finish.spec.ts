@@ -66,6 +66,9 @@ for (const scale of SCALES) {
         ? scale.grade()
         : m.finish_grade({ grade: scale.grade() });
     await expect(student.getByRole("img", { name, exact: true })).toBeVisible();
+    await expect(student.locator(".k-finish [role=status]")).toHaveText(
+      `${name}. ${m.finish_correct({ correct: 1, total: 3 })}`,
+    );
   });
 }
 
