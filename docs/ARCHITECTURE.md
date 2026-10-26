@@ -400,12 +400,17 @@ Students may have the address bookmarked.
   Files are served by their content-hash name only, with the type the store
   chose and `nosniff`.
 - **Opened files are untrusted.**
-  - `internal/klatsfile` checks a whole `.klats` file before it stores
-    anything. Only `test.json` and `media/<media name>` entries are allowed.
-    The file is capped at 256 MiB, `test.json` at 4 MiB and the entries at
-    2,000, and each entry is read through its cap, whatever size the zip
-    claims. `test.json` must pass `testfmt.Decode`, and each media file must
-    hash to its name and then pass the media store's sniffing and caps.
+  - `internal/klatsfile` stores nothing from a `.klats` file until every
+    check that does not need the media store has passed. Only `test.json`
+    and `media/<media name>` entries are allowed.
+  - The file is capped at 256 MiB and its central directory at 1 MiB, read
+    through a budget, since `archive/zip` reads directory entries past the
+    count the file declares. `test.json` is capped at 4 MiB, the entries at
+    2,000, and the media the test uses at 256 MiB in all, so a small file
+    cannot fill the disk. Each entry is read through its cap, whatever size
+    the zip claims.
+  - `test.json` must pass `testfmt.Decode`, and each media file must hash to
+    its name and then pass the media store's sniffing and caps.
 - **Correct answers never reach students.**
   - The test a device loads has no correct flags and no points.
   - Grading happens only on the server.

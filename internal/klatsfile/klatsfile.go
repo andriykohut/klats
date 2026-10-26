@@ -3,7 +3,8 @@
 // media/<name> for each image and audio file the test uses, under its media
 // store name. Files arrive by email or on flash drives, so [Read] is the trust
 // boundary for opened tests: it caps every size itself, allows no other entry,
-// and stores nothing until the whole file has passed its checks.
+// and stores nothing until every check that does not need the media store has
+// passed.
 package klatsfile
 
 import (
@@ -14,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"klats/internal/media"
@@ -28,6 +30,10 @@ const (
 	maxFileBytes = 256 << 20
 	maxTestBytes = 4 << 20
 	maxEntries   = 2000
+	// maxDirBytes caps what zip.NewReader reads: the central directory and its
+	// end record. 2,000 entries with 400 bytes of extra fields and comments
+	// each fit in it.
+	maxDirBytes = 1 << 20
 	// maxMediaBytes is the media store's largest cap, the one for audio.
 	maxMediaBytes = 10 << 20
 )
@@ -86,11 +92,13 @@ func writeMedia(zw *zip.Writer, ms *media.Store, name string) error {
 // may be missing from the zip if ms already holds it; entries the test does not
 // use are ignored. Read returns an error wrapping [testfmt.ErrTooNew] for a
 // test from a newer version, and one wrapping [ErrDamaged] for a file over
-// 256 MiB, one that is not a zip, more than 2,000 entries, an entry other than
-// test.json and media/<media name>, a repeated entry, a test.json that is
-// missing, over 4 MiB or refused by [testfmt.Decode], a file the test uses that
-// neither the zip nor ms holds, and a media entry over 10 MiB, whose bytes hash
-// to another name, or that [media.Store.Put] refuses or names differently. A
+// 256 MiB, one that is not a zip, a central directory over 1 MiB, more than
+// 2,000 entries, an entry other than test.json and media/<media name>, a
+// repeated entry, a test.json that is missing, over 4 MiB or refused by
+// [testfmt.Decode], a file the test uses that neither the zip nor ms holds,
+// media the test uses of over 256 MiB in all, and a media entry over 10 MiB,
+// whose bytes hash to another name, or that [media.Store.Put] refuses or names
+// differently. A
 // failure of ms itself, such as a full disk, is returned wrapped instead of as
 // ErrDamaged. Only media that Put refuses or names differently, and a failure
 // of ms, can leave earlier media of the file stored; every other error stores
@@ -101,7 +109,12 @@ func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 	if size > maxFileBytes {
 		return testfmt.Test{}, damaged("file of %d bytes", size)
 	}
-	zr, err := zip.NewReader(r, size)
+	// archive/zip reads directory headers until a bad one, whatever count the
+	// file declares, so only a budget on its reads bounds the memory a crafted
+	// directory costs before the entry cap can run.
+	br := &budgetReader{ReaderAt: r, left: maxDirBytes}
+	zr, err := zip.NewReader(br, size)
+	br.left = math.MaxInt64
 	if err != nil {
 		return testfmt.Test{}, damaged("%v", err)
 	}
@@ -133,6 +146,9 @@ func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 	t.ID = ""
 
 	var bundled []*zip.File
+	// total caps the bytes a small file can inflate to on disk: each entry
+	// alone may be 10 MiB, and a test may use 2,000 of them.
+	var total int64
 	for _, name := range t.Media() {
 		f := entries[mediaDir+name]
 		if f == nil {
@@ -144,6 +160,9 @@ func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 		data, err := readCapped(f, maxMediaBytes)
 		if err != nil {
 			return testfmt.Test{}, damaged("%s: %v", f.Name, err)
+		}
+		if total += int64(len(data)); total > maxFileBytes {
+			return testfmt.Test{}, damaged("media over %d bytes in all", maxFileBytes)
 		}
 		hash, _, _ := strings.Cut(name, ".")
 		if sum := sha256.Sum256(data); hex.EncodeToString(sum[:]) != hash {
@@ -210,6 +229,19 @@ func put(ms *media.Store, f *zip.File) error {
 		return damaged("%s: content is %s", f.Name, name)
 	}
 	return nil
+}
+
+// budgetReader fails every read once reads of left bytes have been asked for.
+type budgetReader struct {
+	io.ReaderAt
+	left int64
+}
+
+func (b *budgetReader) ReadAt(p []byte, off int64) (int, error) {
+	if b.left -= int64(len(p)); b.left < 0 {
+		return 0, fmt.Errorf("central directory over %d bytes", maxDirBytes)
+	}
+	return b.ReaderAt.ReadAt(p, off)
 }
 
 // damaged returns an error wrapping [ErrDamaged] that gives the reason.
