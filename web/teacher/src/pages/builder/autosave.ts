@@ -1,8 +1,9 @@
 /**
  * Where an autosave stands: everything is saved, a change is waiting or
- * being sent, or the last attempt failed and a retry is due.
+ * being sent, the last attempt failed and a retry is due, or the server
+ * refused the last attempt and nothing is retried until the next change.
  */
-export type SaveState = "saved" | "saving" | "retrying";
+export type SaveState = "saved" | "saving" | "retrying" | "refused";
 
 export interface Autosave<T> {
   /** Takes the newest value; it is saved once no change has come for the delay. */
@@ -27,14 +28,20 @@ export interface Autosave<T> {
  * time: a change made while a save is in flight goes out after it completes.
  * A failed save keeps its value (or a newer one) and is retried after 1, 2
  * and 4 s, then every 5 s, until one succeeds; a new change retries sooner.
+ *
+ * A failure that `refused` recognises, such as a 4xx reply, would only fail
+ * again, so it is not retried: the state becomes "refused" and the value
+ * stays pending, to be sent by the next change or {@link Autosave.flush}.
  */
 export function autosave<T, R>(opts: {
   save: (value: T) => Promise<R>;
   onSaved: (result: R) => void;
   onState: (state: SaveState) => void;
+  /** Whether `err` is the server refusing the value, which a retry cannot fix. */
+  refused?: (err: unknown) => boolean;
   delay?: number;
 }): Autosave<T> {
-  const { save, onSaved, onState, delay = 400 } = opts;
+  const { save, onSaved, onState, refused, delay = 400 } = opts;
   let next: T | undefined;
   let dirty = false;
   let busy = false;
@@ -69,14 +76,23 @@ export function autosave<T, R>(opts: {
       onSaved(await save(value));
       failures = 0;
     } catch (err) {
-      if (!dirty) {
+      const newer = dirty;
+      if (!newer) {
         next = value;
         dirty = true;
       }
       busy = false;
-      // shortcut: a save the server refuses (400, such as lists nested past
-      // rich's depth limit) is retried like a dropped connection, forever;
-      // say what to fix if that shows up in real use.
+      if (refused?.(err)) {
+        failures = 0;
+        // A newer edit is a fresh attempt; send it unless a timer already will.
+        if (newer) {
+          if (!timer) void run();
+        } else {
+          onState("refused");
+        }
+        settle(err ?? new Error("save failed"));
+        return;
+      }
       failures++;
       onState("retrying");
       settle(err ?? new Error("save failed"));

@@ -48,6 +48,7 @@ const SAVE_TEXT: Record<SaveState, () => string> = {
   saved: m.builder_saved,
   saving: m.builder_saving,
   retrying: m.builder_retrying,
+  refused: m.builder_refused,
 };
 
 /**
@@ -135,6 +136,8 @@ function Builder({ doc }: { doc: TestDoc }) {
       save: save.mutateAsync,
       onSaved: (r) => setProblems(r.problems),
       onState: setStatus,
+      refused: (err) =>
+        err instanceof ApiError && err.status >= 400 && err.status < 500,
     }),
   );
   const undoToasts = useRef<string[]>([]);

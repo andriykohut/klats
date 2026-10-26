@@ -260,6 +260,7 @@
   "builder_saved": "Saved",
   "builder_saving": "Saving…",
   "builder_retrying": "Not saved — retrying…",
+  "builder_refused": "Not saved: the server didn’t accept the change",
   "builder_palette": "Colours for students",
   "palette_teal": "Teal",
   "palette_grape": "Grape",

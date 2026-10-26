@@ -268,6 +268,7 @@
   "builder_saved": "Збережено",
   "builder_saving": "Зберігається…",
   "builder_retrying": "Не збережено — повторюємо…",
+  "builder_refused": "Не збережено: сервер не прийняв зміну",
   "builder_palette": "Кольори для учнів",
   "palette_teal": "Бірюза",
   "palette_grape": "Виноград",

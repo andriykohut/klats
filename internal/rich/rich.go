@@ -21,7 +21,7 @@ import (
 
 const (
 	maxTextRunes = 20000
-	maxDepth     = 8
+	maxDepth     = 20
 	maxLatex     = 1000
 	maxPixels    = 10000
 	maxSpan      = 20

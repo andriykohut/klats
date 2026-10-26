@@ -98,12 +98,17 @@
   background: var(--k-accent);
 }
 
-.b-saved[data-state="retrying"] {
+.b-saved[data-state="retrying"],
+.b-saved[data-state="refused"] {
   color: var(--k-on-field);
 }
 
-.b-saved[data-state="retrying"] .b-saved-dot {
+.b-saved[data-state="retrying"] .b-saved-dot,
+.b-saved[data-state="refused"] .b-saved-dot {
   background: var(--k-accent);
+}
+
+.b-saved[data-state="retrying"] .b-saved-dot {
   animation: b-blink var(--k-dur-halo) var(--k-ease-out) infinite;
 }
 

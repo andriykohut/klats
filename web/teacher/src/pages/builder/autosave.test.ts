@@ -120,3 +120,72 @@ test("stop sends what is pending and retries no more; start retries again", asyn
   await vi.advanceTimersByTimeAsync(400);
   expect(calls.map((c) => c.value)).toEqual(["1", "2"]);
 });
+
+/** An error the stubbed server answers with a 400. */
+const refusal = () => Object.assign(new Error("400"), { refused: true });
+
+function strict() {
+  const s = server();
+  const states: SaveState[] = [];
+  const a = autosave<string, string>({
+    save: s.save,
+    onSaved: () => {},
+    onState: (st) => states.push(st),
+    refused: (err) => (err as { refused?: boolean }).refused === true,
+  });
+  return { ...s, states, a };
+}
+
+test("a refused save is not retried; the next edit tries again", async () => {
+  const { a, calls, states } = strict();
+  a.change("1");
+  await vi.advanceTimersByTimeAsync(400);
+  calls[0].fail(refusal());
+  await vi.advanceTimersByTimeAsync(0);
+  expect(states.at(-1)).toBe("refused");
+  await vi.advanceTimersByTimeAsync(60_000);
+  expect(calls).toHaveLength(1);
+  a.change("2");
+  expect(states.at(-1)).toBe("saving");
+  await vi.advanceTimersByTimeAsync(400);
+  expect(calls.map((c) => c.value)).toEqual(["1", "2"]);
+  calls[1].ok("r2");
+  await vi.advanceTimersByTimeAsync(0);
+  expect(states.at(-1)).toBe("saved");
+});
+
+test("flush after a refusal sends the refused value again and rejects if it is refused again", async () => {
+  const { a, calls } = strict();
+  a.change("1");
+  await vi.advanceTimersByTimeAsync(400);
+  calls[0].fail(refusal());
+  await vi.advanceTimersByTimeAsync(0);
+  const f = a.flush();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(calls.map((c) => c.value)).toEqual(["1", "1"]);
+  calls[1].fail(refusal());
+  await expect(f).rejects.toThrow("400");
+});
+
+test("an edit made during a refused save goes out at once", async () => {
+  const { a, calls, states } = strict();
+  a.change("1");
+  await vi.advanceTimersByTimeAsync(400);
+  a.change("2");
+  await vi.advanceTimersByTimeAsync(400);
+  expect(calls).toHaveLength(1);
+  calls[0].fail(refusal());
+  await vi.advanceTimersByTimeAsync(0);
+  expect(calls.map((c) => c.value)).toEqual(["1", "2"]);
+  expect(states.at(-1)).not.toBe("refused");
+});
+
+test("other failures are still retried when a refusal test is given", async () => {
+  const { a, calls, states } = strict();
+  a.change("1");
+  await vi.advanceTimersByTimeAsync(400);
+  calls[0].fail(new Error("down"));
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(states.at(-1)).toBe("retrying");
+  expect(calls).toHaveLength(2);
+});

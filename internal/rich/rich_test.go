@@ -99,18 +99,18 @@ func nestedLists(levels int) string {
 }
 
 func TestParseEnforcesDepthLimit(t *testing.T) {
-	// 3 levels: bulletList(1) listItem(2) bulletList(3) listItem(4) bulletList(5) listItem(6) paragraph(7)
-	if _, err := Parse([]byte(nestedLists(3)), Block); err != nil {
-		t.Fatalf("depth 7: %v", err)
+	// Word's nine list levels reach their paragraph at depth 19.
+	if _, err := Parse([]byte(nestedLists(9)), Block); err != nil {
+		t.Fatalf("9 list levels: %v", err)
 	}
-	// 4 levels reach paragraph at depth 9
-	if _, err := Parse([]byte(nestedLists(4)), Block); !errors.Is(err, ErrInvalid) {
-		t.Fatalf("depth 9: err = %v, want ErrInvalid", err)
+	// A tenth level puts the paragraph at depth 21.
+	if _, err := Parse([]byte(nestedLists(10)), Block); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("10 list levels: err = %v, want ErrInvalid", err)
 	}
-	// depth exactly 8: bulletList>listItem x3 then paragraph>text
-	exact := strings.Replace(nestedLists(3), `{"type":"paragraph"}`, `{"type":"paragraph","content":[{"type":"text","text":"x"}]}`, 1)
+	// Nine levels with text in the paragraph reach depth 20 exactly.
+	exact := strings.Replace(nestedLists(9), `{"type":"paragraph"}`, `{"type":"paragraph","content":[{"type":"text","text":"x"}]}`, 1)
 	if _, err := Parse([]byte(exact), Block); err != nil {
-		t.Fatalf("depth 8: %v", err)
+		t.Fatalf("depth 20: %v", err)
 	}
 }
 
