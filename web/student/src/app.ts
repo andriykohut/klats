@@ -59,7 +59,7 @@ interface State {
   name: string;
   /** The question on screen, from 0. */
   index: number;
-  /** The picked option ids per question id, as the queue holds them. */
+  /** The newest answer the student gave to each question, by question id, as the queue holds it. */
   answers: Record<string, Answer>;
   net: { state: ConnectionState; pending: number };
   saveFailed: boolean;

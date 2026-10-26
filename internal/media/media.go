@@ -57,7 +57,8 @@ func Open(dir string) (*Store, error) {
 // Put stores the bytes of r as "<sha256 hex>.<ext>" and returns that name; the
 // extension follows the sniffed type. Storing the same bytes again returns the
 // same name and writes nothing. It returns [ErrUnsupported] or [ErrTooLarge],
-// and an error from r unchanged, so a caller can recognise a capped body.
+// and an error from r wrapped, so a caller can recognise a capped body with
+// [errors.As].
 func (s *Store) Put(r io.Reader) (string, error) {
 	data, err := io.ReadAll(io.LimitReader(r, maxAudioBytes+1))
 	if err != nil {

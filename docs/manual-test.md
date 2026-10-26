@@ -74,6 +74,9 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
    word bank and label questions.
    - *Expected:* the card follows the pointer, lands where it is dropped and
      is kept after a reload.
+   - On a long matching question at 1024×768, drag a card to a place below
+     the fold. *Expected:* the page scrolls while dragging and the card lands
+     there.
 10. **Audio.** Play the question with sound, then seek and pause.
     - *Expected:* it plays, seeks and pauses in Chrome and Firefox.
     - In Firefox on a Windows N edition without the Media Feature Pack, play
@@ -220,6 +223,8 @@ happen.
   not the space after it.
 - In the picture field, click it and paste a picture, then drop another
   picture file on it. *Expected:* each shows in the field.
+- Windows only: upload the same picture twice at once, for example by pasting
+  it into two fields quickly. *Expected:* both show, with no error.
 - Paste a PNG, or a WebP, that WebKit must re-encode, and a HEIC photo from
   an iPhone. *Expected:* each is stored as a picture the students see; if a
   format is not supported, the message asks to save it as JPG or PNG.

@@ -89,7 +89,7 @@ design follows from where it runs:
 | `internal/demo` | Seeds a sample class, test and running sitting for `klats -dev -demo`. |
 | `internal/desktop` | The Wails shell: window, tray, single instance, save dialog. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
-| `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into the 12-point grade. Choice questions so far. |
+| `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into the 12-point grade. It covers every question type. |
 | `internal/httpx` | JSON replies, capped body decoding and the single-page-app file server, shared by both APIs. |
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
 | `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |
@@ -177,8 +177,10 @@ solves.
 
 **An answer is a value, not a list of option ids.** A change carries a
 `testfmt.Answer`: `items`, `pairs`, `text` and `point`, each omitted when
-empty. The server stores its JSON in `answers.value` and, for a choice
-question, keeps only the `items` that are option ids of the question. The
+empty. The server stores its JSON in `answers.value`, reduced to the field
+the question's type uses. A change whose answer names an id the question
+lacks, or a value its type does not allow, is rejected whole
+(`Question.CleanAnswer`). The
 queue saves `{v: 2, …}` under `klats.answers.<participantId>`. `isAnswered`
 in `web/shared/src/answers.ts` and `Answer.IsEmpty` in Go both say whether an
 answer holds anything.
