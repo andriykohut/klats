@@ -60,9 +60,10 @@ test("a save the server refuses is not retried, and the next edit tries again", 
   const text = page.getByRole("textbox", { name: m.builder_question_text() });
   await text.click();
   await page.keyboard.type("Один");
+  await expect(page.locator(".b-saved")).toHaveText(m.builder_refused());
   await expect(
-    page.getByText(m.builder_refused(), { exact: true }),
-  ).toBeVisible();
+    page.getByRole("status").filter({ hasText: m.builder_refused() }),
+  ).toHaveCount(1);
   const sent = puts;
   // The first retry of a dropped connection would come after one second.
   await page.waitForTimeout(1500);

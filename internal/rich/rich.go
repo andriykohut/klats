@@ -152,7 +152,7 @@ var allowedMarks = map[string]bool{"bold": true, "italic": true, "subscript": tr
 // nodes only in the doc, list items and cells, table, row and cell nesting,
 // and unmarked text only in a codeBlock), a table or row with no children,
 // repeated gap ids, text and LaTeX totalling more than 20,000 runes, and
-// nesting deeper than 8 levels below the doc node. Every error wraps
+// nesting deeper than 20 levels below the doc node. Every error wraps
 // [ErrInvalid].
 //
 // The key check keeps Go and JavaScript reading the same bytes the same way:

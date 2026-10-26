@@ -13,6 +13,7 @@ import {
   RadioGroup,
   TextField,
 } from "react-aria-components";
+import { VisuallyHidden } from "react-aria-components/VisuallyHidden";
 import { ApiError } from "../../api/client";
 import { UNDO_MS, useSaveTest, useTest } from "../../api/queries";
 import { cooldown } from "../../cooldown";
@@ -305,6 +306,13 @@ function Builder({ doc }: { doc: TestDoc }) {
             <i className="b-saved-dot" aria-hidden="true" />
             {SAVE_TEXT[status]()}
           </span>
+          {/* Only the states that need the teacher are announced: "saving"
+              and "saved" alternate on every pause in typing. */}
+          <VisuallyHidden role="status">
+            {status === "retrying" || status === "refused"
+              ? SAVE_TEXT[status]()
+              : ""}
+          </VisuallyHidden>
         </div>
         <RadioGroup
           className="b-pal"
