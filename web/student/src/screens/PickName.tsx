@@ -8,6 +8,7 @@ import { motion, useReducedMotionConfig } from "motion/react";
 import {
   type ReactNode,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -20,7 +21,7 @@ import {
 } from "react-aria-components/RadioGroup";
 import { NameTaken, pick, streaming } from "../api";
 import { ApiError } from "../sync/connection";
-import { errorText, Problem, Sheet, StartNotes } from "./ui";
+import { errorText, Problem, Sheet, startNote } from "./ui";
 import "@klats/shared/student-ui/AnswerTile.css";
 
 /** How often the list is fetched again while the event stream is closed. */
@@ -64,6 +65,8 @@ export function PickName({
   const picking = useRef(false);
   const held = useRef<NameEntry[] | null>(null);
   const focused = useRef<string | null>(null);
+  const noteId = useId();
+  const note = startNote(info);
 
   // Applies a held change once nothing holds the list any more.
   const release = () => {
@@ -244,7 +247,11 @@ export function PickName({
         )}
         {shown.length === 0 && <p className="s-empty">{m.pick_none()}</p>}
       </motion.div>
-      <StartNotes info={info} />
+      {note && (
+        <p className="s-notes" id={noteId}>
+          {note}
+        </p>
+      )}
       <div className="s-foot">
         <button type="button" className="s-btn s-btn-quiet" onClick={onBack}>
           <span>{m.back()}</span>
@@ -253,6 +260,7 @@ export function PickName({
         <button
           type="button"
           className="s-btn"
+          aria-describedby={note ? noteId : undefined}
           disabled={!selected || lost || busy}
           onClick={() => selected && !lost && send(selected)}
         >

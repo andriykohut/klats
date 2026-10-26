@@ -5,6 +5,7 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { RichView } from "@klats/shared/rich/RichView.tsx";
 import { popIn } from "@klats/shared/student-ui/motion.ts";
 import { motion, useReducedMotionConfig } from "motion/react";
+import type { ReactNode } from "react";
 import { Button } from "react-aria-components/Button";
 import { Sheet } from "./ui";
 import "@klats/shared/student-ui/AnswerTile.css";
@@ -13,7 +14,8 @@ import "@klats/shared/student-ui/QuestionSheet.css";
 /**
  * The last stop before finishing: how many questions have an answer, and the
  * unanswered ones as tiles that lead back to them, or a note that none are
- * left. The student finishes the test from here, or returns to it.
+ * left. The student finishes the test from here, or returns to it. `timer`
+ * sits at the sheet's top right, as on a question sheet.
  */
 export function Review({
   test,
@@ -21,12 +23,14 @@ export function Review({
   onGo,
   onBack,
   onFinish,
+  timer,
 }: {
   test: StudentTest;
   answers: Record<string, Answer>;
   onGo: (index: number) => void;
   onBack: () => void;
   onFinish: () => void;
+  timer?: ReactNode;
 }) {
   const reduced = useReducedMotionConfig();
   const total = test.questions.length;
@@ -87,6 +91,7 @@ export function Review({
             </div>
           </div>
         </div>
+        {timer && <div className="k-sheet-timer">{timer}</div>}
       </div>
       <div className="k-sheet-foot">
         <div className="k-actions">

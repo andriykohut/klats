@@ -44,6 +44,7 @@ function App() {
   const { screen, test } = s;
   const inTest = TEST_SCREENS.has(screen.name) && s.title !== "";
   const offline = s.net.state === "offline";
+  const timer = s.deadline !== null && <Timer remainingMs={s.remainingMs} />;
 
   let content = null;
   switch (screen.name) {
@@ -85,7 +86,7 @@ function App() {
             onGo={go}
             onReview={() => show({ name: "review" })}
             readOnly={s.timeUp}
-            timer={s.deadline !== null && <Timer remainingMs={s.remainingMs} />}
+            timer={timer}
           />
         );
       }
@@ -100,6 +101,7 @@ function App() {
             onGo={go}
             onBack={() => show({ name: "test" })}
             onFinish={finishTest}
+            timer={timer}
           />
         );
       }

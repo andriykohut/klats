@@ -26,11 +26,11 @@ test("the name screen names the limit", async ({ klats }) => {
   const student = await klats.computer();
   await student.goto(`${klats.student}/?code=${code}`);
 
-  const note = student.getByText(
-    m.pick_time_student({ minutes: 20, button: m.pick_start() }),
-  );
+  const text = m.pick_time_student({ minutes: 20, button: m.pick_start() });
+  const note = student.getByText(text);
   await expect(note).toBeVisible();
   const start = student.getByRole("button", { name: m.pick_start() });
+  await expect(start).toHaveAccessibleDescription(text);
   // The sheet tilts as it slides in, so this waits for it to settle.
   await expect
     .poll(async () => {
@@ -75,6 +75,16 @@ test("a reload gains no time", async ({ klats }) => {
   const after = await secondsLeft(student);
   expect(after).toBeLessThanOrEqual(before);
   expect(after).toBeGreaterThanOrEqual(before - 10);
+
+  // The review keeps the countdown in view.
+  for (const q of TEST) {
+    await expect(answers(student, q)).toBeVisible();
+    await student.getByRole("button", { name: m.test_skip() }).click();
+  }
+  await expect(
+    student.getByRole("heading", { name: m.review_title() }),
+  ).toBeVisible();
+  expect(await secondsLeft(student)).toBeLessThanOrEqual(after);
 });
 
 test("answers given offline across the deadline arrive, flagged late", async ({

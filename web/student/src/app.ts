@@ -498,7 +498,7 @@ export function go(index: number): void {
  * Finishes the test: once the server holds every answer, it records the
  * finish and shows the grade. Offline, the finish screen waits, and it all
  * completes on reconnect. A finish because the time ran out goes back to the
- * test instead when more time arrives before the finish is sent.
+ * test instead when a status brings more than a second before it is sent.
  */
 export async function finishTest(): Promise<void> {
   const s = session;
@@ -509,7 +509,11 @@ export async function finishTest(): Promise<void> {
   // Finishing locks the answers, so nothing may be left unsent.
   while (session === s && !(await s.conn.drain())) await sleep(2000);
   if (session !== s) return;
-  if (timed && !state.timeUp) return show({ name: "test" });
+  if (timed) {
+    // A status made just before the server's deadline must not flicker the test open.
+    if (state.remainingMs > 1000) return show({ name: "test" });
+    update({ timeUp: true });
+  }
   try {
     const result = await retry(api.finish);
     if (session !== s) return;

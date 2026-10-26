@@ -266,6 +266,7 @@ export class Connection {
       if (!res) return false;
       this.queue.ack(res.acks);
       this.succeeded();
+      // A finish waiting on the drain resumes after this report; app.ts relies on it.
       this.report(res.status);
       left = this.queue.pending();
     }

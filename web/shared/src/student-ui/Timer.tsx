@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { m } from "../paraglide/messages.js";
 import "./student-ui.css";
 import "./Timer.css";
@@ -7,18 +6,18 @@ import "./Timer.css";
  * The time left on a timed test, `remainingMs`, rounded up to the second: m:ss,
  * or h:mm:ss from an hour up, and 0:00 below zero. Under a minute it sets
  * `data-low`, and it turns the palette's accent. Screen readers hear it
- * politely when 5 minutes and when 1 minute are left, as the time crosses
- * each mark while it shows. It draws what it is given; the caller redraws it
- * as the time runs.
+ * politely when 5 minutes and when 1 minute are left: for the 10 s after each
+ * mark its polite region holds the mark, and otherwise nothing. It draws what
+ * it is given; the caller redraws it as the time runs.
  */
 export function Timer({ remainingMs }: { remainingMs: number }) {
   const left = Math.max(0, Math.ceil(remainingMs / 1000));
   const hours = Math.floor(left / 3600);
   const mins = Math.floor(left / 60) % 60;
   const secs = String(left % 60).padStart(2, "0");
-  const warn = left <= 60 ? 1 : left <= 300 ? 5 : 0;
-  // Each question mounts a new sheet, which must not repeat a mark already passed.
-  const [mounted] = useState(warn);
+  // Only briefly, so a sheet mounted later, on a question change, starts with
+  // an empty region and does not repeat the mark.
+  const mark = left <= 60 && left > 50 ? 1 : left <= 300 && left > 290 ? 5 : 0;
   return (
     <>
       <div
@@ -36,7 +35,7 @@ export function Timer({ remainingMs }: { remainingMs: number }) {
           : `${mins}:${secs}`}
       </div>
       <p className="k-sr-only" role="status">
-        {warn > 0 && warn !== mounted && m.timer_left({ count: warn })}
+        {mark > 0 && m.timer_left({ count: mark })}
       </p>
     </>
   );
