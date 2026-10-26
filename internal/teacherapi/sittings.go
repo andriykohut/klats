@@ -47,7 +47,7 @@ func (a *api) startSitting(w http.ResponseWriter, r *http.Request) {
 		replyProblems(w, t)
 		return
 	}
-	info, err := a.eng.Start(req.TestID, req.ClassID)
+	info, err := a.eng.Start(req.TestID, req.ClassID, req.EndsAt)
 	if errors.Is(err, sitting.ErrHasProblems) {
 		// The test was saved with problems after the check above.
 		if t, err = a.storedTest(r.Context(), req.TestID); err == nil {

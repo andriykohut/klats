@@ -162,9 +162,10 @@ func gap(id string) rich.Node { return rich.Node{Type: "gap", Attrs: &rich.Attrs
 // formula, a typed gap and a list gap, then an ordering, a matching, a grouping
 // (with a picture on one item) and a word bank question, then a hotspot and a
 // labelling question on the stored image scene, a highlight question and a
-// written answer.
+// written answer, with 40 minutes for each student.
 func sampleTest(id, pic, scene, sound string) testfmt.Test {
-	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{
+	timed := testfmt.Settings{TimeLimit: testfmt.TimeLimit{Mode: testfmt.TimeStudent, Minutes: 40}}
+	return testfmt.Test{ID: id, Version: 1, Title: "Демонстраційний тест", Palette: testfmt.DefaultPalette, Settings: timed, Questions: []testfmt.Question{
 		choice("q1", 1, para(plain("Скільки "), bold("біт"), plain(" в одному байті?")), []int{1},
 			para(plain("4")), para(plain("8")), para(plain("16")), para(plain("32"))),
 		choice("q2", 2, para(plain("Які з цих пристроїв є пристроями "), bold("введення"), plain("?")), []int{0, 1},
@@ -389,5 +390,5 @@ func Seed(st *store.Store, eng *sitting.Engine, ms *media.Store) (wire.SittingIn
 		return wire.SittingInfo{}, err
 	}
 	class := classID
-	return eng.Start(testID, &class)
+	return eng.Start(testID, &class, 0)
 }

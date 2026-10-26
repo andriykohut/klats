@@ -34,7 +34,7 @@ func TestStudentPayloadOptionImage(t *testing.T) {
 	e, st, _ := setup(t)
 	imgA, imgB := strings.Repeat("a", 64)+".png", strings.Repeat("b", 64)+".jpg"
 	mediaTest(t, st, imgA, imgB)
-	info, err := e.Start("tm", nil)
+	info, err := e.Start("tm", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestHasMedia(t *testing.T) {
 	if e.HasMedia(imgA) {
 		t.Fatal("HasMedia before any sitting")
 	}
-	if _, err := e.Start("tm", nil); err != nil {
+	if _, err := e.Start("tm", nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	check := func(when string, e *Engine) {

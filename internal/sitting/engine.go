@@ -140,9 +140,10 @@ type participant struct {
 	finishedAt int64                     // 0 until finished
 	switches   int                       // window switches
 	moves      int64                     // times moved to another device
+	extraMs    int64                     // extra time the teacher gave, see deadline
 	questions  []testfmt.Question        // the participant's own, see questionsFor
 	answers    map[string]testfmt.Answer // question id → the student's answer
-	late       map[string]bool           // question ids answered after the end
+	late       map[string]bool           // question ids whose answer arrived late, see Engine.Submit
 	overrides  map[string]float64        // question id → points set by the teacher
 
 	// Presence lives only in memory: a restart counts everyone as just seen.
@@ -209,7 +210,7 @@ func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
 		}
 		a.participants = append(a.participants, &participant{
 			id: r.ID, key: key, name: r.DisplayName, class: r.TypedClass.String, device: r.DeviceToken, state: r.State,
-			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches), moves: r.Moves, questions: questionsFor(t, r.ID),
+			finishedBy: r.FinishedBy.String, joinedAt: r.JoinedAt, finishedAt: r.FinishedAt.Int64, switches: int(r.WindowSwitches), moves: r.Moves, extraMs: r.ExtraMs, questions: questionsFor(t, r.ID),
 			answers: map[string]testfmt.Answer{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: now,
 		})
 	}
@@ -321,12 +322,14 @@ func (e *Engine) SetLanguage(lang string) {
 // Start begins a sitting of the stored test, for the class with classID or,
 // when classID is nil, for students who type their names. The test as it is
 // now is snapshotted into a new assignment, so later edits don't reach the
-// sitting.
+// sitting. endsAt is the common end time, in unix ms, of a test whose time
+// limit is "common"; other tests ignore it.
 //
 // It returns [ErrSittingActive] while another sitting runs, [ErrNotFound] for
-// an unknown test or class, and [ErrHasProblems] if the test has
-// blocking problems.
-func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error) {
+// an unknown test or class, [ErrHasProblems] if the test has blocking
+// problems, and [ErrInvalid] for a "common" test whose endsAt is not after
+// now or is more than 12 hours ahead.
+func (e *Engine) Start(testID string, classID *string, endsAt int64) (wire.SittingInfo, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.cur != nil {
@@ -344,11 +347,18 @@ func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error)
 	if t.HasBlocking() {
 		return wire.SittingInfo{}, ErrHasProblems
 	}
+	now := e.now().UnixMilli()
+	var ends sql.NullInt64
+	if t.Settings.TimeLimit.Mode == testfmt.TimeCommon {
+		if endsAt <= now || endsAt > now+maxCommonEnd.Milliseconds() {
+			return wire.SittingInfo{}, ErrInvalid
+		}
+		ends = sql.NullInt64{Int64: endsAt, Valid: true}
+	}
 	snapshot, err := json.Marshal(t)
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}
-	now := e.now().UnixMilli()
 	asg := db.Assignment{ID: store.NewID(), TestID: valid(testID), TestSnapshot: string(snapshot), CreatedAt: now}
 	if classID != nil {
 		c, err := q.GetClass(ctx, *classID)
@@ -361,7 +371,7 @@ func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error)
 	if err != nil {
 		return wire.SittingInfo{}, err
 	}
-	s := db.Sitting{ID: store.NewID(), AssignmentID: asg.ID, JoinCode: code, StartedAt: now}
+	s := db.Sitting{ID: store.NewID(), AssignmentID: asg.ID, JoinCode: code, StartedAt: now, EndsAt: ends}
 
 	err = e.commit(func(q *db.Queries) (func(), error) {
 		err := q.InsertAssignment(ctx, db.InsertAssignmentParams{
@@ -371,7 +381,7 @@ func (e *Engine) Start(testID string, classID *string) (wire.SittingInfo, error)
 		if err != nil {
 			return nil, err
 		}
-		err = q.InsertSitting(ctx, db.InsertSittingParams{ID: s.ID, AssignmentID: s.AssignmentID, JoinCode: s.JoinCode, StartedAt: s.StartedAt})
+		err = q.InsertSitting(ctx, db.InsertSittingParams{ID: s.ID, AssignmentID: s.AssignmentID, JoinCode: s.JoinCode, StartedAt: s.StartedAt, EndsAt: s.EndsAt})
 		return func() { e.cur, e.ended = newActive(s, asg, t), nil }, err
 	})
 	if err != nil {
@@ -391,6 +401,9 @@ func (a *active) info() wire.SittingInfo {
 		StartedAt:     a.sitting.StartedAt,
 		Ended:         a.sitting.EndedAt.Valid,
 		Scale:         a.test.Settings.Scale.Kind,
+		TimeMode:      a.test.Settings.TimeLimit.Mode,
+		Minutes:       a.test.Settings.TimeLimit.Minutes,
+		EndsAt:        a.sitting.EndsAt.Int64,
 	}
 }
 

@@ -10,6 +10,20 @@ import (
 	"database/sql"
 )
 
+const addExtraTime = `-- name: AddExtraTime :exec
+UPDATE participants SET extra_ms = extra_ms + ? WHERE id = ?
+`
+
+type AddExtraTimeParams struct {
+	ExtraMs int64
+	ID      string
+}
+
+func (q *Queries) AddExtraTime(ctx context.Context, arg AddExtraTimeParams) error {
+	_, err := q.db.ExecContext(ctx, addExtraTime, arg.ExtraMs, arg.ID)
+	return err
+}
+
 const addParticipantMove = `-- name: AddParticipantMove :exec
 UPDATE participants SET moves = moves + 1 WHERE id = ?
 `
@@ -133,7 +147,7 @@ func (q *Queries) GetDevice(ctx context.Context, token string) (Device, error) {
 }
 
 const getLatestSitting = `-- name: GetLatestSitting :one
-SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings ORDER BY rowid DESC LIMIT 1
+SELECT id, assignment_id, join_code, started_at, ended_at, ends_at FROM sittings ORDER BY rowid DESC LIMIT 1
 `
 
 // The latest sitting is the last inserted: rowid order can't be upset by a
@@ -147,12 +161,13 @@ func (q *Queries) GetLatestSitting(ctx context.Context) (Sitting, error) {
 		&i.JoinCode,
 		&i.StartedAt,
 		&i.EndedAt,
+		&i.EndsAt,
 	)
 	return i, err
 }
 
 const getParticipant = `-- name: GetParticipant :one
-SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves FROM participants WHERE id = ?
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves, extra_ms FROM participants WHERE id = ?
 `
 
 func (q *Queries) GetParticipant(ctx context.Context, id string) (Participant, error) {
@@ -172,12 +187,13 @@ func (q *Queries) GetParticipant(ctx context.Context, id string) (Participant, e
 		&i.FinishedBy,
 		&i.WindowSwitches,
 		&i.Moves,
+		&i.ExtraMs,
 	)
 	return i, err
 }
 
 const getSitting = `-- name: GetSitting :one
-SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE id = ?
+SELECT id, assignment_id, join_code, started_at, ended_at, ends_at FROM sittings WHERE id = ?
 `
 
 func (q *Queries) GetSitting(ctx context.Context, id string) (Sitting, error) {
@@ -189,6 +205,7 @@ func (q *Queries) GetSitting(ctx context.Context, id string) (Sitting, error) {
 		&i.JoinCode,
 		&i.StartedAt,
 		&i.EndedAt,
+		&i.EndsAt,
 	)
 	return i, err
 }
@@ -291,7 +308,7 @@ func (q *Queries) InsertParticipant(ctx context.Context, arg InsertParticipantPa
 }
 
 const insertSitting = `-- name: InsertSitting :exec
-INSERT INTO sittings (id, assignment_id, join_code, started_at) VALUES (?, ?, ?, ?)
+INSERT INTO sittings (id, assignment_id, join_code, started_at, ends_at) VALUES (?, ?, ?, ?, ?)
 `
 
 type InsertSittingParams struct {
@@ -299,6 +316,7 @@ type InsertSittingParams struct {
 	AssignmentID string
 	JoinCode     string
 	StartedAt    int64
+	EndsAt       sql.NullInt64
 }
 
 func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) error {
@@ -307,6 +325,7 @@ func (q *Queries) InsertSitting(ctx context.Context, arg InsertSittingParams) er
 		arg.AssignmentID,
 		arg.JoinCode,
 		arg.StartedAt,
+		arg.EndsAt,
 	)
 	return err
 }
@@ -349,7 +368,7 @@ func (q *Queries) ListAnswers(ctx context.Context, sittingID string) ([]Answer, 
 }
 
 const listAssignmentSittings = `-- name: ListAssignmentSittings :many
-SELECT id, assignment_id, join_code, started_at, ended_at FROM sittings WHERE assignment_id = ? ORDER BY started_at, id
+SELECT id, assignment_id, join_code, started_at, ended_at, ends_at FROM sittings WHERE assignment_id = ? ORDER BY started_at, id
 `
 
 func (q *Queries) ListAssignmentSittings(ctx context.Context, assignmentID string) ([]Sitting, error) {
@@ -367,6 +386,7 @@ func (q *Queries) ListAssignmentSittings(ctx context.Context, assignmentID strin
 			&i.JoinCode,
 			&i.StartedAt,
 			&i.EndedAt,
+			&i.EndsAt,
 		); err != nil {
 			return nil, err
 		}
@@ -640,7 +660,7 @@ func (q *Queries) ListParticipantAnswers(ctx context.Context, participantID stri
 }
 
 const listParticipants = `-- name: ListParticipants :many
-SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
+SELECT id, sitting_id, student_id, display_name, typed_name, typed_class, device_token, state, joined_at, finished_at, finished_by, window_switches, moves, extra_ms FROM participants WHERE sitting_id = ? ORDER BY joined_at, id
 `
 
 func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Participant, error) {
@@ -666,6 +686,7 @@ func (q *Queries) ListParticipants(ctx context.Context, sittingID string) ([]Par
 			&i.FinishedBy,
 			&i.WindowSwitches,
 			&i.Moves,
+			&i.ExtraMs,
 		); err != nil {
 			return nil, err
 		}

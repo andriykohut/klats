@@ -79,6 +79,7 @@ type Participant struct {
 	FinishedBy     sql.NullString
 	WindowSwitches int64
 	Moves          int64
+	ExtraMs        int64
 }
 
 type Sitting struct {
@@ -87,6 +88,7 @@ type Sitting struct {
 	JoinCode     string
 	StartedAt    int64
 	EndedAt      sql.NullInt64
+	EndsAt       sql.NullInt64
 }
 
 type Student struct {

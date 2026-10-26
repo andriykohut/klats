@@ -250,6 +250,27 @@ too. What happens then depends on how the student finished:
   grade can still change when such leftovers arrive.
   `participant.refuses`, in `internal/sitting/sync.go`, holds this rule.
 
+**Time is the server's, and the server never cuts a student off.** A test's
+time limit (`internal/sitting/time.go`) runs in one of two ways:
+- **per student**, from the moment the participant is created
+  (`joined_at`);
+- **to a common end time**, which the teacher picks at start
+  (`sittings.ends_at`), after now and at most 12 h ahead.
+
+Either deadline adds `participants.extra_ms`, which the teacher raises for
+one writing student with `POST /api/participants/{id}/time` (1 to 60
+minutes); the device gets a `status` hint. Every status of a writing
+participant carries `remainingMs`, the time to the deadline by the server's
+clock, never below 0, so neither a reload nor a wrong lab clock can stretch
+it. The server never finishes anyone when time runs out: a computer that died
+stays writing until the teacher gives it more time or ends the sitting.
+
+A change stored more than 10 s (`lateGrace`) after the participant's deadline
+is still stored and graded, but flagged late, as after the end. The grace
+covers a change made just before the deadline and still in flight. While the
+sitting runs, such changes raise an `overtime_answers` event instead of
+`late_answers`, once per participant and request, with their count.
+
 **The heartbeat is the source of truth; the event stream only makes things
 faster.** Every status a device needs comes back from the heartbeat, every
 5 s, and from every submit: writing, finished with the grade, ended, kicked,

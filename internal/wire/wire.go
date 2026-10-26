@@ -12,7 +12,8 @@ import (
 // SittingInfo describes a sitting to the teacher. ClassName is empty when the
 // sitting has no class list. Ended is set once the teacher ended it. Scale is
 // the kind of the test's grading scale (testfmt.Scale.Kind) that the grades in
-// the live view are on.
+// the live view are on. TimeMode and Minutes are the test's time limit
+// (testfmt.TimeLimit); EndsAt is the common end time of a "common" one, else 0.
 type SittingInfo struct {
 	SittingID     string `json:"sittingId"`
 	AssignmentID  string `json:"assignmentId"`
@@ -23,16 +24,23 @@ type SittingInfo struct {
 	StartedAt     int64  `json:"startedAt"`
 	Ended         bool   `json:"ended"`
 	Scale         string `json:"scale"`
+	TimeMode      string `json:"timeMode"`
+	Minutes       int    `json:"minutes"`
+	EndsAt        int64  `json:"endsAt"`
 }
 
 // JoinInfo is what a student device gets for a correct join code. Mode is
 // "list" (pick a name from Names) or "typed" (type surname, first name and
-// class; Names is empty).
+// class; Names is empty). TimeMode, Minutes and EndsAt are the time limit, as
+// in [SittingInfo].
 type JoinInfo struct {
 	SittingID string      `json:"sittingId"`
 	Mode      string      `json:"mode"`
 	Names     []NameEntry `json:"names"`
 	Language  string      `json:"language"`
+	TimeMode  string      `json:"timeMode"`
+	Minutes   int         `json:"minutes"`
+	EndsAt    int64       `json:"endsAt"`
 }
 
 // NamesTaken is the "taken" event a device choosing a name gets on its event
@@ -208,8 +216,10 @@ type SubmitResult struct {
 // "ended" (the teacher ended the sitting), "kicked", "moved" or "unjoined".
 // Result is set once the participant has finished; for one finished by the
 // end of the sitting, only once the device reports no pending changes, which
-// also stops it taking more. RemainingMs is always nil in this version, which
-// has no time limits.
+// also stops it taking more. RemainingMs is set only while the participant
+// writes in the running sitting of a test with a time limit: the time left
+// until its deadline by the server's clock, extra time included, and 0 once
+// the deadline has passed.
 type Status struct {
 	State       string        `json:"state"`
 	RemainingMs *int64        `json:"remainingMs"`
@@ -317,7 +327,8 @@ type ResultQuestion struct {
 // Answers maps question id to the answer, for answered questions; Verdicts
 // maps question id to whether each part of the answer is right (see
 // grading.Verdict), for the questions with an answered part; Late lists the
-// questions whose answer arrived after the sitting ended. PendingIDs lists, in
+// questions whose answer arrived after the sitting ended, or more than 10 s
+// after the participant's time ran out. PendingIDs lists, in
 // test order, the questions whose written answer waits for the teacher's
 // points (see grading.IsPending); they score 0 until then. NotAsked lists, in
 // test order, the questions the participant did not get (see

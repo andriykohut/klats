@@ -32,6 +32,7 @@ type delivery struct {
 	p        *participant
 	question string
 	answer   testfmt.Answer
+	late     bool
 }
 
 // Submit stores the device's answer changes and returns their acks with the
@@ -50,7 +51,11 @@ type delivery struct {
 // Any stored change marks the assignment's export stale and bumps its
 // results revision, once per call and assignment. After the sitting has ended,
 // changes from participants it finished are still stored, flagged late: the
-// participant is regraded and a late_answers event is raised.
+// participant is regraded and a late_answers event is raised. In a test with
+// a time limit, a change stored more than 10 s after the participant's
+// deadline (see deadline) is stored too, flagged late; while the sitting runs,
+// it raises an overtime_answers event instead. Either event comes once per
+// participant and call, with the count of its late changes.
 //
 // pending is how many unacked changes the device holds after this call. A
 // participant finished by the end of the last sitting is shown no result
@@ -121,35 +126,40 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 		if err != nil {
 			return nil, err
 		}
+		now := e.now()
 		var late int64
-		if a.sitting.EndedAt.Valid {
+		if a.sitting.EndedAt.Valid || a.overtime(p, now) {
 			late = 1
 		}
 		n, err := q.UpsertAnswer(ctx, db.UpsertAnswerParams{
 			ParticipantID: p.id, QuestionID: c.QuestionID, Value: string(b), Seq: c.Seq,
-			ChangeID: c.ChangeID, ReceivedAt: e.now().UnixMilli(), Late: late,
+			ChangeID: c.ChangeID, ReceivedAt: now.UnixMilli(), Late: late,
 		})
 		if err != nil {
 			return nil, err
 		}
 		if n > 0 {
-			stored = append(stored, delivery{a, p, c.QuestionID, answer})
+			stored = append(stored, delivery{a, p, c.QuestionID, answer, late == 1})
 		}
 	}
 
 	lateCount := map[*participant]int{}
-	var regraded []delivery // one per participant with late answers
+	var flagged []delivery // the first late delivery of each participant
 	for _, d := range stored {
-		if !d.a.sitting.EndedAt.Valid {
+		if !d.late {
 			continue
 		}
 		if lateCount[d.p] == 0 {
-			regraded = append(regraded, d)
+			flagged = append(flagged, d)
 		}
 		lateCount[d.p]++
 	}
-	for _, d := range regraded {
-		if _, err := e.raise(q, d.a.sitting.ID, "late_answers", map[string]string{"name": d.p.name, "count": strconv.Itoa(lateCount[d.p])}, false); err != nil {
+	for _, d := range flagged {
+		kind := "overtime_answers"
+		if d.a.sitting.EndedAt.Valid {
+			kind = "late_answers"
+		}
+		if _, err := e.raise(q, d.a.sitting.ID, kind, map[string]string{"name": d.p.name, "count": strconv.Itoa(lateCount[d.p])}, false); err != nil {
 			return nil, err
 		}
 	}
@@ -166,13 +176,16 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 	return func() {
 		for _, d := range stored {
 			d.p.answers[d.question] = d.answer
-			d.p.late[d.question] = d.a.sitting.EndedAt.Valid
+			d.p.late[d.question] = d.late
 			if d.p.offline {
 				d.p.synced++
 			}
 		}
-		for _, d := range regraded {
-			e.publishStatus(d.p.device)
+		// After the end, the device showing the grade fetches it again.
+		for _, d := range flagged {
+			if d.a.sitting.EndedAt.Valid {
+				e.publishStatus(d.p.device)
+			}
 		}
 	}, nil
 }
@@ -313,9 +326,10 @@ func (p *participant) refuses(device string) bool {
 }
 
 // status returns the device's status: from the running sitting if one runs,
-// else "ended" for the device's participant in the last ended sitting (see
-// ender), with its result once it is locked, and "unjoined" otherwise. The
-// caller holds e.mu.
+// with the time left while its participant writes a timed test (see
+// [wire.Status]), else "ended" for the device's participant in the last ended
+// sitting (see ender), with its result once it is locked, and "unjoined"
+// otherwise. The caller holds e.mu.
 func (e *Engine) status(device string) wire.Status {
 	if a := e.cur; a != nil {
 		switch s := a.status[device]; s {
@@ -324,7 +338,7 @@ func (e *Engine) status(device string) wire.Status {
 		case statusWriting:
 			p := a.onDevice(device)
 			if p.state != stateFinished {
-				return wire.Status{State: statusWriting}
+				return wire.Status{State: statusWriting, RemainingMs: a.remainingMs(p, e.now())}
 			}
 			r := a.finishResult(p)
 			return wire.Status{State: statusFinished, Result: &r}

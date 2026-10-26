@@ -317,7 +317,7 @@ func TestMovedDeviceStillDelivers(t *testing.T) {
 func TestFinishGrades(t *testing.T) {
 	e, st, hub := setup(t)
 	insertTest(t, st, "t9", 9)
-	info, err := e.Start("t9", nil)
+	info, err := e.Start("t9", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

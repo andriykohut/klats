@@ -21,6 +21,14 @@ func (a *api) move(w http.ResponseWriter, r *http.Request) {
 	noContent(w, r, a.eng.Move(r.PathValue("id"), req.Device))
 }
 
+func (a *api) addTime(w http.ResponseWriter, r *http.Request) {
+	var req wire.TimeRequest
+	if !decode(w, r, &req) {
+		return
+	}
+	noContent(w, r, a.eng.AddTime(r.PathValue("id"), req.Minutes))
+}
+
 func (a *api) resolve(w http.ResponseWriter, r *http.Request) {
 	var req wire.ResolveRequest
 	if !decode(w, r, &req) {

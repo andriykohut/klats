@@ -104,7 +104,7 @@ func addClass(t *testing.T, st *store.Store, names ...string) *string {
 
 func start(t *testing.T, e *Engine, classID *string) wire.SittingInfo {
 	t.Helper()
-	info, err := e.Start("t1", classID)
+	info, err := e.Start("t1", classID, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestStartRejectsSecondSitting(t *testing.T) {
 	if info.TestTitle != "Дроби" || info.QuestionCount != 2 || info.ClassName != "" || info.StartedAt != clock().UnixMilli() {
 		t.Errorf("info = %+v", info)
 	}
-	if _, err := e.Start("t1", nil); !errors.Is(err, ErrSittingActive) {
+	if _, err := e.Start("t1", nil, 0); !errors.Is(err, ErrSittingActive) {
 		t.Fatalf("second Start: err = %v, want ErrSittingActive", err)
 	}
 }
@@ -171,7 +171,7 @@ func TestStartRefusesTestWithProblems(t *testing.T) {
 	if err := st.Q().InsertTest(context.Background(), db.InsertTestParams{ID: "t2", Title: "Порожній", Doc: doc}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.Start("t2", nil); !errors.Is(err, ErrHasProblems) {
+	if _, err := e.Start("t2", nil, 0); !errors.Is(err, ErrHasProblems) {
 		t.Fatalf("err = %v, want ErrHasProblems", err)
 	}
 	start(t, e, nil) // the refused start left no sitting behind
@@ -707,7 +707,7 @@ func TestRestartResumesSitting(t *testing.T) {
 	if _, err := testFor(e2, devA); err != nil {
 		t.Fatalf("Resume after restart: %v", err)
 	}
-	if _, err := e2.Start("t1", nil); !errors.Is(err, ErrSittingActive) {
+	if _, err := e2.Start("t1", nil, 0); !errors.Is(err, ErrSittingActive) {
 		t.Errorf("Start after restart: err = %v, want ErrSittingActive", err)
 	}
 	names := join(t, e2, info.Code, devB, "10.0.0.108").Names

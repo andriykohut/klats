@@ -121,6 +121,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/sittings/current/end", a.endSitting)
 	mux.HandleFunc("POST /api/participants/{id}/kick", a.kick)
 	mux.HandleFunc("POST /api/participants/{id}/move", a.move)
+	mux.HandleFunc("POST /api/participants/{id}/time", a.addTime)
 	mux.HandleFunc("POST /api/events/{id}/resolve", a.resolve)
 	mux.HandleFunc("PUT /api/devices/{token}", a.renameDevice)
 

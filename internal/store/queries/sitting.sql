@@ -6,7 +6,7 @@ VALUES (?, ?, ?, ?, ?, ?);
 SELECT * FROM assignments WHERE id = ?;
 
 -- name: InsertSitting :exec
-INSERT INTO sittings (id, assignment_id, join_code, started_at) VALUES (?, ?, ?, ?);
+INSERT INTO sittings (id, assignment_id, join_code, started_at, ends_at) VALUES (?, ?, ?, ?, ?);
 
 -- The latest sitting is the last inserted: rowid order can't be upset by a
 -- clock change or two starts in one millisecond.
@@ -41,6 +41,9 @@ UPDATE participants SET device_token = ? WHERE id = ?;
 
 -- name: AddParticipantMove :exec
 UPDATE participants SET moves = moves + 1 WHERE id = ?;
+
+-- name: AddExtraTime :exec
+UPDATE participants SET extra_ms = extra_ms + ? WHERE id = ?;
 
 -- name: InsertMovedDevice :exec
 INSERT OR IGNORE INTO moved_devices (device_token, participant_id) VALUES (?, ?);

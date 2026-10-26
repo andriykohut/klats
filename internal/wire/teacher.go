@@ -72,15 +72,22 @@ type ParseResult struct {
 }
 
 // StartRequest starts a sitting of a test. Without ClassID, students type
-// their names.
+// their names. EndsAt is the common end time a test with a "common" time limit
+// needs; other tests ignore it.
 type StartRequest struct {
 	TestID  string  `json:"testId"`
 	ClassID *string `json:"classId"`
+	EndsAt  int64   `json:"endsAt,omitempty"`
 }
 
 // MoveRequest names the device a participant moves to.
 type MoveRequest struct {
 	Device string `json:"device"`
+}
+
+// TimeRequest gives a writing participant Minutes more time, 1 to 60.
+type TimeRequest struct {
+	Minutes int `json:"minutes"`
 }
 
 // ResolveRequest is the teacher's decision on a pinned event.

@@ -566,6 +566,24 @@ func TestParticipantRoutesAndOverrides(t *testing.T) {
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "dev2"}), 204)
 }
 
+func TestAddTimeRoute(t *testing.T) {
+	v := setup(t, false)
+	common := goodTest("")
+	common.Settings.TimeLimit = testfmt.TimeLimit{Mode: testfmt.TimeCommon, Minutes: 45}
+	commonID := v.saveTest(t, common)
+	wantError(t, v.do("POST", "/api/sittings", wire.StartRequest{TestID: commonID}), 400, "invalid")
+	w := v.do("POST", "/api/sittings", wire.StartRequest{TestID: commonID, EndsAt: time.Now().Add(time.Hour).UnixMilli()})
+	wantStatus(t, w, 201)
+	if info := decodeBody[wire.SittingInfo](t, w); info.TimeMode != "common" || info.EndsAt == 0 {
+		t.Errorf("info = %+v, want a common end time", info)
+	}
+	id := v.enterStudent(t)
+
+	wantStatus(t, v.do("POST", "/api/participants/"+id+"/time", wire.TimeRequest{Minutes: 5}), 204)
+	wantError(t, v.do("POST", "/api/participants/"+id+"/time", wire.TimeRequest{Minutes: 0}), 400, "invalid")
+	wantError(t, v.do("POST", "/api/participants/nope/time", wire.TimeRequest{Minutes: 5}), 404, "not_found")
+}
+
 func TestAverageGradeLeavesOutPendingRows(t *testing.T) {
 	v := setup(t, false)
 	doc := goodTest("")

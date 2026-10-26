@@ -109,7 +109,7 @@ func setupWith(t *testing.T, tweak func(*testfmt.Test, *media.Store)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	info, err := e.Start("t1", nil)
+	info, err := e.Start("t1", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
