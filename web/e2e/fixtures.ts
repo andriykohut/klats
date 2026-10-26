@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { Question } from "@klats/shared/generated/testfmt.ts";
+import type { Question, Settings } from "@klats/shared/generated/testfmt.ts";
 import type {
   AssignmentResults,
   LiveSnapshot,
@@ -115,8 +115,22 @@ export type TestQuestion = ReturnType<typeof question>;
 export interface Klats {
   /** The student app's address. */
   student: string;
-  /** Makes class 7-Б and a test of `questions`, and starts a sitting of it. */
-  start(questions?: TestQuestion[]): Promise<SittingInfo>;
+  /**
+   * Makes a test titled «Інформатика» of `questions` and returns its id. The
+   * server fills in the settings `settings` leaves out.
+   */
+  create(
+    questions?: TestQuestion[],
+    settings?: Partial<Settings>,
+  ): Promise<string>;
+  /**
+   * Makes class 7-Б and a test of `questions` (see `create`), and starts a
+   * sitting of it. `opts.endsAt` is the sitting's common end time.
+   */
+  start(
+    questions?: TestQuestion[],
+    opts?: { settings?: Partial<Settings>; endsAt?: number },
+  ): Promise<SittingInfo>;
   /** Stores `bytes` in the media store and returns its media name. */
   upload(bytes: Buffer): Promise<string>;
   /** The teacher's live snapshot. */
@@ -184,6 +198,23 @@ export const test = base.extend<{ klats: Klats }>({
       return (text ? JSON.parse(text) : undefined) as T;
     };
     const live = () => api<LiveSnapshot>("GET", "/api/sittings/current");
+    const create = async (
+      questions = TEST,
+      settings?: Partial<Settings>,
+    ): Promise<string> => {
+      const title = "Інформатика";
+      const { id } = await api<{ id: string }>("POST", "/api/tests", { title });
+      const plain = questions.map(({ title: _, ...q }) => q);
+      await api("PUT", `/api/tests/${id}`, {
+        id,
+        version: 1,
+        title,
+        palette: "teal",
+        settings,
+        questions: plain,
+      });
+      return id;
+    };
     const contexts: BrowserContext[] = [];
     const open = async (width: number, height: number, hasTouch = false) => {
       const context = await browser.newContext({
@@ -208,27 +239,17 @@ export const test = base.extend<{ klats: Klats }>({
       },
       results: (id) =>
         api<AssignmentResults>("GET", `/api/assignments/${id}/results`),
-      async start(questions = TEST) {
+      create,
+      async start(questions = TEST, opts = {}) {
         const cls = await api<{ id: string }>("POST", "/api/classes", {
           id: "",
           name: "7-Б",
           students: CLASS.map((name) => ({ id: "", name })),
         });
-        const title = "Інформатика";
-        const { id } = await api<{ id: string }>("POST", "/api/tests", {
-          title,
-        });
-        const plain = questions.map(({ title: _, ...q }) => q);
-        await api("PUT", `/api/tests/${id}`, {
-          id,
-          version: 1,
-          title,
-          palette: "teal",
-          questions: plain,
-        });
         return api<SittingInfo>("POST", "/api/sittings", {
-          testId: id,
+          testId: await create(questions, opts.settings),
           classId: cls.id,
+          ...(opts.endsAt === undefined ? {} : { endsAt: opts.endsAt }),
         });
       },
       async override(assignmentId, participantId, questionId, points) {

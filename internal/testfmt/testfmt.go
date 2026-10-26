@@ -20,6 +20,7 @@ type Test struct {
 	Version   int        `json:"version"`
 	Title     string     `json:"title"`
 	Palette   string     `json:"palette"`
+	Settings  Settings   `json:"settings"`
 	Questions []Question `json:"questions"`
 }
 
@@ -137,12 +138,20 @@ var palettes = []string{DefaultPalette, "grape", "coral", "lavender", "classic"}
 var ErrTooNew = errors.New("testfmt: test made by a newer version")
 
 // Decode parses and validates a test document, returning [ErrTooNew] for a
-// version above 1. An empty palette becomes DefaultPalette. Every rich-text
-// field is replaced by the canonical JSON of its parsed rich.Doc (a missing or
-// null field becomes an empty document), so callers persist the result rather
-// than the input. Each question keeps only the fields its type uses, though
-// Options is never nil, so it encodes as a list (empty for a type without
-// options), as the TypeScript type promises. An option's Target that names no
+// version above 1. An empty palette becomes DefaultPalette. Settings left
+// empty (an empty mode, kind, reveal or navigation, nil thresholds, a zero pass
+// mark) become those of [DefaultSettings], so a test without settings decodes
+// to the defaults and Scale.Thresholds is never nil. A time limit mode other
+// than "none", "student" or "common", minutes outside 0-300 (or 0 unless the
+// mode is "none"), a subset outside 0-1000, a scale kind other than "points12",
+// "percent" or "pass", thresholds that are not 11 strictly rising values in
+// 1-100, a pass mark outside 1-100, a reveal other than "grade", "mistakes" or
+// "nothing" and a navigation other than "free" or "forward" are errors. Every
+// rich-text field is replaced by the canonical JSON of its parsed rich.Doc (a
+// missing or null field becomes an empty document), so callers persist the
+// result rather than the input. Each question keeps only the fields its type
+// uses, though Options is never nil, so it encodes as a list (empty for a type
+// without options), as the TypeScript type promises. An option's Target that names no
 // target or body gap is cleared, and a gaps question's Gaps are brought in
 // line with its body: one entry for each gap node, in body order. A list of
 // over 50 entries or with a repeated id (for gaps, both before and after that
@@ -165,6 +174,9 @@ func Decode(raw []byte) (Test, error) {
 	}
 	if !slices.Contains(palettes, t.Palette) {
 		return Test{}, fmt.Errorf("testfmt: unknown palette %q", t.Palette)
+	}
+	if err := t.Settings.decode(); err != nil {
+		return Test{}, fmt.Errorf("testfmt: settings: %w", err)
 	}
 	for i := range t.Questions {
 		q := &t.Questions[i]

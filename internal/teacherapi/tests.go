@@ -62,7 +62,7 @@ func (a *api) createTest(w http.ResponseWriter, r *http.Request) {
 		title = newTestTitle
 	}
 	id := store.NewID()
-	t := testfmt.Test{ID: id, Version: 1, Title: title, Palette: testfmt.DefaultPalette, Questions: []testfmt.Question{}}
+	t := testfmt.Test{ID: id, Version: 1, Title: title, Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}}
 	doc, err := json.Marshal(t)
 	if err != nil {
 		fail(w, r, err)
