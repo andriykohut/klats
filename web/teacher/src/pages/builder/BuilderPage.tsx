@@ -22,7 +22,7 @@ import { notify, toasts } from "../../ui/Toasts";
 import { autosave, type SaveState } from "./autosave";
 import { Checks } from "./Checks";
 import { QuestionEditor } from "./editors/QuestionEditor";
-import { fromPasted, insertAt, newQuestion } from "./model";
+import { convertQuestion, fromPasted, insertAt, newQuestion } from "./model";
 import { PasteDialog } from "./PasteDialog";
 import { PreviewPane } from "./PreviewPane";
 import { QuestionList } from "./QuestionList";
@@ -400,7 +400,7 @@ function Builder({ doc }: { doc: TestDoc }) {
             questions={test.questions}
             onSelect={select}
             onMakeMulti={(id) => {
-              updateQuestion(id, (q) => ({ ...q, type: "multi" }));
+              updateQuestion(id, (q) => convertQuestion(q, "multi"));
               select(id);
             }}
           />

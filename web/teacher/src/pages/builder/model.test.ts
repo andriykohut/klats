@@ -325,6 +325,24 @@ test("convertQuestion keeps what it can", () => {
   expect(single2.options.map((o) => o.target)).toEqual([undefined, undefined]);
 });
 
+test("convertQuestion starts a field the source type does not use at the new type's default", () => {
+  // A saved single-choice question has partial false: the server clears what a type does not use.
+  const single = { ...newQuestion("single"), partial: false };
+  expect(convertQuestion(single, "multi").partial).toBe(true);
+
+  const order = {
+    ...newQuestion("order"),
+    shuffleOptions: false,
+    partial: false,
+  };
+  const back = convertQuestion(order, "single");
+  expect(back.shuffleOptions).toBe(true);
+  // Both types use partial, so the teacher's choice stays.
+  expect(convertQuestion(order, "match").partial).toBe(false);
+  const multi = { ...newQuestion("multi"), partial: false };
+  expect(convertQuestion(multi, "truefalse").partial).toBe(false);
+});
+
 test("convertQuestion gives a match each right-hand target once", () => {
   const grid = {
     ...newQuestion("grid"),

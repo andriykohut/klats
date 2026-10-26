@@ -18,6 +18,8 @@ import {
   HAS_CORRECT,
   HAS_IMAGE,
   HAS_OPTIONS,
+  HAS_PARTIAL,
+  HAS_SHUFFLE,
   HAS_TARGETS,
 } from "./types";
 
@@ -276,16 +278,17 @@ export function newQuestion(type: string): Question {
 }
 
 /**
- * Returns `q` as a question of `type`. It keeps the id, text, points, scoring
- * and shuffling, and what the two types share: the options' contents and
- * images; `correct` among single, multiple choice and true/false; the targets
- * and each option's target among grid, matching and grouping (matching keeps a
- * target for the first option that names it, and gives every other option a
- * new empty one, so that each pair has its own); the body among gaps, word bank
- * and highlight, without the target marks going to gaps or bank, and without
- * the gaps and formulas going to highlight; and the image between hotspot and
- * labels. Every other field starts as {@link newQuestion} has it. Converting to
- * the question's own type returns it as it is.
+ * Returns `q` as a question of `type`. It keeps the id, text and points, the
+ * partial-credit and shuffling choices when `q`'s type has them, and what the
+ * two types share: the options' contents and images; `correct` among single,
+ * multiple choice and true/false; the targets and each option's target among
+ * grid, matching and grouping (matching keeps a target for the first option
+ * that names it, and gives every other option a new empty one, so that each
+ * pair has its own); the body among gaps, word bank and highlight, without the
+ * target marks going to gaps or bank, and without the gaps and formulas going
+ * to highlight; and the image between hotspot and labels. Every other field
+ * starts as {@link newQuestion} has it. Converting to the question's own type
+ * returns it as it is.
  */
 export function convertQuestion(q: Question, type: string): Question {
   if (type === q.type) return q;
@@ -294,9 +297,11 @@ export function convertQuestion(q: Question, type: string): Question {
     id: q.id,
     text: q.text,
     points: q.points,
-    partial: q.partial,
-    shuffleOptions: q.shuffleOptions,
   };
+  // The server clears a field its type does not use, so only a type that uses
+  // it holds the teacher's choice.
+  if (HAS_PARTIAL.has(q.type)) out.partial = q.partial;
+  if (HAS_SHUFFLE.has(q.type)) out.shuffleOptions = q.shuffleOptions;
   if (HAS_OPTIONS.has(q.type) && HAS_OPTIONS.has(type) && q.options.length) {
     const correct = HAS_CORRECT.has(q.type) && HAS_CORRECT.has(type);
     const targeted = HAS_TARGETS.has(q.type) && HAS_TARGETS.has(type);
