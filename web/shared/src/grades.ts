@@ -51,3 +51,10 @@ export function gradeFill(scale: string, grade: number): number {
   if (scale === "pass") return grade ? 1 : 0;
   return grade / (scale === "percent" ? 100 : 12);
 }
+
+/**
+ * The lowest percent for grades 2 to 12 of the default 12-point table: grade g
+ * needs g/12 of the points, in whole percents. It mirrors
+ * `testfmt.DefaultThresholds` in Go, which tygo does not export as a value.
+ */
+export const DEFAULT_THRESHOLDS = [16, 25, 33, 41, 50, 58, 66, 75, 83, 91, 100];

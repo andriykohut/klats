@@ -1,0 +1,78 @@
+.t-dialog.s-dialog {
+  width: min(900px, 94vw);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding-block: 22px 18px;
+}
+
+.s-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  margin-bottom: 14px;
+}
+
+.s-group > .b-lbl {
+  margin-top: 18px;
+}
+
+.s-cols > div:first-child > .s-group:first-child > .b-lbl,
+.s-cols > div:last-child > .s-group:first-child > .b-lbl {
+  margin-top: 6px;
+}
+
+.b-seg.s-seg {
+  flex-wrap: wrap;
+}
+
+.s-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.s-switch {
+  margin-top: 16px;
+}
+
+.s-inline > .s-switch {
+  margin-top: 0;
+}
+
+.t-field.s-num input {
+  width: 72px;
+  padding: 7px 10px;
+  font-size: 15px;
+  text-align: center;
+}
+
+.s-table {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+}
+
+.s-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.s-row b {
+  width: 22px;
+  text-align: right;
+  font: 600 16px var(--k-font-display);
+}
+
+.s-reset {
+  margin-top: 10px;
+}
+
+/* A RadioButton is a label, which a segment's height and padding need as a box. */
+.s-seg .b-seg-btn {
+  display: flex;
+  align-items: center;
+}

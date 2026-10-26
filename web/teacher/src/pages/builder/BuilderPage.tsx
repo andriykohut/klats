@@ -5,7 +5,6 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  Button,
   Input,
   Label,
   RadioButton,
@@ -27,6 +26,7 @@ import { convertQuestion, fromPasted, insertAt, newQuestion } from "./model";
 import { PasteDialog } from "./PasteDialog";
 import { PreviewPane } from "./PreviewPane";
 import { QuestionList } from "./QuestionList";
+import { SettingsDialog } from "./SettingsDialog";
 import { StartDialog } from "./StartDialog";
 import { TypePicker } from "./TypePicker";
 import "./builder.css";
@@ -339,11 +339,11 @@ function Builder({ doc }: { doc: TestDoc }) {
             ))}
           </div>
         </RadioGroup>
-        <span title={m.builder_soon()}>
-          <Button className="b-btn-l" isDisabled>
-            {m.nav_settings()}
-          </Button>
-        </span>
+        <SettingsDialog
+          settings={test.settings}
+          questionCount={test.questions.length}
+          onChange={(settings) => update((t) => ({ ...t, settings }))}
+        />
         <StartDialog
           isDisabled={test.questions.length === 0}
           testId={doc.id}
