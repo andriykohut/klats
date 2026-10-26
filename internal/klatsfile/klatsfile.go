@@ -98,11 +98,10 @@ func writeMedia(zw *zip.Writer, ms *media.Store, name string) error {
 // [testfmt.Decode], a file the test uses that neither the zip nor ms holds,
 // media the test uses of over 256 MiB in all, and a media entry over 10 MiB,
 // whose bytes hash to another name, or that [media.Store.Put] refuses or names
-// differently. A
-// failure of ms itself, such as a full disk, is returned wrapped instead of as
-// ErrDamaged. Only media that Put refuses or names differently, and a failure
-// of ms, can leave earlier media of the file stored; every other error stores
-// nothing.
+// differently. A failure of ms itself, such as a full disk, is returned wrapped
+// instead of as ErrDamaged. Only media that Put refuses or names differently,
+// and a failure of ms, can leave earlier media of the file stored; every other
+// error stores nothing.
 func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 	// Every check that needs no Put runs before the first one. Media stored
 	// ahead of a later refusal does no harm: its name is its content hash.

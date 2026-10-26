@@ -231,6 +231,23 @@ func TestReadSkipsUnreferenced(t *testing.T) {
 	}
 }
 
+// The directory budget covers zip.NewReader only: media past it still read.
+// Random bytes keep deflate from shrinking the image below the budget.
+func TestReadLargeMedia(t *testing.T) {
+	noise := make([]byte, 2<<20)
+	_, _ = rand.NewChaCha8([32]byte{1}).Read(noise)
+	png, name := file(pngHead, string(noise), "png")
+	ms, _ := store(t)
+	if _, err := read(zipOf(t, entry{"test.json", testJSON(1, name)}, entry{"media/" + name, png}), ms); err != nil {
+		t.Fatalf("Read = %v", err)
+	}
+	f, _, err := ms.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+}
+
 func TestReadUsesStoredMedia(t *testing.T) {
 	png, name := file(pngHead, "kept", "png")
 	ms, _ := store(t)
