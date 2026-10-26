@@ -4,7 +4,7 @@ import type { StudentTest } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { QuestionSheet } from "@klats/shared/student-ui/QuestionSheet.tsx";
 import { useIsPresent } from "motion/react";
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { keyToOption } from "../input/keyboard";
 
 /**
@@ -13,7 +13,7 @@ import { keyToOption } from "../input/keyboard";
  * never does. For single and multiple choice, keys pick answers (see
  * {@link keyToOption}). Enter means Next, except while a text field other than
  * a one-line answer field (marked `data-enter-next`) or the question grid has
- * focus.
+ * focus. `timer` sits at the sheet's top right; `readOnly` locks the answers.
  */
 export function TakeTest({
   test,
@@ -22,6 +22,8 @@ export function TakeTest({
   onAnswer,
   onGo,
   onReview,
+  readOnly,
+  timer,
 }: {
   test: StudentTest;
   index: number;
@@ -29,6 +31,8 @@ export function TakeTest({
   onAnswer: (questionId: string, answer: Answer) => void;
   onGo: (index: number) => void;
   onReview: () => void;
+  readOnly?: boolean;
+  timer?: ReactNode;
 }) {
   const q = test.questions[index];
   const multi = q.type === "multi";
@@ -76,6 +80,8 @@ export function TakeTest({
       question={q}
       answer={answers[q.id]}
       onChange={(a) => onAnswer(q.id, a)}
+      readOnly={readOnly}
+      timer={timer}
     >
       <button type="button" className="s-btn s-btn-quiet" onClick={next}>
         <span>{m.test_skip()}</span>

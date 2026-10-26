@@ -30,6 +30,8 @@ export interface QuestionSheetProps {
   /** Called with the whole new answer. Left out where nothing can be answered. */
   onChange?: (answer: Answer) => void;
   readOnly?: boolean;
+  /** What sits at the sheet's top right, over the question, such as the test's `Timer`. */
+  timer?: ReactNode;
   /** Buttons for the sheet's footer, such as Skip and Next. */
   children?: ReactNode;
 }
@@ -129,6 +131,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
             />
           </div>
         </div>
+        {props.timer && <div className="k-sheet-timer">{props.timer}</div>}
         <div
           className="k-more"
           ref={moreRef}

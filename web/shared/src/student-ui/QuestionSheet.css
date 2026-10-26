@@ -165,6 +165,13 @@
   height: calc(36 * var(--k-px));
 }
 
+/* Level with the type chip, whose row leaves the right free; the question scrolls under it. */
+.k-sheet-timer {
+  position: absolute;
+  top: calc(37 * var(--k-px));
+  right: calc(44 * var(--k-px));
+}
+
 /* Over the answers column at the cut edge: a fade, and a button to scroll on. */
 .k-more {
   position: absolute;

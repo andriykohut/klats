@@ -569,6 +569,20 @@ input {
   margin: 0;
 }
 
+/* How the test runs, right-aligned over a name screen's start button. */
+.s-notes {
+  margin: 0;
+  color: var(--k-muted);
+  font-weight: 600;
+  font-size: max(14px, calc(17 * var(--k-px)));
+  line-height: 1.35;
+  text-align: right;
+}
+
+.s-pick .s-notes {
+  padding: 0 calc(44 * var(--k-px)) calc(14 * var(--k-px));
+}
+
 .s-foot .s-btn:last-child {
   margin-left: auto;
 }

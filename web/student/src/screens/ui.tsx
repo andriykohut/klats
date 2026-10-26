@@ -1,4 +1,6 @@
+import type { JoinInfo } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
+import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { sheet } from "@klats/shared/student-ui/motion.ts";
 import { motion, useReducedMotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -91,6 +93,27 @@ export function Prompt({
       {children}
     </Sheet>
   );
+}
+
+/**
+ * How the test runs, for a name screen to show above its start button: the
+ * minutes each student gets, or the clock time a common end falls at, in the
+ * app's language. Nothing for a test without a time limit.
+ */
+export function StartNotes({ info }: { info: JoinInfo }) {
+  let note: string;
+  if (info.timeMode === "student") {
+    note = m.pick_time_student({
+      minutes: info.minutes,
+      button: m.pick_start(),
+    });
+  } else if (info.timeMode === "common") {
+    const time = new Date(info.endsAt).toLocaleTimeString(getLocale(), {
+      timeStyle: "short",
+    });
+    note = m.pick_time_common({ time });
+  } else return null;
+  return <p className="s-notes">{note}</p>;
 }
 
 /** A problem the student can fix or report, as a chip with a warning dot. */

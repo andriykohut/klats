@@ -1,8 +1,8 @@
-import type { Participant } from "@klats/shared/generated/wire.ts";
+import type { JoinInfo, Participant } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { useState } from "react";
 import { pick } from "../api";
-import { errorText, Problem, Prompt } from "./ui";
+import { errorText, Problem, Prompt, StartNotes } from "./ui";
 
 /** The server's limit on each typed part, in characters. */
 const MAX = 60;
@@ -11,14 +11,17 @@ type Field = "surname" | "firstName" | "className";
 
 /**
  * Surname, first name and class, for a sitting without a class list. Surname
- * and first name are required; the class is optional, as on the server.
+ * and first name are required; the class is optional, as on the server. `info`
+ * is the join's, for the {@link StartNotes} above the start button.
  */
 export function TypedName({
   code,
+  info,
   onPicked,
   onBack,
 }: {
   code: string;
+  info: JoinInfo;
   onPicked: (p: Participant) => void;
   onBack: () => void;
 }) {
@@ -89,6 +92,7 @@ export function TypedName({
         {field("firstName", m.typed_first_name())}
         {field("className", m.typed_class(), m.typed_class_example())}
         {error && <Problem>{error}</Problem>}
+        <StartNotes info={info} />
         <div className="s-actions">
           <button type="button" className="s-btn s-btn-quiet" onClick={onBack}>
             <span>{m.back()}</span>

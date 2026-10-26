@@ -57,6 +57,18 @@
   "finish_waiting": "Your work is saved. The grade will appear once the connection is back",
   "finish_pending": "Your teacher will give the grade after checking your work",
   "finish_announce": "Grade {grade}. Correct: {correct} of {total}",
+  "finish_time_up": "Time is up",
+  "timer_label": "Time left",
+  "timer_left": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} minute left",
+        "countPlural=*": "{count} minutes left"
+      }
+    }
+  ],
   "toast_offline": "No connection. Your answers are saved",
   "toast_offline_pending": [
     {
@@ -86,6 +98,8 @@
   "pick_none": "No one found",
   "pick_name_taken": "This name is already in use on computer {label}. Call your teacher.",
   "pick_start": "Start the test",
+  "pick_time_student": "You have {minutes} min. The clock starts when you press “{button}”.",
+  "pick_time_common": "The test ends at {time}.",
   "typed_title": "What’s your name?",
   "typed_surname": "Surname",
   "typed_first_name": "First name",

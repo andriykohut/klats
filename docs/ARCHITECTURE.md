@@ -271,6 +271,14 @@ covers a change made just before the deadline and still in flight. While the
 sitting runs, such changes raise an `overtime_answers` event instead of
 `late_answers`, once per participant and request, with their count.
 
+The student app counts down from the last `remainingMs` on
+`performance.now()` (`web/student/src/app.ts`), so it keeps counting offline,
+and every status sets the count again. At zero it locks the answers and
+finishes, as the student's own finish does: it waits for the queue to empty,
+so answers given offline before zero still arrive, flagged late if they come
+after the grace. More time that arrives before the finish is sent, such as
+«+5 хв» seen on reconnecting, takes the student back to the test.
+
 **The heartbeat is the source of truth; the event stream only makes things
 faster.** Every status a device needs comes back from the heartbeat, every
 5 s, and from every submit: writing, finished with the grade, ended, kicked,

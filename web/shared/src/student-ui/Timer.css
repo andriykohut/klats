@@ -1,0 +1,31 @@
+/* The time left, as a pill in the palette's colours; the accent in the last minute. */
+.k-timer {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--k-px));
+  padding: calc(7 * var(--k-px)) calc(16 * var(--k-px)) calc(7 * var(--k-px))
+    calc(12 * var(--k-px));
+  border-radius: 999px;
+  background: var(--k-soft);
+  color: var(--k-sel);
+  font-family: var(--k-font-display);
+  font-weight: 700;
+  font-size: max(15px, calc(20 * var(--k-px)));
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-timer[data-low] {
+  background: var(--k-accent);
+  color: var(--k-ink);
+}
+
+.k-timer svg {
+  width: calc(22 * var(--k-px));
+  height: calc(22 * var(--k-px));
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

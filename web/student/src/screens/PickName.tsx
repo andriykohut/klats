@@ -20,7 +20,7 @@ import {
 } from "react-aria-components/RadioGroup";
 import { NameTaken, pick, streaming } from "../api";
 import { ApiError } from "../sync/connection";
-import { errorText, Problem, Sheet } from "./ui";
+import { errorText, Problem, Sheet, StartNotes } from "./ui";
 import "@klats/shared/student-ui/AnswerTile.css";
 
 /** How often the list is fetched again while the event stream is closed. */
@@ -244,6 +244,7 @@ export function PickName({
         )}
         {shown.length === 0 && <p className="s-empty">{m.pick_none()}</p>}
       </motion.div>
+      <StartNotes info={info} />
       <div className="s-foot">
         <button type="button" className="s-btn s-btn-quiet" onClick={onBack}>
           <span>{m.back()}</span>

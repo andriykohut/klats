@@ -23,9 +23,16 @@ import "./FinishScreen.css";
  * counts up when a result without pending replaces it. With `null` (answers still waiting to
  * sync, so the server has not graded them) it shows a waiting ring and says
  * the grade will follow, and never a grade. A grade or a pending note that
- * arrives later is announced politely to screen readers.
+ * arrives later is announced politely to screen readers. With `timeUp` the
+ * title is «Час вийшов» instead of «Тест завершено».
  */
-export function FinishScreen({ result }: { result: FinishResult | null }) {
+export function FinishScreen({
+  result,
+  timeUp,
+}: {
+  result: FinishResult | null;
+  timeUp?: boolean;
+}) {
   const reduced = useReducedMotionConfig();
   const grade = useMotionValue(0);
   const shown = useTransform(grade, Math.round);
@@ -115,7 +122,9 @@ export function FinishScreen({ result }: { result: FinishResult | null }) {
         {verdict !== null && <p className="k-verdict">{gradeName}</p>}
       </div>
       <div>
-        <h2 className="k-finish-title">{m.finish_title()}</h2>
+        <h2 className="k-finish-title">
+          {timeUp ? m.finish_time_up() : m.finish_title()}
+        </h2>
         {result?.pending && (
           <p className="k-finish-note">{m.finish_pending()}</p>
         )}

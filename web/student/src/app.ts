@@ -40,7 +40,7 @@ type Screen =
   | { name: "boot" }
   | { name: "join"; code: string }
   | { name: "pick"; code: string; info: JoinInfo }
-  | { name: "typed"; code: string }
+  | { name: "typed"; code: string; info: JoinInfo }
   | { name: "test" }
   | { name: "review" }
   | { name: "finish" }
@@ -66,6 +66,12 @@ interface State {
   result: FinishResult | null;
   /** On the moved screen: the server holds every change this device made. */
   drained: boolean;
+  /** When the time limit runs out, as a performance.now() time; null without one. */
+  deadline: number | null;
+  /** The time left at the last tick of the countdown. */
+  remainingMs: number;
+  /** The time ran out: answers are locked, and the finish screen says so. */
+  timeUp: boolean;
 }
 
 /** What survives a reload, under `klats.participant`. */
@@ -106,13 +112,63 @@ let state: State = {
   saveFailed: false,
   result: null,
   drained: false,
+  deadline: null,
+  remainingMs: 0,
+  timeUp: false,
 };
 const listeners = new Set<() => void>();
 
 function update(patch: Partial<State>): void {
   state = { ...state, ...patch };
   pollPending();
+  runClock();
   for (const l of listeners) l();
+}
+
+/** How often the countdown ticks. */
+const CLOCK_MS = 500;
+let clock: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Keeps the countdown ticking while the test or the review shows and the test
+ * has a time limit. It runs on performance.now(), so a wrong or changed lab
+ * PC clock cannot stretch it, and it runs on offline.
+ */
+function runClock(): void {
+  const on =
+    state.deadline !== null &&
+    (state.screen.name === "test" || state.screen.name === "review");
+  if (on && clock === undefined) clock = setInterval(tick, CLOCK_MS);
+  else if (!on && clock !== undefined) {
+    clearInterval(clock);
+    clock = undefined;
+  }
+}
+
+/** Redraws the time left, or at the deadline locks the answers and finishes. */
+function tick(): void {
+  const left = (state.deadline ?? 0) - performance.now();
+  if (left > 0) update({ remainingMs: left });
+  else {
+    update({ remainingMs: 0, timeUp: true });
+    void finishTest();
+  }
+}
+
+/**
+ * Counts down from the time left that the server's status `st` carries, if
+ * any. More time, such as the teacher's «+5 хв», unlocks the answers again
+ * until the finish is sent (see {@link finishTest}).
+ */
+function count(st: Status): void {
+  const ms = st.remainingMs;
+  // A status straight from the API, not through the Connection, has null.
+  if (typeof ms !== "number") return;
+  update({
+    deadline: performance.now() + ms,
+    remainingMs: ms,
+    timeUp: ms <= 0,
+  });
 }
 
 /** How often a finish screen with a pending grade asks the server whether it is graded. */
@@ -304,13 +360,17 @@ async function resume(name?: string): Promise<void> {
     ),
     saveFailed: queue.saveFailed,
     result: null,
+    deadline: null,
+    timeUp: false,
   });
+  count(res.status);
   if (res.status.state === "writing") show({ name: "test" });
   else await follow(res.status);
 }
 
 /** Moves the app to where the server's status for this device says it is. */
 async function follow(st: Status): Promise<void> {
+  count(st);
   const step = route(st, state.screen.name, session !== null);
   switch (step.to) {
     case "resume":
@@ -409,7 +469,7 @@ export function joined(code: string, info: JoinInfo): void {
   show(
     info.mode === "list"
       ? { name: "pick", code, info }
-      : { name: "typed", code },
+      : { name: "typed", code, info },
   );
 }
 
@@ -418,7 +478,7 @@ export function picked(p: Participant): Promise<void> {
 }
 
 export function answer(questionId: string, a: Answer): void {
-  if (!session) return;
+  if (!session || state.timeUp) return;
   session.queue.set(questionId, a);
   session.conn.flush();
   update({
@@ -437,16 +497,19 @@ export function go(index: number): void {
 /**
  * Finishes the test: once the server holds every answer, it records the
  * finish and shows the grade. Offline, the finish screen waits, and it all
- * completes on reconnect.
+ * completes on reconnect. A finish because the time ran out goes back to the
+ * test instead when more time arrives before the finish is sent.
  */
 export async function finishTest(): Promise<void> {
   const s = session;
   if (!s) return;
+  const timed = state.timeUp;
   update({ result: null });
   show({ name: "finish" });
   // Finishing locks the answers, so nothing may be left unsent.
   while (session === s && !(await s.conn.drain())) await sleep(2000);
   if (session !== s) return;
+  if (timed && !state.timeUp) return show({ name: "test" });
   try {
     const result = await retry(api.finish);
     if (session !== s) return;

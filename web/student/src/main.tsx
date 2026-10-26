@@ -6,6 +6,7 @@ import { m } from "@klats/shared/paraglide/messages.js";
 import { ConnectionToast } from "@klats/shared/student-ui/ConnectionToast.tsx";
 import { FinishScreen } from "@klats/shared/student-ui/FinishScreen.tsx";
 import { Progress } from "@klats/shared/student-ui/Progress.tsx";
+import { Timer } from "@klats/shared/student-ui/Timer.tsx";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import { Fragment, useSyncExternalStore } from "react";
 import { I18nProvider } from "react-aria-components";
@@ -66,6 +67,7 @@ function App() {
         <TypedName
           key="typed"
           code={screen.code}
+          info={screen.info}
           onPicked={picked}
           onBack={() => show({ name: "join", code: "" })}
         />
@@ -82,6 +84,8 @@ function App() {
             onAnswer={answer}
             onGo={go}
             onReview={() => show({ name: "review" })}
+            readOnly={s.timeUp}
+            timer={s.deadline !== null && <Timer remainingMs={s.remainingMs} />}
           />
         );
       }
@@ -101,7 +105,9 @@ function App() {
       }
       break;
     case "finish":
-      content = <FinishScreen key="finish" result={s.result} />;
+      content = (
+        <FinishScreen key="finish" result={s.result} timeUp={s.timeUp} />
+      );
       break;
     case "kicked":
       content = <Kicked key="kicked" onPick={rejoin} />;
@@ -141,9 +147,6 @@ function App() {
             onJump={go}
           />
         )}
-        {/* shortcut: no timer chip beside the name, as this version has no
-            time limits and Status.remainingMs is always null; add it here
-            with them. */}
         <div className="s-who">{inTest && s.name}</div>
       </div>
       {inTest && (

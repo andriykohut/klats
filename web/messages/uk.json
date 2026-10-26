@@ -58,6 +58,19 @@
   "finish_waiting": "Роботу збережено, оцінка з’явиться після відновлення зв’язку",
   "finish_pending": "Оцінку виставить учитель, коли перевірить роботу",
   "finish_announce": "Оцінка {grade}. Правильно: {correct} з {total}",
+  "finish_time_up": "Час вийшов",
+  "timer_label": "Залишилося часу",
+  "timer_left": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Залишилася {count} хвилина",
+        "countPlural=few": "Залишилося {count} хвилини",
+        "countPlural=*": "Залишилося {count} хвилин"
+      }
+    }
+  ],
   "toast_offline": "Немає зв’язку. Відповіді збережено",
   "toast_offline_pending": [
     {
@@ -88,6 +101,8 @@
   "pick_none": "Нікого не знайдено",
   "pick_name_taken": "Це ім’я вже використовується на комп’ютері {label}. Покличте вчителя.",
   "pick_start": "Почати тест",
+  "pick_time_student": "На тест — {minutes} хв. Час піде, щойно ви натиснете «{button}».",
+  "pick_time_common": "Тест триває до {time}.",
   "typed_title": "Як вас звати?",
   "typed_surname": "Прізвище",
   "typed_first_name": "Ім’я",
