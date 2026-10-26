@@ -239,6 +239,7 @@ function Live({ snap }: { snap: LiveSnapshot }) {
         isOpen={board && !ended}
         onClose={() => setBoard(false)}
         code={snap.sitting.code}
+        endsAt={snap.sitting.timeMode === "common" ? snap.sitting.endsAt : 0}
         finished={snap.counts.finished}
         total={snap.counts.inTest}
       />

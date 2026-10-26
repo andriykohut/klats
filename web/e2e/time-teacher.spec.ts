@@ -8,10 +8,11 @@ import {
   pick,
   TEST,
   test,
+  until,
 } from "./fixtures";
 
 /** The seconds left on a timer that reads m:ss or h:mm:ss. */
-async function secondsLeft(page: Page): Promise<number> {
+async function secondsLeft(page: Pick<Page, "getByRole">): Promise<number> {
   const timer = page.getByRole("timer", { name: m.timer_label() });
   await expect(timer).toBeVisible();
   const text = (await timer.textContent()) ?? "";
@@ -78,6 +79,20 @@ test("start asks for the end time", async ({ klats }) => {
   expect(live.sitting.endsAt).toBeGreaterThan(Date.now());
 });
 
+test("an empty end time blocks the start", async ({ klats }) => {
+  const id = await klats.create(TEST, {
+    timeLimit: { mode: "common", minutes: 40 },
+  });
+  const teacher = await klats.teacher(`/tests/${id}`);
+  await teacher.getByRole("button", { name: m.builder_start() }).click();
+  const dialog = teacher.getByRole("dialog");
+  const start = dialog.getByRole("button", { name: m.start_go() });
+  await dialog.getByText(m.start_no_list(), { exact: true }).click();
+  await expect(start).toBeEnabled();
+  await dialog.getByLabel(m.start_end_at()).fill("");
+  await expect(start).toBeDisabled();
+});
+
 test("the board shows the time left", async ({ klats }) => {
   const endsAt = Date.now() + 40 * 60_000;
   await klats.start(TEST, {
@@ -93,6 +108,17 @@ test("the board shows the time left", async ({ klats }) => {
   expect(first).toBeGreaterThan(39 * 60);
   // It runs down by itself.
   await expect.poll(() => secondsLeft(teacher)).toBeLessThan(first);
+
+  // The board covers the bar, so it carries the time too.
+  await teacher.getByRole("button", { name: m.live_show_board() }).click();
+  const board = teacher.getByRole("dialog", { name: m.live_show_board() });
+  await expect(
+    board.getByText(m.live_time_until({ time: clock(endsAt) })),
+  ).toBeVisible();
+  const onBoard = await secondsLeft(board);
+  expect(onBoard).toBeLessThan(first);
+  expect(onBoard).toBeGreaterThan(39 * 60 - 30);
+  await expect.poll(() => secondsLeft(board)).toBeLessThan(onBoard);
 });
 
 test("the bar names a per-student limit", async ({ klats }) => {
@@ -180,4 +206,10 @@ test("a student who was out of time gets the test back with the extra time", asy
   const left = await secondsLeft(student);
   expect(left).toBeGreaterThan(4 * 60);
   expect(left).toBeLessThanOrEqual(5 * 60);
+
+  // The answer was sent with the extra time already given, so it is on time.
+  await until(klats, (live) => live.rows[0]?.cells[0] === "correct");
+  await expect(
+    teacher.getByText(m.ev_overtime({ name, count: 1 })),
+  ).toBeHidden();
 });

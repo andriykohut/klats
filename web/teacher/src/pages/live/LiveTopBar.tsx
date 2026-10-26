@@ -1,41 +1,16 @@
 import type { SittingInfo } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { Button } from "react-aria-components";
 import { Icon } from "../../ui/icons";
 import { EndDialog } from "./EndDialog";
+import { EndTime } from "./EndTime";
 
 const SCALE_NAMES = {
   points12: m.scale_points12,
   percent: m.scale_percent,
   pass: m.scale_pass,
 };
-
-/**
- * The time left until `endsAt` (unix ms) on the teacher's own clock, which
- * is the server's, since the teacher app runs on the server's machine: m:ss,
- * or h:mm:ss from an hour up, ticking every second.
- */
-function Remaining({ endsAt }: { endsAt: number }) {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
-  const secs = String(left % 60).padStart(2, "0");
-  const mins = Math.floor(left / 60) % 60;
-  const hours = Math.floor(left / 3600);
-  return (
-    <strong role="timer" aria-label={m.timer_label()}>
-      {hours > 0
-        ? `${hours}:${String(mins).padStart(2, "0")}:${secs}`
-        : `${mins}:${secs}`}
-    </strong>
-  );
-}
 
 /**
  * The live view's own bar: the test, its class, question count, scale and
@@ -83,14 +58,7 @@ export function LiveTopBar(props: {
         <>
           {s.timeMode === "common" && (
             <div className="l-time">
-              <small>
-                {m.live_time_until({
-                  time: new Intl.DateTimeFormat(getLocale(), {
-                    timeStyle: "short",
-                  }).format(s.endsAt),
-                })}
-              </small>
-              <Remaining endsAt={s.endsAt} />
+              <EndTime endsAt={s.endsAt} />
             </div>
           )}
           <div className="l-code">

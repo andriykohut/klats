@@ -437,6 +437,18 @@
   letter-spacing: 0.06em;
 }
 
+.l-board-time {
+  display: flex;
+  align-items: baseline;
+  gap: 2.4vw;
+  margin-top: 5vh;
+}
+
+.l-board-time strong {
+  font: 700 clamp(40px, 4.4vw, 90px) / 1 var(--k-font-display);
+  font-variant-numeric: tabular-nums;
+}
+
 .l-board-qr {
   flex: none;
   margin: 0;

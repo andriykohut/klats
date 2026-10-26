@@ -3,18 +3,21 @@ import { Button, Dialog, Modal, ModalOverlay } from "react-aria-components";
 import { useNetwork } from "../../api/queries";
 import { useFlags } from "../../flags";
 import { portBusyText } from "../../ui/Banners";
+import { EndTime } from "./EndTime";
 
 /**
  * The board view, for the projector: the students' address, the join code
  * and a QR code of the address with the code, over the whole window, sized to
  * read from the back of a classroom. It shows how many have finished and
- * never a name or grade. Escape or «Закрити» closes it. Without an address
+ * never a name or grade. A sitting with a common end time (`endsAt`, else
+ * 0) also shows the end time and the time left. Escape or «Закрити» closes it. Without an address
  * (no network, or the student server's port is busy) it says why instead.
  */
 export function BoardView(props: {
   isOpen: boolean;
   onClose: () => void;
   code: string;
+  endsAt: number;
   finished: number;
   total: number;
 }) {
@@ -51,6 +54,11 @@ export function BoardView(props: {
             )}
             <small>{m.board_enter_code()}</small>
             <p className="l-board-code">{props.code}</p>
+            {props.endsAt > 0 && (
+              <div className="l-board-time">
+                <EndTime endsAt={props.endsAt} />
+              </div>
+            )}
           </div>
           {url && (
             <figure className="l-board-qr">

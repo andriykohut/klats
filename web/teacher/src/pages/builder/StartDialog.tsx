@@ -40,11 +40,11 @@ function proposedEnd(minutes: number): string {
   return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
 }
 
-/** The moment "HH:MM" next comes up today, in unix ms, or null for an unfinished field. */
+/** The moment "HH:MM" comes up today, in unix ms, or null unless `time` is a whole HH:MM. */
 function endAt(time: string): number | null {
-  const [h, min] = time.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(min)) return null;
-  return new Date().setHours(h, min, 0, 0);
+  const parts = /^(\d\d):(\d\d)$/.exec(time);
+  if (!parts) return null;
+  return new Date().setHours(Number(parts[1]), Number(parts[2]), 0, 0);
 }
 
 /** A save that failed before the sitting could start. */
@@ -67,9 +67,10 @@ interface StartProps {
  * «Почати тест»: a dialog to pick the class (or «Без списку», where students
  * type their names) and start a sitting, which then opens the live view. A
  * test with a common end time also asks «Закінчити о», prefilled with the
- * test's minutes from now and refused once that time has passed. Problems that block the start, known from the last save or returned by the
- * server, are listed with links to their questions; a sitting already
- * running is named, with a link to it.
+ * test's minutes from now; a time that has passed, or an empty or partly
+ * typed one, blocks the start. Problems that block the start, known from the
+ * last save or returned by the server, are listed with links to their
+ * questions; a sitting already running is named, with a link to it.
  */
 export function StartDialog(props: StartProps & { isDisabled: boolean }) {
   return (
