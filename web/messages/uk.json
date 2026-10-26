@@ -103,6 +103,7 @@
   "pick_start": "Почати тест",
   "pick_time_student": "На тест — {minutes} хв. Час піде, щойно ви натиснете «{button}».",
   "pick_time_common": "Тест триває до {time}.",
+  "pick_forward_only": "Повернутися до попереднього питання не можна.",
   "typed_title": "Як вас звати?",
   "typed_surname": "Прізвище",
   "typed_first_name": "Ім’я",

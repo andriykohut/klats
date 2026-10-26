@@ -8,6 +8,7 @@ const doc = { type: "doc", content: [] };
 const fiveImages: StudentTest = {
   title: "t",
   palette: "teal",
+  navigation: "free",
   questions: [
     {
       id: "q",

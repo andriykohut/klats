@@ -30,6 +30,12 @@
   cursor: pointer;
 }
 
+/* Progress without onJump: segments and the count that lead nowhere. */
+span.k-seg,
+span.k-prog-chip {
+  cursor: default;
+}
+
 .k-seg:focus-visible,
 .k-prog-chip[data-focus-visible],
 .k-qcell:focus-visible {

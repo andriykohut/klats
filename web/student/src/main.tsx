@@ -45,6 +45,8 @@ function App() {
   const inTest = TEST_SCREENS.has(screen.name) && s.title !== "";
   const offline = s.net.state === "offline";
   const timer = s.deadline !== null && <Timer remainingMs={s.remainingMs} />;
+  // A forward-only test gets no way to jump back; Skip and Next only go on.
+  const jump = test?.navigation === "forward" ? undefined : go;
 
   let content = null;
   switch (screen.name) {
@@ -98,7 +100,7 @@ function App() {
             key="review"
             test={test}
             answers={s.answers}
-            onGo={go}
+            onGo={jump}
             onBack={() => show({ name: "test" })}
             onFinish={finishTest}
             timer={timer}
@@ -146,7 +148,7 @@ function App() {
           <Progress
             answered={test.questions.map((q) => isAnswered(q, s.answers[q.id]))}
             current={s.index}
-            onJump={go}
+            onJump={jump}
           />
         )}
         <div className="s-who">{inTest && s.name}</div>

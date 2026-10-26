@@ -32,15 +32,17 @@ type SittingInfo struct {
 // JoinInfo is what a student device gets for a correct join code. Mode is
 // "list" (pick a name from Names) or "typed" (type surname, first name and
 // class; Names is empty). TimeMode, Minutes and EndsAt are the time limit, as
-// in [SittingInfo].
+// in [SittingInfo]. Navigation is the test's [testfmt.Settings.Navigation],
+// which the name screen announces.
 type JoinInfo struct {
-	SittingID string      `json:"sittingId"`
-	Mode      string      `json:"mode"`
-	Names     []NameEntry `json:"names"`
-	Language  string      `json:"language"`
-	TimeMode  string      `json:"timeMode"`
-	Minutes   int         `json:"minutes"`
-	EndsAt    int64       `json:"endsAt"`
+	SittingID  string      `json:"sittingId"`
+	Mode       string      `json:"mode"`
+	Names      []NameEntry `json:"names"`
+	Language   string      `json:"language"`
+	TimeMode   string      `json:"timeMode"`
+	Minutes    int         `json:"minutes"`
+	EndsAt     int64       `json:"endsAt"`
+	Navigation string      `json:"navigation"`
 }
 
 // NamesTaken is the "taken" event a device choosing a name gets on its event
@@ -94,11 +96,14 @@ type Participant struct {
 }
 
 // StudentTest is the test as a student device receives it: no correct
-// answers, points or scoring rules.
+// answers, points or scoring rules. Navigation is the test's
+// [testfmt.Settings.Navigation]; the student app alone keeps a "forward" test
+// from going back.
 type StudentTest struct {
-	Title     string            `json:"title"`
-	Palette   string            `json:"palette"`
-	Questions []StudentQuestion `json:"questions"`
+	Title      string            `json:"title"`
+	Palette    string            `json:"palette"`
+	Navigation string            `json:"navigation"`
+	Questions  []StudentQuestion `json:"questions"`
 }
 
 // StoredAnswer is an answer the server holds for a participant. Seq is the

@@ -12,6 +12,7 @@ const one = (q: object): StudentTest =>
   ({
     title: "t",
     palette: "teal",
+    navigation: "free",
     questions: [{ id: "q1", type: "single", text: doc(), options: [], ...q }],
   }) as StudentTest;
 

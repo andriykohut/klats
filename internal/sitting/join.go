@@ -28,10 +28,10 @@ func typedKey(name, class string) string {
 }
 
 // Join checks the join code and returns what the device needs to pick a name,
-// with the test's time limit, which the name screen shows. A device seen for
-// the first time is registered with its label set from ip, the client address
-// without a port (see deviceLabel). It returns [ErrBadCode] when no sitting
-// runs or the code is wrong.
+// with the test's time limit and navigation, which the name screen shows. A
+// device seen for the first time is registered with its label set from ip, the
+// client address without a port (see deviceLabel). It returns [ErrBadCode]
+// when no sitting runs or the code is wrong.
 func (e *Engine) Join(code, device, ip string) (wire.JoinInfo, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -47,7 +47,7 @@ func (e *Engine) Join(code, device, ip string) (wire.JoinInfo, error) {
 	tl := a.test.Settings.TimeLimit
 	info := wire.JoinInfo{
 		SittingID: a.sitting.ID, Mode: "typed", Names: []wire.NameEntry{}, Language: e.lang,
-		TimeMode: tl.Mode, Minutes: tl.Minutes, EndsAt: a.sitting.EndsAt.Int64,
+		TimeMode: tl.Mode, Minutes: tl.Minutes, EndsAt: a.sitting.EndsAt.Int64, Navigation: a.test.Settings.Navigation,
 	}
 	if a.assignment.ClassID.Valid {
 		info.Mode = "list"

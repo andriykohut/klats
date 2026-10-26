@@ -97,22 +97,24 @@ export function Prompt({
 
 /**
  * Returns how the test runs, for a name screen to show in `.s-notes` above
- * its start button and to describe the button by: the minutes each student
- * gets, or the clock time a common end falls at, in the app's language. Null
- * for a test without a time limit.
+ * its start button and to describe the button by, in the app's language: the
+ * minutes each student gets, or the clock time a common end falls at, then a
+ * line that a forward-only test can't go back. Null for a test with neither.
  */
 export function startNote(info: JoinInfo): string | null {
+  const notes: string[] = [];
   if (info.timeMode === "student") {
-    return m.pick_time_student({
-      minutes: info.minutes,
-      button: m.pick_start(),
+    notes.push(
+      m.pick_time_student({ minutes: info.minutes, button: m.pick_start() }),
+    );
+  } else if (info.timeMode === "common") {
+    const time = new Date(info.endsAt).toLocaleTimeString(getLocale(), {
+      timeStyle: "short",
     });
+    notes.push(m.pick_time_common({ time }));
   }
-  if (info.timeMode !== "common") return null;
-  const time = new Date(info.endsAt).toLocaleTimeString(getLocale(), {
-    timeStyle: "short",
-  });
-  return m.pick_time_common({ time });
+  if (info.navigation === "forward") notes.push(m.pick_forward_only());
+  return notes.join("\n") || null;
 }
 
 /** A problem the student can fix or report, as a chip with a warning dot. */

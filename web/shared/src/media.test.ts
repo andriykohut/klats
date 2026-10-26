@@ -15,6 +15,7 @@ test("mediaOf", () => {
   const test: StudentTest = {
     title: "t",
     palette: "teal",
+    navigation: "free",
     questions: [
       {
         id: "q1",

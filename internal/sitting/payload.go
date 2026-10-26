@@ -72,7 +72,7 @@ func (e *Engine) Resume(device string) (wire.TestResponse, error) {
 
 // studentTest returns the questions qs of the test t as the device gets them.
 func studentTest(t testfmt.Test, qs []testfmt.Question, device string) wire.StudentTest {
-	out := wire.StudentTest{Title: t.Title, Palette: t.Palette, Questions: make([]wire.StudentQuestion, len(qs))}
+	out := wire.StudentTest{Title: t.Title, Palette: t.Palette, Navigation: t.Settings.Navigation, Questions: make([]wire.StudentQuestion, len(qs))}
 	for i, q := range qs {
 		opts := make([]wire.StudentOption, len(q.Options))
 		for j, o := range q.Options {

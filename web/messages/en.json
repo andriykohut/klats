@@ -100,6 +100,7 @@
   "pick_start": "Start the test",
   "pick_time_student": "You have {minutes} min. The clock starts when you press “{button}”.",
   "pick_time_common": "The test ends at {time}.",
+  "pick_forward_only": "You can’t go back to an earlier question.",
   "typed_title": "What’s your name?",
   "typed_surname": "Surname",
   "typed_first_name": "First name",

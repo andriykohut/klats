@@ -422,6 +422,15 @@ input {
   text-align: left;
 }
 
+/* A question a forward-only test can't go back to: flat, with no base to press. */
+.s-open div.k-tile {
+  cursor: default;
+}
+
+.s-open div.k-tile::before {
+  content: none;
+}
+
 .s-open .k-face {
   min-height: calc(70 * var(--k-px));
   font-size: max(16px, calc(18 * var(--k-px)));
@@ -577,6 +586,8 @@ input {
   font-size: max(14px, calc(17 * var(--k-px)));
   line-height: 1.35;
   text-align: right;
+  /* startNote puts each note on a line of its own. */
+  white-space: pre-line;
 }
 
 .s-pick .s-notes {

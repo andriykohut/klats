@@ -1,3 +1,4 @@
+import { isAnswered } from "@klats/shared/answers.ts";
 import { hasCode } from "@klats/shared/code/registry.ts";
 import type { Answer } from "@klats/shared/generated/testfmt.ts";
 import type {
@@ -350,14 +351,25 @@ async function resume(name?: string): Promise<void> {
   loadFormulas(test);
   loadHighlighting(test);
   paint(test.palette);
+  const answers: Record<string, Answer> = Object.fromEntries(
+    test.questions.map((q) => [q.id, queue.current(q.id) ?? {}]),
+  );
+  let index = saved?.index ?? 0;
+  if (test.navigation === "forward") {
+    // Never before the question after the last answer: a computer the
+    // student was moved to has no saved place, and full storage loses saves.
+    const last = test.questions.reduce(
+      (l, q, i) => (isAnswered(q, answers[q.id]) ? i : l),
+      -1,
+    );
+    index = Math.max(index, last + 1);
+  }
   update({
     test,
     title: test.title,
     name: saved?.name ?? "",
-    index: Math.min(saved?.index ?? 0, test.questions.length - 1),
-    answers: Object.fromEntries(
-      test.questions.map((q) => [q.id, queue.current(q.id) ?? {}]),
-    ),
+    index: Math.min(index, test.questions.length - 1),
+    answers,
     saveFailed: queue.saveFailed,
     result: null,
     deadline: null,

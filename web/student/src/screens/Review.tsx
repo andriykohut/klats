@@ -14,8 +14,9 @@ import "@klats/shared/student-ui/QuestionSheet.css";
 /**
  * The last stop before finishing: how many questions have an answer, and the
  * unanswered ones as tiles that lead back to them, or a note that none are
- * left. The student finishes the test from here, or returns to it. `timer`
- * sits at the sheet's top right, as on a question sheet.
+ * left. Without `onGo` the unanswered ones are flat cards that lead nowhere.
+ * The student finishes the test from here, or returns to it. `timer` sits at
+ * the sheet's top right, as on a question sheet.
  */
 export function Review({
   test,
@@ -27,7 +28,7 @@ export function Review({
 }: {
   test: StudentTest;
   answers: Record<string, Answer>;
-  onGo: (index: number) => void;
+  onGo?: (index: number) => void;
   onBack: () => void;
   onFinish: () => void;
   timer?: ReactNode;
@@ -65,29 +66,38 @@ export function Review({
             </span>
             <h1 className="k-qtext">{m.review_title()}</h1>
             <div className="s-open">
-              {open.map(({ q, i }, n) => (
-                <motion.div
-                  key={q.id}
-                  className="k-tile-wrap"
-                  {...popIn(0.22 + Math.min(n, 8) * 0.06, reduced)}
-                >
-                  <Button className="k-tile" onPress={() => onGo(i)}>
-                    <span className="k-face">
-                      <span className="k-badge" aria-hidden="true">
-                        <span className="k-badge-letter">{i + 1}</span>
+              {open.map(({ q, i }, n) => {
+                const face = (
+                  <span className="k-face">
+                    <span className="k-badge" aria-hidden="true">
+                      <span className="k-badge-letter">{i + 1}</span>
+                    </span>
+                    <span className="k-tile-text">
+                      <span className="s-open-label">
+                        {m.review_question({ number: i + 1 })}
                       </span>
-                      <span className="k-tile-text">
-                        <span className="s-open-label">
-                          {m.review_question({ number: i + 1 })}
-                        </span>
-                        <span className="s-excerpt">
-                          <RichView doc={q.text} />
-                        </span>
+                      <span className="s-excerpt">
+                        <RichView doc={q.text} />
                       </span>
                     </span>
-                  </Button>
-                </motion.div>
-              ))}
+                  </span>
+                );
+                return (
+                  <motion.div
+                    key={q.id}
+                    className="k-tile-wrap"
+                    {...popIn(0.22 + Math.min(n, 8) * 0.06, reduced)}
+                  >
+                    {onGo ? (
+                      <Button className="k-tile" onPress={() => onGo(i)}>
+                        {face}
+                      </Button>
+                    ) : (
+                      <div className="k-tile">{face}</div>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </div>

@@ -147,6 +147,13 @@ design follows from where it runs:
    questions; a question a participant did not get shows as «—» and counts
    in no percent, and a change for it is rejected.
 
+   A test whose settings say forward only carries `navigation: "forward"`,
+   and the student app alone enforces it: the progress strip and the
+   review's unanswered questions are not buttons, Skip and Next only go on,
+   and a reload or a move resumes at the saved place or the question after
+   the last answered one, whichever is later (`resume`, in
+   `web/student/src/app.ts`). The server does not check positions.
+
    Each pick goes into the answer queue and out to `POST /api/answers`. A
    heartbeat, `POST /api/heartbeat`, runs every 5 s, and `POST /api/focus`
    reports each time the student leaves the page.

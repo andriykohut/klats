@@ -13,14 +13,16 @@ export interface ProgressProps {
   answered: boolean[];
   /** Index of the current question, from 0. */
   current: number;
-  onJump: (index: number) => void;
+  onJump?: (index: number) => void;
 }
 
 /**
  * Test progress for the bar above the sheet. It fills the width it is given
  * and shows one segment per question while they fit (see
  * {@link progressMode}), or a «7 / 40» button that opens a grid of every
- * question. Pressing a segment or a grid cell calls `onJump`.
+ * question. Pressing a segment or a grid cell calls `onJump`. Without
+ * `onJump`, the segments and «7 / 40» are not buttons and are hidden from
+ * screen readers, which read the answered count from the progress bar.
  */
 export function Progress({ answered, current, onJump }: ProgressProps) {
   const total = answered.length;
@@ -66,21 +68,29 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
         valueLabel={m.progress_value({ answered: done, total })}
       />
       {mode === "segments" ? (
-        <div className="k-segs">
-          {answered.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              className="k-seg"
-              {...state(i)}
-              onClick={() => onJump(i)}
-            >
-              <span className="k-seg-bar">
-                <i />
+        <div className="k-segs" aria-hidden={!onJump || undefined}>
+          {answered.map((_, i) =>
+            onJump ? (
+              <button
+                key={i}
+                type="button"
+                className="k-seg"
+                {...state(i)}
+                onClick={() => onJump(i)}
+              >
+                {SEG_BAR}
+              </button>
+            ) : (
+              <span key={i} className="k-seg" {...state(i)}>
+                {SEG_BAR}
               </span>
-            </button>
-          ))}
+            ),
+          )}
         </div>
+      ) : !onJump ? (
+        <span className="k-prog-chip" aria-hidden="true">
+          {current + 1} / {total}
+        </span>
       ) : (
         <DialogTrigger>
           <Button
@@ -114,6 +124,12 @@ export function Progress({ answered, current, onJump }: ProgressProps) {
     </div>
   );
 }
+
+const SEG_BAR = (
+  <span className="k-seg-bar">
+    <i />
+  </span>
+);
 
 const GEOMETRY = {
   "--k-seg-width": SEGMENT_WIDTH,

@@ -193,3 +193,21 @@ func TestStudentPayloadArrange(t *testing.T) {
 		}
 	}
 }
+
+func TestNavigationReachesStudent(t *testing.T) {
+	for _, nav := range []string{testfmt.NavFree, testfmt.NavForward} {
+		e, _ := setupSettings(t, 2, testfmt.Settings{Navigation: nav})
+		info := start(t, e, nil)
+		if j := join(t, e, info.Code, devA, "10.0.0.1"); j.Navigation != nav {
+			t.Errorf("join navigation = %q, want %q", j.Navigation, nav)
+		}
+		pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Учень"})
+		st, err := testFor(e, devA)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Navigation != nav {
+			t.Errorf("test navigation = %q, want %q", st.Navigation, nav)
+		}
+	}
+}
