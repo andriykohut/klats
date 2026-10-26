@@ -102,6 +102,13 @@
   width: 240px;
 }
 
+.t-tests-none {
+  margin: 0;
+  color: var(--k-muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .t-test-act {
   height: 38px;
   padding: 0 14px;

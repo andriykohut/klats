@@ -109,7 +109,7 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 // Without Dialogs the file is written to a temporary file in the data folder
 // first, then sent as a download of contentType with its Content-Length. A
 // write that fails partway is a 500, never a short file the browser keeps,
-// and a backup of any size stays out of memory.
+// and a file of any size stays out of memory.
 //
 // saved, when not nil, runs once the file is saved or fully sent. With Dialogs
 // its error is the reply; after a download, whose status is already sent, it

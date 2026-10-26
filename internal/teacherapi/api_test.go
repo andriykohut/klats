@@ -1120,6 +1120,31 @@ func TestExportTestThroughDialogs(t *testing.T) {
 	}
 }
 
+// A test whose media come to more than an opened file may hold is refused
+// before the save dialog opens.
+func TestExportTestTooLarge(t *testing.T) {
+	v := setup(t, true)
+	name := strings.Repeat("ab", 32) + ".png"
+	// Sparse, so the test writes no 257 MiB.
+	f, err := os.Create(filepath.Join(v.dir, "media", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(maxKlatsBytes + 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	doc := goodTest("")
+	doc.Questions[0].Options[0].Image = &testfmt.Image{Src: name, W: 8, H: 6}
+	id := v.saveTest(t, doc)
+	wantError(t, v.do("POST", "/api/tests/"+id+"/export", nil), 422, "too_large")
+	if v.dialogs.name != "" {
+		t.Errorf("the save dialog opened, offering %q", v.dialogs.name)
+	}
+}
+
 func TestImportDamaged(t *testing.T) {
 	v := setup(t, false)
 	v.saveTest(t, goodTest(""))

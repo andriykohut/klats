@@ -20,9 +20,17 @@ import { LoadError } from "../ui/LoadError";
 import "./tests.css";
 
 /**
+ * `s` as the search compares it: in lower case, with ' and ʼ read as ’, so a
+ * title typed with any of the three apostrophes is found.
+ */
+const searchable = (s: string) =>
+  s.toLocaleLowerCase(getLocale()).replace(/['ʼ]/g, "’");
+
+/**
  * The test library: newest first, each row opening the builder. The search
- * matches titles, ignoring case. «Відкрити» opens a .klats file as a new test,
- * which lands at the top while the page stays on the library.
+ * matches titles, ignoring case and the kind of apostrophe. «Відкрити» opens a
+ * .klats file as a new test, which lands at the top while the page stays on
+ * the library.
  */
 export function TestsPage() {
   const tests = useTests();
@@ -37,10 +45,8 @@ export function TestsPage() {
   const navigate = useNavigate();
   // The server lists the newest edit first.
   const all = (tests.data ?? []).filter((t) => !deleting.includes(t.id));
-  const needle = query.trim().toLocaleLowerCase(getLocale());
-  const rows = all.filter((t) =>
-    t.title.toLocaleLowerCase(getLocale()).includes(needle),
-  );
+  const needle = searchable(query.trim());
+  const rows = all.filter((t) => searchable(t.title).includes(needle));
   const edited = new Intl.DateTimeFormat(getLocale(), {
     day: "numeric",
     month: "long",
@@ -119,6 +125,9 @@ export function TestsPage() {
           {newTest}
         </div>
       </header>
+      {rows.length === 0 && (
+        <p className="t-tests-none">{m.tests_none_found()}</p>
+      )}
       <ul className="t-tests">
         {rows.map((t) => (
           <li key={t.id} className="t-test">
@@ -130,6 +139,7 @@ export function TestsPage() {
               <Link
                 to="/tests/$id"
                 params={{ id: t.id }}
+                id={`t-title-${t.id}`}
                 className="t-test-title"
               >
                 {t.title}
@@ -141,6 +151,7 @@ export function TestsPage() {
             <Button
               className="t-btn t-test-act"
               data-variant="quiet"
+              aria-describedby={`t-title-${t.id}`}
               onPress={() => !busy("duplicateTest") && duplicate.mutate(t)}
             >
               <Icon name="copy" />
@@ -149,6 +160,7 @@ export function TestsPage() {
             <Button
               className="t-btn t-test-act"
               data-variant="quiet"
+              aria-describedby={`t-title-${t.id}`}
               onPress={() =>
                 !busy("exportTest") &&
                 exportTest.mutate(t.id, { onSuccess: finishExport })

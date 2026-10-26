@@ -90,7 +90,7 @@ export function BuilderPage() {
         </header>
         <LoadError
           onRetry={() => doc.refetch()}
-          text={tooNew ? m.test_too_new() : undefined}
+          text={tooNew ? m.tests_file_too_new() : undefined}
         />
       </div>
     );

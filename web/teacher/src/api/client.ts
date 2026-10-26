@@ -106,12 +106,19 @@ export async function exportTest(
   return exported(res, "test.klats");
 }
 
+/** The largest .klats file the server opens: 256 MiB. */
+const MAX_KLATS_BYTES = 256 * 2 ** 20;
+
 /**
  * Opens a .klats file as a new test and resolves to it. A file that is not a
  * Klats test rejects with an ApiError of code "file_damaged", a test from a
- * newer version with "test_too_new", and a file over 256 MB with "too_large".
+ * newer version with "test_too_new", and a file over 256 MB with "too_large",
+ * which a file over {@link MAX_KLATS_BYTES} gets without being sent.
  */
 export async function importTest(file: File): Promise<TestDoc> {
+  // The server's 413 cuts the upload short, which Firefox reports as a
+  // network error and WebKit never settles.
+  if (file.size > MAX_KLATS_BYTES) throw new ApiError(413, "too_large");
   const res = await fetch("/api/tests/import", { method: "POST", body: file });
   if (!res.ok) throw await apiError(res);
   return res.json();

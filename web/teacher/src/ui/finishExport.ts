@@ -16,8 +16,8 @@ export function finishExport(out: ExportResult | File | null): void {
     a.click();
     // WebKit reads the URL after click() returns.
     setTimeout(() => URL.revokeObjectURL(href), 1000);
-    notify(m.results_downloaded({ name: out.name }));
+    notify(m.export_downloaded({ name: out.name }));
   } else if (out) {
-    notify(m.results_saved({ path: out.path }));
+    notify(m.export_saved({ path: out.path }));
   }
 }

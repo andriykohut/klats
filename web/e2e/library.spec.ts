@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { truncateSync, writeFileSync } from "node:fs";
 import type { Download, Page } from "@playwright/test";
 import { expect, type Klats, m, TEST, test } from "./fixtures";
 
@@ -9,8 +9,11 @@ const PNG = Buffer.from(
   "base64",
 );
 
-/** Makes a test titled `title` of TEST whose first question shows a picture. */
-async function pictureTest(klats: Klats, title: string) {
+/**
+ * Makes a test titled `title` of TEST whose first question shows a picture,
+ * and returns its id.
+ */
+async function pictureTest(klats: Klats, title: string): Promise<string> {
   const src = await klats.upload(PNG);
   const [q1, ...rest] = TEST;
   const text = {
@@ -20,7 +23,7 @@ async function pictureTest(klats: Klats, title: string) {
       { type: "image", attrs: { src, w: 64, h: 40 } },
     ],
   };
-  await klats.create([{ ...q1, text }, ...rest], undefined, title);
+  return klats.create([{ ...q1, text }, ...rest], undefined, title);
 }
 
 /** The library's rows; the toasts are list items too. */
@@ -70,8 +73,11 @@ async function expectPictureTest(page: Page) {
 test("search filters by title", async ({ klats }) => {
   await klats.create(TEST, undefined, "Дроби 7/8");
   await klats.create(TEST, undefined, "Вірші");
+  await klats.create(TEST, undefined, "Комп’ютерні мережі");
   const page = await klats.teacher("/");
-  await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page)).toHaveCount(3);
+  const none = page.getByText(m.tests_none_found(), { exact: true });
+  await expect(none).toBeHidden();
 
   const search = page.getByRole("searchbox", { name: m.tests_search() });
   await search.fill("дроби");
@@ -79,8 +85,18 @@ test("search filters by title", async ({ klats }) => {
   await expect(row(page, "Вірші")).toBeHidden();
   await expect(rows(page)).toHaveCount(1);
 
+  // Typed with a plain apostrophe, the title holds ’.
+  await search.fill("комп'ютер");
+  await expect(row(page, "Комп’ютерні мережі")).toBeVisible();
+  await expect(rows(page)).toHaveCount(1);
+
+  await search.fill("хімія");
+  await expect(rows(page)).toHaveCount(0);
+  await expect(none).toBeVisible();
+
   await search.fill("");
-  await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page)).toHaveCount(3);
+  await expect(none).toBeHidden();
 });
 
 test("duplicate opens with the same questions", async ({ klats }) => {
@@ -100,7 +116,7 @@ test("duplicate opens with the same questions", async ({ klats }) => {
 });
 
 test("export then open brings the test back", async ({ klats }, testInfo) => {
-  await pictureTest(klats, "Дроби");
+  const original = await pictureTest(klats, "Дроби");
   const page = await klats.teacher("/");
   const download = await exportTest(page, "Дроби");
   const file = testInfo.outputPath(download.suggestedFilename());
@@ -117,6 +133,8 @@ test("export then open brings the test back", async ({ klats }, testInfo) => {
   await expect(rows(page)).toHaveCount(2);
   // The opened test is the newest, so it is listed first.
   await rows(page).first().getByRole("link").click();
+  await expect(page).toHaveURL(/\/tests\/[^/]+$/);
+  expect(page.url()).not.toContain(original);
   await expectPictureTest(page);
 });
 
@@ -131,6 +149,27 @@ test("a damaged file is refused", async ({ klats }, testInfo) => {
   await expect(
     page.getByText(m.tests_file_damaged(), { exact: true }),
   ).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(m.tests_count({ count: 1 }))).toBeVisible();
+  await expect(rows(page)).toHaveCount(1);
+});
+
+test("a file over 256 MB is refused", async ({ klats }, testInfo) => {
+  await klats.create(TEST, undefined, "Дроби");
+  const page = await klats.teacher("/");
+  await expect(rows(page)).toHaveCount(1);
+  // Sparse, so the run writes nothing near 256 MiB to disk.
+  const file = testInfo.outputPath("big.klats");
+  writeFileSync(file, "");
+  truncateSync(file, 256 * 2 ** 20 + 1);
+
+  await openFile(page, file);
+  await expect(
+    page.getByText(m.tests_file_too_large(), { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: m.tests_open() }),
+  ).toBeEnabled();
   await page.reload();
   await expect(page.getByText(m.tests_count({ count: 1 }))).toBeVisible();
   await expect(rows(page)).toHaveCount(1);
