@@ -102,6 +102,20 @@ func TestDecodeAcceptsEveryTypeID(t *testing.T) {
 	}
 }
 
+// The builder reads options as a list for every type, so a stored question
+// with no options, or with "options": null, must come back as [].
+func TestDecodeEncodesNoOptionsAsAnEmptyList(t *testing.T) {
+	for _, id := range strings.Fields("single multi truefalse grid short number gaps order match groups bank hotspot label highlight open") {
+		raw, err := json.Marshal(mustDecodeQ(t, Question{ID: "q1", Type: id, Points: 1}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(raw), `"options":[]`) {
+			t.Errorf("%s: %s", id, raw)
+		}
+	}
+}
+
 func TestDecodeClearsDanglingTarget(t *testing.T) {
 	q := mustDecodeQ(t, grid([]Target{col("c1", "A"), col("c2", "B")}, row("r1", "x", "zz"), row("r2", "y", "c2")))
 	if q.Options[0].Target != "" || q.Options[1].Target != "c2" {

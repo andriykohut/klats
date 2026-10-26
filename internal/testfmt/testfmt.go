@@ -140,16 +140,18 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // version above 1. An empty palette becomes DefaultPalette. Every rich-text
 // field is replaced by the canonical JSON of its parsed rich.Doc (a missing or
 // null field becomes an empty document), so callers persist the result rather
-// than the input. Each question keeps only the fields its type uses, and an
-// option's Target that names no target or body gap is cleared, and a gaps
-// question's Gaps are brought in line with its body: one entry for each gap
-// node, in body order. A list of over 50 entries or with a repeated id (for
-// gaps, both before and after that step), an accepted text or choice of over
-// 200 characters, a rubric of over 2,000, a coordinate outside 0 to 1, an area
-// shape other than "rect" or "ellipse", a word bank gap with more than one
-// word, a matching target shared by two left items and a label point shared by
-// two labels are errors. Content problems such as a missing correct option are
-// not errors here; see Test.Problems.
+// than the input. Each question keeps only the fields its type uses, though
+// Options is never nil, so it encodes as a list (empty for a type without
+// options), as the TypeScript type promises. An option's Target that names no
+// target or body gap is cleared, and a gaps question's Gaps are brought in
+// line with its body: one entry for each gap node, in body order. A list of
+// over 50 entries or with a repeated id (for gaps, both before and after that
+// step), an accepted text or choice of over 200 characters, a rubric of over
+// 2,000, a coordinate outside 0 to 1, an area shape other than "rect" or
+// "ellipse", a word bank gap with more than one word, a matching target shared
+// by two left items and a label point shared by two labels are errors.
+// Content problems such as a missing correct option are not errors here; see
+// Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test
 	if err := json.Unmarshal(raw, &t); err != nil {
@@ -182,6 +184,9 @@ func (q *Question) decode() error {
 		return fmt.Errorf("points %d outside %d-%d", q.Points, minPoints, maxPoints)
 	}
 	q.dropUnused(k.uses)
+	if q.Options == nil {
+		q.Options = []Option{}
+	}
 	var err error
 	if q.Text, err = canonical(q.Text, rich.Block); err != nil {
 		return fmt.Errorf("text: %w", err)

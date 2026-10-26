@@ -110,6 +110,37 @@ test("a short question keeps its accepted answers and matching switches", async 
   await expect(input).toBeFocused();
 });
 
+test("questions without options open again once the test is read back", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  const texts = ["Столиця?", "Скільки?", "Чому?"];
+  for (const [i, desc] of [
+    m.type_short_desc,
+    m.type_number_desc,
+    m.type_open_desc,
+  ].entries()) {
+    await add(page, desc);
+    await editor(page)
+      .getByRole("textbox", { name: m.builder_question_text() })
+      .fill(texts[i]);
+  }
+  await expect
+    .poll(async () => (await saved(page)).test.questions.map((q) => q.type))
+    .toEqual(["short", "number", "open"]);
+
+  // The reload loads the test as the server stored it.
+  await page.reload();
+  const list = page.getByRole("listbox", { name: m.builder_questions() });
+  for (const [i, text] of texts.entries()) {
+    await list.getByRole("option").nth(i).click();
+    await expect(
+      editor(page).getByRole("textbox", { name: m.builder_question_text() }),
+    ).toHaveText(text);
+    await expect(preview(page).getByText(text)).toBeVisible();
+  }
+});
+
 test("a number question stays without a key until its fields are filled", async ({
   klats,
 }) => {
