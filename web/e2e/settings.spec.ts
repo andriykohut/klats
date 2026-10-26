@@ -49,20 +49,23 @@ test("settings survive a reload", async ({ klats }) => {
   await dialog.getByText(m.settings_reveal_mistakes(), { exact: true }).click();
   await dialog.getByText(m.settings_nav_forward(), { exact: true }).click();
 
-  await expect
-    .poll(async () => (await saved(page, id)).scale.thresholds[10])
-    .toBe(95);
-  await page.reload();
-
-  expect(await saved(page, id)).toMatchObject({
+  // Every value is on the server before the reload, not just the first few.
+  const all = {
     timeLimit: { mode: "student", minutes: 25 },
     shuffleQuestions: true,
     subset: 3,
     scale: { kind: "points12" },
     reveal: "mistakes",
     navigation: "forward",
-  });
-  expect((await saved(page, id)).scale.thresholds[10]).toBe(95);
+  };
+  await expect
+    .poll(async () => {
+      const s = await saved(page, id);
+      return { ...s, scale: { ...s.scale, at12: s.scale.thresholds[10] } };
+    })
+    .toMatchObject({ ...all, scale: { kind: "points12", at12: 95 } });
+  await page.reload();
+  expect(await saved(page, id)).toMatchObject(all);
 
   dialog = await open(page);
   await expect(
