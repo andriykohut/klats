@@ -206,6 +206,15 @@
   "tests_delete_failed": "Не вдалося видалити тест. Спробуйте ще раз.",
   "tests_empty_title": "Тут будуть ваші тести",
   "tests_empty_text": "Створіть перший тест: додайте питання, позначте правильні відповіді й запустіть його для класу.",
+  "tests_open": "Відкрити",
+  "tests_duplicate": "Дублювати",
+  "tests_export": "Експортувати",
+  "tests_search": "Пошук",
+  "tests_copy_title": "{title} (копія)",
+  "tests_opened": "Тест «{title}» відкрито",
+  "tests_file_damaged": "Файл пошкоджений або це не тест Клац.",
+  "tests_file_too_new": "Цей тест створено в новішій версії Клац. Оновіть програму.",
+  "tests_file_too_large": "Файл завеликий.",
   "classes_new": "Новий клас",
   "classes_students": [
     {

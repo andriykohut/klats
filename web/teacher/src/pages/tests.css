@@ -87,6 +87,23 @@
   font-weight: 700;
 }
 
-.t-test .t-icon-btn {
+.t-test .t-icon-btn,
+.t-test .t-btn {
   position: relative;
+}
+
+.t-tests-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.t-tests-search input {
+  width: 240px;
+}
+
+.t-test-act {
+  height: 38px;
+  padding: 0 14px;
+  font-size: 14px;
 }

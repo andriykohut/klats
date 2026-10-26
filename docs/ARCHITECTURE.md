@@ -90,7 +90,7 @@ design follows from where it runs:
 | `internal/desktop` | The Wails shell: window, tray, single instance, save dialog. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
 | `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into a grade on the test's scale (12-point, percent or pass/fail). It covers every question type. |
-| `internal/httpx` | JSON replies, capped body decoding and the single-page-app file server, shared by both APIs. |
+| `internal/httpx` | JSON replies, capped body decoding, file names safe on every OS and the single-page-app file server, shared by both APIs. |
 | `internal/klatsfile` | Reads and writes `.klats` files, the zips teachers share tests in: `test.json` and the media the test uses. It is the trust boundary for opened tests. |
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
 | `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |
@@ -196,7 +196,12 @@ design follows from where it runs:
      finished event and the results still carry the grade.
 8. **Export.** `POST /api/assignments/{id}/export` writes an Excel
    workbook, to the path the teacher picks in the save dialog, or as a
-   download in a plain browser.
+   download in a plain browser. The library's `.klats` export
+   (`POST /api/tests/{id}/export`) goes the same way, through `deliver` in
+   `internal/teacherapi/results.go`. The save dialog's file replaces the
+   old one whole, through a temporary file and a rename. A download is
+   written to a temporary file in the data folder first and sent with its
+   length, so a write that fails partway is an error, never a short file.
 
 ## Answer sync
 
@@ -411,6 +416,10 @@ Students may have the address bookmarked.
     the zip claims.
   - `test.json` must pass `testfmt.Decode`, and each media file must hash to
     its name and then pass the media store's sniffing and caps.
+  - `POST /api/tests/import` reads the request body through the same 256 MiB
+    cap into a temporary file in the data folder, removed whatever happens,
+    and stores the test as a new one. An export whose media come to over
+    256 MiB is refused, since the file could not be opened again.
 - **Correct answers never reach students.**
   - The test a device loads has no correct flags and no points.
   - Grading happens only on the server.

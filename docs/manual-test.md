@@ -195,10 +195,11 @@ and run one sitting with one student browser.
 | Fedora 40 | Starts and works. |
 | One version older (macOS 12, Ubuntu 22.04) | Does not start, or the package refuses to install. Note what the teacher sees, for the user docs. |
 
-## 6. The teacher program, M2 checks
+## 6. The teacher program
 
-The builder and the results use browser features that differ between the
-three desktop webviews, and the tests cannot reach them. Run the checks on
+The builder, the library and the results use browser features and native
+dialogs that differ between the three desktop webviews, and the tests cannot
+reach them. Run the checks on
 Windows 10 (WebView2), macOS 13 or newer (WKWebView) and Ubuntu 24.04
 (WebKitGTK), and note which system each result is from. A check marked with a
 system is for that system only. Each line says what to do, then what should
@@ -228,6 +229,17 @@ happen.
   *Expected:* the picture shows and nothing else is added.
 - Add a WAV over 10 MiB as a sound. *Expected:* it is refused with a message
   that says audio is limited to 10 MB, and the test is unchanged.
+
+### Opening and exporting tests
+
+- In the library, press «Відкрити». *Expected:* the system's file picker
+  opens, and a `.klats` file can be chosen in it. Choosing one adds the test
+  at the top of the list with «Тест «…» відкрито».
+- Press «Експортувати» on a test with a picture. *Expected:* the system's
+  save dialog opens in Documents with the file type «Тест Клац» and the
+  test's title as the name. The file appears where it was saved.
+- Open a test exported on another of the three systems. *Expected:* it
+  opens with every question, picture and sound.
 
 ### Layout
 

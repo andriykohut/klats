@@ -1,7 +1,6 @@
 package teacherapi
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,9 +81,8 @@ func (a *api) language() string {
 	return a.settings.Language
 }
 
-// export writes the assignment's results workbook. With Dialogs the teacher
-// picks the file, which is replaced atomically; without, the workbook is the
-// response. A finished export records exported_at, which sets
+// export writes the assignment's results workbook through [api.deliver]. A
+// finished export records exported_at, which sets
 // [wire.AssignmentResults.Exported]. It also clears export_stale, unless a
 // result changed after the results it holds were read (see
 // [wire.AssignmentResults.ResultsRev]), which includes changes made while the
@@ -95,25 +94,35 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lang := a.language()
+	a.deliver(w, r, xlsx.FileName(res), xlsxType,
+		func(w io.Writer) error { return xlsx.Export(w, res, lang) },
+		func() error { return a.clearStale(r, res) })
+}
+
+// deliver hands the teacher the file that write produces, offering name.
+//
+// With Dialogs the teacher picks the path in the save dialog, and the file
+// replaces it whole (see [replaceFile]). The reply is the
+// [wire.ExportResult], a 204 for a cancelled dialog, or a 409 "write_failed"
+// when the file cannot be written.
+//
+// Without Dialogs the file is written to a temporary file in the data folder
+// first, then sent as a download of contentType with its Content-Length. A
+// write that fails partway is a 500, never a short file the browser keeps,
+// and a backup of any size stays out of memory.
+//
+// saved, when not nil, runs once the file is saved or fully sent. With Dialogs
+// its error is the reply; after a download, whose status is already sent, it
+// is only logged.
+func (a *api) deliver(w http.ResponseWriter, r *http.Request, name, contentType string, write func(io.Writer) error, saved func() error) {
+	if saved == nil {
+		saved = func() error { return nil }
+	}
 	if a.dialogs == nil {
-		var buf bytes.Buffer
-		if err := xlsx.Export(&buf, res, lang); err != nil {
-			fail(w, r, err)
-			return
-		}
-		h := w.Header()
-		h.Set("Content-Type", xlsxType)
-		h.Set("Content-Disposition", contentDisposition(xlsx.FileName(res)))
-		if _, err := w.Write(buf.Bytes()); err != nil {
-			return // the client did not get the file
-		}
-		// The status is sent, so a failure here can only be logged.
-		if err := a.clearStale(r, res); err != nil {
-			slog.Error("teacherapi: clear export_stale", "err", err)
-		}
+		a.download(w, r, name, contentType, write, saved)
 		return
 	}
-	path, err := a.dialogs.SaveFile(xlsx.FileName(res))
+	path, err := a.dialogs.SaveFile(name)
 	if err != nil {
 		fail(w, r, fmt.Errorf("save dialog: %w", err))
 		return
@@ -122,16 +131,48 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	if err := replaceFile(path, func(w io.Writer) error { return xlsx.Export(w, res, lang) }); err != nil {
+	if err := replaceFile(path, write); err != nil {
 		slog.Warn("teacherapi: export not written", "err", err)
 		httpx.Error(w, http.StatusConflict, "write_failed")
 		return
 	}
-	if err := a.clearStale(r, res); err != nil {
+	if err := saved(); err != nil {
 		fail(w, r, err)
 		return
 	}
 	httpx.JSON(w, http.StatusOK, wire.ExportResult{Path: path})
+}
+
+// download is [api.deliver] without Dialogs.
+func (a *api) download(w http.ResponseWriter, r *http.Request, name, contentType string, write func(io.Writer) error, saved func() error) {
+	tmp, err := os.CreateTemp(a.dataDir, ".download-*.tmp")
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+	}()
+	if err := write(tmp); err != nil {
+		fail(w, r, err)
+		return
+	}
+	size, err := tmp.Seek(0, io.SeekCurrent)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", contentType)
+	h.Set("Content-Disposition", contentDisposition(name))
+	h.Set("Content-Length", strconv.FormatInt(size, 10))
+	if _, err := io.Copy(w, io.NewSectionReader(tmp, 0, size)); err != nil {
+		return // the client did not get the file
+	}
+	if err := saved(); err != nil {
+		slog.Error("teacherapi: after a download", "err", err)
+	}
 }
 
 // clearStale records that the assignment was exported, and clears its

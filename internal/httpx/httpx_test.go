@@ -94,3 +94,23 @@ func TestDecode(t *testing.T) {
 		t.Errorf("declared length: status %d", w.Code)
 	}
 }
+
+func TestSafeFileName(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		max  int
+		want string
+	}{
+		{"Дроби", 0, "Дроби"},
+		{"7/8: Дроби?", 80, "7_8_ Дроби_"},
+		{`a\b*c"d<e>f|g`, 0, "a_b_c_d_e_f_g"},
+		{"Тест\n1...", 0, "Тест_1"},
+		{" . ", 0, ""},
+		{strings.Repeat("ї", 150), 100, strings.Repeat("ї", 100)},
+		{"ab. cd", 3, "ab"},
+	} {
+		if got := SafeFileName(tc.in, tc.max); got != tc.want {
+			t.Errorf("SafeFileName(%q, %d) = %q, want %q", tc.in, tc.max, got, tc.want)
+		}
+	}
+}

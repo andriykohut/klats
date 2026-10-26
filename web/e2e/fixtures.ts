@@ -116,12 +116,13 @@ export interface Klats {
   /** The student app's address. */
   student: string;
   /**
-   * Makes a test titled «Інформатика» of `questions` and returns its id. The
-   * server fills in the settings `settings` leaves out.
+   * Makes a test titled `title` of `questions` and returns its id. The server
+   * fills in the settings `settings` leaves out.
    */
   create(
     questions?: TestQuestion[],
     settings?: Partial<Settings>,
+    title?: string,
   ): Promise<string>;
   /**
    * Makes class 7-Б and a test of `questions` (see `create`), and starts a
@@ -201,8 +202,8 @@ export const test = base.extend<{ klats: Klats }>({
     const create = async (
       questions = TEST,
       settings?: Partial<Settings>,
+      title = "Інформатика",
     ): Promise<string> => {
-      const title = "Інформатика";
       const { id } = await api<{ id: string }>("POST", "/api/tests", { title });
       const plain = questions.map(({ title: _, ...q }) => q);
       await api("PUT", `/api/tests/${id}`, {

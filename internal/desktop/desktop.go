@@ -13,6 +13,7 @@ import (
 	"context"
 	_ "embed"
 	"log/slog"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -196,19 +197,29 @@ func (a *App) trayWhileActive() {
 // Dialogs returns the native file dialogs for the teacher API, attached to the
 // window. They work only while [App.Run] runs, from any goroutine: Wails shows
 // them on the main thread.
-func (a *App) Dialogs() teacherapi.Dialogs { return dialogs{a.app, a.win} }
+func (a *App) Dialogs() teacherapi.Dialogs { return dialogs{a.app, a.win, a.o.Language} }
 
 type dialogs struct {
-	app *application.App
-	win *application.WebviewWindow
+	app  *application.App
+	win  *application.WebviewWindow
+	lang func() string
 }
 
-// SaveFile asks where to save an Excel workbook, starting in the user's
-// Documents folder. A cancelled dialog returns "" and a nil error.
+// SaveFile asks where to save a file, starting in the user's Documents
+// folder. The filter follows defaultName's extension: a test for ".klats", a
+// backup for ".klatsbackup", and an Excel workbook otherwise. A cancelled
+// dialog returns "" and a nil error.
 func (d dialogs) SaveFile(defaultName string) (string, error) {
+	kind, pattern := "Excel", "*.xlsx"
+	switch t := textsFor(d.lang()); filepath.Ext(defaultName) {
+	case ".klats":
+		kind, pattern = t.testFile, "*.klats"
+	case ".klatsbackup":
+		kind, pattern = t.backupFile, "*.klatsbackup"
+	}
 	path, err := d.app.Dialog.SaveFile().
 		SetFilename(defaultName).
-		AddFilter("Excel", "*.xlsx").
+		AddFilter(kind, pattern).
 		SetDirectory(application.Path(application.PathDocuments)).
 		CanCreateDirectories(true).
 		AttachToWindow(d.win).

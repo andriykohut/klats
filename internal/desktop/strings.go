@@ -1,14 +1,21 @@
 package desktop
 
 // texts are the shell's own UI strings in one language; the teacher app has
-// its own.
+// its own. testFile and backupFile name the file types in the save dialog.
 type texts struct {
 	title, show, quit, cancel, quitAsk string
+	testFile, backupFile               string
 }
 
 var (
-	uk = texts{title: "Клац", show: "Показати вікно", quit: "Вийти", cancel: "Скасувати", quitAsk: "Тест ще триває. Вийти?"}
-	en = texts{title: "Klats", show: "Show window", quit: "Quit", cancel: "Cancel", quitAsk: "A test is still running. Quit?"}
+	uk = texts{
+		title: "Клац", show: "Показати вікно", quit: "Вийти", cancel: "Скасувати", quitAsk: "Тест ще триває. Вийти?",
+		testFile: "Тест Клац", backupFile: "Резервна копія Клац",
+	}
+	en = texts{
+		title: "Klats", show: "Show window", quit: "Quit", cancel: "Cancel", quitAsk: "A test is still running. Quit?",
+		testFile: "Klats test", backupFile: "Klats backup",
+	}
 )
 
 // textsFor returns the strings for lang: English for "en", Ukrainian

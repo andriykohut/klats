@@ -145,6 +145,69 @@ export const useDeletingTests = () =>
     select: (mut) => (mut.state.variables as TestSummary).id,
   });
 
+/**
+ * Stores a copy of a test titled «{title} (копія)», which the library lists
+ * first. Key: "duplicateTest".
+ */
+export function useDuplicateTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["duplicateTest"],
+    mutationFn: (t: TestSummary) =>
+      api.duplicateTest(t.id, m.tests_copy_title({ title: t.title })),
+    onSuccess: (doc) => {
+      qc.setQueryData(["tests", doc.id], doc);
+      return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
+    },
+  });
+}
+
+/**
+ * Exports a test as a .klats file (see {@link api.exportTest}). A test too
+ * large to open again gets its own error toast. Key: "exportTest".
+ */
+export const useExportTest = () =>
+  useMutation({
+    mutationKey: ["exportTest"],
+    mutationFn: (id: string) => api.exportTest(id),
+    onError: (err) =>
+      notify(
+        err instanceof api.ApiError && err.code === "too_large"
+          ? m.tests_file_too_large()
+          : m.error_server(),
+        true,
+      ),
+  });
+
+/** The toasts for the files the server refuses to open, by error code. */
+const openErrors: Record<string, () => string> = {
+  file_damaged: m.tests_file_damaged,
+  test_too_new: m.tests_file_too_new,
+  too_large: m.tests_file_too_large,
+};
+
+/**
+ * Opens a .klats file as a new test, which the library lists first, and names
+ * it in a toast. A damaged file, a test from a newer version and a file over
+ * the size cap each get their own error toast. Key: "importTest".
+ */
+export function useImportTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["importTest"],
+    mutationFn: (file: File) => api.importTest(file),
+    onSuccess: (doc) => {
+      qc.setQueryData(["tests", doc.id], doc);
+      notify(m.tests_opened({ title: doc.test.title }));
+      return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
+    },
+    onError: (err) => {
+      const text = err instanceof api.ApiError && openErrors[err.code];
+      notify(text ? text() : m.error_server(), true);
+    },
+  });
+}
+
 export const useClasses = () =>
   useQuery({ queryKey: ["classes"], queryFn: api.listClasses });
 

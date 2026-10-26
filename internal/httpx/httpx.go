@@ -1,5 +1,5 @@
-// Package httpx holds the JSON and static-file plumbing shared by the student
-// and teacher HTTP APIs.
+// Package httpx holds the JSON, static-file and file-name plumbing shared by
+// the student and teacher HTTP APIs.
 package httpx
 
 import (
@@ -100,4 +100,21 @@ func SPA(assets fs.FS) http.Handler {
 		}
 		http.ServeFileFS(w, r, assets, name)
 	})
+}
+
+// SafeFileName returns s as a file name every OS accepts: characters invalid
+// in Windows file names and control characters become "_", it is cut to
+// maxRunes when maxRunes is positive, and trailing dots and spaces are
+// trimmed. It may return "".
+func SafeFileName(s string, maxRunes int) string {
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || strings.ContainsRune(`\/:*?"<>|`, r) {
+			return '_'
+		}
+		return r
+	}, s)
+	if rs := []rune(s); maxRunes > 0 && len(rs) > maxRunes {
+		s = string(rs[:maxRunes])
+	}
+	return strings.TrimRight(s, ". ")
 }

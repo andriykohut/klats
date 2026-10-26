@@ -13,6 +13,7 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
+	"klats/internal/httpx"
 	"klats/internal/testfmt"
 	"klats/internal/wire"
 )
@@ -202,12 +203,12 @@ func questionText(q wire.ResultQuestion) string {
 // sitting. The class and date parts are left out when the class is empty or
 // there are no rows. Characters invalid in Windows file names become "_".
 func FileName(r wire.AssignmentResults) string {
-	title := fileSafe(r.TestTitle, maxTitleRunes)
+	title := httpx.SafeFileName(r.TestTitle, maxTitleRunes)
 	if title == "" {
 		title = "Тест"
 	}
 	parts := []string{title}
-	if c := fileSafe(r.ClassName, 0); c != "" {
+	if c := httpx.SafeFileName(r.ClassName, 0); c != "" {
 		parts = append(parts, c)
 	}
 	if len(r.Rows) > 0 {
@@ -215,20 +216,4 @@ func FileName(r wire.AssignmentResults) string {
 		parts = append(parts, time.UnixMilli(first.SittingDate).In(time.Local).Format("2006-01-02"))
 	}
 	return strings.Join(parts, " — ") + ".xlsx"
-}
-
-// fileSafe replaces characters invalid in Windows file names and control
-// characters with "_", cuts to maxRunes (when positive) and trims trailing
-// dots and spaces.
-func fileSafe(s string, maxRunes int) string {
-	s = strings.Map(func(r rune) rune {
-		if r < 0x20 || strings.ContainsRune(`\/:*?"<>|`, r) {
-			return '_'
-		}
-		return r
-	}, s)
-	if rs := []rune(s); maxRunes > 0 && len(rs) > maxRunes {
-		s = string(rs[:maxRunes])
-	}
-	return strings.TrimRight(s, ". ")
 }

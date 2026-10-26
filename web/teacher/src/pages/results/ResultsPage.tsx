@@ -9,9 +9,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "react-aria-components";
 import { busy, useExport, useResults } from "../../api/queries";
+import { finishExport } from "../../ui/finishExport";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
-import { notify } from "../../ui/Toasts";
 import {
   type CellState,
   type JournalCell,
@@ -243,22 +243,7 @@ function ExportButton({ id }: { id: string }) {
       isPending={exp.isPending}
       onPress={() => {
         if (busy("export")) return;
-        exp.mutate(undefined, {
-          onSuccess: (out) => {
-            if (out instanceof File) {
-              const href = URL.createObjectURL(out);
-              const a = document.createElement("a");
-              a.href = href;
-              a.download = out.name;
-              a.click();
-              // WebKit reads the URL after click() returns.
-              setTimeout(() => URL.revokeObjectURL(href), 1000);
-              notify(m.results_downloaded({ name: out.name }));
-            } else if (out) {
-              notify(m.results_saved({ path: out.path }));
-            }
-          },
-        });
+        exp.mutate(undefined, { onSuccess: finishExport });
       }}
     >
       <Icon name="download" />

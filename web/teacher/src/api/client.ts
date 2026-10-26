@@ -90,6 +90,32 @@ export const saveTest = (testId: string, test: Test) =>
   call<SaveResult>("PUT", `/api/tests/${id(testId)}`, test);
 export const deleteTest = (testId: string) =>
   call<void>("DELETE", `/api/tests/${id(testId)}`);
+/** Stores a copy of the test, titled `title`, and resolves to the copy. */
+export const duplicateTest = (testId: string, title: string) =>
+  call<TestDoc>("POST", `/api/tests/${id(testId)}/duplicate`, { title });
+
+/**
+ * Exports the test as a .klats file, resolving as {@link exportResults} does.
+ * A test whose pictures and sounds come to over 256 MB rejects with code
+ * "too_large".
+ */
+export async function exportTest(
+  testId: string,
+): Promise<ExportResult | File | null> {
+  const res = await send("POST", `/api/tests/${id(testId)}/export`, {});
+  return exported(res, "test.klats");
+}
+
+/**
+ * Opens a .klats file as a new test and resolves to it. A file that is not a
+ * Klats test rejects with an ApiError of code "file_damaged", a test from a
+ * newer version with "test_too_new", and a file over 256 MB with "too_large".
+ */
+export async function importTest(file: File): Promise<TestDoc> {
+  const res = await fetch("/api/tests/import", { method: "POST", body: file });
+  if (!res.ok) throw await apiError(res);
+  return res.json();
+}
 
 /**
  * Stores an image or audio file and resolves to its media name. The server
@@ -193,6 +219,18 @@ export async function exportResults(
     `/api/assignments/${id(assignmentId)}/export`,
     {},
   );
+  return exported(res, "results.xlsx");
+}
+
+/**
+ * The reply of an export route: null for a cancelled save dialog, where the
+ * dialog saved the file, or the downloaded file, named as the server names
+ * it or else `fallback`.
+ */
+async function exported(
+  res: Response,
+  fallback: string,
+): Promise<ExportResult | File | null> {
   if (res.status === 204) return null;
   if (res.headers.get("Content-Type")?.startsWith("application/json")) {
     return res.json();
@@ -202,7 +240,7 @@ export async function exportResults(
   );
   return new File(
     [await res.blob()],
-    name ? decodeURIComponent(name[1]) : "results.xlsx",
+    name ? decodeURIComponent(name[1]) : fallback,
   );
 }
 

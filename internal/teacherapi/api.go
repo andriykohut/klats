@@ -33,12 +33,16 @@ const (
 	qrPixels      = 512
 	newTestTitle  = "Новий тест"
 	xlsxType      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	// maxKlatsBytes is the largest .klats file [klatsfile.Read] opens.
+	maxKlatsBytes     = 256 << 20
+	maxFileTitleRunes = 80
 )
 
 // Dialogs asks the teacher where to save a file, through the desktop window.
 type Dialogs interface {
-	// SaveFile returns the path the teacher chose, offering defaultName. A
-	// cancelled dialog returns an empty path and a nil error.
+	// SaveFile returns the path the teacher chose, offering defaultName,
+	// whose extension picks the file type the dialog offers. A cancelled
+	// dialog returns an empty path and a nil error.
 	SaveFile(defaultName string) (path string, err error)
 }
 
@@ -51,7 +55,8 @@ type Deps struct {
 	Assets fs.FS // the built teacher app
 	Token  string
 	Port   int // this API's own port, for the Host and Origin checks
-	// DataDir is where Settings are saved.
+	// DataDir is where Settings are saved, and where opened files and
+	// downloads are spooled.
 	DataDir string
 	// LANPort is the port the student server is bound to, or 0 when it is not
 	// running. It can differ from Settings.Port, for example under a -port
@@ -108,6 +113,9 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/tests/{id}", a.getTest)
 	mux.HandleFunc("PUT /api/tests/{id}", a.putTest)
 	mux.HandleFunc("DELETE /api/tests/{id}", a.deleteTest)
+	mux.HandleFunc("POST /api/tests/{id}/duplicate", a.duplicateTest)
+	mux.HandleFunc("POST /api/tests/{id}/export", a.exportTest)
+	mux.HandleFunc("POST /api/tests/import", a.importTest)
 
 	mux.HandleFunc("GET /api/classes", a.listClasses)
 	mux.HandleFunc("POST /api/classes", a.createClass)

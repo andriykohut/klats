@@ -1,6 +1,7 @@
 package teacherapi
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -1022,4 +1024,169 @@ func TestExportedFlag(t *testing.T) {
 		wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 200)
 		flags("after the next export", true, false)
 	}
+}
+
+// pictureTest stores a test titled title whose first option shows an
+// uploaded picture, and returns its id.
+func (v *env) pictureTest(t *testing.T, title string) string {
+	t.Helper()
+	w := v.do("POST", "/api/media", pngBytes())
+	wantStatus(t, w, 201)
+	doc := goodTest("")
+	doc.Title = title
+	doc.Questions[0].Options[0].Image = &testfmt.Image{Src: decodeBody[wire.MediaResult](t, w).Name, W: 8, H: 6}
+	return v.saveTest(t, doc)
+}
+
+func (v *env) getTest(t *testing.T, id string) wire.TestDoc {
+	t.Helper()
+	w := v.do("GET", "/api/tests/"+id, nil)
+	wantStatus(t, w, 200)
+	return decodeBody[wire.TestDoc](t, w)
+}
+
+func (v *env) testCount(t *testing.T) int {
+	t.Helper()
+	return len(decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil)))
+}
+
+// noTemps fails the test if a temporary file is left in the data folder.
+func (v *env) noTemps(t *testing.T) {
+	t.Helper()
+	if left, _ := filepath.Glob(filepath.Join(v.dir, "*.tmp")); len(left) != 0 {
+		t.Errorf("temp files left: %v", left)
+	}
+}
+
+func TestDuplicate(t *testing.T) {
+	v := setup(t, false)
+	id := v.pictureTest(t, "Дроби")
+	w := v.do("POST", "/api/tests/"+id+"/duplicate", wire.NewTestRequest{Title: "Дроби (копія)"})
+	wantStatus(t, w, 201)
+	dup := decodeBody[wire.TestDoc](t, w)
+	orig := v.getTest(t, id)
+	if dup.ID == id || dup.ID == "" || dup.Test.ID != dup.ID || dup.Test.Title != "Дроби (копія)" {
+		t.Errorf("copy has id %q (test %q) and title %q", dup.ID, dup.Test.ID, dup.Test.Title)
+	}
+	if !reflect.DeepEqual(v.getTest(t, dup.ID).Test.Questions, orig.Test.Questions) {
+		t.Error("the copy's questions differ from the original's")
+	}
+	if orig.Test.Title != "Дроби" {
+		t.Errorf("the original was retitled %q", orig.Test.Title)
+	}
+	wantError(t, v.do("POST", "/api/tests/nope/duplicate", wire.NewTestRequest{Title: "x"}), 404, "not_found")
+}
+
+func TestImportRoundTrip(t *testing.T) {
+	v := setup(t, false)
+	id := v.pictureTest(t, "7/8: Дроби?")
+	w := v.do("POST", "/api/tests/"+id+"/export", nil)
+	wantStatus(t, w, 200)
+	if cd := w.Header().Get("Content-Disposition"); !strings.Contains(cd, "filename*=UTF-8''7_8_%20%D0%94%D1%80%D0%BE%D0%B1%D0%B8_.klats") {
+		t.Errorf("Content-Disposition = %q", cd)
+	}
+	if got, want := w.Header().Get("Content-Length"), fmt.Sprint(w.Body.Len()); got != want {
+		t.Errorf("Content-Length = %s, want %s", got, want)
+	}
+	v.noTemps(t)
+
+	w = v.do("POST", "/api/tests/import", w.Body.Bytes())
+	wantStatus(t, w, 201)
+	got := decodeBody[wire.TestDoc](t, w)
+	if got.ID == id || got.Test.Title != "7/8: Дроби?" {
+		t.Errorf("imported id %q, title %q", got.ID, got.Test.Title)
+	}
+	if !reflect.DeepEqual(v.getTest(t, got.ID).Test.Questions, v.getTest(t, id).Test.Questions) {
+		t.Error("the imported questions differ from the exported ones")
+	}
+	if n := v.testCount(t); n != 2 {
+		t.Errorf("%d tests listed, want 2", n)
+	}
+	v.noTemps(t)
+}
+
+func TestExportTestThroughDialogs(t *testing.T) {
+	v := setup(t, true)
+	id := v.pictureTest(t, " . ")
+	v.dialogs.path = filepath.Join(t.TempDir(), "out.klats")
+	w := v.do("POST", "/api/tests/"+id+"/export", nil)
+	wantStatus(t, w, 200)
+	if v.dialogs.name != "Тест.klats" {
+		t.Errorf("default name = %q", v.dialogs.name)
+	}
+	data, err := os.ReadFile(v.dialogs.path)
+	if err != nil || !bytes.HasPrefix(data, []byte("PK")) {
+		t.Errorf("file = %.10q, %v", data, err)
+	}
+}
+
+func TestImportDamaged(t *testing.T) {
+	v := setup(t, false)
+	v.saveTest(t, goodTest(""))
+	random := make([]byte, 4096)
+	for i := range random {
+		random[i] = byte(i * 7919 >> 3)
+	}
+	wantError(t, v.do("POST", "/api/tests/import", random), 422, "file_damaged")
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	f, err := zw.Create("test.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := goodTest("")
+	newer.Version = 2
+	if err := json.NewEncoder(f).Encode(newer); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	wantError(t, v.do("POST", "/api/tests/import", buf.Bytes()), 422, "test_too_new")
+
+	if n := v.testCount(t); n != 1 {
+		t.Errorf("%d tests listed, want 1", n)
+	}
+	v.noTemps(t)
+}
+
+// zeros reads as an endless run of zero bytes.
+type zeros struct{}
+
+func (zeros) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
+func TestImportTooLarge(t *testing.T) {
+	v := setup(t, false)
+	r := v.req("POST", "/api/tests/import", nil)
+	r.Body = io.NopCloser(io.LimitReader(zeros{}, maxKlatsBytes+1))
+	r.ContentLength = -1 // chunked: only the body reader enforces the cap
+	wantError(t, v.serve(r), 413, "too_large")
+	v.noTemps(t)
+
+	r = v.req("POST", "/api/tests/import", nil)
+	r.Body = io.NopCloser(io.LimitReader(zeros{}, maxKlatsBytes+1))
+	r.ContentLength = maxKlatsBytes + 1
+	wantError(t, v.serve(r), 413, "too_large")
+	if n := v.testCount(t); n != 0 {
+		t.Errorf("%d tests listed, want 0", n)
+	}
+}
+
+// A download whose file fails partway is an error, never a short file.
+func TestDownloadWriteFailure(t *testing.T) {
+	v := setup(t, false)
+	a := &api{dataDir: v.dir}
+	w := httptest.NewRecorder()
+	a.deliver(w, v.req("POST", "/", nil), "x.klats", "application/octet-stream", func(w io.Writer) error {
+		if _, err := w.Write([]byte("PK\x03\x04 part of a zip")); err != nil {
+			return err
+		}
+		return errors.New("media store failed")
+	}, nil)
+	wantError(t, w, 500, "internal")
+	v.noTemps(t)
 }

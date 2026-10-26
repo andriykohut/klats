@@ -200,6 +200,15 @@
   "tests_delete_failed": "Could not delete the test. Try again.",
   "tests_empty_title": "Your tests will appear here",
   "tests_empty_text": "Create your first test: add questions, mark the right answers and start it for a class.",
+  "tests_open": "Open",
+  "tests_duplicate": "Duplicate",
+  "tests_export": "Export",
+  "tests_search": "Search",
+  "tests_copy_title": "{title} (copy)",
+  "tests_opened": "Opened “{title}”",
+  "tests_file_damaged": "The file is damaged or isn’t a Klats test.",
+  "tests_file_too_new": "This test was made in a newer Klats. Update the app.",
+  "tests_file_too_large": "The file is too large.",
   "classes_new": "New class",
   "classes_students": [
     {

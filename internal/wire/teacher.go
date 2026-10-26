@@ -12,7 +12,8 @@ type TestSummary struct {
 	Blocking      bool   `json:"blocking"`
 }
 
-// NewTestRequest creates an empty test. An empty Title gets the default title.
+// NewTestRequest creates an empty test, where an empty Title gets the default
+// title, or titles a duplicate, where an empty Title keeps the original's.
 type NewTestRequest struct {
 	Title string `json:"title"`
 }
@@ -128,7 +129,7 @@ type OverrideRequest struct {
 	Points        *float64 `json:"points"`
 }
 
-// ExportResult is where the exported workbook was saved.
+// ExportResult is where an exported file was saved.
 type ExportResult struct {
 	Path string `json:"path"`
 }
