@@ -236,12 +236,19 @@ type Status struct {
 // the scale kind Scale (testfmt.Scale.Kind) of the test: 1-12, a percent, or 1
 // for a pass and 0 for a fail. Pending is set while a written answer waits for
 // the teacher's points; Grade and Correct count it as 0 until then.
+//
+// Show is the test's testfmt.Settings.Reveal. With "mistakes", Wrong holds
+// the participant's own 1-based numbers, ascending, of the questions short
+// of full points, unanswered ones included and pending written answers left
+// out. With "nothing", Grade, Correct and Pending are zero and Wrong is empty.
 type FinishResult struct {
 	Scale   string `json:"scale"`
+	Show    string `json:"show"`
 	Grade   int    `json:"grade"`
 	Correct int    `json:"correct"`
 	Total   int    `json:"total"`
 	Pending bool   `json:"pending"`
+	Wrong   []int  `json:"wrong,omitempty"`
 }
 
 // LiveSnapshot is the teacher's live view of the running sitting or, until

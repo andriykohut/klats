@@ -162,8 +162,8 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	if l := liveOf(t, e); !l.Sitting.Ended || l.Sitting.SittingID != info.SittingID || len(l.Rows) != 2 || l.Counts.Finished != 2 {
 		t.Errorf("live after the end = %+v, want the ended sitting", l)
 	}
-	want := wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}
-	if got := finish(t, e, devA); got != want {
+	want := wire.FinishResult{Scale: "points12", Show: "grade", Grade: 1, Correct: 0, Total: 2}
+	if got := finish(t, e, devA); !reflect.DeepEqual(got, want) {
 		t.Errorf("Finish after the end = %+v, want %+v", got, want)
 	}
 	if _, err := e.Finish(devC); !errors.Is(err, ErrNotJoined) {

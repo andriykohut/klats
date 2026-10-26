@@ -25,6 +25,13 @@ import "./FinishScreen.css";
  * the grade will follow, and never a grade. A grade or a pending note that
  * arrives later is announced politely to screen readers. With `timeUp` the
  * title is «Час вийшов» instead of «Тест завершено».
+ *
+ * The result's `show` is the test's reveal setting. With "mistakes", the
+ * numbers of the questions short of full points sit under the counts, pending
+ * or not, and «Без помилок» stands there once none are left and nothing is
+ * pending. With "nothing", the ring stays unfilled, so it shows no share of
+ * any scale, and holds a check; the sheet says only that the result went to
+ * the teacher.
  */
 export function FinishScreen({
   result,
@@ -36,7 +43,8 @@ export function FinishScreen({
   const reduced = useReducedMotionConfig();
   const grade = useMotionValue(0);
   const shown = useTransform(grade, Math.round);
-  const graded = result && !result.pending ? result : null;
+  const sent = result?.show === "nothing";
+  const graded = result && !result.pending && !sent ? result : null;
   const target = graded?.grade;
   const scale = graded?.scale;
   const verdict = graded && scale === "pass" ? graded.grade === 1 : null;
@@ -52,19 +60,32 @@ export function FinishScreen({
   }, [grade, target, reduced]);
 
   const gradeName = graded ? gradeText(graded.scale, graded.grade) : "";
+  let mistakes: string | null = null;
+  if (result?.show === "mistakes") {
+    const wrong = result.wrong ?? [];
+    if (wrong.length > 0) mistakes = m.finish_wrong({ list: wrong.join(", ") });
+    else if (!result.pending) mistakes = m.finish_no_wrong();
+  }
+  const announce = graded
+    ? m.finish_announce({ ...graded, grade: gradeName })
+    : result && (sent ? m.finish_sent() : m.finish_pending());
 
   return (
     <motion.section className="k-sheet k-finish" {...sheet(reduced)}>
       <p className="k-sr-only" role="status">
-        {graded
-          ? m.finish_announce({ ...graded, grade: gradeName })
-          : result && m.finish_pending()}
+        {mistakes ? `${announce}. ${mistakes}` : announce}
       </p>
       <div className="k-finish-ring">
         <div
           className="k-ring"
           role="img"
-          aria-label={graded ? m.finish_grade({ grade: gradeName }) : undefined}
+          aria-label={
+            graded
+              ? verdict === null
+                ? m.finish_grade({ grade: gradeName })
+                : gradeName
+              : undefined
+          }
           aria-hidden={graded ? undefined : true}
         >
           <svg viewBox="0 0 240 240" aria-hidden="true">
@@ -93,7 +114,7 @@ export function FinishScreen({
           </svg>
           {result && (
             <div className="k-ring-label">
-              {verdict !== null ? (
+              {verdict !== null || sent ? (
                 <svg
                   className="k-verdict-icon"
                   viewBox="0 0 24 24"
@@ -101,9 +122,9 @@ export function FinishScreen({
                 >
                   <path
                     d={
-                      verdict
-                        ? "M5 12.5l4.5 4.5L19 7.5"
-                        : "M6 6l12 12M18 6L6 18"
+                      verdict === false
+                        ? "M6 6l12 12M18 6L6 18"
+                        : "M5 12.5l4.5 4.5L19 7.5"
                     }
                   />
                 </svg>
@@ -154,6 +175,11 @@ export function FinishScreen({
             </motion.span>
           )}
         </div>
+        {mistakes && (
+          <motion.p className="k-finish-wrong" {...popIn(1.08, reduced)}>
+            {mistakes}
+          </motion.p>
+        )}
       </div>
     </motion.section>
   );

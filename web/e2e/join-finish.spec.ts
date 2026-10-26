@@ -60,11 +60,12 @@ for (const scale of SCALES) {
     await student.getByRole("button", { name: m.test_finish() }).click();
     await student.getByRole("button", { name: m.review_finish() }).click();
 
-    await expect(
-      student.getByRole("img", {
-        name: m.finish_grade({ grade: scale.grade() }),
-      }),
-    ).toBeVisible();
+    // A pass/fail ring is named by the word under it.
+    const name =
+      scale.kind === "pass"
+        ? scale.grade()
+        : m.finish_grade({ grade: scale.grade() });
+    await expect(student.getByRole("img", { name, exact: true })).toBeVisible();
   });
 }
 

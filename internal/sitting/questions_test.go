@@ -148,7 +148,7 @@ func TestSubsetGrading(t *testing.T) {
 	for _, q := range got[wrong.ID] {
 		submit(t, e, devB, change(wrong, q, 1, "o1"))
 	}
-	if r := finish(t, e, devA); r != (wire.FinishResult{Scale: "points12", Grade: 12, Correct: 3, Total: 3}) {
+	if r := finish(t, e, devA); !reflect.DeepEqual(r, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 12, Correct: 3, Total: 3}) {
 		t.Errorf("Finish = %+v, want 12 for 3 of 3", r)
 	}
 

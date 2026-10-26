@@ -122,6 +122,14 @@
   margin-top: calc(28 * var(--k-px));
 }
 
+.k-finish-wrong {
+  max-width: calc(560 * var(--k-px));
+  margin: calc(22 * var(--k-px)) 0 0;
+  font-weight: 700;
+  font-size: max(16px, calc(22 * var(--k-px)));
+  line-height: 1.35;
+}
+
 .k-fchip {
   display: flex;
   align-items: center;

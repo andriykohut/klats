@@ -330,8 +330,8 @@ func TestFinishGrades(t *testing.T) {
 
 	ch, unsub := hub.Subscribe("device:" + devA)
 	defer unsub()
-	want := wire.FinishResult{Scale: "points12", Grade: 10, Correct: 8, Total: 9}
-	if got := finish(t, e, devA); got != want {
+	want := wire.FinishResult{Scale: "points12", Show: "grade", Grade: 10, Correct: 8, Total: 9}
+	if got := finish(t, e, devA); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Finish = %+v, want %+v", got, want)
 	}
 	if !received(ch) {
@@ -348,14 +348,100 @@ func TestFinishGrades(t *testing.T) {
 	if res := submit(t, e, devA, change(p, "q9", 2, "o0")); len(res.Acks) != 1 || res.Rejected != 0 || stored(t, st, info.SittingID, p.ID, "q9").Seq != 1 {
 		t.Errorf("change after finishing: %+v, want acked and ignored", res)
 	}
-	if got := finish(t, e, devA); got != want {
+	if got := finish(t, e, devA); !reflect.DeepEqual(got, want) {
 		t.Errorf("second Finish = %+v", got)
 	}
-	if s := heartbeat(t, e, devA, 0); s.State != "finished" || s.Result == nil || *s.Result != want {
+	if s := heartbeat(t, e, devA, 0); s.State != "finished" || s.Result == nil || !reflect.DeepEqual(*s.Result, want) {
 		t.Errorf("status = %+v", s)
 	}
 	if evs := eventParams(t, st, info.SittingID, "finished"); len(evs) != 1 {
 		t.Errorf("%d finished events, want 1", len(evs))
+	}
+}
+
+func TestFinishResultReveal(t *testing.T) {
+	e, _ := setupSettings(t, 3, testfmt.Settings{})
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o1"))
+	if got, want := finish(t, e, devA), (wire.FinishResult{Scale: "points12", Show: "grade", Grade: 4, Correct: 1, Total: 3}); !reflect.DeepEqual(got, want) {
+		t.Errorf("grade: Finish = %+v, want %+v", got, want)
+	}
+
+	// Each student gets an order of their own, so a number counted in the
+	// test's order would rarely match all three.
+	e, _ = setupSettings(t, 5, testfmt.Settings{ShuffleQuestions: true, Reveal: "mistakes"})
+	info = start(t, e, nil)
+	for i, dev := range []string{devA, devB, devC} {
+		p := enter(t, e, info.Code, dev, "Учень"+strconv.Itoa(i))
+		ids, _ := resumed(t, e, dev)
+		submit(t, e, dev, change(p, ids[0], 1, "o0"), change(p, ids[1], 1, "o1"), change(p, ids[2], 1, "o0"), change(p, ids[3], 1, "o1"))
+		if got := finish(t, e, dev); got.Show != "mistakes" || got.Correct != 2 || !slices.Equal(got.Wrong, []int{2, 4, 5}) {
+			t.Errorf("mistakes for the order %v: Finish = %+v, want wrong 2, 4 and 5", ids, got)
+		}
+	}
+
+	// withWritten returns an engine whose test "t1" holds two choice
+	// questions and then a written one worth 2 points.
+	withWritten := func(reveal string) (*Engine, *store.Store) {
+		st := openStore(t)
+		qs := append(singles(2), testfmt.Question{ID: "q3", Type: "open", Text: rich("Поясніть"), Points: 2})
+		doc, err := json.Marshal(testfmt.Test{ID: "t1", Version: 1, Title: "Тест", Palette: "teal", Settings: testfmt.Settings{Reveal: reveal}, Questions: qs})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.Q().InsertTest(context.Background(), db.InsertTestParams{ID: "t1", Title: "Тест", Doc: string(doc)}); err != nil {
+			t.Fatal(err)
+		}
+		return newEngine(t, st, events.New()), st
+	}
+	written := func(p wire.Participant) wire.AnswerChange {
+		return typedChange(p, "q3", 1, testfmt.Answer{Text: "Бо так"})
+	}
+
+	// A written answer waiting for the teacher is no mistake until graded.
+	e, _ = withWritten("mistakes")
+	info = start(t, e, nil)
+	p = enter(t, e, info.Code, devA, "Шевченко")
+	submit(t, e, devA, change(p, "q2", 1, "o1"), written(p))
+	if got := finish(t, e, devA); !got.Pending || !slices.Equal(got.Wrong, []int{1, 2}) {
+		t.Errorf("mistakes with a pending answer: Finish = %+v, want pending, wrong 1 and 2", got)
+	}
+	one := 1.0
+	if err := e.SetOverride(info.AssignmentID, p.ID, "q3", &one); err != nil {
+		t.Fatal(err)
+	}
+	if s := heartbeat(t, e, devA, 0); s.Result == nil || s.Result.Pending || !slices.Equal(s.Result.Wrong, []int{1, 2, 3}) {
+		t.Errorf("mistakes after 1 of 2 points: status = %+v, want wrong 1, 2 and 3", s.Result)
+	}
+
+	// Nothing: no path tells the device a grade, though the teacher sees it.
+	e, st := withWritten("nothing")
+	info = start(t, e, nil)
+	p = enter(t, e, info.Code, devA, "Шевченко")
+	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o1"), written(p))
+	hidden := wire.FinishResult{Scale: "points12", Show: "nothing", Total: 3}
+	if got := finish(t, e, devA); !reflect.DeepEqual(got, hidden) {
+		t.Errorf("nothing: Finish = %+v, want %+v", got, hidden)
+	}
+	if evs := eventParams(t, st, info.SittingID, "finished"); len(evs) != 1 || evs[0]["grade"] != "3" || evs[0]["pending"] != "true" {
+		t.Errorf("nothing: finished events = %v, want the grade for the teacher", evs)
+	}
+	two := 2.0
+	if err := e.SetOverride(info.AssignmentID, p.ID, "q3", &two); err != nil {
+		t.Fatal(err)
+	}
+	if s := heartbeat(t, e, devA, 0); s.Result == nil || !reflect.DeepEqual(*s.Result, hidden) {
+		t.Errorf("nothing after the teacher's points: status = %+v, want %+v", s.Result, hidden)
+	}
+	if res, err := e.Resume(devA); err != nil || res.Status.Result == nil || !reflect.DeepEqual(*res.Status.Result, hidden) {
+		t.Errorf("nothing on a reload: status = %+v (err %v), want %+v", res.Status, err, hidden)
+	}
+	if err := e.End(); err != nil {
+		t.Fatal(err)
+	}
+	if s := heartbeat(t, e, devA, 0); s.State != "ended" || s.Result == nil || !reflect.DeepEqual(*s.Result, hidden) {
+		t.Errorf("nothing after the end: status = %+v, want %+v", s, hidden)
 	}
 }
 
@@ -394,7 +480,7 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 
 	// devA comes back online with the fix it made offline.
 	res := submitPending(t, e, devA, 0, change(pa, "q1", 2, "o0"), change(pa, "q2", 1, "o0"))
-	if res.Rejected != 0 || res.Status.State != "ended" || res.Status.Result == nil || *res.Status.Result != (wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}) {
+	if res.Rejected != 0 || res.Status.State != "ended" || res.Status.Result == nil || !reflect.DeepEqual(*res.Status.Result, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 12, Correct: 2, Total: 2}) {
 		t.Errorf("late submit = %+v", res)
 	}
 	if a := stored(t, st, info.SittingID, pa.ID, "q1"); a.Seq != 2 || a.Late != 1 {
@@ -455,8 +541,8 @@ func TestResultWithheldUntilSynced(t *testing.T) {
 	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end" {
 		t.Errorf("finished by %q before syncing, want end", by)
 	}
-	want := wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}
-	if res := submitPending(t, e, devA, 0, change(p, "q2", 1, "o0")); res.Status.Result == nil || *res.Status.Result != want {
+	want := wire.FinishResult{Scale: "points12", Show: "grade", Grade: 12, Correct: 2, Total: 2}
+	if res := submitPending(t, e, devA, 0, change(p, "q2", 1, "o0")); res.Status.Result == nil || !reflect.DeepEqual(*res.Status.Result, want) {
 		t.Errorf("status once synced = %+v, want %+v", res.Status, want)
 	}
 	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
@@ -464,12 +550,12 @@ func TestResultWithheldUntilSynced(t *testing.T) {
 	}
 	// Locked: a further change is acked and ignored, and the grade stays.
 	res := submit(t, e, devA, change(p, "q1", 3, "o1"))
-	if len(res.Acks) != 1 || res.Rejected != 0 || res.Status.Result == nil || *res.Status.Result != want || stored(t, st, info.SittingID, p.ID, "q1").Seq != 2 {
+	if len(res.Acks) != 1 || res.Rejected != 0 || res.Status.Result == nil || !reflect.DeepEqual(*res.Status.Result, want) || stored(t, st, info.SittingID, p.ID, "q1").Seq != 2 {
 		t.Errorf("change after the lock = %+v", res)
 	}
 
 	// Finishing after the end locks at once.
-	if got := finish(t, e, devB); got != (wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}) {
+	if got := finish(t, e, devB); !reflect.DeepEqual(got, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 1, Correct: 0, Total: 2}) {
 		t.Errorf("Finish after the end = %+v", got)
 	}
 	submitPending(t, e, devB, 3, change(q, "q1", 1, "o0"))
@@ -560,7 +646,7 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The new device syncs first and is shown the result, which locks p.
-	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != (wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}) {
+	if s := heartbeat(t, e, devB, 0); s.Result == nil || !reflect.DeepEqual(*s.Result, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 1, Correct: 0, Total: 2}) {
 		t.Fatalf("new device = %+v", s)
 	}
 	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
@@ -574,8 +660,8 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.Late != 1 {
 		t.Errorf("q1 = %+v, want stored late", a)
 	}
-	want := wire.FinishResult{Scale: "points12", Grade: 4, Correct: 1, Total: 2}
-	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != want {
+	want := wire.FinishResult{Scale: "points12", Show: "grade", Grade: 4, Correct: 1, Total: 2}
+	if s := heartbeat(t, e, devB, 0); s.Result == nil || !reflect.DeepEqual(*s.Result, want) {
 		t.Errorf("regraded = %+v, want %+v", s, want)
 	}
 	if evs := eventParams(t, st, info.SittingID, "late_answers"); len(evs) != 1 || evs[0]["name"] != p.Name || evs[0]["count"] != "1" {
@@ -730,7 +816,7 @@ func TestEditTestDuringSittingUsesSnapshot(t *testing.T) {
 		t.Errorf("test payload changed with the edit:\n%+v\n%+v", before, after)
 	}
 	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"))
-	if got := finish(t, e, devA); got != (wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}) {
+	if got := finish(t, e, devA); !reflect.DeepEqual(got, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 12, Correct: 2, Total: 2}) {
 		t.Errorf("Finish = %+v, want graded against the snapshot", got)
 	}
 	r, err := e.Results(info.AssignmentID)

@@ -26,6 +26,9 @@ type Result struct {
 	// Pending counts the written answers waiting for the teacher (see
 	// [IsPending]). They score 0 until the teacher sets their points.
 	Pending int
+	// Missed holds the indexes in the test's questions of those short of full
+	// points, ascending, leaving out the pending ones.
+	Missed []int
 }
 
 // Verdict is the outcome of judging one answer. Items says, for each part of
@@ -77,7 +80,7 @@ func Score(q testfmt.Question, a testfmt.Answer) float64 {
 // overrides maps question id to teacher-set points that replace Score.
 func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[string]float64) Result {
 	r := Result{PerQuestion: make(map[string]float64, len(t.Questions)), Verdicts: map[string]map[string]bool{}}
-	for _, q := range t.Questions {
+	for i, q := range t.Questions {
 		v := Judge(q, answers[q.ID])
 		if len(v.Items) > 0 {
 			r.Verdicts[q.ID] = v.Items
@@ -86,7 +89,8 @@ func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[stri
 		if !overridden {
 			pts = v.Points
 		}
-		if IsPending(q, answers[q.ID], overridden) {
+		pending := IsPending(q, answers[q.ID], overridden)
+		if pending {
 			r.Pending++
 		}
 		r.PerQuestion[q.ID] = pts
@@ -94,6 +98,8 @@ func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[stri
 		r.Max += float64(q.Points)
 		if math.Abs(pts-float64(q.Points)) < epsilon {
 			r.Correct++
+		} else if !pending {
+			r.Missed = append(r.Missed, i)
 		}
 	}
 	r.Grade = Grade(t.Settings.Scale, r.Earned, r.Max)

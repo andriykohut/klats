@@ -59,6 +59,8 @@
   "finish_pending": "Оцінку виставить учитель, коли перевірить роботу",
   "finish_announce": "Оцінка {grade}. Правильно: {correct} з {total}",
   "finish_time_up": "Час вийшов",
+  "finish_wrong": "Помилки в питаннях: {list}",
+  "finish_no_wrong": "Без помилок",
   "timer_label": "Залишилося часу",
   "timer_left": [
     {

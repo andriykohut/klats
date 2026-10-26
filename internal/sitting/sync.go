@@ -395,13 +395,13 @@ func (e *Engine) Finish(device string) (wire.FinishResult, error) {
 
 func (e *Engine) finish(p *participant) error {
 	now := e.now().UnixMilli()
-	res := e.cur.finishResult(p)
+	res := e.cur.grade(p)
 	return e.commit(func(q *db.Queries) (func(), error) {
 		err := q.FinishParticipant(ctx, db.FinishParticipantParams{FinishedBy: valid(finishedByStudent), FinishedAt: sql.NullInt64{Int64: now, Valid: true}, ID: p.id})
 		if err != nil {
 			return nil, err
 		}
-		_, err = e.raise(q, e.cur.sitting.ID, "finished", map[string]string{"name": p.name, "grade": strconv.Itoa(res.Grade), "pending": strconv.FormatBool(res.Pending)}, false)
+		_, err = e.raise(q, e.cur.sitting.ID, "finished", map[string]string{"name": p.name, "grade": strconv.Itoa(res.Grade), "pending": strconv.FormatBool(res.Pending > 0)}, false)
 		return func() {
 			p.state, p.finishedBy, p.finishedAt = stateFinished, finishedByStudent, now
 			e.publishStatus(p.device)
@@ -476,7 +476,21 @@ func (a *active) grade(p *participant) grading.Result {
 	return grading.Total(a.testOf(p), p.answers, p.overrides)
 }
 
+// finishResult returns what the participant's device is told of its grade,
+// as much as the test's Reveal setting allows (see [wire.FinishResult]). Every
+// result a device gets comes from here.
 func (a *active) finishResult(p *participant) wire.FinishResult {
+	s := a.test.Settings
+	res := wire.FinishResult{Scale: s.Scale.Kind, Show: s.Reveal, Total: len(p.questions)}
+	if s.Reveal == testfmt.RevealNothing {
+		return res
+	}
 	r := a.grade(p)
-	return wire.FinishResult{Scale: a.test.Settings.Scale.Kind, Grade: r.Grade, Correct: r.Correct, Total: len(p.questions), Pending: r.Pending > 0}
+	res.Grade, res.Correct, res.Pending = r.Grade, r.Correct, r.Pending > 0
+	if s.Reveal == testfmt.RevealMistakes {
+		for _, i := range r.Missed {
+			res.Wrong = append(res.Wrong, i+1)
+		}
+	}
+	return res
 }

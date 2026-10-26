@@ -3,6 +3,7 @@ import { route } from "./route";
 
 const result = {
   scale: "points12",
+  show: "grade",
   grade: 9,
   correct: 7,
   total: 9,

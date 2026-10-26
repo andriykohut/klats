@@ -58,6 +58,8 @@
   "finish_pending": "Your teacher will give the grade after checking your work",
   "finish_announce": "Grade {grade}. Correct: {correct} of {total}",
   "finish_time_up": "Time is up",
+  "finish_wrong": "Mistakes in questions: {list}",
+  "finish_no_wrong": "No mistakes",
   "timer_label": "Time left",
   "timer_left": [
     {

@@ -183,6 +183,16 @@ design follows from where it runs:
 
    A blank written answer scores 0 and is not pending. Setting the points,
    even 0, grades it, and the student's device gets the new grade.
+
+   How much of the grade a device is told follows the test's `reveal`
+   setting. Every result a device gets, from the finish or in the status of
+   a heartbeat, a submit or `GET /api/test`, comes from `finishResult` in
+   `internal/sitting/sync.go`:
+   - `grade`: the grade and how many questions got full points;
+   - `mistakes`: also the student's own numbers of the questions short of
+     full points, leaving out written answers until the teacher grades them;
+   - `nothing`: no grade, count or pending flag at all. The teacher's
+     finished event and the results still carry the grade.
 8. **Export.** `POST /api/assignments/{id}/export` writes an Excel
    workbook, to the path the teacher picks in the save dialog, or as a
    download in a plain browser.
