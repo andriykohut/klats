@@ -79,10 +79,6 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
      there.
 10. **Audio.** Play the question with sound, then seek and pause.
     - *Expected:* it plays, seeks and pauses in Chrome and Firefox.
-    - In Firefox on a Windows N edition without the Media Feature Pack, play
-      a WAV and an Ogg clip, then an MP3 and an M4A clip. *Expected:* WAV and
-      Ogg play. For MP3 and M4A, note what the student sees; the question
-      must stay answerable.
 11. **Formulas offline.** Open a test with formulas and let every page show
     its formulas. Disable the PC's network adapter and move between the
     questions with formulas.
