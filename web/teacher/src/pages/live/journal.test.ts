@@ -51,6 +51,15 @@ test("a tally counts a pending cell as left", () => {
   });
 });
 
+test("a tally leaves out the questions a student did not get", () => {
+  expect(tally(["correct", "absent", "empty", "absent"])).toEqual({
+    good: 1,
+    bad: 0,
+    answered: 0,
+    left: 1,
+  });
+});
+
 test("points show up to two decimals in the UI language", () => {
   expect(formatPoints(1, "uk")).toBe("1");
   expect(formatPoints(0.5, "uk")).toBe("0,5");

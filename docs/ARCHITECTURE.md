@@ -131,9 +131,21 @@ design follows from where it runs:
    the old device back to the names, turn the new one away, or move the
    student to the new device.
 4. **Answer.** `GET /api/test` returns:
-   - the test, with no correct answers and no points;
+   - the test, with no correct answers and no points, holding only the
+     participant's own questions;
    - the answers the server already holds for this participant;
    - the participant's id, the seq base and the device's status.
+
+   The participant's questions are a pure function of the assignment's
+   snapshot and the participant id (`questionsFor`, in
+   `internal/sitting/questions.go`): a random subset when the test's
+   settings ask for one, kept in test order unless questions are shuffled,
+   and an order of the participant's own when they are. Nothing is stored,
+   and a reload or a move to another computer shows the same questions in
+   the same order. Options are shuffled per device instead. Grading, the live
+   view, the results and the export work over each participant's own
+   questions; a question a participant did not get shows as «—» and counts
+   in no percent, and a change for it is rejected.
 
    Each pick goes into the answer queue and out to `POST /api/answers`. A
    heartbeat, `POST /api/heartbeat`, runs every 5 s, and `POST /api/focus`

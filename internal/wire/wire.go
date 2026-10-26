@@ -217,10 +217,10 @@ type Status struct {
 }
 
 // FinishResult is the grade a student sees: no correct answers, only how many
-// of Total questions scored full points. Grade is on the scale kind Scale
-// (testfmt.Scale.Kind) of the test: 1-12, a percent, or 1 for a pass and 0 for
-// a fail. Pending is set while a written answer waits for the teacher's
-// points; Grade and Correct count it as 0 until then.
+// of the Total questions the participant got scored full points. Grade is on
+// the scale kind Scale (testfmt.Scale.Kind) of the test: 1-12, a percent, or 1
+// for a pass and 0 for a fail. Pending is set while a written answer waits for
+// the teacher's points; Grade and Correct count it as 0 until then.
 type FinishResult struct {
 	Scale   string `json:"scale"`
 	Grade   int    `json:"grade"`
@@ -254,12 +254,14 @@ type Counts struct {
 }
 
 // LiveRow is one participant in the live view, in Ukrainian order of Name.
-// Cells has one entry per question: "correct" (full points), "wrong"
-// (answered with fewer), "pending" (a written answer the teacher has not
-// graded), "current" (the question after the last one answered, while
-// writing) or "empty". Status is "writing", "offline" or "finished". Grade is
-// set once finished, on the scale of [SittingInfo.Scale]; Pending counts the
-// "pending" cells, which Grade scores as 0.
+// Cells has one entry per question of the test, in test order: "correct"
+// (full points), "wrong" (answered with fewer), "pending" (a written answer
+// the teacher has not graded), "current" (while writing, the question after
+// the last one answered in the participant's own order), "empty", or
+// "absent" (a question the participant did not get, see
+// [testfmt.Settings.Subset]). Status is "writing", "offline" or "finished".
+// Grade is set once finished, on the scale of [SittingInfo.Scale]; Pending
+// counts the "pending" cells, which Grade scores as 0.
 type LiveRow struct {
 	ParticipantID  string   `json:"participantId"`
 	Name           string   `json:"name"`
@@ -293,11 +295,11 @@ type AssignmentResults struct {
 // ResultQuestion is a question of the results table, as the assignment's test
 // snapshot has it, answer key included: the teacher may have edited the test
 // since. Correct is the number of rows that scored full points on it, and
-// CorrectPct is that count as a percent of the rows whose answer is not
-// waiting for the teacher's points (see ResultRow.PendingIDs), or nil when
-// there is no such row. A highlight question also carries Words, its body as
-// students got it (see testfmt.Question.Words), and TargetWords, the indexes
-// of its marked words.
+// CorrectPct is that count as a percent of the rows that got the question
+// (see ResultRow.NotAsked) and whose answer is not waiting for the teacher's
+// points (see ResultRow.PendingIDs), or nil when there is no such row. A
+// highlight question also carries Words, its body as students got it (see
+// testfmt.Question.Words), and TargetWords, the indexes of its marked words.
 type ResultQuestion struct {
 	Question    testfmt.Question `json:"question"`
 	Correct     int              `json:"correct"`
@@ -317,7 +319,10 @@ type ResultQuestion struct {
 // grading.Verdict), for the questions with an answered part; Late lists the
 // questions whose answer arrived after the sitting ended. PendingIDs lists, in
 // test order, the questions whose written answer waits for the teacher's
-// points (see grading.IsPending); they score 0 until then.
+// points (see grading.IsPending); they score 0 until then. NotAsked lists, in
+// test order, the questions the participant did not get (see
+// testfmt.Settings.Subset): their Points are 0, and Earned and Max leave them
+// out.
 type ResultRow struct {
 	ParticipantID string                     `json:"participantId"`
 	Name          string                     `json:"name"`
@@ -334,4 +339,5 @@ type ResultRow struct {
 	Verdicts      map[string]map[string]bool `json:"verdicts"`
 	Overridden    []string                   `json:"overridden"`
 	Late          []string                   `json:"late"`
+	NotAsked      []string                   `json:"notAsked"`
 }

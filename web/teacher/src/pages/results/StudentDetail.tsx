@@ -30,8 +30,10 @@ import { AnswerReview } from "./AnswerReview";
  * question as the sitting's test had it, the answer reviewed by its type (see
  * {@link AnswerReview}), and the points, which the teacher can set from 0 to
  * the question's points or reset to the automatic score. The grade follows at
- * once. `focus` is a question whose points field takes focus as the panel
- * opens. It renders nothing once the participant is no longer in the results.
+ * once. Questions the student did not get are left out; the rest keep their
+ * numbers in the test. `focus` is a question whose points field takes focus as
+ * the panel opens. It renders nothing once the participant is no longer in the
+ * results.
  */
 export function StudentDetail(props: {
   results: AssignmentResults;
@@ -97,17 +99,20 @@ export function StudentDetail(props: {
               </Button>
             </header>
             <ol className="r-qs">
-              {props.results.questions.map((q, i) => (
-                <QuestionResult
-                  key={q.question.id}
-                  number={i + 1}
-                  question={q}
-                  row={row}
-                  points={row.points[i]}
-                  autoFocus={props.focus === q.question.id}
-                  assignmentId={props.results.assignmentId}
-                />
-              ))}
+              {props.results.questions.map(
+                (q, i) =>
+                  !row.notAsked.includes(q.question.id) && (
+                    <QuestionResult
+                      key={q.question.id}
+                      number={i + 1}
+                      question={q}
+                      row={row}
+                      points={row.points[i]}
+                      autoFocus={props.focus === q.question.id}
+                      assignmentId={props.results.assignmentId}
+                    />
+                  ),
+              )}
             </ol>
           </I18nProvider>
         </Dialog>

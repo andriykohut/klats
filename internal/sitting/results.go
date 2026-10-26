@@ -14,8 +14,9 @@ import (
 )
 
 // Results grades every participant of every sitting of the assignment against
-// its test snapshot, with the teacher's overrides, leaving kicked participants
-// out. It returns [ErrNotFound] for an unknown assignment.
+// their own questions of its test snapshot (see questionsFor), with the
+// teacher's overrides, leaving kicked participants out. It returns
+// [ErrNotFound] for an unknown assignment.
 func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -48,12 +49,20 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade, PendingIDs: []string{},
 				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Verdicts: r.Verdicts, Overridden: []string{}, Late: []string{},
-				Writing: p.state == stateWriting,
+				NotAsked: []string{}, Writing: p.state == stateWriting,
 			}
 			if p.finishedAt > 0 {
 				row.DurationSec = int(max(0, p.finishedAt-p.joinedAt) / 1000)
 			}
+			asked := make(map[string]bool, len(p.questions))
+			for _, question := range p.questions {
+				asked[question.ID] = true
+			}
 			for i, question := range t.Questions {
+				if !asked[question.ID] {
+					row.NotAsked = append(row.NotAsked, question.ID)
+					continue
+				}
 				row.Points[i] = r.PerQuestion[question.ID]
 				if fullPoints(question, row.Points[i]) {
 					full[i]++

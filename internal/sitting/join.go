@@ -168,7 +168,7 @@ func (e *Engine) Pick(code, device string, req wire.PickRequest) (wire.Participa
 
 	p := &participant{
 		id: row.ID, key: key, name: row.DisplayName, class: row.TypedClass.String, device: device, state: row.State,
-		joinedAt: row.JoinedAt, answers: map[string]testfmt.Answer{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: e.now(),
+		joinedAt: row.JoinedAt, questions: questionsFor(a.test, row.ID), answers: map[string]testfmt.Answer{}, late: map[string]bool{}, overrides: map[string]float64{}, lastSeen: e.now(),
 	}
 	err = e.commit(func(q *db.Queries) (func(), error) {
 		if err := q.InsertParticipant(ctx, row); err != nil {

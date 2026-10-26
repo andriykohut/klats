@@ -49,18 +49,10 @@ func setupAt(t *testing.T, clk *fakeClock) (*Engine, *store.Store, *events.Hub) 
 	return e, st, hub
 }
 
-// insertTest stores the test id with n single-choice questions q1…qn of one
-// point each, whose correct option is o0.
+// insertTest stores the test id with n questions (see singles).
 func insertTest(t *testing.T, st *store.Store, id string, n int) {
 	t.Helper()
-	var qs []testfmt.Question
-	for i := range n {
-		qs = append(qs, testfmt.Question{ID: "q" + strconv.Itoa(i+1), Type: "single", Text: rich("Питання"), Points: 1, Options: []testfmt.Option{
-			{ID: "o0", Content: rich("так"), Correct: true},
-			{ID: "o1", Content: rich("ні")},
-		}})
-	}
-	doc, err := json.Marshal(testfmt.Test{ID: id, Version: 1, Title: "Тест", Palette: "teal", Questions: qs})
+	doc, err := json.Marshal(testfmt.Test{ID: id, Version: 1, Title: "Тест", Palette: "teal", Questions: singles(n)})
 	if err != nil {
 		t.Fatal(err)
 	}

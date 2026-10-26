@@ -189,6 +189,14 @@ button.j-cell[data-focus-visible] {
   font: 700 12px var(--k-font-display);
 }
 
+.j-cell[data-state="absent"] {
+  background: none;
+  color: var(--k-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
 .j-cell[data-state="current"] {
   background: var(--k-paper);
   border: 2px solid var(--k-field);

@@ -73,7 +73,7 @@ func setupQuestions(t *testing.T, qs []testfmt.Question) (*Engine, *store.Store)
 
 func TestStudentPayloadPictureText(t *testing.T) {
 	tst := decodeTest(t, pictureTextQuestions())
-	st := studentTest(tst, "dev1")
+	st := studentTest(tst, tst.Questions, "dev1")
 	raw, err := json.Marshal(st)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestStudentPayloadPictureText(t *testing.T) {
 	key := []string{"l0", "l1", "l2", "l3", "l4", "l5"}
 	shuffled := false
 	for d := range 20 {
-		got := optionIDs(studentTest(tst, fmt.Sprintf("dev%d", d)).Questions[1])
+		got := optionIDs(studentTest(tst, tst.Questions, fmt.Sprintf("dev%d", d)).Questions[1])
 		if !slices.Equal(slices.Sorted(slices.Values(got)), key) {
 			t.Fatalf("labels = %v", got)
 		}
@@ -104,7 +104,7 @@ func TestStudentPayloadPictureText(t *testing.T) {
 	if !shuffled {
 		t.Error("labels should be shuffled")
 	}
-	if !slices.Equal(optionIDs(studentTest(tst, "dev1").Questions[1]), optionIDs(label)) {
+	if !slices.Equal(optionIDs(studentTest(tst, tst.Questions, "dev1").Questions[1]), optionIDs(label)) {
 		t.Error("the label shuffle must be fixed per device")
 	}
 

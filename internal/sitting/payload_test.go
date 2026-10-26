@@ -46,7 +46,7 @@ func choiceIDs(g wire.StudentGap) []string {
 
 func TestStudentPayloadGaps(t *testing.T) {
 	tst := typedPayloadTest(t)
-	st := studentTest(tst, "dev1")
+	st := studentTest(tst, tst.Questions, "dev1")
 	raw, err := json.Marshal(st)
 	if err != nil {
 		t.Fatal(err)
@@ -76,16 +76,17 @@ func TestStudentPayloadGaps(t *testing.T) {
 	if slices.Equal(got, key) || !slices.Equal(slices.Sorted(slices.Values(got)), slices.Sorted(slices.Values(key))) {
 		t.Errorf("choices should be a shuffle of %v, got %v", key, got)
 	}
-	if !slices.Equal(choiceIDs(studentTest(tst, "dev1").Questions[0].Gaps[1]), got) {
+	if !slices.Equal(choiceIDs(studentTest(tst, tst.Questions, "dev1").Questions[0].Gaps[1]), got) {
 		t.Error("the shuffle must be fixed per device")
 	}
-	if slices.Equal(choiceIDs(studentTest(tst, "dev2").Questions[0].Gaps[1]), got) {
+	if slices.Equal(choiceIDs(studentTest(tst, tst.Questions, "dev2").Questions[0].Gaps[1]), got) {
 		t.Error("another device should get another order")
 	}
 }
 
 func TestStudentPayloadTextOnlyTypes(t *testing.T) {
-	st := studentTest(typedPayloadTest(t), "dev1")
+	tst := typedPayloadTest(t)
+	st := studentTest(tst, tst.Questions, "dev1")
 	for _, q := range st.Questions[1:] {
 		if len(q.Options) != 0 || q.Body != nil || q.Gaps != nil || q.Targets != nil {
 			t.Errorf("%s sends more than its text: %+v", q.ID, q)
@@ -147,14 +148,14 @@ func TestStudentPayloadArrange(t *testing.T) {
 		var sawTargetShuffle, sawItemShuffle, sawWordShuffle bool
 		for d := range 50 {
 			device := fmt.Sprintf("dev%d", d)
-			st := studentTest(tst, device)
+			st := studentTest(tst, tst.Questions, device)
 			order, match, groups, bank := st.Questions[0], st.Questions[1], st.Questions[2], st.Questions[3]
 
 			got := optionIDs(order)
 			if slices.Equal(got, key(0)) || !slices.Equal(slices.Sorted(slices.Values(got)), key(0)) {
 				t.Fatalf("n=%d %s: order options %v must be a shuffle of %v, not the key", n, device, got, key(0))
 			}
-			if !slices.Equal(optionIDs(studentTest(tst, device).Questions[0]), got) {
+			if !slices.Equal(optionIDs(studentTest(tst, tst.Questions, device).Questions[0]), got) {
 				t.Fatalf("n=%d %s: the order shuffle must be fixed per device", n, device)
 			}
 

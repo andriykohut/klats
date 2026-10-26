@@ -521,6 +521,7 @@
   "legend_zero": "0 points",
   "legend_overridden": "changed by the teacher",
   "legend_late": "arrived after the end",
+  "legend_absent": "not in this student’s test",
   "detail_question": "Question {number}",
   "detail_picked": "Chosen",
   "detail_correct": "Correct",

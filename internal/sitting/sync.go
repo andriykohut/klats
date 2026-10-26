@@ -44,9 +44,9 @@ type delivery struct {
 //
 // The device may send changes for the participant it writes as, and for
 // participants moved off it to another device. Changes for anyone else, and
-// malformed changes (a missing or over-long change id, a seq below 1, an
-// unknown question, an answer its question's CleanAnswer rejects) are acked
-// but counted in Rejected.
+// malformed changes (a missing or over-long change id, a seq below 1, a
+// question the participant did not get, an answer its question's CleanAnswer
+// rejects) are acked but counted in Rejected.
 // Any stored change marks the assignment's export stale and bumps its
 // results revision, once per call and assignment. After the sitting has ended,
 // changes from participants it finished are still stored, flagged late: the
@@ -101,7 +101,7 @@ func (e *Engine) deliver(q *db.Queries, device string, changes []wire.AnswerChan
 		var answer testfmt.Answer
 		ok := p != nil
 		if ok {
-			answer, ok = checkChange(a.test, c)
+			answer, ok = checkChange(p.questions, c)
 		}
 		if !ok {
 			*rejected++
@@ -211,14 +211,14 @@ func (e *Engine) writer(q *db.Queries, loaded map[string]*active, device, partic
 
 // checkChange returns the change's answer cleaned for the question (see
 // [testfmt.Question.CleanAnswer]), and whether the change is well formed for
-// the test: a change id of 1 to 64 bytes, a seq of at least 1, a question of
-// the test and an answer valid for it.
-func checkChange(t testfmt.Test, c wire.AnswerChange) (testfmt.Answer, bool) {
-	i := slices.IndexFunc(t.Questions, func(q testfmt.Question) bool { return q.ID == c.QuestionID })
+// the participant's questions qs: a change id of 1 to 64 bytes, a seq of at
+// least 1, a question in qs and an answer valid for it.
+func checkChange(qs []testfmt.Question, c wire.AnswerChange) (testfmt.Answer, bool) {
+	i := slices.IndexFunc(qs, func(q testfmt.Question) bool { return q.ID == c.QuestionID })
 	if c.ChangeID == "" || len(c.ChangeID) > maxChangeID || c.Seq < 1 || i < 0 {
 		return testfmt.Answer{}, false
 	}
-	return t.Questions[i].CleanAnswer(c.Answer)
+	return qs[i].CleanAnswer(c.Answer)
 }
 
 // touch records a request from the device: the participant it writes as in
@@ -456,12 +456,13 @@ func (e *Engine) Tick() {
 	}
 }
 
-// grade grades the participant against the sitting's test snapshot.
+// grade grades the participant against their own questions of the sitting's
+// test snapshot.
 func (a *active) grade(p *participant) grading.Result {
-	return grading.Total(a.test, p.answers, p.overrides)
+	return grading.Total(a.testOf(p), p.answers, p.overrides)
 }
 
 func (a *active) finishResult(p *participant) wire.FinishResult {
 	r := a.grade(p)
-	return wire.FinishResult{Scale: a.test.Settings.Scale.Kind, Grade: r.Grade, Correct: r.Correct, Total: len(a.test.Questions), Pending: r.Pending > 0}
+	return wire.FinishResult{Scale: a.test.Settings.Scale.Kind, Grade: r.Grade, Correct: r.Correct, Total: len(p.questions), Pending: r.Pending > 0}
 }

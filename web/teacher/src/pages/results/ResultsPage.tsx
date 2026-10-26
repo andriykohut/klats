@@ -195,7 +195,7 @@ export function ResultsPage() {
  * overridden question, empty for an unanswered one, with the points inside,
  * and the marks of an override and of a late answer. A written answer waiting
  * for the teacher is a "pending" cell that is a button, which calls `review`
- * with the question's id.
+ * with the question's id. A question the student did not get is "absent".
  */
 function cellsOf(
   res: AssignmentResults,
@@ -204,6 +204,7 @@ function cellsOf(
   review: (questionId: string) => void,
 ): JournalCell[] {
   return res.questions.map(({ question: q }, i) => {
+    if (r.notAsked.includes(q.id)) return { state: "absent" };
     if (r.pendingIds.includes(q.id)) {
       return {
         state: "pending",

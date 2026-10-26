@@ -15,7 +15,8 @@ export interface JournalColumn {
  * What a question cell shows: "correct", "wrong", "current", "empty" and
  * "answered" (live, the last while names are hidden), or "full", "partial",
  * "zero" and "empty" (results), and in both "pending", a written answer
- * waiting for the teacher's points.
+ * waiting for the teacher's points, and "absent", a question the student did
+ * not get, drawn as «—».
  */
 export type CellState =
   | "correct"
@@ -26,7 +27,8 @@ export type CellState =
   | "full"
   | "partial"
   | "zero"
-  | "pending";
+  | "pending"
+  | "absent";
 
 /**
  * One question cell: `state` picks its colour and `text` is drawn inside. An
@@ -242,6 +244,14 @@ function Cell({ cell }: { cell: JournalCell }) {
     "data-overridden": cell.overridden || undefined,
     "data-late": cell.late || undefined,
   };
+  if (cell.state === "absent") {
+    const label = m.legend_absent();
+    return (
+      <span {...props} role="img" aria-label={label} title={label}>
+        —
+      </span>
+    );
+  }
   return cell.onPress ? (
     <Button {...props} aria-label={cell.label} onPress={cell.onPress}>
       {cell.text}

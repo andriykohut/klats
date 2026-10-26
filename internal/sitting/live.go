@@ -25,6 +25,7 @@ const (
 	cellPending = "pending"
 	cellCurrent = "current"
 	cellEmpty   = "empty"
+	cellAbsent  = "absent"
 )
 
 // SetSnapshotDir makes [Engine.End] snapshot the database into
@@ -58,21 +59,26 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 
 	out.Sitting = a.info()
 	n := len(a.test.Questions)
+	pos := make(map[string]int, n) // question id → its place in the test
+	for i, question := range a.test.Questions {
+		pos[question.ID] = i
+	}
 	answered, full := make([]int, n), make([]int, n)
 	for _, p := range a.participants {
 		if p.state == stateKicked {
 			continue
 		}
 		r := a.grade(p)
-		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: make([]string, n), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
-		last := -1
-		for i, question := range a.test.Questions {
+		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: slices.Repeat([]string{cellAbsent}, n), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
+		last := -1 // in the participant's order, which "current" follows
+		for j, question := range p.questions {
+			i := pos[question.ID]
 			row.Cells[i] = cellEmpty
 			ans := p.answers[question.ID]
 			if ans.IsEmpty() {
 				continue
 			}
-			last = i
+			last = j
 			if _, overridden := p.overrides[question.ID]; grading.IsPending(question, ans, overridden) {
 				row.Cells[i] = cellPending
 				continue
@@ -84,8 +90,8 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 				row.Cells[i] = cellCorrect
 			}
 		}
-		if p.state == stateWriting && last+1 < n {
-			row.Cells[last+1] = cellCurrent
+		if p.state == stateWriting && last+1 < len(p.questions) {
+			row.Cells[pos[p.questions[last+1].ID]] = cellCurrent
 		}
 		switch {
 		case p.state == stateFinished:

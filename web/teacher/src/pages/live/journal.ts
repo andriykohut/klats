@@ -25,7 +25,8 @@ export function shortName(name: string): string {
 /**
  * Counts a row's cells for its compact bar: `good` scored full points
  * ("correct", "full"), `bad` scored less ("wrong", "partial", "zero"),
- * `answered` hides which ("answered"), and `left` is every other cell.
+ * `answered` hides which ("answered"), and `left` is every other cell but
+ * "absent", a question the student did not get, which is not counted.
  */
 export function tally(states: string[]): {
   good: number;
@@ -38,7 +39,7 @@ export function tally(states: string[]): {
     if (s === "correct" || s === "full") t.good++;
     else if (s === "wrong" || s === "partial" || s === "zero") t.bad++;
     else if (s === "answered") t.answered++;
-    else t.left++;
+    else if (s !== "absent") t.left++;
   }
   return t;
 }

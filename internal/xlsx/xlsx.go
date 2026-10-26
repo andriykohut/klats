@@ -40,7 +40,8 @@ var (
 // the numbers to text cut at 200 characters. The grade column holds the grade
 // as a number, or on the pass/fail scale the word for it. A row with a written
 // answer waiting for the teacher has an empty grade cell, and that answer an
-// empty points cell. On the questions sheet the percent is blank for a question with
+// empty points cell; a question the student did not get also has an empty
+// points cell. On the questions sheet the percent is blank for a question with
 // no [wire.ResultQuestion.CorrectPct].
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
@@ -85,7 +86,7 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		res.put(3, n, row.ClassName, 0)
 		for q := range min(qn, len(row.Points)) {
 			question := r.Questions[q].Question
-			if !slices.Contains(row.PendingIDs, question.ID) {
+			if !slices.Contains(row.PendingIDs, question.ID) && !slices.Contains(row.NotAsked, question.ID) {
 				res.put(4+q, n, row.Points[q], decimal)
 			}
 		}

@@ -549,6 +549,7 @@
   "legend_zero": "0 балів",
   "legend_overridden": "змінено вчителем",
   "legend_late": "надійшла після завершення",
+  "legend_absent": "не було в тесті учня",
   "detail_question": "Питання {number}",
   "detail_picked": "Обрано",
   "detail_correct": "Правильна",

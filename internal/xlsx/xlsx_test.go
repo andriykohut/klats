@@ -130,6 +130,12 @@ func TestExportPendingGrade(t *testing.T) {
 	eq(t, "unanswered row", row(t, f, "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "0.0", "3.0", "0.0", "3.0", "7", "", "21.10.2026"})
 }
 
+func TestExportNotAsked(t *testing.T) {
+	r := sample()
+	r.Rows[1].Points, r.Rows[1].NotAsked = []float64{0, 3, 0}, []string{"q1", "q3"}
+	eq(t, "row", row(t, open(t, r, "uk"), "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "", "3.0", "", "3.0", "7", "", "21.10.2026"})
+}
+
 func TestExportGradeScales(t *testing.T) {
 	r := sample()
 	r.Rows[0].Grade, r.Rows[1].Grade = 87, 40
