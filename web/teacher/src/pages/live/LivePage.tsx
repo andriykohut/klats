@@ -1,4 +1,5 @@
 import type { LiveRow, LiveSnapshot } from "@klats/shared/generated/wire.ts";
+import { gradeBand, gradeText } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -17,7 +18,7 @@ import {
   JournalTable,
   PendingGrade,
 } from "./JournalTable";
-import { band, initials } from "./journal";
+import { gradeWidth, initials } from "./journal";
 import { LiveTopBar } from "./LiveTopBar";
 import { RowActions } from "./RowActions";
 import { Summary } from "./Summary";
@@ -127,7 +128,7 @@ function Live({ snap }: { snap: LiveSnapshot }) {
       width:
         !hidden && snap.rows.some((r) => r.grade != null && r.pending > 0)
           ? 190
-          : 64,
+          : gradeWidth(snap.sitting.scale),
       className: "j-grade",
     },
   ];
@@ -163,8 +164,11 @@ function Live({ snap }: { snap: LiveSnapshot }) {
             (r.pending > 0 ? (
               <PendingGrade />
             ) : (
-              <span className="j-gr" data-band={band(r.grade)}>
-                {r.grade}
+              <span
+                className="j-gr"
+                data-band={gradeBand(snap.sitting.scale, r.grade)}
+              >
+                {gradeText(snap.sitting.scale, r.grade)}
               </span>
             ))}
         </td>,
@@ -223,6 +227,7 @@ function Live({ snap }: { snap: LiveSnapshot }) {
           rows={snap.rows}
           who={who}
           hidden={hidden}
+          scale={snap.sitting.scale}
         />
       </div>
       <BoardView

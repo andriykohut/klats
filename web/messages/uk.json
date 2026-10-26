@@ -52,12 +52,12 @@
   "progress_all": "Усі питання",
   "progress_chip": "{current} / {total}. Усі питання",
   "finish_title": "Тест завершено",
-  "finish_grade": "Оцінка {grade} з 12",
+  "finish_grade": "Оцінка {grade}",
   "finish_correct": "Правильно: {correct} з {total}",
   "finish_sent": "Результат надіслано вчителю",
   "finish_waiting": "Роботу збережено, оцінка з’явиться після відновлення зв’язку",
   "finish_pending": "Оцінку виставить учитель, коли перевірить роботу",
-  "finish_announce": "Оцінка {grade} з 12. Правильно: {correct} з {total}",
+  "finish_announce": "Оцінка {grade}. Правильно: {correct} з {total}",
   "toast_offline": "Немає зв’язку. Відповіді збережено",
   "toast_offline_pending": [
     {
@@ -491,7 +491,7 @@
   "ev_online_synced": "{name} знову на зв’язку. Надійшло відповідей, збережених під час розриву: {count}.",
   "ev_switch": "{name} переходить в інше вікно.",
   "ev_switch_again": "{name} знову переходить в інше вікно, уже {count}-й раз.",
-  "ev_finished": "{name} завершує тест: {#b}{grade} з {max}{/b}",
+  "ev_finished": "{name} завершує тест: {#b}{grade}{/b}",
   "ev_late": "{name} надсилає відповіді після завершення тесту: {count}.",
   "ev_unknown": "Подія в тесті",
   "board_open": "Відкрийте в браузері",
@@ -827,5 +827,12 @@
   "review_word_hit": "знайдено",
   "review_word_extra": "зайве",
   "review_word_missed": "пропущено",
-  "status_pending": "Чекає перевірки"
+  "status_pending": "Чекає перевірки",
+  "grade_pass": "зараховано",
+  "grade_fail": "не зараховано",
+  "grade_percent": "{n}%",
+  "grade_average_pass": "{percent}% зараховано",
+  "scale_points12": "12-бальна",
+  "scale_percent": "Відсотки",
+  "scale_pass": "Зараховано / не зараховано"
 }

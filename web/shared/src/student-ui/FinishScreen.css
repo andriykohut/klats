@@ -5,13 +5,21 @@
   padding: calc(48 * var(--k-px)) calc(64 * var(--k-px));
 }
 
+.k-finish-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(16 * var(--k-px));
+  width: calc(260 * var(--k-px));
+}
+
 .k-ring {
   position: relative;
   width: calc(260 * var(--k-px));
   height: calc(260 * var(--k-px));
 }
 
-.k-ring svg {
+.k-ring > svg {
   display: block;
   width: 100%;
   height: 100%;
@@ -70,6 +78,24 @@
   font-family: var(--k-font-display);
   font-weight: 500;
   font-size: max(14px, calc(20 * var(--k-px)));
+}
+
+.k-verdict-icon {
+  width: calc(110 * var(--k-px));
+  height: calc(110 * var(--k-px));
+  fill: none;
+  stroke: var(--k-sel);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-verdict {
+  margin: 0;
+  color: var(--k-sel);
+  font-family: var(--k-font-display);
+  font-weight: 800;
+  font-size: max(20px, calc(30 * var(--k-px)));
 }
 
 .k-finish-title {

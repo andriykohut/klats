@@ -68,7 +68,7 @@ func TestLiveCellsAndPct(t *testing.T) {
 		{Name: "Іваненко Олена", DeviceLabel: "102", Cells: []string{"wrong", "correct"}, Status: "finished", Grade: &seven},
 		{Name: "Петренко Тарас", DeviceLabel: "101", Cells: []string{"correct", "current"}, Status: "writing"},
 	}
-	if len(l.Rows) != len(want) {
+	if l.Sitting.Scale != "points12" || len(l.Rows) != len(want) {
 		t.Fatalf("rows = %+v", l.Rows)
 	}
 	for i, w := range want {
@@ -162,7 +162,7 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	if l := liveOf(t, e); !l.Sitting.Ended || l.Sitting.SittingID != info.SittingID || len(l.Rows) != 2 || l.Counts.Finished != 2 {
 		t.Errorf("live after the end = %+v, want the ended sitting", l)
 	}
-	want := wire.FinishResult{Grade: 1, Correct: 0, Total: 2}
+	want := wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}
 	if got := finish(t, e, devA); got != want {
 		t.Errorf("Finish after the end = %+v, want %+v", got, want)
 	}
@@ -209,7 +209,7 @@ func TestOverrideChangesResults(t *testing.T) {
 	finish(t, e, devA)
 
 	r := resultsOf(t, e, info.AssignmentID)
-	if r.TestTitle != "Дроби" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].Question.ID != "q1" || *r.Questions[0].CorrectPct != 0 || *r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
+	if r.TestTitle != "Дроби" || r.Scale != "points12" || r.ClassName != "" || !r.ExportStale || len(r.Questions) != 2 || r.Questions[0].Question.ID != "q1" || *r.Questions[0].CorrectPct != 0 || *r.Questions[1].CorrectPct != 50 || r.Questions[0].Correct != 0 || r.Questions[1].Correct != 1 {
 		t.Errorf("results = %+v", r)
 	}
 	if len(r.Rows) != 2 || r.Rows[0].Name != "Франко Учень" || r.Rows[1].Name != p.Name {

@@ -10,7 +10,9 @@ import (
 )
 
 // SittingInfo describes a sitting to the teacher. ClassName is empty when the
-// sitting has no class list. Ended is set once the teacher ended it.
+// sitting has no class list. Ended is set once the teacher ended it. Scale is
+// the kind of the test's grading scale (testfmt.Scale.Kind) that the grades in
+// the live view are on.
 type SittingInfo struct {
 	SittingID     string `json:"sittingId"`
 	AssignmentID  string `json:"assignmentId"`
@@ -20,6 +22,7 @@ type SittingInfo struct {
 	QuestionCount int    `json:"questionCount"`
 	StartedAt     int64  `json:"startedAt"`
 	Ended         bool   `json:"ended"`
+	Scale         string `json:"scale"`
 }
 
 // JoinInfo is what a student device gets for a correct join code. Mode is
@@ -214,13 +217,16 @@ type Status struct {
 }
 
 // FinishResult is the grade a student sees: no correct answers, only how many
-// of Total questions scored full points. Pending is set while a written answer
-// waits for the teacher's points; Grade and Correct count it as 0 until then.
+// of Total questions scored full points. Grade is on the scale kind Scale
+// (testfmt.Scale.Kind) of the test: 1-12, a percent, or 1 for a pass and 0 for
+// a fail. Pending is set while a written answer waits for the teacher's
+// points; Grade and Correct count it as 0 until then.
 type FinishResult struct {
-	Grade   int  `json:"grade"`
-	Correct int  `json:"correct"`
-	Total   int  `json:"total"`
-	Pending bool `json:"pending"`
+	Scale   string `json:"scale"`
+	Grade   int    `json:"grade"`
+	Correct int    `json:"correct"`
+	Total   int    `json:"total"`
+	Pending bool   `json:"pending"`
 }
 
 // LiveSnapshot is the teacher's live view of the running sitting or, until
@@ -252,8 +258,8 @@ type Counts struct {
 // (answered with fewer), "pending" (a written answer the teacher has not
 // graded), "current" (the question after the last one answered, while
 // writing) or "empty". Status is "writing", "offline" or "finished". Grade is
-// set once finished; Pending counts the "pending" cells, which Grade scores as
-// 0.
+// set once finished, on the scale of [SittingInfo.Scale]; Pending counts the
+// "pending" cells, which Grade scores as 0.
 type LiveRow struct {
 	ParticipantID  string   `json:"participantId"`
 	Name           string   `json:"name"`
@@ -270,8 +276,10 @@ type LiveRow struct {
 // assignment, kicked participants left out. Exported is set once an Excel
 // export was written. ExportStale means results changed after the last
 // export, or, before the first one, since the assignment started; only both
-// together mean an exported file is out of date.
+// together mean an exported file is out of date. Scale is the kind of the
+// test's grading scale (testfmt.Scale.Kind) that every ResultRow.Grade is on.
 type AssignmentResults struct {
+	Scale        string           `json:"scale"`
 	AssignmentID string           `json:"assignmentId"`
 	TestTitle    string           `json:"testTitle"`
 	ClassName    string           `json:"className"`
@@ -298,9 +306,10 @@ type ResultQuestion struct {
 	TargetWords []string         `json:"targetWords,omitempty"`
 }
 
-// ResultRow is one participant's result, in Ukrainian order of Name. Points
-// has one entry per question, teacher overrides applied; Overridden lists the
-// ids of the overridden questions. Writing is set while the participant is
+// ResultRow is one participant's result, in Ukrainian order of Name. Grade is
+// on the scale of [AssignmentResults.Scale]. Points has one entry per
+// question, teacher overrides applied; Overridden lists the ids of the
+// overridden questions. Writing is set while the participant is
 // still writing in the running sitting, and DurationSec is 0 until they
 // finish. SittingDate is when the participant's sitting started.
 // Answers maps question id to the answer, for answered questions; Verdicts

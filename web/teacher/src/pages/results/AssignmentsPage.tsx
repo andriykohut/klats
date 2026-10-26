@@ -1,10 +1,11 @@
+import { averageText, gradeBand } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link } from "@tanstack/react-router";
 import { useAssignments } from "../../api/queries";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
-import { band, formatDate, formatPoints } from "../live/journal";
+import { formatDate } from "../live/journal";
 import "../live/journal.css";
 import "./results.css";
 
@@ -63,8 +64,14 @@ export function AssignmentsPage() {
               {a.averageGrade == null ? (
                 <b>—</b>
               ) : (
-                <b data-band={band(Math.round(a.averageGrade))}>
-                  {formatPoints(Math.round(a.averageGrade * 10) / 10, locale)}
+                <b
+                  data-band={
+                    a.scale === "pass"
+                      ? gradeBand("percent", a.averageGrade * 100)
+                      : gradeBand(a.scale, Math.round(a.averageGrade))
+                  }
+                >
+                  {averageText(a.scale, a.averageGrade, locale)}
                 </b>
               )}
             </span>

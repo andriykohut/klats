@@ -338,7 +338,7 @@ func TestFinishGrades(t *testing.T) {
 
 	ch, unsub := hub.Subscribe("device:" + devA)
 	defer unsub()
-	want := wire.FinishResult{Grade: 10, Correct: 8, Total: 9}
+	want := wire.FinishResult{Scale: "points12", Grade: 10, Correct: 8, Total: 9}
 	if got := finish(t, e, devA); got != want {
 		t.Fatalf("Finish = %+v, want %+v", got, want)
 	}
@@ -402,7 +402,7 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 
 	// devA comes back online with the fix it made offline.
 	res := submitPending(t, e, devA, 0, change(pa, "q1", 2, "o0"), change(pa, "q2", 1, "o0"))
-	if res.Rejected != 0 || res.Status.State != "ended" || res.Status.Result == nil || *res.Status.Result != (wire.FinishResult{Grade: 12, Correct: 2, Total: 2}) {
+	if res.Rejected != 0 || res.Status.State != "ended" || res.Status.Result == nil || *res.Status.Result != (wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}) {
 		t.Errorf("late submit = %+v", res)
 	}
 	if a := stored(t, st, info.SittingID, pa.ID, "q1"); a.Seq != 2 || a.Late != 1 {
@@ -463,7 +463,7 @@ func TestResultWithheldUntilSynced(t *testing.T) {
 	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end" {
 		t.Errorf("finished by %q before syncing, want end", by)
 	}
-	want := wire.FinishResult{Grade: 12, Correct: 2, Total: 2}
+	want := wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}
 	if res := submitPending(t, e, devA, 0, change(p, "q2", 1, "o0")); res.Status.Result == nil || *res.Status.Result != want {
 		t.Errorf("status once synced = %+v, want %+v", res.Status, want)
 	}
@@ -477,7 +477,7 @@ func TestResultWithheldUntilSynced(t *testing.T) {
 	}
 
 	// Finishing after the end locks at once.
-	if got := finish(t, e, devB); got != (wire.FinishResult{Grade: 1, Correct: 0, Total: 2}) {
+	if got := finish(t, e, devB); got != (wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}) {
 		t.Errorf("Finish after the end = %+v", got)
 	}
 	submitPending(t, e, devB, 3, change(q, "q1", 1, "o0"))
@@ -568,7 +568,7 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The new device syncs first and is shown the result, which locks p.
-	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != (wire.FinishResult{Grade: 1, Correct: 0, Total: 2}) {
+	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != (wire.FinishResult{Scale: "points12", Grade: 1, Correct: 0, Total: 2}) {
 		t.Fatalf("new device = %+v", s)
 	}
 	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
@@ -582,7 +582,7 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 	if a := stored(t, st, info.SittingID, p.ID, "q1"); a.Seq != 1 || a.Late != 1 {
 		t.Errorf("q1 = %+v, want stored late", a)
 	}
-	want := wire.FinishResult{Grade: 4, Correct: 1, Total: 2}
+	want := wire.FinishResult{Scale: "points12", Grade: 4, Correct: 1, Total: 2}
 	if s := heartbeat(t, e, devB, 0); s.Result == nil || *s.Result != want {
 		t.Errorf("regraded = %+v, want %+v", s, want)
 	}
@@ -738,7 +738,7 @@ func TestEditTestDuringSittingUsesSnapshot(t *testing.T) {
 		t.Errorf("test payload changed with the edit:\n%+v\n%+v", before, after)
 	}
 	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"))
-	if got := finish(t, e, devA); got != (wire.FinishResult{Grade: 12, Correct: 2, Total: 2}) {
+	if got := finish(t, e, devA); got != (wire.FinishResult{Scale: "points12", Grade: 12, Correct: 2, Total: 2}) {
 		t.Errorf("Finish = %+v, want graded against the snapshot", got)
 	}
 	r, err := e.Results(info.AssignmentID)

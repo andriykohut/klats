@@ -1,6 +1,6 @@
 // Package grading scores answers to every question type except written
 // answers, which wait for the teacher's points, and converts a total into the
-// Ukrainian 12-point grade.
+// grade of the test's scale.
 package grading
 
 import (
@@ -96,15 +96,36 @@ func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[stri
 			r.Correct++
 		}
 	}
-	r.Grade = Grade12(r.Earned, r.Max)
+	r.Grade = Grade(t.Settings.Scale, r.Earned, r.Max)
 	return r
 }
 
-// Grade12 maps earned out of max onto 1..12, where grade g needs g/12 of the
-// points. A max of 0 yields 1.
-func Grade12(earned, max float64) int {
-	if max <= 0 {
-		return 1
+// Grade turns earned out of max into a grade of the scale. On
+// [testfmt.ScalePoints12] it is the highest of 2-12 whose threshold the percent
+// reaches, else 1; on [testfmt.ScalePercent] the percent, rounded; on
+// [testfmt.ScalePass] 1 if the percent reaches the pass mark, else 0. A max of
+// 0 grades as 1, 0 and 0.
+func Grade(s testfmt.Scale, earned, max float64) int {
+	pct := 0.0
+	if max > 0 {
+		pct = 100 * earned / max
 	}
-	return int(math.Max(1, math.Floor(12*earned/max+epsilon)))
+	switch s.Kind {
+	case testfmt.ScalePercent:
+		return int(math.Round(pct))
+	case testfmt.ScalePass:
+		if max > 0 && pct+epsilon >= float64(s.Pass) {
+			return 1
+		}
+		return 0
+	}
+	g := 1
+	if max > 0 {
+		for i, th := range s.Thresholds {
+			if pct+epsilon >= float64(th) {
+				g = i + 2
+			}
+		}
+	}
+	return g
 }

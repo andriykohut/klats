@@ -1,4 +1,5 @@
 import type { Event, LiveRow } from "@klats/shared/generated/wire.ts";
+import { gradeText } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { type ReactNode, useState } from "react";
@@ -7,7 +8,6 @@ import { busy, useResolveEvent } from "../../api/queries";
 import { cooldown } from "../../cooldown";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { withBold } from "../../ui/withBold";
-import { SCALE_MAX } from "./journal";
 
 type Tone = "red" | "tang" | "mint" | undefined;
 
@@ -27,6 +27,7 @@ export function EventsPanel(props: {
   rows: LiveRow[];
   who: (name: string) => string;
   hidden: boolean;
+  scale: string;
 }) {
   const resolve = useResolveEvent();
   // The next clash's buttons slide under the pointer once one is resolved.
@@ -49,7 +50,12 @@ export function EventsPanel(props: {
       ) : (
         <ol>
           {props.events.map((ev) => {
-            const { tone, text } = describe(ev, props.who, props.hidden);
+            const { tone, text } = describe(
+              ev,
+              props.who,
+              props.hidden,
+              props.scale,
+            );
             const actions = ev.pinned ? clashActions(ev, props.rows) : [];
             return (
               <li key={ev.id} className="l-ev" data-tone={tone}>
@@ -132,6 +138,7 @@ function describe(
   ev: Event,
   who: (name: string) => string,
   hidden: boolean,
+  scale: string,
 ): { tone: Tone; text: ReactNode } {
   const p = ev.params;
   const name = who(p.name ?? "");
@@ -179,8 +186,7 @@ function describe(
             : withBold(
                 m.ev_finished.parts({
                   name,
-                  grade: p.grade ?? "",
-                  max: SCALE_MAX,
+                  grade: gradeText(scale, Number(p.grade)),
                 }),
                 "l-ev-grade",
               ),

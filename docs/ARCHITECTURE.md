@@ -89,7 +89,7 @@ design follows from where it runs:
 | `internal/demo` | Seeds a sample class, test and running sitting for `klats -dev -demo`. |
 | `internal/desktop` | The Wails shell: window, tray, single instance, save dialog. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
-| `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into the 12-point grade. It covers every question type. |
+| `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into a grade on the test's scale (12-point, percent or pass/fail). It covers every question type. |
 | `internal/httpx` | JSON replies, capped body decoding and the single-page-app file server, shared by both APIs. |
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
 | `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |

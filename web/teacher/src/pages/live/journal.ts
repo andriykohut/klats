@@ -1,7 +1,7 @@
 /*
  * The small rules the class journal shares between the live view and the
- * results: how names shrink for the projector, which achievement level a
- * grade is in, and how a row of cells adds up when it is drawn as one bar.
+ * results: how names shrink for the projector and how a row of cells adds up
+ * when it is drawn as one bar.
  */
 
 /** Above this many questions a row is one bar instead of one cell each. */
@@ -20,16 +20,6 @@ export function initials(name: string): string {
 export function shortName(name: string): string {
   const [surname = "", first] = name.split(/\s+/).filter(Boolean);
   return first ? `${surname} ${first[0]}.` : surname;
-}
-
-/** The four Ukrainian achievement levels: 1–3, 4–6, 7–9 and 10–12. */
-export type Band = "min" | "lo" | "mid" | "hi";
-
-export function band(grade: number): Band {
-  if (grade >= 10) return "hi";
-  if (grade >= 7) return "mid";
-  if (grade >= 4) return "lo";
-  return "min";
 }
 
 /**
@@ -53,15 +43,17 @@ export function tally(states: string[]): {
   return t;
 }
 
+/** Returns the width of the grade column: a pass or a fail is a word. */
+export function gradeWidth(scale: string): number {
+  return scale === "pass" ? 120 : 64;
+}
+
 /** Formats points with up to two decimals in `locale`: «0,5», «1». */
 export function formatPoints(points: number, locale: string): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(
     points,
   );
 }
-
-/** The top grade of the scale every test is graded on in this version. */
-export const SCALE_MAX = 12;
 
 /**
  * Formats the moment `at` (unix ms) in `locale` with `options`, adding the

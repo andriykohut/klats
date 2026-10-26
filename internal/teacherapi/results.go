@@ -37,6 +37,7 @@ func (a *api) listAssignments(w http.ResponseWriter, r *http.Request) {
 			fail(w, r, err)
 			return
 		}
+		s.Scale = res.Scale
 		sum, n := 0, 0
 		for _, rr := range res.Rows {
 			if !rr.Writing && len(rr.PendingIDs) == 0 {

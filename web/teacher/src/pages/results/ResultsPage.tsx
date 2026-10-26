@@ -2,6 +2,7 @@ import type {
   AssignmentResults,
   ResultRow,
 } from "@klats/shared/generated/wire.ts";
+import { gradeBand, gradeText } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link, useParams } from "@tanstack/react-router";
@@ -18,7 +19,7 @@ import {
   JournalTable,
   PendingGrade,
 } from "../live/JournalTable";
-import { band, formatDate, formatPoints } from "../live/journal";
+import { formatDate, formatPoints, gradeWidth } from "../live/journal";
 import { StudentDetail } from "./StudentDetail";
 import "./results.css";
 
@@ -74,7 +75,7 @@ export function ResultsPage() {
     { head: m.col_points(), width: 82, className: "r-col-num" },
     {
       head: m.col_grade(),
-      width: waiting.length > 0 ? 190 : 64,
+      width: waiting.length > 0 ? 190 : gradeWidth(res.scale),
       className: "j-grade",
     },
     { head: m.col_time(), width: 64, className: "r-col-num" },
@@ -157,8 +158,11 @@ export function ResultsPage() {
               {r.pendingIds.length > 0 ? (
                 <PendingGrade />
               ) : (
-                <span className="j-gr" data-band={band(r.grade)}>
-                  {r.grade}
+                <span
+                  className="j-gr"
+                  data-band={gradeBand(res.scale, r.grade)}
+                >
+                  {gradeText(res.scale, r.grade)}
                 </span>
               )}
             </td>,

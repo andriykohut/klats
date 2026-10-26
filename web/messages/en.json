@@ -51,12 +51,12 @@
   "progress_all": "All questions",
   "progress_chip": "{current} / {total}. All questions",
   "finish_title": "Test finished",
-  "finish_grade": "Grade {grade} of 12",
+  "finish_grade": "Grade {grade}",
   "finish_correct": "Correct: {correct} of {total}",
   "finish_sent": "Result sent to the teacher",
   "finish_waiting": "Your work is saved. The grade will appear once the connection is back",
   "finish_pending": "Your teacher will give the grade after checking your work",
-  "finish_announce": "Grade {grade} of 12. Correct: {correct} of {total}",
+  "finish_announce": "Grade {grade}. Correct: {correct} of {total}",
   "toast_offline": "No connection. Your answers are saved",
   "toast_offline_pending": [
     {
@@ -464,7 +464,7 @@
   "ev_online_synced": "{name} is back online. Answers saved during the outage that arrived: {count}.",
   "ev_switch": "{name} switches to another window.",
   "ev_switch_again": "{name} switches to another window again, time {count}.",
-  "ev_finished": "{name} finishes the test: {#b}{grade} of {max}{/b}",
+  "ev_finished": "{name} finishes the test: {#b}{grade}{/b}",
   "ev_late": "{name} sends answers after the test ended: {count}.",
   "ev_unknown": "Test event",
   "board_open": "Open in the browser",
@@ -793,5 +793,12 @@
   "review_word_hit": "found",
   "review_word_extra": "extra",
   "review_word_missed": "missed",
-  "status_pending": "Waiting to be graded"
+  "status_pending": "Waiting to be graded",
+  "grade_pass": "pass",
+  "grade_fail": "fail",
+  "grade_percent": "{n}%",
+  "grade_average_pass": "{percent}% passed",
+  "scale_points12": "12-point",
+  "scale_percent": "Percent",
+  "scale_pass": "Pass / fail"
 }

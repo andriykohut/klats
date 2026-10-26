@@ -130,6 +130,19 @@ func TestExportPendingGrade(t *testing.T) {
 	eq(t, "unanswered row", row(t, f, "Результати", 3, false), []string{"2", "Шевченко Тарас", "7-Б", "0.0", "3.0", "0.0", "3.0", "7", "", "21.10.2026"})
 }
 
+func TestExportGradeScales(t *testing.T) {
+	r := sample()
+	r.Rows[0].Grade, r.Rows[1].Grade = 87, 40
+	r.Scale = testfmt.ScalePercent
+	eq(t, "percent", row(t, open(t, r, "uk"), "Результати", 2, false)[7:8], []string{"87"})
+	r.Rows[0].Grade, r.Rows[1].Grade = 1, 0
+	r.Scale = testfmt.ScalePass
+	f := open(t, r, "uk")
+	eq(t, "pass", row(t, f, "Результати", 2, false)[7:8], []string{"зараховано"})
+	eq(t, "fail", row(t, f, "Результати", 3, false)[7:8], []string{"не зараховано"})
+	eq(t, "en fail", row(t, open(t, r, "en"), "Results", 3, false)[7:8], []string{"fail"})
+}
+
 func TestExportQuestionPctBlankWithoutOne(t *testing.T) {
 	r := sample()
 	r.Questions[0].CorrectPct = nil

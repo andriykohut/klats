@@ -500,7 +500,7 @@ func TestAssignmentsAndResults(t *testing.T) {
 	v := setup(t, false)
 	asg := v.startSitting(t)
 	list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil))
-	if len(list) != 1 || list[0].ID != asg || list[0].TestTitle != "Дроби" || list[0].Participants != 0 || list[0].CreatedAt == 0 || list[0].AverageGrade != nil {
+	if len(list) != 1 || list[0].ID != asg || list[0].TestTitle != "Дроби" || list[0].Scale != "points12" || list[0].Participants != 0 || list[0].CreatedAt == 0 || list[0].AverageGrade != nil {
 		t.Errorf("list = %+v", list)
 	}
 	res := decodeBody[wire.AssignmentResults](t, v.do("GET", "/api/assignments/"+asg+"/results", nil))

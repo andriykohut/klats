@@ -322,11 +322,16 @@
 }
 
 .r-detail-grade {
-  width: 54px;
+  min-width: 54px;
   height: 54px;
   flex: none;
-  border-radius: 50%;
+  padding: 0 14px;
+  border-radius: 27px;
   font-size: 22px;
+}
+
+.r-detail-grade[data-scale="pass"] {
+  font-size: 15px;
 }
 
 .r-qs {

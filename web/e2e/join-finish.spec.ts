@@ -17,7 +17,7 @@ test("a student joins by the code, answers three questions and finishes", async 
   await student.getByRole("button", { name: m.test_finish() }).click();
   await student.getByRole("button", { name: m.review_finish() }).click();
 
-  // grading.Grade12: floor(12 × earned / max), at least 1.
+  // grading.Grade on the default scale: 2 of 4 points is 50 %, and grade 6 starts at 50 %.
   const grade = Math.max(1, Math.floor((12 * 2) / 4));
   await expect(
     student.getByRole("img", { name: m.finish_grade({ grade }) }),
@@ -31,6 +31,42 @@ test("a student joins by the code, answers three questions and finishes", async 
     teacher.getByText(new RegExp(`^1\\s*${m.live_finished()}$`)),
   ).toBeVisible();
 });
+
+const THRESHOLDS = [16, 25, 33, 41, 50, 58, 66, 75, 83, 91, 100];
+const SCALES = [
+  { kind: "percent", pass: 60, grade: () => m.grade_percent({ n: 50 }) },
+  { kind: "pass", pass: 50, grade: () => m.grade_pass() },
+  { kind: "pass", pass: 51, grade: () => m.grade_fail() },
+];
+
+for (const scale of SCALES) {
+  test(`the finish screen shows a ${scale.kind} grade of 50 % with a pass mark of ${scale.pass}`, async ({
+    klats,
+  }) => {
+    const { code } = await klats.start(TEST, {
+      settings: {
+        scale: { kind: scale.kind, thresholds: THRESHOLDS, pass: scale.pass },
+      },
+    });
+    const student = await klats.computer();
+    const [q1, q2, q3] = TEST;
+
+    await joinAs(student, klats, code, CLASS[0]);
+    await pick(student, q1, "8");
+    await student.getByRole("button", { name: m.test_next() }).click();
+    await pick(student, q2, "Клавіатура");
+    await student.getByRole("button", { name: m.test_next() }).click();
+    await pick(student, q3, "Excel");
+    await student.getByRole("button", { name: m.test_finish() }).click();
+    await student.getByRole("button", { name: m.review_finish() }).click();
+
+    await expect(
+      student.getByRole("img", {
+        name: m.finish_grade({ grade: scale.grade() }),
+      }),
+    ).toBeVisible();
+  });
+}
 
 test("a second tab waits, and takes the test over once the first is closed", async ({
   klats,

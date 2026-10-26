@@ -389,6 +389,7 @@ func (a *active) info() wire.SittingInfo {
 		QuestionCount: len(a.test.Questions),
 		StartedAt:     a.sitting.StartedAt,
 		Ended:         a.sitting.EndedAt.Valid,
+		Scale:         a.test.Settings.Scale.Kind,
 	}
 }
 

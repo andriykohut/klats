@@ -5,8 +5,14 @@ import { Button } from "react-aria-components";
 import { Icon } from "../../ui/icons";
 import { EndDialog } from "./EndDialog";
 
+const SCALE_NAMES = {
+  points12: m.scale_points12,
+  percent: m.scale_percent,
+  pass: m.scale_pass,
+};
+
 /**
- * The live view's own bar: the test, its class and question count, the join
+ * The live view's own bar: the test, its class, question count and scale, the join
  * code with «Показати на дошці», and «Завершити тест». Once the sitting has
  * ended, the code goes and the button opens the results instead. The mark
  * leads back to «Мої тести».
@@ -20,6 +26,7 @@ export function LiveTopBar(props: {
   const about = [
     s.className,
     m.builder_count_questions({ count: s.questionCount }),
+    SCALE_NAMES[s.scale as keyof typeof SCALE_NAMES]?.(),
   ]
     .filter(Boolean)
     .join(", ");

@@ -4,6 +4,7 @@ import type {
   ResultQuestion,
   ResultRow,
 } from "@klats/shared/generated/wire.ts";
+import { gradeBand, gradeText } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { type RichDoc, RichView } from "@klats/shared/rich/RichView.tsx";
@@ -21,7 +22,7 @@ import {
 } from "react-aria-components";
 import { busy, useSetOverride } from "../../api/queries";
 import { Icon } from "../../ui/icons";
-import { band, formatDate, formatPoints } from "../live/journal";
+import { formatDate, formatPoints } from "../live/journal";
 import { AnswerReview } from "./AnswerReview";
 
 /**
@@ -58,9 +59,14 @@ export function StudentDetail(props: {
             <header className="r-detail-head">
               <span
                 className="j-gr r-detail-grade"
-                data-band={pending ? undefined : band(row.grade)}
+                data-scale={props.results.scale}
+                data-band={
+                  pending
+                    ? undefined
+                    : gradeBand(props.results.scale, row.grade)
+                }
               >
-                {pending ? "—" : row.grade}
+                {pending ? "—" : gradeText(props.results.scale, row.grade)}
               </span>
               <div>
                 <Heading slot="title">{row.name}</Heading>

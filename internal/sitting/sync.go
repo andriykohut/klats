@@ -463,5 +463,5 @@ func (a *active) grade(p *participant) grading.Result {
 
 func (a *active) finishResult(p *participant) wire.FinishResult {
 	r := a.grade(p)
-	return wire.FinishResult{Grade: r.Grade, Correct: r.Correct, Total: len(a.test.Questions), Pending: r.Pending > 0}
+	return wire.FinishResult{Scale: a.test.Settings.Scale.Kind, Grade: r.Grade, Correct: r.Correct, Total: len(a.test.Questions), Pending: r.Pending > 0}
 }

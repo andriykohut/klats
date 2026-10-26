@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
 import {
-  band,
   formatDate,
   formatPoints,
   initials,
@@ -19,19 +18,6 @@ test("a short name keeps the surname and the first name's initial", () => {
   expect(shortName("Бондар Олена")).toBe("Бондар О.");
   expect(shortName("Бондар")).toBe("Бондар");
   expect(shortName("Ткачук Святослав Петрович")).toBe("Ткачук С.");
-});
-
-test("grades fall into the four achievement levels", () => {
-  expect([1, 3, 4, 6, 7, 9, 10, 12].map(band)).toEqual([
-    "min",
-    "min",
-    "lo",
-    "lo",
-    "mid",
-    "mid",
-    "hi",
-    "hi",
-  ]);
 });
 
 test("a tally counts good, bad and answered cells and what is left", () => {

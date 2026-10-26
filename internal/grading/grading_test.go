@@ -65,7 +65,7 @@ func TestTotalOverrideReplacesScore(t *testing.T) {
 	q1, q2, q3 := q("single", false, "a"), q("single", false, "a"), q("single", false, "a")
 	q1.ID, q2.ID, q3.ID = "q1", "q2", "q3"
 	q2.Points, q3.Points = 2, 2
-	test := testfmt.Test{Questions: []testfmt.Question{q1, q2, q3}}
+	test := testfmt.Test{Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{q1, q2, q3}}
 
 	r := Total(test, map[string]testfmt.Answer{"q1": {Items: []string{"a"}}, "q2": {Items: []string{"b"}}}, map[string]float64{"q2": 0.5, "q3": 2})
 
@@ -89,15 +89,25 @@ func TestTotalUnanswered(t *testing.T) {
 	}
 }
 
-func TestGrade12(t *testing.T) {
+func TestGradeScales(t *testing.T) {
+	def := testfmt.DefaultSettings().Scale
+	custom := testfmt.Scale{Kind: "points12", Thresholds: []int{5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95}}
+	pct, pass := testfmt.Scale{Kind: "percent"}, testfmt.Scale{Kind: "pass", Pass: 60}
 	for _, c := range []struct {
+		s           testfmt.Scale
 		earned, max float64
 		want        int
-	}{{9, 9, 12}, {8, 9, 10}, {11, 12, 11}, {2, 12, 2}, {1, 12, 1}, {0, 9, 1}, {0, 0, 1},
+	}{
+		{def, 0, 12, 1}, {def, 2, 12, 2}, {def, 4, 12, 4}, {def, 11, 12, 11}, {def, 11.9, 12, 11}, {def, 12, 12, 12}, {def, 0, 0, 1},
+		{def, 9, 9, 12}, {def, 8, 9, 10}, {def, 1, 12, 1}, {def, 0, 9, 1},
 		// 12 × earned / max lands just below the boundary in float64.
-		{3.3, 3.6, 11}, {0.6, 3.6, 2}} {
-		if got := Grade12(c.earned, c.max); got != c.want {
-			t.Errorf("Grade12(%v, %v) = %d, want %d", c.earned, c.max, got, c.want)
+		{def, 3.3, 3.6, 11}, {def, 0.6, 3.6, 2},
+		{custom, 9.6, 10, 12}, {custom, 9.4, 10, 11},
+		{pct, 7, 8, 88}, {pct, 0, 5, 0}, {pct, 0, 0, 0},
+		{pass, 5.99, 10, 0}, {pass, 6, 10, 1}, {pass, 0, 0, 0},
+	} {
+		if got := Grade(c.s, c.earned, c.max); got != c.want {
+			t.Errorf("Grade(%s, %v, %v) = %d, want %d", c.s.Kind, c.earned, c.max, got, c.want)
 		}
 	}
 }
