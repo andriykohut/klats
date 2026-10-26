@@ -147,6 +147,20 @@ function Builder({ doc }: { doc: TestDoc }) {
     return () => document.body.classList.remove("b-body");
   }, []);
 
+  // A file dropped outside a field that takes it would be opened by the
+  // webview in place of the builder, losing the edits not yet saved.
+  useEffect(() => {
+    const keep = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+    };
+    document.addEventListener("dragover", keep);
+    document.addEventListener("drop", keep);
+    return () => {
+      document.removeEventListener("dragover", keep);
+      document.removeEventListener("drop", keep);
+    };
+  }, []);
+
   // shortcut: closing the window within 400 ms of an edit, or while saves
   // fail, drops those edits. Save on pagehide too if teachers lose edits that way.
   useEffect(() => {

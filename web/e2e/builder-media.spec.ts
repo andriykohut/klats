@@ -269,3 +269,24 @@ test("a picture pasted into the text splits the paragraph at the caret", async (
     })
     .toEqual(["paragraph", "image", "paragraph"]);
 });
+
+test("a file dropped on an option row, away from any picture field, is not opened by the browser", async ({
+  klats,
+}) => {
+  const page = await newQuestion(klats);
+  const prevented = await page
+    .locator(".b-opt")
+    .first()
+    .evaluate((el) => {
+      const data = new DataTransfer();
+      data.items.add(new File(["x"], "shot.png", { type: "image/png" }));
+      const init = { dataTransfer: data, bubbles: true, cancelable: true };
+      const over = new DragEvent("dragover", init);
+      const drop = new DragEvent("drop", init);
+      el.dispatchEvent(over);
+      el.dispatchEvent(drop);
+      return [over.defaultPrevented, drop.defaultPrevented];
+    });
+  expect(prevented).toEqual([true, true]);
+  await expect(page).toHaveURL(/\/tests\/.+/);
+});
