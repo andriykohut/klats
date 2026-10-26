@@ -184,8 +184,12 @@
   overflow: visible;
 }
 
+/* The system WebKit of the macOS desktop window (macOS 26.6) does not position
+   a row's absolute children against a relative row, so each name's overlay
+   would cover the whole window; a transform makes the row their box there. */
 .j-table[data-variant="results"] tbody tr {
   position: relative;
+  transform: translate(0);
 }
 
 .j-table[data-variant="results"] tbody tr:hover td {
