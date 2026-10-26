@@ -91,6 +91,7 @@ design follows from where it runs:
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
 | `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into a grade on the test's scale (12-point, percent or pass/fail). It covers every question type. |
 | `internal/httpx` | JSON replies, capped body decoding and the single-page-app file server, shared by both APIs. |
+| `internal/klatsfile` | Reads and writes `.klats` files, the zips teachers share tests in: `test.json` and the media the test uses. It is the trust boundary for opened tests. |
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
 | `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |
 | `internal/power` | Keeps the computer awake while a sitting runs, using each OS's own mechanism. |
@@ -398,6 +399,13 @@ Students may have the address bookmarked.
   anything else is refused. Images are capped at 5 MiB and audio at 10 MiB.
   Files are served by their content-hash name only, with the type the store
   chose and `nosniff`.
+- **Opened files are untrusted.**
+  - `internal/klatsfile` checks a whole `.klats` file before it stores
+    anything. Only `test.json` and `media/<media name>` entries are allowed.
+    The file is capped at 256 MiB, `test.json` at 4 MiB and the entries at
+    2,000, and each entry is read through its cap, whatever size the zip
+    claims. `test.json` must pass `testfmt.Decode`, and each media file must
+    hash to its name and then pass the media store's sniffing and caps.
 - **Correct answers never reach students.**
   - The test a device loads has no correct flags and no points.
   - Grading happens only on the server.
