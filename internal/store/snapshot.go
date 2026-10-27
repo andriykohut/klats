@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -16,15 +17,9 @@ import (
 // oldest snapshots so that at most keep remain. File names are UTC and
 // zero-padded, so name order is chronological; a name that already exists is
 // bumped by a nanosecond, which keeps rapid snapshots distinct and ordered.
+// An old snapshot it fails to delete, such as one an antivirus holds open, is
+// logged; only a failure to write the copy is returned.
 func (s *Store) Snapshot(dir string, keep int) error {
-	if err := s.snapshot(dir); err != nil {
-		return err
-	}
-	return prune(dir, keep)
-}
-
-// snapshot is [Store.Snapshot] without the pruning.
-func (s *Store) snapshot(dir string) error {
 	snaps := filepath.Join(dir, "snapshots")
 	if err := os.MkdirAll(snaps, 0o700); err != nil {
 		return err
@@ -38,7 +33,13 @@ func (s *Store) snapshot(dir string) error {
 		}
 		now = now.Add(time.Nanosecond)
 	}
-	return s.CopyTo(path)
+	if err := s.CopyTo(path); err != nil {
+		return err
+	}
+	if err := prune(dir, keep); err != nil {
+		slog.Error("store: old snapshots not pruned", "err", err)
+	}
+	return nil
 }
 
 // CopyTo writes a consistent copy of the database to path (VACUUM INTO). The

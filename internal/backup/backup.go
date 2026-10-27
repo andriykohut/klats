@@ -28,6 +28,10 @@ import (
 	"klats/internal/testfmt"
 )
 
+// MaxBytes is the largest backup file: a restore takes no larger one, so
+// [Write] refuses to write one.
+const MaxBytes = 2 << 30
+
 const (
 	dbEntry = "klats.db"
 
@@ -40,8 +44,8 @@ const (
 	// maxMediaBytes is the media store's largest cap, the one for audio.
 	maxMediaBytes = 10 << 20
 	// maxMediaTotal caps the bytes that the media of a small, deflated file
-	// can inflate to on disk. Write stores media uncompressed, so a backup it
-	// wrote that is small enough to restore stays under it.
+	// can inflate to on disk. Write stores media uncompressed and stops at
+	// MaxBytes, so a backup it wrote stays under it.
 	maxMediaTotal = 2 << 30
 )
 
@@ -52,6 +56,8 @@ var (
 	// ErrTooNew is returned by [Prepare] for a backup that a newer version of
 	// the program made.
 	ErrTooNew = errors.New("backup: made by a newer version")
+	// ErrTooLarge is returned by [Write] for a backup over [MaxBytes].
+	ErrTooLarge = errors.New("backup: over the largest backup a restore takes")
 )
 
 // diskFaults are the SQLite result codes that blame the computer rather than
@@ -62,7 +68,9 @@ var diskFaults = []int{sqlite3.SQLITE_IOERR, sqlite3.SQLITE_FULL, sqlite3.SQLITE
 // database, deflated, and media/<name>, uncompressed, for each file that a
 // test or an assignment's snapshot in that copy uses. A used file missing from
 // ms is logged and left out. The copy is made in a temporary folder in tmpDir,
-// removed before Write returns. w may hold part of the file when Write fails.
+// removed before Write returns. Write stops with an error wrapping
+// [ErrTooLarge] once the file passes [MaxBytes]. w may hold part of the file
+// when Write fails.
 func Write(w io.Writer, st *store.Store, ms *media.Store, tmpDir string) error {
 	dir, err := os.MkdirTemp(tmpDir, "backup-*")
 	if err != nil {
@@ -77,7 +85,7 @@ func Write(w io.Writer, st *store.Store, ms *media.Store, tmpDir string) error {
 	if err != nil {
 		return err
 	}
-	zw := zip.NewWriter(w)
+	zw := zip.NewWriter(&capped{w: w, left: MaxBytes})
 	if err := addDB(zw, path); err != nil {
 		return err
 	}
@@ -95,6 +103,20 @@ func Write(w io.Writer, st *store.Store, ms *media.Store, tmpDir string) error {
 		return fmt.Errorf("backup: %w", err)
 	}
 	return nil
+}
+
+// capped passes writes on to w until they come to more than left bytes in
+// all, and from then on fails them with [ErrTooLarge].
+type capped struct {
+	w    io.Writer
+	left int64
+}
+
+func (c *capped) Write(p []byte) (int, error) {
+	if c.left -= int64(len(p)); c.left < 0 {
+		return 0, ErrTooLarge
+	}
+	return c.w.Write(p)
 }
 
 // addDB writes the database file at path to zw as klats.db, deflated.

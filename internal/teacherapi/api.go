@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"klats/internal/backup"
 	"klats/internal/config"
 	"klats/internal/events"
 	"klats/internal/httpx"
@@ -36,8 +37,6 @@ const (
 	// maxKlatsBytes is the largest .klats file [klatsfile.Read] opens.
 	maxKlatsBytes     = 256 << 20
 	maxFileTitleRunes = 80
-	// maxBackupBytes is the largest backup a restore takes.
-	maxBackupBytes = 2 << 30
 )
 
 // Dialogs asks the teacher where to save a file, through the desktop window.
@@ -179,6 +178,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.Error(w, http.StatusNotFound, "not_found")
 	case errors.Is(err, testfmt.ErrTooNew):
 		httpx.Error(w, http.StatusUnprocessableEntity, "test_too_new")
+	case errors.Is(err, backup.ErrTooLarge):
+		httpx.Error(w, http.StatusUnprocessableEntity, "too_large")
 	default:
 		slog.Error("teacherapi: request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 		httpx.Error(w, http.StatusInternalServerError, "internal")

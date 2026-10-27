@@ -22,6 +22,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"klats/internal/backup"
 	"klats/internal/config"
 	"klats/internal/events"
 	"klats/internal/lan"
@@ -1220,6 +1221,37 @@ func TestDownloadWriteFailure(t *testing.T) {
 	v.noTemps(t)
 }
 
+// A backup over the cap is a 422, whether saved through the dialog or
+// downloaded, and leaves no file behind.
+func TestDeliverTooLarge(t *testing.T) {
+	for _, withDialogs := range []bool{false, true} {
+		v := setup(t, withDialogs)
+		a := &api{tmpDir: filepath.Join(v.dir, "tmp")}
+		out := t.TempDir()
+		if withDialogs {
+			v.dialogs.path = filepath.Join(out, "out.klatsbackup")
+			a.dialogs = v.dialogs
+		}
+		w := httptest.NewRecorder()
+		a.deliver(w, v.req("POST", "/", nil), "x.klatsbackup", "application/octet-stream", func(io.Writer) error {
+			return fmt.Errorf("backup: %w", backup.ErrTooLarge)
+		}, nil)
+		wantError(t, w, 422, "too_large")
+		v.noTemps(t)
+		if left, _ := os.ReadDir(out); len(left) != 0 {
+			t.Errorf("dialogs %v: %v left next to the chosen path", withDialogs, left)
+		}
+	}
+}
+
+// unread fails the test if the request body is read.
+type unread struct{ t *testing.T }
+
+func (u unread) Read([]byte) (int, error) {
+	u.t.Error("the request body was read")
+	return 0, io.EOF
+}
+
 func TestBackupRestore(t *testing.T) {
 	v := setup(t, false)
 	id := v.pictureTest(t, "Дроби")
@@ -1229,15 +1261,18 @@ func TestBackupRestore(t *testing.T) {
 	if cd := w.Header().Get("Content-Disposition"); !strings.Contains(cd, "filename*=UTF-8''"+url.PathEscape(name)) {
 		t.Errorf("Content-Disposition = %q, want the file name %q", cd, name)
 	}
-	backup := w.Body.Bytes()
+	file := w.Body.Bytes()
 	v.noTemps(t)
 
 	later := v.saveTest(t, goodTest(""))
 	wantStatus(t, v.do("POST", "/api/sittings", wire.StartRequest{TestID: later}), 201)
-	wantError(t, v.do("POST", "/api/backup/restore", backup), 409, "sitting_active")
+	wantError(t, v.do("POST", "/api/backup", nil), 409, "sitting_active")
+	r := v.req("POST", "/api/backup/restore", nil)
+	r.Body = io.NopCloser(unread{t})
+	wantError(t, v.serve(r), 409, "sitting_active")
 	wantStatus(t, v.do("POST", "/api/sittings/current/end", nil), 204)
 
-	wantStatus(t, v.do("POST", "/api/backup/restore", backup), 204)
+	wantStatus(t, v.do("POST", "/api/backup/restore", file), 204)
 	tests := decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil))
 	if len(tests) != 1 || tests[0].ID != id || tests[0].Title != "Дроби" {
 		t.Errorf("tests after the restore = %+v, want only %s", tests, id)
@@ -1290,7 +1325,7 @@ func TestRestoreRefuses(t *testing.T) {
 	wantError(t, v.do("POST", "/api/backup/restore", buf.Bytes()), 422, "backup_too_new")
 
 	r := v.req("POST", "/api/backup/restore", nil)
-	r.ContentLength = maxBackupBytes + 1
+	r.ContentLength = backup.MaxBytes + 1
 	wantError(t, v.serve(r), 413, "too_large")
 
 	if tests := decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil)); len(tests) != 1 || tests[0].ID != id {

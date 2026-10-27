@@ -302,6 +302,45 @@ func TestBackupRoundTrip(t *testing.T) {
 	}
 }
 
+// counter counts the bytes written to it.
+type counter int64
+
+func (c *counter) Write(p []byte) (int, error) {
+	*c += counter(len(p))
+	return len(p), nil
+}
+
+// A backup that a restore would refuse as too large is refused before w gets
+// more than MaxBytes.
+func TestBackupTooLarge(t *testing.T) {
+	a := newFolder(t)
+	name := strings.Repeat("ab", 32) + ".mp3"
+	// Sparse, so the test writes no 2 GiB.
+	f, err := os.Create(filepath.Join(a.mediaDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(MaxBytes); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.st.Q().InsertTest(context.Background(), db.InsertTestParams{ID: "t1", Title: "Т", Doc: testDoc(1, name)}); err != nil {
+		t.Fatal(err)
+	}
+	var n counter
+	if err := Write(&n, a.st, a.ms, a.tmp); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("Write = %v, want ErrTooLarge", err)
+	}
+	if n > MaxBytes {
+		t.Errorf("Write wrote %d bytes, over the %d cap", n, MaxBytes)
+	}
+	if got := names(t, a.tmp); len(got) != 0 {
+		t.Errorf("tmp holds %v, want nothing", got)
+	}
+}
+
 // Write leaves out a used file the media store lacks, and the backup still
 // restores.
 func TestBackupMissingMedia(t *testing.T) {

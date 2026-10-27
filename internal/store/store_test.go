@@ -198,6 +198,26 @@ func TestSnapshotKeepsNewest(t *testing.T) {
 	}
 }
 
+// An old snapshot that cannot be deleted, as one an antivirus holds open on
+// Windows, is logged, and the new snapshot still counts as taken.
+func TestSnapshotPastStuckOldOnes(t *testing.T) {
+	s := openTemp(t)
+	dir := t.TempDir()
+	// A non-empty folder under a snapshot's name fails os.Remove.
+	for i := range SnapshotsKeep {
+		stuck := filepath.Join(dir, "snapshots", fmt.Sprintf("klats-00000000-000000-%09d.db", i), "x")
+		if err := os.MkdirAll(stuck, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Snapshot(dir, SnapshotsKeep); err != nil {
+		t.Fatalf("Snapshot = %v, want nil despite the stuck snapshots", err)
+	}
+	if files := snapshotFiles(t, filepath.Join(dir, "klats.db")); len(files) != SnapshotsKeep+1 {
+		t.Errorf("got %d snapshots, want the %d stuck ones and the new one", len(files), SnapshotsKeep)
+	}
+}
+
 // migrationSets returns the embedded migrations alone (v1) and extended with a
 // second migration (v2), to simulate a database one release behind.
 func migrationSets(t *testing.T) (v1, v2 fs.FS) {

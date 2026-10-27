@@ -114,14 +114,8 @@ func (s *Store) migrate(path string, migrations fs.FS) error {
 		return fmt.Errorf("%w (database version %d, program version %d)", ErrSchemaTooNew, current, latest)
 	}
 	if current > 0 && current < latest {
-		dir := filepath.Dir(path)
-		if err := s.snapshot(dir); err != nil {
+		if err := s.Snapshot(filepath.Dir(path), SnapshotsKeep); err != nil {
 			return err
-		}
-		// An old snapshot that cannot be deleted, such as one an antivirus
-		// holds open, must not keep the program from starting.
-		if err := prune(dir, SnapshotsKeep); err != nil {
-			slog.Error("store: old snapshots not pruned", "err", err)
 		}
 	}
 	_, err = provider.Up(ctx)

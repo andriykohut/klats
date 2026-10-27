@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"klats/internal/backup"
 	"klats/internal/httpx"
 	"klats/internal/store/db"
 	"klats/internal/wire"
@@ -105,7 +106,8 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 // With Dialogs the teacher picks the path in the save dialog, and the file
 // replaces it whole (see [replaceFile]). The reply is the
 // [wire.ExportResult], a 204 for a cancelled dialog, or a 409 "write_failed"
-// when the file cannot be written.
+// when the file cannot be written. Either way, a backup over
+// [backup.MaxBytes] is a 422 "too_large".
 //
 // Without Dialogs the file is written to a temporary file in the temp folder
 // first, then sent as a download of contentType with its Content-Length. A
@@ -133,6 +135,10 @@ func (a *api) deliver(w http.ResponseWriter, r *http.Request, name, contentType 
 		return
 	}
 	if err := replaceFile(path, write); err != nil {
+		if errors.Is(err, backup.ErrTooLarge) {
+			fail(w, r, err)
+			return
+		}
 		slog.Warn("teacherapi: export not written", "err", err)
 		httpx.Error(w, http.StatusConflict, "write_failed")
 		return

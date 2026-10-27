@@ -431,8 +431,9 @@ Students may have the address bookmarked.
     nothing until `klats.db` has opened (migrated if older), passed
     `PRAGMA integrity_check` and had every test and assignment snapshot pass
     `testfmt.Decode`, and every used media entry has hashed to its name.
-    The restore copies columns by name, so the rows checked are the rows
-    copied.
+    Beyond those checks and the database's own constraints, which every
+    restored row must meet, a backup is trusted as the teacher's own file:
+    nothing guards against one crafted by hand.
 - **Correct answers never reach students.**
   - The test a device loads has no correct flags and no points.
   - Grading happens only on the server.
@@ -581,6 +582,12 @@ current webview.
   A backup from a newer version is a 422 `backup_too_new`, and one that is
   not a valid backup a 422 `file_damaged`. A failure of the disk or the
   media folder is a 500.
+
+  Both routes are refused while a sitting runs (409 `sitting_active`): a
+  backup made then would restore with the sitting still running, and a
+  restore checks before it reads the body as well as under the lock. A
+  backup that would come to over 2 GiB, which a restore would refuse, is
+  stopped as it is written and is a 422 `too_large`.
 
 ## Languages
 

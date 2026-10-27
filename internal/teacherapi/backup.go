@@ -14,7 +14,14 @@ import (
 
 // backup sends a backup of all the data through [api.deliver], named
 // «Клац — резервна копія — YYYY-MM-DD.klatsbackup» after today's local date.
+// While a sitting runs it is a 409 "sitting_active", since its restore would
+// bring the sitting back running; one over [backup.MaxBytes], which a restore
+// would refuse, is a 422 "too_large".
 func (a *api) backup(w http.ResponseWriter, r *http.Request) {
+	if a.eng.Active() {
+		httpx.Error(w, http.StatusConflict, "sitting_active")
+		return
+	}
 	name := "Клац — резервна копія — " + time.Now().Format(time.DateOnly) + ".klatsbackup"
 	a.deliver(w, r, name, "application/octet-stream", func(w io.Writer) error {
 		return backup.Write(w, a.st, a.media, a.tmpDir)
@@ -29,7 +36,13 @@ func (a *api) backup(w http.ResponseWriter, r *http.Request) {
 // version a 422 "backup_too_new". The media of a refused backup may still be
 // stored.
 func (a *api) restore(w http.ResponseWriter, r *http.Request) {
-	tmp, _, ok := a.spool(w, r, maxBackupBytes)
+	// Spooling and preparing a large file takes minutes, so a running sitting
+	// is refused before them as well as under the engine's lock.
+	if a.eng.Active() {
+		httpx.Error(w, http.StatusConflict, "sitting_active")
+		return
+	}
+	tmp, _, ok := a.spool(w, r, backup.MaxBytes)
 	if !ok {
 		return
 	}
