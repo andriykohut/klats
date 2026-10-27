@@ -271,6 +271,25 @@ func TestDemo(t *testing.T) {
 	}
 }
 
+// What a crashed run left in tmp/, such as a half-written restore, is gone
+// once the next run is up.
+func TestStartEmptiesTheTempFolder(t *testing.T) {
+	stubs(t)
+	dataDir := t.TempDir()
+	left := filepath.Join(dataDir, "tmp", "restore-1", "klats.db")
+	if err := os.MkdirAll(filepath.Dir(left), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(left, []byte("partial"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := startDev(t, dataDir, "-port", "0")
+	defer d.stop(t)
+	if entries, err := os.ReadDir(filepath.Join(dataDir, "tmp")); err != nil || len(entries) != 0 {
+		t.Errorf("tmp holds %v, %v; want it empty", entries, err)
+	}
+}
+
 func TestFirstRunSavesTheChosenPort(t *testing.T) {
 	stubs(t)
 	dataDir := t.TempDir()

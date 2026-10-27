@@ -5,6 +5,9 @@ VALUES (?, ?, ?, ?, ?, ?);
 -- name: GetAssignment :one
 SELECT * FROM assignments WHERE id = ?;
 
+-- name: ListAssignmentSnapshots :many
+SELECT test_snapshot FROM assignments;
+
 -- name: InsertSitting :exec
 INSERT INTO sittings (id, assignment_id, join_code, started_at, ends_at) VALUES (?, ?, ?, ?, ?);
 

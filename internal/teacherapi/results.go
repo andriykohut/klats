@@ -2,6 +2,7 @@ package teacherapi
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -106,7 +107,7 @@ func (a *api) export(w http.ResponseWriter, r *http.Request) {
 // [wire.ExportResult], a 204 for a cancelled dialog, or a 409 "write_failed"
 // when the file cannot be written.
 //
-// Without Dialogs the file is written to a temporary file in the data folder
+// Without Dialogs the file is written to a temporary file in the temp folder
 // first, then sent as a download of contentType with its Content-Length. A
 // write that fails partway is a 500, never a short file the browser keeps,
 // and a file of any size stays out of memory.
@@ -145,15 +146,12 @@ func (a *api) deliver(w http.ResponseWriter, r *http.Request, name, contentType 
 
 // download is [api.deliver] without Dialogs.
 func (a *api) download(w http.ResponseWriter, r *http.Request, name, contentType string, write func(io.Writer) error, saved func() error) {
-	tmp, err := os.CreateTemp(a.dataDir, ".download-*.tmp")
+	tmp, err := os.CreateTemp(a.tmpDir, "download-*.tmp")
 	if err != nil {
 		fail(w, r, err)
 		return
 	}
-	defer func() {
-		_ = tmp.Close()
-		_ = os.Remove(tmp.Name())
-	}()
+	defer removeTemp(tmp)
 	if err := write(tmp); err != nil {
 		fail(w, r, err)
 		return
@@ -173,6 +171,41 @@ func (a *api) download(w http.ResponseWriter, r *http.Request, name, contentType
 	if err := saved(); err != nil {
 		slog.Error("teacherapi: after a download", "err", err)
 	}
+}
+
+// spool copies the request body, capped at limit bytes, to a temporary file in
+// the temp folder and returns the file and its size. A body over the cap,
+// declared or read, gets a 413 "too_large", and any other failure the reply
+// for its error; spool then returns ok false and leaves no file. Otherwise
+// the caller removes the file with [removeTemp].
+func (a *api) spool(w http.ResponseWriter, r *http.Request, limit int64) (f *os.File, size int64, ok bool) {
+	if r.ContentLength > limit {
+		httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large")
+		return nil, 0, false
+	}
+	f, err := os.CreateTemp(a.tmpDir, "spool-*.tmp")
+	if err != nil {
+		fail(w, r, err)
+		return nil, 0, false
+	}
+	size, err = io.Copy(f, http.MaxBytesReader(w, r.Body, limit))
+	var tooBig *http.MaxBytesError
+	switch {
+	case errors.As(err, &tooBig):
+		httpx.Error(w, http.StatusRequestEntityTooLarge, "too_large")
+	case err != nil:
+		fail(w, r, err)
+	default:
+		return f, size, true
+	}
+	removeTemp(f)
+	return nil, 0, false
+}
+
+// removeTemp closes and removes the temporary file f.
+func removeTemp(f *os.File) {
+	_ = f.Close()
+	_ = os.Remove(f.Name())
 }
 
 // clearStale records that the assignment was exported, and clears its

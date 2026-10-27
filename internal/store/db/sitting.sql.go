@@ -401,6 +401,33 @@ func (q *Queries) ListAssignmentSittings(ctx context.Context, assignmentID strin
 	return items, nil
 }
 
+const listAssignmentSnapshots = `-- name: ListAssignmentSnapshots :many
+SELECT test_snapshot FROM assignments
+`
+
+func (q *Queries) ListAssignmentSnapshots(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listAssignmentSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var test_snapshot string
+		if err := rows.Scan(&test_snapshot); err != nil {
+			return nil, err
+		}
+		items = append(items, test_snapshot)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAssignments = `-- name: ListAssignments :many
 SELECT a.id,
        CAST(json_extract(a.test_snapshot, '$.title') AS TEXT) AS test_title,

@@ -38,8 +38,14 @@ func (s *Store) snapshot(dir string) error {
 		}
 		now = now.Add(time.Nanosecond)
 	}
+	return s.CopyTo(path)
+}
+
+// CopyTo writes a consistent copy of the database to path (VACUUM INTO). The
+// file at path must not exist, or must be empty.
+func (s *Store) CopyTo(path string) error {
 	if _, err := s.conn.ExecContext(context.Background(), "VACUUM INTO ?", path); err != nil {
-		return fmt.Errorf("store: snapshot: %w", err)
+		return fmt.Errorf("store: copy to %s: %w", path, err)
 	}
 	return nil
 }

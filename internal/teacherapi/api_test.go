@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -91,8 +92,11 @@ func setup(t *testing.T, withDialogs bool, tweak ...func(*Deps)) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Mkdir(filepath.Join(dir, "tmp"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	d := Deps{
-		Store: st, Engine: e, Hub: hub, Media: ms, Token: token, Port: port, DataDir: dir,
+		Store: st, Engine: e, Hub: hub, Media: ms, Token: token, Port: port, DataDir: dir, TempDir: filepath.Join(dir, "tmp"),
 		Assets:   fstest.MapFS{"index.html": {Data: []byte("<html>teacher</html>")}},
 		Settings: &config.Settings{Port: 8080, Language: "uk"}, LANPort: 8080,
 		Interfaces: func() []lan.Iface {
@@ -1050,10 +1054,10 @@ func (v *env) testCount(t *testing.T) int {
 	return len(decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil)))
 }
 
-// noTemps fails the test if a temporary file is left in the data folder.
+// noTemps fails the test if anything is left in the temp folder.
 func (v *env) noTemps(t *testing.T) {
 	t.Helper()
-	if left, _ := filepath.Glob(filepath.Join(v.dir, "*.tmp")); len(left) != 0 {
+	if left, _ := filepath.Glob(filepath.Join(v.dir, "tmp", "*")); len(left) != 0 {
 		t.Errorf("temp files left: %v", left)
 	}
 }
@@ -1204,7 +1208,7 @@ func TestImportTooLarge(t *testing.T) {
 // A download whose file fails partway is an error, never a short file.
 func TestDownloadWriteFailure(t *testing.T) {
 	v := setup(t, false)
-	a := &api{dataDir: v.dir}
+	a := &api{tmpDir: filepath.Join(v.dir, "tmp")}
 	w := httptest.NewRecorder()
 	a.deliver(w, v.req("POST", "/", nil), "x.klats", "application/octet-stream", func(w io.Writer) error {
 		if _, err := w.Write([]byte("PK\x03\x04 part of a zip")); err != nil {
@@ -1213,5 +1217,84 @@ func TestDownloadWriteFailure(t *testing.T) {
 		return errors.New("media store failed")
 	}, nil)
 	wantError(t, w, 500, "internal")
+	v.noTemps(t)
+}
+
+func TestBackupRestore(t *testing.T) {
+	v := setup(t, false)
+	id := v.pictureTest(t, "Дроби")
+	w := v.do("POST", "/api/backup", nil)
+	wantStatus(t, w, 200)
+	name := "Клац — резервна копія — " + time.Now().Format(time.DateOnly) + ".klatsbackup"
+	if cd := w.Header().Get("Content-Disposition"); !strings.Contains(cd, "filename*=UTF-8''"+url.PathEscape(name)) {
+		t.Errorf("Content-Disposition = %q, want the file name %q", cd, name)
+	}
+	backup := w.Body.Bytes()
+	v.noTemps(t)
+
+	later := v.saveTest(t, goodTest(""))
+	wantStatus(t, v.do("POST", "/api/sittings", wire.StartRequest{TestID: later}), 201)
+	wantError(t, v.do("POST", "/api/backup/restore", backup), 409, "sitting_active")
+	wantStatus(t, v.do("POST", "/api/sittings/current/end", nil), 204)
+
+	wantStatus(t, v.do("POST", "/api/backup/restore", backup), 204)
+	tests := decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil))
+	if len(tests) != 1 || tests[0].ID != id || tests[0].Title != "Дроби" {
+		t.Errorf("tests after the restore = %+v, want only %s", tests, id)
+	}
+	if snaps, _ := filepath.Glob(filepath.Join(v.dir, "snapshots", "klats-*.db")); len(snaps) == 0 {
+		t.Error("no snapshot was taken before the restore")
+	}
+	v.noTemps(t)
+}
+
+func TestRestoreRefuses(t *testing.T) {
+	v := setup(t, false)
+	id := v.saveTest(t, goodTest(""))
+	random := make([]byte, 4096)
+	for i := range random {
+		random[i] = byte(i * 7919 >> 3)
+	}
+	wantError(t, v.do("POST", "/api/backup/restore", random), 422, "file_damaged")
+
+	path := filepath.Join(t.TempDir(), "newer.db")
+	if err := v.st.CopyTo(path); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(`INSERT INTO goose_db_version (version_id, is_applied) VALUES (99, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	newer, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	f, err := zw.Create("klats.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write(newer); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	wantError(t, v.do("POST", "/api/backup/restore", buf.Bytes()), 422, "backup_too_new")
+
+	r := v.req("POST", "/api/backup/restore", nil)
+	r.ContentLength = maxBackupBytes + 1
+	wantError(t, v.serve(r), 413, "too_large")
+
+	if tests := decodeBody[[]wire.TestSummary](t, v.do("GET", "/api/tests", nil)); len(tests) != 1 || tests[0].ID != id {
+		t.Errorf("tests = %+v, want %s untouched", tests, id)
+	}
 	v.noTemps(t)
 }

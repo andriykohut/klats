@@ -421,3 +421,90 @@ func TestDeleteClassKeepsAssignmentClassName(t *testing.T) {
 		t.Fatalf("student_id=%v display_name=%q", studentID, name)
 	}
 }
+
+// contents returns the titles of the tests and the names of the classes in s.
+func contents(t *testing.T, s *Store) string {
+	t.Helper()
+	var got string
+	err := s.conn.QueryRow(`SELECT (SELECT coalesce(group_concat(title), '') FROM tests) || ' / ' ||
+		(SELECT coalesce(group_concat(name), '') FROM classes)`).Scan(&got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// gooseRows returns the rows of s's goose_db_version as one string.
+func gooseRows(t *testing.T, s *Store) string {
+	t.Helper()
+	var got string
+	if err := s.conn.QueryRow(`SELECT group_concat(id || ',' || version_id || ',' || tstamp, ';') FROM goose_db_version`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
+
+// source returns the path of a copy of a database holding seedParticipant's
+// rows, after the statements in edit have run on it.
+func source(t *testing.T, edit ...string) string {
+	t.Helper()
+	s := openTemp(t)
+	seedParticipant(t, s)
+	for _, q := range edit {
+		mustExec(t, s, q)
+	}
+	path := filepath.Join(t.TempDir(), "source.db")
+	if err := s.CopyTo(path); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestReplaceFrom(t *testing.T) {
+	dst := openTemp(t)
+	ctx := context.Background()
+	if err := dst.Q().InsertTest(ctx, db.InsertTestParams{ID: "t9", Title: "Хімія", Doc: `{}`}); err != nil {
+		t.Fatal(err)
+	}
+	if err := dst.Q().InsertClass(ctx, db.InsertClassParams{ID: "c9", Name: "9-Б"}); err != nil {
+		t.Fatal(err)
+	}
+	goose := gooseRows(t, dst)
+	if err := dst.ReplaceFrom(source(t)); err != nil {
+		t.Fatal(err)
+	}
+	if got := contents(t, dst); got != "Фізика / 7-А" {
+		t.Errorf("after the replace: %s, want Фізика / 7-А", got)
+	}
+	if ps, err := dst.Q().ListParticipants(ctx, "si1"); err != nil || len(ps) != 1 || ps[0].DisplayName != "Бойко Андрій" {
+		t.Errorf("participants = %+v, %v", ps, err)
+	}
+	if got := gooseRows(t, dst); got != goose {
+		t.Errorf("goose_db_version = %s, want %s", got, goose)
+	}
+
+	mustExec(t, dst, `UPDATE classes SET name = '7-В'`)
+	for name, edit := range map[string][]string{
+		// The DELETEs have run by the time the INSERT finds the table missing.
+		"no classes table": {`DROP TABLE classes`},
+		// Caught only by the deferred check at commit.
+		"a student of no class": {`PRAGMA foreign_keys = OFF`, `INSERT INTO students (id, class_id, name, sort_key) VALUES ('s2', 'nope', 'Я', 'я')`},
+		"an older schema":       {`DELETE FROM goose_db_version WHERE version_id = (SELECT max(version_id) FROM goose_db_version)`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := dst.ReplaceFrom(source(t, edit...)); err == nil {
+				t.Error("ReplaceFrom = nil, want an error")
+			}
+			if got := contents(t, dst); got != "Фізика / 7-В" {
+				t.Errorf("the destination changed to %s", got)
+			}
+		})
+	}
+	// A failed replace leaves the connection usable: a later one still works.
+	if err := dst.ReplaceFrom(source(t)); err != nil {
+		t.Fatal(err)
+	}
+	if got := contents(t, dst); got != "Фізика / 7-А" {
+		t.Errorf("after a second replace: %s", got)
+	}
+}

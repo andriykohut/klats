@@ -188,6 +188,24 @@ func (e *Engine) load() error {
 	return nil
 }
 
+// Restore runs replace, which swaps the database's contents, then resumes the
+// latest sitting of the new contents as [New] does. It returns
+// [ErrSittingActive], without calling replace, while a sitting runs. If the new
+// contents' latest sitting cannot be read, it returns that error and shows no
+// sitting.
+func (e *Engine) Restore(replace func() error) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != nil {
+		return ErrSittingActive
+	}
+	if err := replace(); err != nil {
+		return err
+	}
+	e.ended = nil
+	return e.load()
+}
+
 // loadSitting reads the sitting s, running or ended, with its participants,
 // answers, overrides, moved devices and pending name clashes.
 func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {

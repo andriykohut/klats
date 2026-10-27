@@ -36,6 +36,8 @@ const (
 	// maxKlatsBytes is the largest .klats file [klatsfile.Read] opens.
 	maxKlatsBytes     = 256 << 20
 	maxFileTitleRunes = 80
+	// maxBackupBytes is the largest backup a restore takes.
+	maxBackupBytes = 2 << 30
 )
 
 // Dialogs asks the teacher where to save a file, through the desktop window.
@@ -55,9 +57,12 @@ type Deps struct {
 	Assets fs.FS // the built teacher app
 	Token  string
 	Port   int // this API's own port, for the Host and Origin checks
-	// DataDir is where Settings are saved, and where opened files and
-	// downloads are spooled.
+	// DataDir is where Settings are saved, and where a restore snapshots the
+	// database first.
 	DataDir string
+	// TempDir is where opened files and downloads are spooled, and where a
+	// backup or a restore does its work.
+	TempDir string
 	// LANPort is the port the student server is bound to, or 0 when it is not
 	// running. It can differ from Settings.Port, for example under a -port
 	// override, and a saved port takes effect only at the next launch.
@@ -82,6 +87,7 @@ type api struct {
 	token   string
 	port    int
 	dataDir string
+	tmpDir  string
 	ifaces  func() []lan.Iface
 	dialogs Dialogs
 	lanPort int
@@ -98,7 +104,7 @@ type api struct {
 // cut the event stream.
 func Handler(d Deps) http.Handler {
 	a := &api{
-		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir,
+		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir, tmpDir: d.TempDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
 	}
 	if a.ifaces == nil {
@@ -140,6 +146,9 @@ func Handler(d Deps) http.Handler {
 
 	mux.HandleFunc("POST /api/media", a.putMedia)
 	mux.HandleFunc("GET /api/media/{name}", a.getMedia)
+
+	mux.HandleFunc("POST /api/backup", a.backup)
+	mux.HandleFunc("POST /api/backup/restore", a.restore)
 
 	mux.HandleFunc("GET /api/network", a.getNetwork)
 	mux.HandleFunc("PUT /api/network", a.putNetwork)

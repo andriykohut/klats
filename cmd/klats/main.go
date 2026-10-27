@@ -167,6 +167,17 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	if err != nil {
 		slog.Error("settings unusable; starting with the defaults", "err", err)
 	}
+	// tmp/ holds spooled uploads, downloads and the work files of backups and
+	// restores, which only the run that made them uses, so a crash leaves
+	// nothing past the next start. It is emptied only once the shell holds
+	// the single instance, so a second launch cannot delete a running one's.
+	tmpDir := filepath.Join(dataDir, "tmp")
+	if err := os.RemoveAll(tmpDir); err != nil {
+		slog.Error("old temporary files not removed", "err", err)
+	}
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+		return err
+	}
 	st, err := store.Open(filepath.Join(dataDir, "klats.db"))
 	if err != nil {
 		return err
@@ -235,7 +246,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	}
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
-		DataDir: dataDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
+		DataDir: dataDir, TempDir: tmpDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
 		Dialogs: dialogs,
 	})
 

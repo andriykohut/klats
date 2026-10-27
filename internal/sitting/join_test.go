@@ -769,6 +769,33 @@ func TestRestartReportsUnreadableSitting(t *testing.T) {
 	}
 }
 
+func TestRestoreWhileRunning(t *testing.T) {
+	e, _, _ := setup(t)
+	start(t, e, nil)
+	called := false
+	if err := e.Restore(func() error { called = true; return nil }); !errors.Is(err, ErrSittingActive) || called {
+		t.Errorf("Restore = %v, replace called: %v; want ErrSittingActive, not called", err, called)
+	}
+}
+
+func TestRestoreReloads(t *testing.T) {
+	e, st, hub := setup(t)
+	var info wire.SittingInfo
+	err := e.Restore(func() error {
+		// A second engine over the same database writes what e has not seen,
+		// as a restore does: a sitting that ran and ended.
+		other := newEngine(t, st, hub)
+		info = start(t, other, nil)
+		return other.End()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := liveOf(t, e).Sitting; got.SittingID != info.SittingID || !got.Ended {
+		t.Errorf("Live after the restore shows %+v, want the ended sitting %s", got, info.SittingID)
+	}
+}
+
 func TestMovesRaiseTheSeqBase(t *testing.T) {
 	e, st, hub := setup(t)
 	info := start(t, e, nil)

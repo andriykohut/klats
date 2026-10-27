@@ -9,23 +9,18 @@ package klatsfile
 
 import (
 	"archive/zip"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math"
-	"strings"
 
 	"klats/internal/media"
-	"klats/internal/rich"
+	"klats/internal/mediazip"
 	"klats/internal/testfmt"
 )
 
 const (
 	testEntry = "test.json"
-	mediaDir  = "media/"
 
 	maxFileBytes = 256 << 20
 	maxTestBytes = 4 << 20
@@ -61,28 +56,12 @@ func Write(w io.Writer, t testfmt.Test, ms *media.Store) error {
 		return fmt.Errorf("klatsfile: %w", err)
 	}
 	for _, name := range t.Media() {
-		if err := writeMedia(zw, ms, name); err != nil {
-			return err
+		if err := mediazip.Add(zw, ms, name); err != nil {
+			return fmt.Errorf("klatsfile: %w", err)
 		}
 	}
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("klatsfile: %w", err)
-	}
-	return nil
-}
-
-func writeMedia(zw *zip.Writer, ms *media.Store, name string) error {
-	f, _, err := ms.Open(name)
-	if err != nil {
-		return fmt.Errorf("klatsfile: media %s: %w", name, err)
-	}
-	defer func() { _ = f.Close() }()
-	fw, err := zw.CreateHeader(&zip.FileHeader{Name: mediaDir + name, Method: zip.Store})
-	if err != nil {
-		return fmt.Errorf("klatsfile: %w", err)
-	}
-	if _, err := io.Copy(fw, f); err != nil {
-		return fmt.Errorf("klatsfile: media %s: %w", name, err)
 	}
 	return nil
 }
@@ -108,32 +87,16 @@ func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 	if size > maxFileBytes {
 		return testfmt.Test{}, damaged("file of %d bytes", size)
 	}
-	// archive/zip reads directory headers until a bad one, whatever count the
-	// file declares, so only a budget on its reads bounds the memory a crafted
-	// directory costs before the entry cap can run.
-	br := &budgetReader{ReaderAt: r, left: maxDirBytes}
-	zr, err := zip.NewReader(br, size)
-	br.left = math.MaxInt64
+	doc, files, err := mediazip.Open(r, size, maxDirBytes, maxEntries, testEntry)
 	if err != nil {
 		return testfmt.Test{}, damaged("%v", err)
 	}
-	if len(zr.File) > maxEntries {
-		return testfmt.Test{}, damaged("%d entries", len(zr.File))
-	}
-	entries := make(map[string]*zip.File, len(zr.File))
-	for _, f := range zr.File {
-		name, inMedia := strings.CutPrefix(f.Name, mediaDir)
-		if f.Name != testEntry && (!inMedia || rich.MediaKind(name) == "") || entries[f.Name] != nil {
-			return testfmt.Test{}, damaged("entry %q", f.Name)
-		}
-		entries[f.Name] = f
-	}
-	if entries[testEntry] == nil {
+	if doc == nil {
 		return testfmt.Test{}, damaged("no %s", testEntry)
 	}
-	raw, err := readCapped(entries[testEntry], maxTestBytes)
+	raw, err := mediazip.ReadAll(doc, maxTestBytes)
 	if err != nil {
-		return testfmt.Test{}, damaged("%s: %v", testEntry, err)
+		return testfmt.Test{}, damaged("%v", err)
 	}
 	t, err := testfmt.Decode(raw)
 	if errors.Is(err, testfmt.ErrTooNew) {
@@ -144,35 +107,35 @@ func Read(r io.ReaderAt, size int64, ms *media.Store) (testfmt.Test, error) {
 	}
 	t.ID = ""
 
-	var bundled []*zip.File
+	var bundled []string
 	// total caps the bytes a small file can inflate to on disk: each entry
 	// alone may be 10 MiB, and a test may use 2,000 of them.
 	var total int64
 	for _, name := range t.Media() {
-		f := entries[mediaDir+name]
+		f := files[name]
 		if f == nil {
 			if err := checkStored(ms, name); err != nil {
 				return testfmt.Test{}, err
 			}
 			continue
 		}
-		data, err := readCapped(f, maxMediaBytes)
+		n, err := mediazip.Check(f, name, maxMediaBytes)
 		if err != nil {
-			return testfmt.Test{}, damaged("%s: %v", f.Name, err)
+			return testfmt.Test{}, damaged("%v", err)
 		}
-		if total += int64(len(data)); total > maxFileBytes {
+		if total += n; total > maxFileBytes {
 			return testfmt.Test{}, damaged("media over %d bytes in all", maxFileBytes)
 		}
-		hash, _, _ := strings.Cut(name, ".")
-		if sum := sha256.Sum256(data); hex.EncodeToString(sum[:]) != hash {
-			return testfmt.Test{}, damaged("%s: content hashes differently", f.Name)
-		}
-		bundled = append(bundled, f)
+		bundled = append(bundled, name)
 	}
 
-	for _, f := range bundled {
-		if err := put(ms, f); err != nil {
-			return testfmt.Test{}, err
+	for _, name := range bundled {
+		err := mediazip.Put(ms, files[name], name)
+		if errors.Is(err, mediazip.ErrInvalid) {
+			return testfmt.Test{}, damaged("%v", err)
+		}
+		if err != nil {
+			return testfmt.Test{}, fmt.Errorf("klatsfile: %w", err)
 		}
 	}
 	return t, nil
@@ -189,58 +152,6 @@ func checkStored(ms *media.Store, name string) error {
 		return fmt.Errorf("klatsfile: %w", err)
 	}
 	return f.Close()
-}
-
-// readCapped returns the contents of f, or an error if they run over limit
-// bytes; it reads at most limit+1 of them, whatever size f's header claims.
-func readCapped(f *zip.File, limit int64) ([]byte, error) {
-	rc, err := f.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rc.Close() }()
-	data, err := io.ReadAll(io.LimitReader(rc, limit+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("over %d bytes", limit)
-	}
-	return data, nil
-}
-
-// put stores media entry f in ms. Bytes that ms refuses or names differently
-// from the entry, such as HTML or a JPEG called .png, give an error wrapping
-// [ErrDamaged]; a failure of ms itself is returned wrapped.
-func put(ms *media.Store, f *zip.File) error {
-	rc, err := f.Open()
-	if err != nil {
-		return damaged("%s: %v", f.Name, err)
-	}
-	defer func() { _ = rc.Close() }()
-	name, err := ms.Put(rc)
-	switch {
-	case errors.Is(err, media.ErrUnsupported), errors.Is(err, media.ErrTooLarge):
-		return damaged("%s: %v", f.Name, err)
-	case err != nil:
-		return fmt.Errorf("klatsfile: %w", err)
-	case mediaDir+name != f.Name:
-		return damaged("%s: content is %s", f.Name, name)
-	}
-	return nil
-}
-
-// budgetReader fails every read once reads of left bytes have been asked for.
-type budgetReader struct {
-	io.ReaderAt
-	left int64
-}
-
-func (b *budgetReader) ReadAt(p []byte, off int64) (int, error) {
-	if b.left -= int64(len(p)); b.left < 0 {
-		return 0, fmt.Errorf("central directory over %d bytes", maxDirBytes)
-	}
-	return b.ReaderAt.ReadAt(p, off)
 }
 
 // damaged returns an error wrapping [ErrDamaged] that gives the reason.

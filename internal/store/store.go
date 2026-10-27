@@ -43,8 +43,8 @@ func NewID() string {
 }
 
 // SnapshotsKeep is how many snapshots the data folder keeps. Those taken
-// before a migration, each day and at the end of a sitting share one folder,
-// so every caller of [Store.Snapshot] passes it.
+// before a migration or a restore, each day and at the end of a sitting share
+// one folder, so every caller of [Store.Snapshot] passes it.
 const SnapshotsKeep = 10
 
 // ErrSchemaTooNew is returned by [Open] when the database was migrated by a
@@ -133,6 +133,123 @@ func (s *Store) Close() error { return s.conn.Close() }
 
 // Q returns the queries bound to the database.
 func (s *Store) Q() *db.Queries { return s.q }
+
+// ErrCorrupt is returned by [Store.IntegrityCheck] for a database that SQLite
+// finds damaged.
+var ErrCorrupt = errors.New("store: database is damaged")
+
+// IntegrityCheck runs PRAGMA integrity_check over the whole database. Unless
+// the check finds nothing wrong, it returns an error wrapping [ErrCorrupt]
+// with the first problem found.
+func (s *Store) IntegrityCheck() error {
+	var res string
+	if err := s.conn.QueryRow("PRAGMA integrity_check").Scan(&res); err != nil {
+		return fmt.Errorf("store: integrity check: %w", err)
+	}
+	if res != "ok" {
+		return fmt.Errorf("%w: %s", ErrCorrupt, res)
+	}
+	return nil
+}
+
+// ReplaceFrom replaces the rows of every table but goose_db_version with those
+// of the database at path, which must be at this program's schema version. It
+// works on one connection: it attaches the file, empties and refills every
+// table in one transaction whose foreign keys are checked at the commit, and
+// detaches it. On an error nothing changes.
+func (s *Store) ReplaceFrom(path string) error {
+	ctx := context.Background()
+	conn, err := s.conn.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("store: replace: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.ExecContext(ctx, "ATTACH DATABASE ? AS src", path); err != nil {
+		return fmt.Errorf("store: replace: %w", err)
+	}
+	defer func() {
+		if _, err := conn.ExecContext(ctx, "DETACH DATABASE src"); err != nil {
+			slog.Error("store: the replaced-from database stays attached", "err", err)
+		}
+	}()
+	if err := replaceRows(ctx, conn); err != nil {
+		return fmt.Errorf("store: replace from %s: %w", path, err)
+	}
+	return nil
+}
+
+// replaceRows is [Store.ReplaceFrom] on conn, with the source attached as src.
+func replaceRows(ctx context.Context, conn *sql.Conn) error {
+	var same bool
+	err := conn.QueryRowContext(ctx, `SELECT (SELECT max(version_id) FROM src.goose_db_version WHERE is_applied)
+		IS (SELECT max(version_id) FROM main.goose_db_version WHERE is_applied)`).Scan(&same)
+	if err != nil {
+		return err
+	}
+	if !same {
+		return errors.New("the schema versions differ")
+	}
+	tables, err := tableColumns(ctx, conn)
+	if err != nil {
+		return err
+	}
+	stmts := []string{"PRAGMA defer_foreign_keys = ON"}
+	// Children are emptied first, so a deleted parent row has nothing left to
+	// cascade to.
+	for i := len(tables) - 1; i >= 0; i-- {
+		stmts = append(stmts, "DELETE FROM main."+tables[i].name)
+	}
+	// Columns go by name, as the queries that checked the source read them.
+	// The rowid keeps the insertion order that GetLatestSitting relies on.
+	for _, t := range tables {
+		cols := strings.Join(t.cols, ", ")
+		stmts = append(stmts, fmt.Sprintf("INSERT INTO main.%s (rowid, %s) SELECT rowid, %s FROM src.%s", t.name, cols, cols, t.name))
+	}
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	for _, q := range stmts {
+		if _, err := tx.ExecContext(ctx, q); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// table is a table of the main database and its columns, quoted.
+type table struct {
+	name string
+	cols []string
+}
+
+// tableColumns returns the tables of the main database in the order they were
+// created, leaving out goose_db_version and SQLite's own.
+func tableColumns(ctx context.Context, conn *sql.Conn) ([]table, error) {
+	rows, err := conn.QueryContext(ctx, `SELECT m.name, c.name FROM main.sqlite_master m, pragma_table_info(m.name, 'main') c
+		WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite\_%' ESCAPE '\' AND m.name <> 'goose_db_version'
+		ORDER BY m.rowid, c.cid`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []table
+	for rows.Next() {
+		var name, col string
+		if err := rows.Scan(&name, &col); err != nil {
+			return nil, err
+		}
+		if len(out) == 0 || out[len(out)-1].name != quote(name) {
+			out = append(out, table{name: quote(name)})
+		}
+		out[len(out)-1].cols = append(out[len(out)-1].cols, quote(col))
+	}
+	return out, rows.Err()
+}
+
+// quote returns id as an SQL identifier.
+func quote(id string) string { return `"` + strings.ReplaceAll(id, `"`, `""`) + `"` }
 
 // Tx runs fn in a transaction, committing if it returns nil and rolling back
 // otherwise. Inside fn, use the queries it is given: calling [Store.Q] there
