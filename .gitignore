@@ -9,3 +9,4 @@ web/shared/src/generated/
 /klats
 /klats.exe
 web/e2e/test-results/
+.DS_Store
