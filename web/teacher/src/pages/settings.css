@@ -1,4 +1,4 @@
-/* Settings: the student address, the language and the port. */
+/* Settings: the student address, the language, the port and the backup. */
 
 .t-settings {
   display: grid;
@@ -139,4 +139,11 @@
   width: 140px;
   height: 44px;
   font: 700 20px var(--k-font-display);
+}
+
+.t-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
 }

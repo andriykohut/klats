@@ -372,6 +372,45 @@ export function useExport(id: string) {
   });
 }
 
+/** The toasts for the refusals of a backup, by error code. */
+const backupErrors: Record<string, () => string> = {
+  sitting_active: m.backup_running,
+  file_damaged: m.tests_file_damaged,
+  backup_too_new: m.backup_too_new,
+  too_large: m.tests_file_too_large,
+};
+
+function backupFailed(err: Error) {
+  const text = err instanceof api.ApiError && backupErrors[err.code];
+  notify(text ? text() : m.error_server(), true);
+}
+
+/** Exports a backup (see {@link api.exportBackup}). Key: "exportBackup". */
+export const useExportBackup = () =>
+  useMutation({
+    mutationKey: ["exportBackup"],
+    mutationFn: api.exportBackup,
+    onError: backupFailed,
+  });
+
+/**
+ * Restores a backup (see {@link api.restoreBackup}) and names it in a toast;
+ * every query refetches, as the data under all of them changed. Key:
+ * "restoreBackup".
+ */
+export function useRestoreBackup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["restoreBackup"],
+    mutationFn: (file: File) => api.restoreBackup(file),
+    onSuccess: () => {
+      notify(m.backup_restored());
+      return qc.invalidateQueries();
+    },
+    onError: backupFailed,
+  });
+}
+
 export const useNetwork = () =>
   useQuery({ queryKey: ["network"], queryFn: api.getNetwork });
 

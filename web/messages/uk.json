@@ -888,5 +888,13 @@
   "start_end_at": "Закінчити о",
   "start_end_past": "Цей час уже минув",
   "ev_extra_time": "{name}: +{minutes} хв",
-  "ev_overtime": "{name} надсилає відповіді після закінчення часу: {count}."
+  "ev_overtime": "{name} надсилає відповіді після закінчення часу: {count}.",
+  "backup_title": "Резервна копія",
+  "backup_export": "Експортувати все",
+  "backup_restore": "Відновити з копії…",
+  "backup_restore_confirm": "Відновити",
+  "backup_restore_text": "Усі тести, класи й результати буде замінено вмістом копії. Поточні дані збережено в знімку.",
+  "backup_running": "Спершу завершіть тест",
+  "backup_restored": "Дані відновлено",
+  "backup_too_new": "Копію створено в новішій версії Клац."
 }

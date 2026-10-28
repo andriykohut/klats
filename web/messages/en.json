@@ -853,5 +853,13 @@
   "start_end_at": "End at",
   "start_end_past": "That time has passed",
   "ev_extra_time": "{name}: +{minutes} min",
-  "ev_overtime": "{name} sent answers after time ran out: {count}."
+  "ev_overtime": "{name} sent answers after time ran out: {count}.",
+  "backup_title": "Backup",
+  "backup_export": "Export everything",
+  "backup_restore": "Restore from a backup…",
+  "backup_restore_confirm": "Restore",
+  "backup_restore_text": "Every test, class and result will be replaced by the backup’s. The current data is kept in a snapshot.",
+  "backup_running": "End the running test first",
+  "backup_restored": "Data restored",
+  "backup_too_new": "The backup was made in a newer Klats."
 }

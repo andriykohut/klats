@@ -240,6 +240,10 @@ happen.
   test's title as the name. The file appears where it was saved.
 - Open a test exported on another of the three systems. *Expected:* it
   opens with every question, picture and sound.
+- In «Налаштування», press «Експортувати все» on one machine and «Відновити з
+  копії…» with that file on another, then confirm. *Expected:* the save dialog
+  opens with the file type «Резервна копія Клац»; after the restore every test,
+  class, result and picture is there.
 
 ### Layout
 

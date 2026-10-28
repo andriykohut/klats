@@ -30,7 +30,7 @@ a flaky network, end to end, with the simplest question types.
 *Why next:* variety is what lets a teacher move all their tests to Klats.
 Each type reuses the sync, grading and results paths that M1 proved.
 
-## M3: test settings, the library, sharing and backup
+## M3: test settings, the library, sharing and backup (done)
 
 - **Test settings:**
   - time limits;

@@ -125,6 +125,37 @@ export async function importTest(file: File): Promise<TestDoc> {
 }
 
 /**
+ * Exports every test, class and result as a .klatsbackup file, resolving as
+ * {@link exportResults} does. A running sitting rejects with code
+ * "sitting_active", and data over 2 GB with "too_large".
+ */
+export async function exportBackup(): Promise<ExportResult | File | null> {
+  const res = await send("POST", "/api/backup", {});
+  return exported(res, "backup.klatsbackup");
+}
+
+/** The largest backup the server restores: 2 GiB. */
+const MAX_BACKUP_BYTES = 2 * 2 ** 30;
+
+/**
+ * Replaces all the data with that of a .klatsbackup file. A running sitting
+ * rejects with an ApiError of code "sitting_active", a file that is not a
+ * backup with "file_damaged", one from a newer version with "backup_too_new",
+ * and one over 2 GB with "too_large", which a file over
+ * {@link MAX_BACKUP_BYTES} gets without being sent.
+ */
+export async function restoreBackup(file: File): Promise<void> {
+  // The server's 413 cuts the upload short, which Firefox reports as a
+  // network error and WebKit never settles.
+  if (file.size > MAX_BACKUP_BYTES) throw new ApiError(413, "too_large");
+  const res = await fetch("/api/backup/restore", {
+    method: "POST",
+    body: file,
+  });
+  if (!res.ok) throw await apiError(res);
+}
+
+/**
  * Stores an image or audio file and resolves to its media name. The server
  * sniffs the type from the bytes: a file it does not know rejects with an
  * ApiError of status 415 ("unsupported"), one over the size cap with 413

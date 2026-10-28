@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Button,
   FieldError,
+  FileTrigger,
   Form,
   Input,
   Label,
@@ -17,7 +18,10 @@ import {
 } from "react-aria-components";
 import {
   busy,
+  useExportBackup,
+  useLive,
   useNetwork,
+  useRestoreBackup,
   useSaveSettings,
   useSetAddress,
   useSettings,
@@ -25,12 +29,14 @@ import {
 import { setFlags, useFlags } from "../flags";
 import { parsePort } from "../forms";
 import { portBusyText } from "../ui/Banners";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
 import { notify } from "../ui/Toasts";
 import "./settings.css";
 
-/** The student address, the UI language and the student port. */
+/** The student address, the UI language, the student port and the backup. */
 export function SettingsPage() {
   const settings = useSettings();
   const network = useNetwork();
@@ -57,6 +63,7 @@ export function SettingsPage() {
         <div className="t-settings-side">
           <Language settings={settings.data} port={port} />
           <Port settings={settings.data} net={network.data} port={port} />
+          <Backup />
         </div>
       </div>
     </div>
@@ -185,6 +192,61 @@ function Port(props: {
       {portSaved && props.settings.restartRequired && (
         <p className="t-notice">{m.settings_restart()}</p>
       )}
+    </section>
+  );
+}
+
+/**
+ * Exports all the data, and restores it from a backup file after the teacher
+ * confirms. Both are refused while a sitting runs, so both are disabled then.
+ */
+function Backup() {
+  const { data: live } = useLive();
+  const running = !!live && !live.sitting.ended;
+  const exportAll = useExportBackup();
+  const restore = useRestoreBackup();
+  const [file, setFile] = useState<File | null>(null);
+  return (
+    <section className="t-panel t-section">
+      <h2>{m.backup_title()}</h2>
+      <div className="t-backup-actions">
+        <Button
+          className="t-btn"
+          data-variant="teal"
+          isDisabled={running}
+          isPending={exportAll.isPending}
+          onPress={() => {
+            if (busy("exportBackup")) return;
+            exportAll.mutate(undefined, { onSuccess: finishExport });
+          }}
+        >
+          <Icon name="download" />
+          {m.backup_export()}
+        </Button>
+        <FileTrigger
+          acceptedFileTypes={[".klatsbackup"]}
+          onSelect={(files) => setFile(files?.[0] ?? null)}
+        >
+          <Button className="t-btn" data-variant="quiet" isDisabled={running}>
+            <Icon name="folder" />
+            {m.backup_restore()}
+          </Button>
+        </FileTrigger>
+      </div>
+      {running && <p className="t-notice">{m.backup_running()}</p>}
+      <ConfirmDialog
+        isOpen={file !== null}
+        onOpenChange={(open) => !open && setFile(null)}
+        title={m.backup_title()}
+        confirm={m.backup_restore_confirm()}
+        pending={restore.isPending}
+        onConfirm={() => {
+          if (!file || busy("restoreBackup")) return;
+          restore.mutate(file, { onSettled: () => setFile(null) });
+        }}
+      >
+        {m.backup_restore_text()}
+      </ConfirmDialog>
     </section>
   );
 }
