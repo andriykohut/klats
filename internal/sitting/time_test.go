@@ -79,6 +79,12 @@ func TestRemainingPerStudent(t *testing.T) {
 	if got := remaining(t, e, devA); got != 0 {
 		t.Errorf("remaining past the deadline = %d, want 0", got)
 	}
+	if err := e.AddTime(p.ID, 5); err != nil {
+		t.Fatal(err)
+	}
+	if got := remaining(t, e, devA); got != 5*60_000 {
+		t.Errorf("remaining after +5 min past the deadline = %d, want 5 min", got)
+	}
 	finish(t, e, devA)
 	if got := remaining(t, e, devA); got != -1 {
 		t.Errorf("remaining once finished = %d, want none", got)
@@ -97,9 +103,16 @@ func TestRemainingCommon(t *testing.T) {
 	if j := join(t, e, info.Code, devA, "10.0.0.1"); j.TimeMode != "common" || j.EndsAt != endsAt {
 		t.Errorf("join info = %+v, want common, ending at %d", j, endsAt)
 	}
-	pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Учень"})
+	p := pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Учень"})
 	if got := remaining(t, e, devA); got != 20*60_000 {
 		t.Errorf("remaining = %d, want 20 min", got)
+	}
+	clk.add(27 * time.Minute)
+	if err := e.AddTime(p.ID, 5); err != nil {
+		t.Fatal(err)
+	}
+	if got := remaining(t, e, devA); got != 5*60_000 {
+		t.Errorf("remaining after +5 min 7 min past the end = %d, want 5 min", got)
 	}
 }
 

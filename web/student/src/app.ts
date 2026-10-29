@@ -156,6 +156,9 @@ function tick(): void {
   }
 }
 
+/** A status has given the test this page loaded time left; see {@link finishTest}. */
+let hadTime = false;
+
 /**
  * Counts down from the time left that the server's status `st` carries, if
  * any. More time, such as the teacher's «+5 хв», unlocks the answers again
@@ -165,6 +168,7 @@ function count(st: Status): void {
   const ms = st.remainingMs;
   // A status straight from the API, not through the Connection, has null.
   if (typeof ms !== "number") return;
+  if (ms > 0) hadTime = true;
   update({
     deadline: performance.now() + ms,
     remainingMs: ms,
@@ -375,6 +379,7 @@ async function resume(name?: string): Promise<void> {
     deadline: null,
     timeUp: false,
   });
+  hadTime = false;
   count(res.status);
   if (res.status.state === "writing") show({ name: "test" });
   else await follow(res.status);
@@ -510,7 +515,10 @@ export function go(index: number): void {
  * Finishes the test: once the server holds every answer, it records the
  * finish and shows the grade. Offline, the finish screen waits, and it all
  * completes on reconnect. A finish because the time ran out goes back to the
- * test instead when a status brings more than a second before it is sent.
+ * test instead when a status brings more than a second before it is sent. A
+ * test that opened with no time left, such as on a computer that died across
+ * the deadline, never sends it: the finish screen keeps syncing until the
+ * teacher's «+5 хв» brings the test back or the sitting ends.
  */
 export async function finishTest(): Promise<void> {
   const s = session;
@@ -519,7 +527,9 @@ export async function finishTest(): Promise<void> {
   update({ result: null });
   show({ name: "finish" });
   // Finishing locks the answers, so nothing may be left unsent.
-  while (session === s && !(await s.conn.drain())) await sleep(2000);
+  while (session === s && (!(await s.conn.drain()) || (timed && !hadTime))) {
+    await sleep(2000);
+  }
   if (session !== s) return;
   if (timed) {
     // A status made just before the server's deadline must not flicker the test open.

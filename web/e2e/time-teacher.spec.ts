@@ -213,3 +213,36 @@ test("a student who was out of time gets the test back with the extra time", asy
     teacher.getByText(m.ev_overtime({ name, count: 1 })),
   ).toBeHidden();
 });
+
+test("a computer that died across the deadline waits for more time", async ({
+  klats,
+}) => {
+  test.setTimeout(180_000);
+  const { code } = await klats.start(TEST, {
+    settings: { timeLimit: { mode: "student", minutes: 1 } },
+  });
+  const student = await klats.computer();
+  const name = CLASS[0];
+  await joinAs(student, klats, code, name);
+  const left = await secondsLeft(student);
+  const teacher = await klats.teacher();
+
+  // The computer dies with the test open and starts again after the deadline.
+  await student.close();
+  await teacher.waitForTimeout((left + 2) * 1000);
+  const rebooted = await student.context().newPage();
+  await rebooted.goto(klats.student);
+  await expect(
+    rebooted.getByRole("heading", { name: m.finish_time_up() }),
+  ).toBeVisible({ timeout: 20_000 });
+  // A finish would have been sent within a second of the lock.
+  await rebooted.waitForTimeout(3000);
+  expect((await klats.live()).counts.finished).toBe(0);
+
+  await openMenu(teacher, name);
+  await teacher.getByRole("menuitem", { name: m.time_add_five() }).click();
+  await expect(
+    rebooted.getByRole("button", { name: m.test_skip() }),
+  ).toBeVisible({ timeout: 20_000 });
+  expect(await secondsLeft(rebooted)).toBeGreaterThan(4 * 60);
+});

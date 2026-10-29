@@ -51,9 +51,11 @@ func (a *active) overtime(p *participant, now time.Time) bool {
 	return ok && now.UnixMilli() > d+lateGrace.Milliseconds()
 }
 
-// AddTime gives the participant minutes more time, raises an extra_time event
-// and tells the participant's device its status changed. It returns
-// [ErrNotFound] for a participant not in the running sitting, and
+// AddTime moves the participant's deadline to minutes after the later of the
+// deadline and now, so a participant already out of time, such as on a
+// computer that died, gets the whole minutes from now. It raises an
+// extra_time event and tells the participant's device its status changed. It
+// returns [ErrNotFound] for a participant not in the running sitting, and
 // [ErrInvalid] for minutes outside 1-60, a test without a time limit, or a
 // participant who is kicked or no longer writing.
 func (e *Engine) AddTime(participantID string, minutes int) error {
@@ -66,10 +68,11 @@ func (e *Engine) AddTime(participantID string, minutes int) error {
 	if err != nil {
 		return err
 	}
-	if _, timed := e.cur.deadline(p); !timed || p.state != stateWriting {
+	d, timed := e.cur.deadline(p)
+	if !timed || p.state != stateWriting {
 		return ErrInvalid
 	}
-	extra := int64(minutes) * time.Minute.Milliseconds()
+	extra := max(d, e.now().UnixMilli()) + int64(minutes)*time.Minute.Milliseconds() - d
 	return e.commit(func(q *db.Queries) (func(), error) {
 		if err := q.AddExtraTime(ctx, db.AddExtraTimeParams{ExtraMs: extra, ID: p.id}); err != nil {
 			return nil, err

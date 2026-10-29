@@ -285,7 +285,8 @@ time limit (`internal/sitting/time.go`) runs in one of two ways:
 
 Either deadline adds `participants.extra_ms`, which the teacher raises for
 one writing student with `POST /api/participants/{id}/time` (1 to 60
-minutes); the device gets a `status` hint. Every status of a writing
+minutes) so that the deadline lands that many minutes after the later of the
+deadline and now; the device gets a `status` hint. Every status of a writing
 participant carries `remainingMs`, the time to the deadline by the server's
 clock, never below 0, so neither a reload nor a wrong lab clock can stretch
 it. The server never finishes anyone when time runs out: a computer that died
@@ -309,7 +310,10 @@ and every status sets the count again. At zero it locks the answers and
 finishes, as the student's own finish does: it waits for the queue to empty,
 so answers given offline before zero still arrive, flagged late if they come
 after the grace. More time that arrives before the finish is sent, such as
-«+5 хв» seen on reconnecting, takes the student back to the test.
+«+5 хв» seen on reconnecting, takes the student back to the test. A test that
+opens already out of time, after a reload, a reboot or a move past the
+deadline, locks and says «Час вийшов» but sends no finish: it keeps syncing
+until «+5 хв» brings the test back or the sitting ends.
 
 **The heartbeat is the source of truth; the event stream only makes things
 faster.** Every status a device needs comes back from the heartbeat, every
