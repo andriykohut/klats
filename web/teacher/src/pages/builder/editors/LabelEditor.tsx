@@ -190,7 +190,7 @@ export function LabelEditor(props: EditorProps) {
       </PictureField>
       {q.image && (
         <>
-          <div className="b-lbl">
+          <div className="b-lbl" data-bar-room>
             {m.builder_points()}
             <em>{m.builder_points_hint()}</em>
           </div>
@@ -253,7 +253,7 @@ export function LabelEditor(props: EditorProps) {
         </>
       )}
 
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_label_decoys()}
         <em>{m.builder_label_decoys_hint()}</em>
       </div>

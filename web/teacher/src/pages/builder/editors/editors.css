@@ -233,6 +233,11 @@
   box-shadow: 0 -3px 0 var(--k-field);
 }
 
+/* The toolbar of a list's first field hangs 26px above it, over a heading that sits closer. */
+.b-lbl[data-bar-room] {
+  margin-bottom: 28px;
+}
+
 /* The arrow between the two sides of a matching pair. */
 .b-pair-to {
   flex: none;

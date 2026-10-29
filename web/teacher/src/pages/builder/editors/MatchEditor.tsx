@@ -119,7 +119,7 @@ export function MatchEditor({
 
   return (
     <>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_pairs()}
         <em>{m.builder_pairs_hint()}</em>
       </div>
@@ -192,7 +192,7 @@ export function MatchEditor({
         {m.builder_add_pair()}
       </Button>
 
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_decoys()}
         <em>{m.builder_decoys_hint()}</em>
       </div>
