@@ -209,7 +209,6 @@ func (e *Engine) Restore(replace func() error) error {
 // loadSitting reads the sitting s, running or ended, with its participants,
 // answers, overrides, moved devices and pending name clashes.
 func (e *Engine) loadSitting(q *db.Queries, s db.Sitting) (*active, error) {
-	// The snapshot was validated by testfmt.Decode at start.
 	asg, t, err := assignmentTest(q, s.AssignmentID)
 	if err != nil {
 		return nil, err

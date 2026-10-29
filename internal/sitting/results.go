@@ -162,14 +162,14 @@ func (e *Engine) SetOverride(assignmentID, participantID, questionID string, poi
 	})
 }
 
-// assignmentTest returns the assignment and its test snapshot, or
-// [ErrNotFound].
+// assignmentTest returns the assignment and its test snapshot through
+// [testfmt.Decode], so a snapshot stored before tests had settings gets the
+// default ones, or [ErrNotFound].
 func assignmentTest(q *db.Queries, id string) (db.Assignment, testfmt.Test, error) {
 	asg, err := q.GetAssignment(ctx, id)
 	if err != nil {
 		return db.Assignment{}, testfmt.Test{}, notFound(err)
 	}
-	var t testfmt.Test
-	err = json.Unmarshal([]byte(asg.TestSnapshot), &t)
+	t, err := testfmt.Decode([]byte(asg.TestSnapshot))
 	return asg, t, err
 }

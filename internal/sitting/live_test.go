@@ -2,6 +2,7 @@ package sitting
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"klats/internal/events"
+	"klats/internal/store"
 	"klats/internal/store/db"
 	"klats/internal/testfmt"
 	"klats/internal/wire"
@@ -365,6 +368,41 @@ func TestResultQuestionsAreTheSnapshot(t *testing.T) {
 	}
 	if o := qs[1].Question.Options; len(o) != 6 || !o[0].Correct || o[5].Correct {
 		t.Errorf("q2 options = %s", optionsText(o))
+	}
+}
+
+// TestResultsOfSnapshotWithoutSettings grades a snapshot stored before tests
+// had settings on the default 12-point table.
+func TestResultsOfSnapshotWithoutSettings(t *testing.T) {
+	e, st := setupSettings(t, 3, testfmt.Settings{})
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 2, "o0"), change(p, "q3", 3, "o1"))
+	finish(t, e, devA)
+
+	path := filepath.Join(t.TempDir(), "old.db")
+	if err := st.CopyTo(path); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(`UPDATE assignments SET test_snapshot = json_remove(test_snapshot, '$.settings')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	old, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = old.Close() })
+
+	res := resultsOf(t, newEngine(t, old, events.New()), info.AssignmentID)
+	if r := res.Rows[0]; res.Scale != testfmt.ScalePoints12 || r.Earned != 2 || r.Max != 3 || r.Grade != 8 {
+		t.Errorf("scale %q, %v of %v, grade %d; want points12, 2 of 3, grade 8", res.Scale, r.Earned, r.Max, r.Grade)
 	}
 }
 

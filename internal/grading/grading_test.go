@@ -82,9 +82,11 @@ func TestTotalOverrideReplacesScore(t *testing.T) {
 }
 
 func TestTotalUnanswered(t *testing.T) {
-	test := testfmt.Test{Questions: []testfmt.Question{q("single", false, "a")}}
-	r := Total(test, nil, nil)
-	if v, ok := r.PerQuestion["q"]; !ok || v != 0 || r.Correct != 0 || r.Grade != 1 {
+	q1, q2 := q("single", false, "a"), q("single", false, "a")
+	q1.ID, q2.ID = "q1", "q2"
+	test := testfmt.Test{Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{q1, q2}}
+	r := Total(test, map[string]testfmt.Answer{"q1": {Items: []string{"a"}}}, nil)
+	if v, ok := r.PerQuestion["q2"]; !ok || v != 0 || r.Correct != 1 || r.Grade != 6 {
 		t.Fatalf("unexpected result %+v", r)
 	}
 }
