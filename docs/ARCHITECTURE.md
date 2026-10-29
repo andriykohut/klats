@@ -608,7 +608,7 @@ current webview.
   follow the teacher's choice, which comes with the join.
 - **Go strings:** the Go side shows few strings of its own. The tray menu
   and the quit question are in `internal/desktop/strings.go`, in both
-  languages, and the workbook takes the language as an argument. Five are
+  languages, and the workbook takes the language as an argument. Six are
   Ukrainian only, whatever the language setting:
   - the 401 page's text, «Відкрийте Клац із програми.», in
     `internal/teacherapi/guard.go`;
@@ -618,7 +618,9 @@ current webview.
   - «Тест триває», the reason given to the OS for keeping the computer
     awake, in `cmd/klats/main.go`;
   - «Тест», the file name of a test whose title is empty once made safe for
-    a file name, in `internal/teacherapi/tests.go`.
+    a file name, in `internal/teacherapi/tests.go`;
+  - «Тест», the file name of a results workbook whose test title is empty
+    once made safe for a file name, in `internal/xlsx/xlsx.go`.
 - **Sorting:** student names sort with Ukrainian collation, in Go, through
   `roster.SortKey`, which is also stored as `students.sort_key`. Every list
   and export the server sends is already in that order. The teacher app

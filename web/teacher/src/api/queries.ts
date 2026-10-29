@@ -177,13 +177,10 @@ export const useExportTest = () =>
   useMutation({
     mutationKey: ["exportTest"],
     mutationFn: (id: string) => api.exportTest(id),
-    onError: (err) =>
-      notify(
-        err instanceof api.ApiError && exportTestErrors[err.code]
-          ? exportTestErrors[err.code]()
-          : m.error_server(),
-        true,
-      ),
+    onError: (err) => {
+      const text = err instanceof api.ApiError && exportTestErrors[err.code];
+      notify(text ? text() : m.error_server(), true);
+    },
   });
 
 /** The toasts for the files the server refuses to open, by error code. */
