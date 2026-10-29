@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"klats/internal/roster"
@@ -47,7 +48,10 @@ func (e *Engine) Join(code, device, ip string) (wire.JoinInfo, error) {
 	tl := a.test.Settings.TimeLimit
 	info := wire.JoinInfo{
 		SittingID: a.sitting.ID, Mode: "typed", Names: []wire.NameEntry{}, Language: e.lang,
-		TimeMode: tl.Mode, Minutes: tl.Minutes, EndsAt: a.sitting.EndsAt.Int64, Navigation: a.test.Settings.Navigation,
+		TimeMode: tl.Mode, Minutes: tl.Minutes, Navigation: a.test.Settings.Navigation,
+	}
+	if a.sitting.EndsAt.Valid {
+		info.EndClock = time.UnixMilli(a.sitting.EndsAt.Int64).Local().Format("15:04")
 	}
 	if a.assignment.ClassID.Valid {
 		info.Mode = "list"

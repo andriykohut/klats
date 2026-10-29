@@ -31,8 +31,10 @@ type SittingInfo struct {
 
 // JoinInfo is what a student device gets for a correct join code. Mode is
 // "list" (pick a name from Names) or "typed" (type surname, first name and
-// class; Names is empty). TimeMode, Minutes and EndsAt are the time limit, as
-// in [SittingInfo]. Navigation is the test's [testfmt.Settings.Navigation],
+// class; Names is empty). TimeMode and Minutes are the time limit, as in
+// [SittingInfo]. EndClock is the common end time as "HH:MM" on the server's
+// clock, which is the teacher's, and is empty for any other time limit.
+// Navigation is the test's [testfmt.Settings.Navigation],
 // which the name screen announces.
 type JoinInfo struct {
 	SittingID  string      `json:"sittingId"`
@@ -41,7 +43,7 @@ type JoinInfo struct {
 	Language   string      `json:"language"`
 	TimeMode   string      `json:"timeMode"`
 	Minutes    int         `json:"minutes"`
-	EndsAt     int64       `json:"endsAt"`
+	EndClock   string      `json:"endClock"`
 	Navigation string      `json:"navigation"`
 }
 

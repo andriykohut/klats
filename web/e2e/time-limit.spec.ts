@@ -46,7 +46,7 @@ test("the name screen names a common end time", async ({ klats }) => {
     settings: { timeLimit: { mode: "common", minutes: 30 } },
     endsAt,
   });
-  const student = await klats.computer();
+  const student = await klats.computer(false, "Asia/Tokyo");
   await student.goto(`${klats.student}/?code=${code}`);
 
   const time = new Date(endsAt).toLocaleTimeString("uk", {

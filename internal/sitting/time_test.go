@@ -52,7 +52,7 @@ func TestRemainingPerStudent(t *testing.T) {
 	if info.TimeMode != "student" || info.Minutes != 20 || info.EndsAt != 0 {
 		t.Errorf("sitting info = %+v, want 20 min per student", info)
 	}
-	if j := join(t, e, info.Code, devA, "10.0.0.1"); j.TimeMode != "student" || j.Minutes != 20 || j.EndsAt != 0 {
+	if j := join(t, e, info.Code, devA, "10.0.0.1"); j.TimeMode != "student" || j.Minutes != 20 || j.EndClock != "" {
 		t.Errorf("join info = %+v, want 20 min per student", j)
 	}
 	p := pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Учень"})
@@ -100,8 +100,9 @@ func TestRemainingCommon(t *testing.T) {
 		t.Errorf("sitting info = %+v, want common, ending at %d", info, endsAt)
 	}
 	clk.add(10 * time.Minute)
-	if j := join(t, e, info.Code, devA, "10.0.0.1"); j.TimeMode != "common" || j.EndsAt != endsAt {
-		t.Errorf("join info = %+v, want common, ending at %d", j, endsAt)
+	wantClock := time.UnixMilli(endsAt).Local().Format("15:04")
+	if j := join(t, e, info.Code, devA, "10.0.0.1"); j.TimeMode != "common" || j.EndClock != wantClock {
+		t.Errorf("join info = %+v, want common, ending at %s", j, wantClock)
 	}
 	p := pick(t, e, info.Code, devA, wire.PickRequest{Surname: "Шевченко", FirstName: "Учень"})
 	if got := remaining(t, e, devA); got != 20*60_000 {

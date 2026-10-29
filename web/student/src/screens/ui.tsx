@@ -1,6 +1,5 @@
 import type { JoinInfo } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { sheet } from "@klats/shared/student-ui/motion.ts";
 import { motion, useReducedMotionConfig } from "motion/react";
 import type { ReactNode } from "react";
@@ -108,10 +107,7 @@ export function startNote(info: JoinInfo): string | null {
       m.pick_time_student({ minutes: info.minutes, button: m.pick_start() }),
     );
   } else if (info.timeMode === "common") {
-    const time = new Date(info.endsAt).toLocaleTimeString(getLocale(), {
-      timeStyle: "short",
-    });
-    notes.push(m.pick_time_common({ time }));
+    notes.push(m.pick_time_common({ time: info.endClock }));
   }
   if (info.navigation === "forward") notes.push(m.pick_forward_only());
   return notes.join("\n") || null;
