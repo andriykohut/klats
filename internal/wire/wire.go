@@ -347,7 +347,8 @@ type ResultQuestion struct {
 // points (see grading.IsPending); they score 0 until then. NotAsked lists, in
 // test order, the questions the participant did not get (see
 // testfmt.Settings.Subset): their Points are 0, and Earned and Max leave them
-// out.
+// out. Order lists the questions the participant got, in the order they got
+// them, so a question's number on their sheet is its place in Order plus one.
 type ResultRow struct {
 	ParticipantID string                     `json:"participantId"`
 	Name          string                     `json:"name"`
@@ -365,4 +366,5 @@ type ResultRow struct {
 	Overridden    []string                   `json:"overridden"`
 	Late          []string                   `json:"late"`
 	NotAsked      []string                   `json:"notAsked"`
+	Order         []string                   `json:"order"`
 }

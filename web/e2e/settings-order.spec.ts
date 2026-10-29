@@ -68,3 +68,38 @@ test("each student gets 3 of 5 questions", async ({ klats }) => {
     ]);
   }
 });
+
+test("the detail names a student's own question numbers", async ({ klats }) => {
+  const { code, assignmentId } = await klats.start(FIVE, {
+    settings: { shuffleQuestions: true },
+  });
+
+  // A shuffle can land on the test's order, which leaves every number as it
+  // is; the next student then joins, so that some numbers differ.
+  let name = "";
+  let order: string[] = [];
+  for (name of CLASS) {
+    const page = await klats.computer();
+    await joinAs(page, klats, code, name);
+    order = [];
+    while (order.length < FIVE.length) {
+      if (order.length > 0) {
+        await page.getByRole("button", { name: m.test_skip() }).click();
+      }
+      order.push((await shown(page, new Set(order))).id);
+    }
+    if (order.some((id, i) => id !== FIVE[i].id)) break;
+  }
+
+  const results = await klats.teacher(`/assignments/${assignmentId}`);
+  await results.reload();
+  await results.getByRole("button", { name, exact: true }).click();
+  await expect(results.getByRole("dialog").locator(".r-q-head b")).toHaveText(
+    FIVE.map((q, i) => {
+      const own = order.indexOf(q.id) + 1;
+      return own === i + 1
+        ? m.detail_question({ number: i + 1 })
+        : m.detail_question_own({ number: i + 1, own });
+    }),
+  );
+});

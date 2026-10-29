@@ -578,6 +578,7 @@
   "legend_late": "надійшла пізно",
   "legend_absent": "не було в тесті учня",
   "detail_question": "Питання {number}",
+  "detail_question_own": "Питання {number} (в учня — {own})",
   "detail_picked": "Обрано",
   "detail_correct": "Правильна",
   "detail_no_answer": "Без відповіді",

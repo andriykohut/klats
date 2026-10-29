@@ -549,6 +549,7 @@
   "legend_late": "arrived late",
   "legend_absent": "not in this student’s test",
   "detail_question": "Question {number}",
+  "detail_question_own": "Question {number} (student’s no. {own})",
   "detail_picked": "Chosen",
   "detail_correct": "Correct",
   "detail_no_answer": "Not answered",

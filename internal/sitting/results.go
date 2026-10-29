@@ -49,7 +49,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 				ParticipantID: p.id, Name: p.name, ClassName: cmp.Or(p.class, asg.ClassName.String),
 				Points: make([]float64, len(t.Questions)), Earned: r.Earned, Max: r.Max, Grade: r.Grade, PendingIDs: []string{},
 				SittingDate: s.StartedAt, Answers: map[string]testfmt.Answer{}, Verdicts: r.Verdicts, Overridden: []string{}, Late: []string{},
-				NotAsked: []string{}, Writing: p.state == stateWriting,
+				NotAsked: []string{}, Order: []string{}, Writing: p.state == stateWriting,
 			}
 			if p.finishedAt > 0 {
 				row.DurationSec = int(max(0, p.finishedAt-p.joinedAt) / 1000)
@@ -57,6 +57,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 			asked := make(map[string]bool, len(p.questions))
 			for _, question := range p.questions {
 				asked[question.ID] = true
+				row.Order = append(row.Order, question.ID)
 			}
 			for i, question := range t.Questions {
 				if !asked[question.ID] {

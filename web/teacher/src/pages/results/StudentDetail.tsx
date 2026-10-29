@@ -31,9 +31,10 @@ import { AnswerReview } from "./AnswerReview";
  * {@link AnswerReview}), and the points, which the teacher can set from 0 to
  * the question's points or reset to the automatic score. The grade follows at
  * once. Questions the student did not get are left out; the rest keep their
- * numbers in the test. `focus` is a question whose points field takes focus as
- * the panel opens. It renders nothing once the participant is no longer in the
- * results.
+ * numbers in the test, with the student's own number beside any that differs
+ * (see `ResultRow.order`). `focus` is a question whose points field takes
+ * focus as the panel opens. It renders nothing once the participant is no
+ * longer in the results.
  */
 export function StudentDetail(props: {
   results: AssignmentResults;
@@ -105,6 +106,7 @@ export function StudentDetail(props: {
                     <QuestionResult
                       key={q.question.id}
                       number={i + 1}
+                      own={row.order.indexOf(q.question.id) + 1}
                       question={q}
                       row={row}
                       points={row.points[i]}
@@ -123,6 +125,7 @@ export function StudentDetail(props: {
 
 function QuestionResult(props: {
   number: number;
+  own: number;
   question: ResultQuestion;
   row: ResultRow;
   points: number;
@@ -160,7 +163,11 @@ function QuestionResult(props: {
   return (
     <li ref={item} className="r-q">
       <div className="r-q-head">
-        <b>{m.detail_question({ number: props.number })}</b>
+        <b>
+          {props.own === props.number
+            ? m.detail_question({ number: props.number })
+            : m.detail_question_own({ number: props.number, own: props.own })}
+        </b>
         <span>{m.builder_count_points({ count: q.points })}</span>
         {pending && (
           <span className="j-chip" data-tone="tang">
