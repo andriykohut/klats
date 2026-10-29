@@ -1,11 +1,11 @@
 // Package backup writes all of a teacher's data to one .klatsbackup file and
 // restores it. The file is a zip of klats.db, a copy of the database, and
 // media/<name> for each media file that a test or an assignment's snapshot
-// uses (the layout of [mediazip]). A backup may come from anywhere, so
-// [Prepare] is the trust boundary for restores: it caps every size itself,
-// allows no other entry, and checks the database and every test document in
-// it before it stores any media, and before the program's own database
-// changes.
+// uses (the layout of [mediazip]). [Prepare] is the trust boundary for
+// restores: it caps every size itself, allows no other entry, and checks the
+// database and every test document in it before it stores any media, and
+// before the program's own database changes. Beyond those checks a backup is
+// trusted as the teacher's own file.
 package backup
 
 import (
