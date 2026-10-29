@@ -73,6 +73,11 @@ interface State {
   remainingMs: number;
   /** The time ran out: answers are locked, and the finish screen says so. */
   timeUp: boolean;
+  /**
+   * The finish screen waits with every answer synced, for the teacher's
+   * «+5 хв» or the end of the sitting; see {@link finishTest}.
+   */
+  askTeacher: boolean;
 }
 
 /** What survives a reload, under `klats.participant`. */
@@ -116,6 +121,7 @@ let state: State = {
   deadline: null,
   remainingMs: 0,
   timeUp: false,
+  askTeacher: false,
 };
 const listeners = new Set<() => void>();
 
@@ -518,7 +524,8 @@ export function go(index: number): void {
  * test instead when a status brings more than a second before it is sent. A
  * test that opened with no time left, such as on a computer that died across
  * the deadline, never sends it: the finish screen keeps syncing until the
- * teacher's «+5 хв» brings the test back or the sitting ends.
+ * teacher's «+5 хв» brings the test back or the sitting ends, and once every
+ * answer is synced it asks the student to call the teacher.
  */
 export async function finishTest(): Promise<void> {
   const s = session;
@@ -527,9 +534,13 @@ export async function finishTest(): Promise<void> {
   update({ result: null });
   show({ name: "finish" });
   // Finishing locks the answers, so nothing may be left unsent.
-  while (session === s && (!(await s.conn.drain()) || (timed && !hadTime))) {
+  while (session === s) {
+    const drained = await s.conn.drain();
+    if (drained && (!timed || hadTime)) break;
+    update({ askTeacher: drained });
     await sleep(2000);
   }
+  update({ askTeacher: false });
   if (session !== s) return;
   if (timed) {
     // A status made just before the server's deadline must not flicker the test open.

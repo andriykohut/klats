@@ -250,6 +250,8 @@ test("a computer that died across the deadline waits for more time", async ({
   await expect(
     rebooted.getByRole("heading", { name: m.finish_time_up() }),
   ).toBeVisible({ timeout: 20_000 });
+  await expect(rebooted.getByText(m.finish_ask_teacher())).toBeVisible();
+  await expect(rebooted.getByText(m.finish_waiting())).toBeHidden();
   // A finish would have been sent within a second of the lock.
   await rebooted.waitForTimeout(3000);
   expect((await klats.live()).counts.finished).toBe(0);

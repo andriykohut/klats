@@ -24,7 +24,9 @@ import "./FinishScreen.css";
  * sync, so the server has not graded them) it shows a waiting ring and says
  * the grade will follow, and never a grade. A grade or a pending note that
  * arrives later is announced politely to screen readers. With `timeUp` the
- * title is «Час вийшов» instead of «Тест завершено».
+ * title is «Час вийшов» instead of «Тест завершено». With `askTeacher` and no
+ * result, it says the work is saved and asks the student to call the teacher
+ * instead of waiting for the grade.
  *
  * The result's `show` is the test's reveal setting. With "mistakes", the
  * numbers of the questions short of full points sit under the counts, pending
@@ -36,9 +38,11 @@ import "./FinishScreen.css";
 export function FinishScreen({
   result,
   timeUp,
+  askTeacher,
 }: {
   result: FinishResult | null;
   timeUp?: boolean;
+  askTeacher?: boolean;
 }) {
   const reduced = useReducedMotionConfig();
   const grade = useMotionValue(0);
@@ -168,7 +172,7 @@ export function FinishScreen({
           ) : (
             <motion.span className="k-fchip" {...popIn(0.9, reduced)}>
               <i className="k-dot" />
-              {m.finish_waiting()}
+              {askTeacher ? m.finish_ask_teacher() : m.finish_waiting()}
             </motion.span>
           )}
         </div>

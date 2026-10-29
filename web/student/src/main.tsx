@@ -110,7 +110,12 @@ function App() {
       break;
     case "finish":
       content = (
-        <FinishScreen key="finish" result={s.result} timeUp={s.timeUp} />
+        <FinishScreen
+          key="finish"
+          result={s.result}
+          timeUp={s.timeUp}
+          askTeacher={s.askTeacher}
+        />
       );
       break;
     case "kicked":
