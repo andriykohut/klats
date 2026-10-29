@@ -162,9 +162,16 @@ export function useDuplicateTest() {
   });
 }
 
+/** The toasts for the refusals of a test export, by error code. */
+const exportTestErrors: Record<string, () => string> = {
+  too_large: m.tests_file_too_large,
+  write_failed: m.file_write_failed,
+};
+
 /**
  * Exports a test as a .klats file (see {@link api.exportTest}). A test too
- * large to open again gets its own error toast. Key: "exportTest".
+ * large to open again and a file that cannot be written each get their own
+ * error toast. Key: "exportTest".
  */
 export const useExportTest = () =>
   useMutation({
@@ -172,8 +179,8 @@ export const useExportTest = () =>
     mutationFn: (id: string) => api.exportTest(id),
     onError: (err) =>
       notify(
-        err instanceof api.ApiError && err.code === "too_large"
-          ? m.tests_file_too_large()
+        err instanceof api.ApiError && exportTestErrors[err.code]
+          ? exportTestErrors[err.code]()
           : m.error_server(),
         true,
       ),
@@ -378,6 +385,7 @@ const backupErrors: Record<string, () => string> = {
   file_damaged: m.tests_file_damaged,
   backup_too_new: m.backup_too_new,
   too_large: m.tests_file_too_large,
+  write_failed: m.file_write_failed,
 };
 
 function backupFailed(err: Error) {

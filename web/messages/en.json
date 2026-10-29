@@ -863,5 +863,6 @@
   "backup_restore_text": "Every test, class and result will be replaced by the backup’s. The current data is kept in a snapshot.",
   "backup_running": "End the running test first",
   "backup_restored": "Data restored",
-  "backup_too_new": "The backup was made in a newer Klats."
+  "backup_too_new": "The backup was made in a newer Klats.",
+  "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected."
 }

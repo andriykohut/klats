@@ -68,7 +68,7 @@ test("start asks for the end time", async ({ klats }) => {
   const start = dialog.getByRole("button", { name: m.start_go() });
   await dialog.getByText(m.start_no_list(), { exact: true }).click();
   await expect(start).toBeEnabled();
-  await end.fill(field(now - 2 * 60_000));
+  await end.fill("00:00");
   await expect(
     dialog.getByText(m.start_end_past(), { exact: true }),
   ).toBeVisible();

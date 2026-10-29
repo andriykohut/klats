@@ -2,8 +2,11 @@ package testfmt
 
 import (
 	"encoding/json"
+	"os"
 	"reflect"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -19,6 +22,28 @@ func TestDefaultSettingsOwnsItsThresholds(t *testing.T) {
 	DefaultSettings().Scale.Thresholds[0] = 99
 	if DefaultThresholds[0] != 16 || DefaultSettings().Scale.Thresholds[0] != 16 {
 		t.Fatal("DefaultSettings shares its thresholds with the package default")
+	}
+}
+
+func TestDefaultThresholdsMatchWeb(t *testing.T) {
+	src, err := os.ReadFile("../../web/shared/src/grades.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`DEFAULT_THRESHOLDS = \[([\d,\s]+)\]`).FindSubmatch(src)
+	if m == nil {
+		t.Fatal("DEFAULT_THRESHOLDS not found in grades.ts")
+	}
+	var web []int
+	for _, f := range strings.Split(string(m[1]), ",") {
+		n, err := strconv.Atoi(strings.TrimSpace(f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		web = append(web, n)
+	}
+	if !slices.Equal(web, DefaultThresholds) {
+		t.Fatalf("web DEFAULT_THRESHOLDS = %v, Go DefaultThresholds = %v", web, DefaultThresholds)
 	}
 }
 
