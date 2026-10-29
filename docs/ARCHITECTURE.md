@@ -415,7 +415,9 @@ Students may have the address bookmarked.
   their content-hash name only, with the type the store chose and `nosniff`.
   SVG responses also carry `Content-Security-Policy: sandbox`: an `<img>`
   never runs an SVG's scripts, and the sandbox stops them in an SVG opened
-  directly.
+  directly. The student app keeps its offline copy of an SVG as a `data:`
+  URL, not a `blob:` URL, because a blob URL opened in a tab of its own runs
+  the SVG's scripts in the student app's origin.
 - **Opened files are untrusted:** `.klats` files and backups.
   - `internal/klatsfile` stores nothing from a `.klats` file until every
     check that does not need the media store has passed. Only `test.json`

@@ -58,16 +58,29 @@ export function keepOriginal(
 }
 
 /**
- * Returns the size to store for an SVG, fitted by {@link fitSize}: its
- * `natural` size when both sides are above 0, else the width and height of
- * its root's `viewBox` attribute, else 300×150, the browser default.
+ * Returns the size to store for an SVG, fitted by {@link fitSize}, from the
+ * `width`, `height` and `viewBox` attributes of its root element: its
+ * `natural` size when both `width` and `height` are lengths, not percentages,
+ * and both natural sides are above 0; else the width and height of its
+ * `viewBox`; else 300×150, the browser default.
  */
 export function svgSize(
   natural: { w: number; h: number },
-  viewBox: string | null,
+  root: { width: string | null; height: string | null; viewBox: string | null },
 ): { w: number; h: number } {
-  if (natural.w > 0 && natural.h > 0) return fitSize(natural.w, natural.h);
-  const box = viewBox
+  const length = (v: string | null) =>
+    !!v && /^\s*\+?\.?\d/.test(v) && !v.includes("%");
+  // Browsers make up a natural size for an SVG that declares none, such as
+  // 200×150 for a 4:3 viewBox in Chromium and WebKit.
+  if (
+    length(root.width) &&
+    length(root.height) &&
+    natural.w > 0 &&
+    natural.h > 0
+  ) {
+    return fitSize(natural.w, natural.h);
+  }
+  const box = root.viewBox
     ?.trim()
     .split(/[\s,]+/)
     .map(Number);
@@ -102,14 +115,19 @@ export async function prepareImage(
     } finally {
       URL.revokeObjectURL(url);
     }
-    const natural = { w: img.naturalWidth, h: img.naturalHeight };
-    const viewBox =
-      natural.w > 0 && natural.h > 0
-        ? null
-        : new DOMParser()
-            .parseFromString(await file.text(), "image/svg+xml")
-            .documentElement.getAttribute("viewBox");
-    return { blob: file, ...svgSize(natural, viewBox) };
+    const root = new DOMParser().parseFromString(
+      await file.text(),
+      "image/svg+xml",
+    ).documentElement;
+    const size = svgSize(
+      { w: img.naturalWidth, h: img.naturalHeight },
+      {
+        width: root.getAttribute("width"),
+        height: root.getAttribute("height"),
+        viewBox: root.getAttribute("viewBox"),
+      },
+    );
+    return { blob: file, ...size };
   }
   let bitmap: ImageBitmap;
   try {

@@ -4,7 +4,7 @@ import { fieldsOf, walkNodes } from "./rich/walk";
 
 /*
  * Where a media name is fetched from depends on the app: the teacher app
- * reads the teacher API, and the student app reads a blob it preloaded and
+ * reads the teacher API, and the student app reads a copy it preloaded and
  * falls back to the network. Each app sets its resolver once; components ask
  * through {@link useMediaURL} and redraw when {@link notifyMedia} says the
  * answer changed.

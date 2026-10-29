@@ -214,12 +214,15 @@ test("a hotspot question saves the area drawn on its picture, and every number s
 
 /**
  * A 4:3 drawing that sets only its viewBox: a blue square around (25%, 40%),
- * and a script that marks the page it runs in.
+ * and a script that marks the page it runs in and its origin's storage.
  */
 const DRAWING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
 <rect width="400" height="300" fill="#f4f1ea"/>
 <rect x="40" y="60" width="120" height="120" fill="#2f6fd6"/>
-<script>document.documentElement.setAttribute("data-ran", "")</script>
+<script>
+document.documentElement.setAttribute("data-ran", "");
+localStorage.setItem("svg-ran", "1");
+</script>
 </svg>`;
 
 test("an SVG with only a viewBox keeps its shape on the student's sheet, takes clicks where they land, and runs no script opened directly", async ({
@@ -249,7 +252,7 @@ test("an SVG with only a viewBox keeps its shape on the student's sheet, takes c
   const q = (await saved(page)).test.questions[0];
   const src = q.image?.src ?? "";
   expect(src).toMatch(/\.svg$/);
-  expect((q.image?.w ?? 0) / (q.image?.h ?? 1)).toBeCloseTo(4 / 3, 2);
+  expect(q.image).toMatchObject({ w: 400, h: 300 });
 
   const { code, assignmentId } = await klats.start([
     { ...q, title: "Де квадрат?" },
@@ -265,6 +268,19 @@ test("an SVG with only a viewBox keeps its shape on the student's sheet, takes c
     el.offsetHeight,
   ]);
   expect(w / h).toBeCloseTo(4 / 3, 1);
+
+  // The copy kept for offline use is what «Open image in new tab» opens: its
+  // script must not run in the student app's origin.
+  await expect(img).not.toHaveAttribute("src", /\/api\/media\//);
+  const kept = (await img.getAttribute("src")) ?? "";
+  const tab = await student.context().newPage();
+  await tab.goto(kept);
+  await tab.close();
+  expect(
+    await student.evaluate(() => localStorage.getItem("svg-ran")),
+  ).toBeNull();
+  expect(kept).toMatch(/^data:image\/svg\+xml/);
+
   await img.click({ position: { x: w * 0.25, y: h * 0.4 } });
   await expect(student.locator(".k-marker")).toBeVisible();
   await student.getByRole("button", { name: m.test_finish() }).click();
