@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -22,11 +23,13 @@ import (
 const (
 	maxImageBytes = 5 << 20
 	maxAudioBytes = 10 << 20
+	// svgWindow is how far into a file sniff looks for an SVG's root element.
+	svgWindow = 8 << 10
 )
 
 var (
 	// ErrUnsupported is returned by [Store.Put] for bytes that are not a
-	// supported image or audio file, SVG and HTML included.
+	// supported image or audio file, HTML included.
 	ErrUnsupported = errors.New("media: unsupported file type")
 	// ErrTooLarge is returned by [Store.Put] for an image over 5 MiB or audio
 	// over 10 MiB.
@@ -37,7 +40,7 @@ var (
 )
 
 var contentTypes = map[string]string{
-	"jpg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp",
+	"jpg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp", "svg": "image/svg+xml",
 	"mp3": "audio/mpeg", "m4a": "audio/mp4", "ogg": "audio/ogg", "wav": "audio/wav",
 }
 
@@ -69,7 +72,7 @@ func (s *Store) Put(r io.Reader) (string, error) {
 		return "", ErrUnsupported
 	}
 	limit := maxAudioBytes
-	if slices.Contains([]string{"jpg", "png", "gif", "webp"}, ext) {
+	if slices.Contains([]string{"jpg", "png", "gif", "webp", "svg"}, ext) {
 		limit = maxImageBytes
 	}
 	if len(data) > limit {
@@ -118,7 +121,10 @@ func (s *Store) Open(name string) (*os.File, string, error) {
 }
 
 // sniff returns the extension for the type of data's leading bytes, or "" for
-// an unsupported type.
+// an unsupported type. An SVG is XML whose first element is <svg>, with only a
+// byte order mark, processing instructions such as the XML declaration,
+// comments, a doctype and whitespace before it; that element must start
+// within the first 8 KiB, so a large text file is never parsed in full.
 func sniff(b []byte) string {
 	switch {
 	case bytes.HasPrefix(b, []byte("\xff\xd8\xff")):
@@ -137,8 +143,32 @@ func sniff(b []byte) string {
 		return "mp3"
 	case len(b) >= 12 && string(b[4:8]) == "ftyp" && (string(b[8:12]) == "M4A " || string(b[8:12]) == "isom" || string(b[8:12]) == "mp42"):
 		return "m4a"
+	case svgRoot(b[:min(len(b), svgWindow)]):
+		return "svg"
 	}
 	return ""
+}
+
+// svgRoot reports whether the first element of b is <svg>, as [sniff] defines
+// it.
+func svgRoot(b []byte) bool {
+	d := xml.NewDecoder(bytes.NewReader(bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))))
+	// Only the root's ASCII name is read, so any declared encoding will do.
+	d.CharsetReader = func(_ string, r io.Reader) (io.Reader, error) { return r, nil }
+	for {
+		tok, err := d.RawToken()
+		if err != nil {
+			return false
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			return t.Name.Local == "svg"
+		case xml.CharData:
+			if len(bytes.TrimSpace(t)) > 0 {
+				return false
+			}
+		}
+	}
 }
 
 // riff reports whether b is a RIFF container of the given form type.

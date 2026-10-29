@@ -375,8 +375,8 @@ func validGapID(id string) bool {
 
 // MediaKind returns "image" or "audio" if name is a media name, and "" if not.
 // A media name is 64 lowercase hex digits (the content hash), a dot, and an
-// extension: jpg, png, gif or webp for images; mp3, m4a, ogg or wav for audio.
-// It does no I/O.
+// extension: jpg, png, gif, webp or svg for images; mp3, m4a, ogg or wav for
+// audio. It does no I/O.
 func MediaKind(name string) string {
 	hash, ext, ok := strings.Cut(name, ".")
 	if !ok || len(hash) != 64 {
@@ -388,7 +388,7 @@ func MediaKind(name string) string {
 		}
 	}
 	switch ext {
-	case "jpg", "png", "gif", "webp":
+	case "jpg", "png", "gif", "webp", "svg":
 		return "image"
 	case "mp3", "m4a", "ogg", "wav":
 		return "audio"

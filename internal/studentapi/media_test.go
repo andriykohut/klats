@@ -32,7 +32,8 @@ func TestStudentMediaOnlyFromSitting(t *testing.T) {
 	wantStatus(t, w, 200)
 	h := w.Header()
 	if h.Get("Content-Type") != "image/png" || h.Get("Cache-Control") != "public, max-age=31536000, immutable" ||
-		h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Access-Control-Allow-Origin") != "*" {
+		h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Access-Control-Allow-Origin") != "*" ||
+		h.Get("Content-Security-Policy") != "" {
 		t.Errorf("headers = %v", h)
 	}
 	if !bytes.Equal(w.Body.Bytes(), png(1)) {
@@ -50,5 +51,22 @@ func TestStudentMediaOnlyFromSitting(t *testing.T) {
 
 	for _, name := range []string{stored, strings.Repeat("e", 64) + ".png", "..%2Fklats.db", "x.png"} {
 		wantError(t, v.do("GET", "/api/media/"+name, "", nil), 404, "not_found")
+	}
+}
+
+func TestStudentMediaSandboxesSVG(t *testing.T) {
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"><script>alert(1)</script></svg>`)
+	var name string
+	v := setupWith(t, func(tst *testfmt.Test, ms *media.Store) {
+		var err error
+		if name, err = ms.Put(bytes.NewReader(svg)); err != nil {
+			t.Fatal(err)
+		}
+		tst.Questions[0].Options[0].Image = &testfmt.Image{Src: name, W: 300, H: 225}
+	})
+	w := v.do("GET", "/api/media/"+name, "", nil)
+	wantStatus(t, w, 200)
+	if h := w.Header(); h.Get("Content-Type") != "image/svg+xml" || h.Get("Content-Security-Policy") != "sandbox" {
+		t.Errorf("headers = %v", h)
 	}
 }

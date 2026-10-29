@@ -21,7 +21,10 @@ import (
 	"klats/internal/testfmt"
 )
 
-const pngHead = "\x89PNG\r\n\x1a\n"
+const (
+	pngHead = "\x89PNG\r\n\x1a\n"
+	svgHead = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3">`
+)
 
 // file returns head followed by tag, and its media name with extension ext.
 func file(head, tag, ext string) ([]byte, string) {
@@ -149,7 +152,7 @@ func read(b []byte, ms *media.Store) (testfmt.Test, error) {
 func TestRoundTrip(t *testing.T) {
 	src, _ := store(t)
 	var names []string
-	for _, f := range []struct{ head, tag, ext string }{{pngHead, "text", "png"}, {pngHead, "option", "png"}, {"ID3", "clip", "mp3"}} {
+	for _, f := range []struct{ head, tag, ext string }{{pngHead, "text", "png"}, {svgHead, "option", "svg"}, {"ID3", "clip", "mp3"}} {
 		data, want := file(f.head, f.tag, f.ext)
 		if name, err := src.Put(bytes.NewReader(data)); err != nil || name != want {
 			t.Fatalf("Put = %q, %v; want %q", name, err, want)

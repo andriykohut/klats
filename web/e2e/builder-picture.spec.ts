@@ -1,7 +1,7 @@
 import type { Question } from "@klats/shared/generated/testfmt.ts";
 import type { TestDoc } from "@klats/shared/generated/wire.ts";
 import type { Page } from "@playwright/test";
-import { expect, type Klats, m, test } from "./fixtures";
+import { expect, joinAs, type Klats, m, test, until } from "./fixtures";
 
 /** A `w`×`h` PNG drawn in the page: three shapes on a cream ground. */
 async function scene(page: Page, w = 800, h = 600): Promise<Buffer> {
@@ -210,6 +210,81 @@ test("a hotspot question saves the area drawn on its picture, and every number s
   expect(q.image?.src).toMatch(/\.png$/);
   expect(q.image?.w).toBe(800);
   expect(q.areas).toHaveLength(3);
+});
+
+/**
+ * A 4:3 drawing that sets only its viewBox: a blue square around (25%, 40%),
+ * and a script that marks the page it runs in.
+ */
+const DRAWING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+<rect width="400" height="300" fill="#f4f1ea"/>
+<rect x="40" y="60" width="120" height="120" fill="#2f6fd6"/>
+<script>document.documentElement.setAttribute("data-ran", "")</script>
+</svg>`;
+
+test("an SVG with only a viewBox keeps its shape on the student's sheet, takes clicks where they land, and runs no script opened directly", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  await add(page, m.type_hotspot_desc);
+  await field(page, m.builder_question_text()).fill("Де квадрат?");
+  const chooser = page.waitForEvent("filechooser");
+  await editor(page)
+    .getByRole("button", { name: m.builder_picture_add() })
+    .click();
+  await (await chooser).setFiles({
+    name: "drawing.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from(DRAWING),
+  });
+  await expect(picture(page).locator("img")).toBeVisible();
+  await drag(page, [0.1, 0.2], [0.4, 0.6]);
+  await expect.poll(async () => (await question(page)).areas?.length).toBe(1);
+
+  await page.reload();
+  await expect(picture(page).locator("img")).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: m.builder_area_x({ number: 1 }) }),
+  ).toHaveValue("10");
+  const q = (await saved(page)).test.questions[0];
+  const src = q.image?.src ?? "";
+  expect(src).toMatch(/\.svg$/);
+  expect((q.image?.w ?? 0) / (q.image?.h ?? 1)).toBeCloseTo(4 / 3, 2);
+
+  const { code, assignmentId } = await klats.start([
+    { ...q, title: "Де квадрат?" },
+  ]);
+  const student = await klats.computer();
+  await joinAs(student, klats, code, "Коваль Максим");
+  const img = student
+    .getByRole("group", { name: "Де квадрат?" })
+    .locator("img");
+  // Layout sizes, which the sheet's entry animation does not transform.
+  const [w, h] = await img.evaluate((el: HTMLImageElement) => [
+    el.offsetWidth,
+    el.offsetHeight,
+  ]);
+  expect(w / h).toBeCloseTo(4 / 3, 1);
+  await img.click({ position: { x: w * 0.25, y: h * 0.4 } });
+  await expect(student.locator(".k-marker")).toBeVisible();
+  await student.getByRole("button", { name: m.test_finish() }).click();
+  await student.getByRole("button", { name: m.review_finish() }).click();
+  await until(klats, (live) => live.rows[0]?.status === "finished");
+  expect((await klats.results(assignmentId)).rows[0].points).toEqual([1]);
+
+  const studentURL = `${klats.student}/api/media/${src}`;
+  for (const [p, url] of [
+    [student, studentURL],
+    [page, `${new URL(page.url()).origin}/api/media/${src}`],
+  ] as const) {
+    await p.goto(url);
+    expect(
+      await p.evaluate(() => document.documentElement.hasAttribute("data-ran")),
+    ).toBe(false);
+  }
+  const res = await fetch(studentURL);
+  expect(res.headers.get("content-type")).toBe("image/svg+xml");
+  expect(res.headers.get("content-security-policy")).toBe("sandbox");
 });
 
 test("a picture dropped on a hotspot question is added", async ({

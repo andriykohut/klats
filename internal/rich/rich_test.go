@@ -251,7 +251,7 @@ func TestParseImageAudio(t *testing.T) {
 	accepts(t, img, Block)
 	rejects(t, img, Inline)
 	accepts(t, doc(`{"type":"audio","attrs":{"src":"`+hex64+`.mp3"}}`), Block)
-	for _, src := range []string{hex64 + ".mp3", "../x.png", strings.ToUpper(hex64) + ".png", hex64 + ".svg", hex64[:63] + ".png", "http://x/" + hex64 + ".png"} {
+	for _, src := range []string{hex64 + ".mp3", "../x.png", strings.ToUpper(hex64) + ".png", hex64 + ".html", hex64[:63] + ".png", "http://x/" + hex64 + ".png"} {
 		rejects(t, doc(`{"type":"image","attrs":{"src":"`+src+`","w":8,"h":6}}`), Block)
 	}
 	rejects(t, doc(`{"type":"audio","attrs":{"src":"`+hex64+`.png"}}`), Block)
@@ -399,9 +399,9 @@ func TestMediaAndGapIDs(t *testing.T) {
 
 func TestMediaKind(t *testing.T) {
 	for name, want := range map[string]string{
-		hex64 + ".jpg": "image", hex64 + ".png": "image", hex64 + ".gif": "image", hex64 + ".webp": "image",
+		hex64 + ".jpg": "image", hex64 + ".png": "image", hex64 + ".gif": "image", hex64 + ".webp": "image", hex64 + ".svg": "image",
 		hex64 + ".mp3": "audio", hex64 + ".m4a": "audio", hex64 + ".ogg": "audio", hex64 + ".wav": "audio",
-		"": "", hex64: "", hex64 + ".svg": "", hex64 + ".PNG": "", "x.png": "", "/" + hex64 + ".png": "",
+		"": "", hex64: "", hex64 + ".html": "", hex64 + ".PNG": "", "x.png": "", "/" + hex64 + ".png": "",
 	} {
 		if got := MediaKind(name); got != want {
 			t.Errorf("MediaKind(%q) = %q, want %q", name, got, want)

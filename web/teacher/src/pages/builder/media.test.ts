@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { fitSize, keepOriginal } from "./media";
+import { fitSize, keepOriginal, svgSize } from "./media";
 
 test("fitSize scales the long side down to the limit and never up", () => {
   expect(fitSize(4000, 3000)).toEqual({ w: 1600, h: 1200 });
@@ -19,4 +19,18 @@ test("keepOriginal keeps small web images and nothing else", () => {
   expect(keepOriginal("image/jpeg", 300 * KB, 2000, 1000)).toBe(false);
   expect(keepOriginal("image/jpeg", 300 * KB, 1000, 1601)).toBe(false);
   expect(keepOriginal("image/bmp", 10 * KB, 10, 10)).toBe(false);
+});
+
+test("svgSize takes the natural size, then the viewBox, then 300×150, fitted to 1600 px", () => {
+  expect(svgSize({ w: 640, h: 480 }, "0 0 4 3")).toEqual({ w: 640, h: 480 });
+  expect(svgSize({ w: 4000, h: 3000 }, null)).toEqual({ w: 1600, h: 1200 });
+  expect(svgSize({ w: 0, h: 0 }, "0 0 400 300")).toEqual({ w: 400, h: 300 });
+  expect(svgSize({ w: 0, h: 0 }, " -10,-10, 4000\n1000 ")).toEqual({
+    w: 1600,
+    h: 400,
+  });
+  expect(svgSize({ w: 0, h: 0 }, null)).toEqual({ w: 300, h: 150 });
+  expect(svgSize({ w: 0, h: 0 }, "0 0 0 10")).toEqual({ w: 300, h: 150 });
+  expect(svgSize({ w: 0, h: 0 }, "0 0 4")).toEqual({ w: 300, h: 150 });
+  expect(svgSize({ w: 0, h: 0 }, "a b c d")).toEqual({ w: 300, h: 150 });
 });

@@ -15,6 +15,7 @@ import (
 var (
 	pngHead  = []byte("\x89PNG\r\n\x1a\n")
 	riffWebp = []byte("RIFF\x00\x00\x00\x00WEBP")
+	svgHead  = []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3">`)
 )
 
 func padded(head []byte, n int) []byte {
@@ -54,7 +55,7 @@ func TestPutSniffsAndNames(t *testing.T) {
 
 func TestPutRejectsUnknown(t *testing.T) {
 	s, dir := open(t)
-	for _, in := range []string{`<svg xmlns="http://www.w3.org/2000/svg"></svg>`, "<html><script>1</script></html>", "", "RIFF\x00\x00\x00\x00AVI "} {
+	for _, in := range []string{`<?xml version="1.0"?><note/>`, "<html><script>1</script></html>", "", "RIFF\x00\x00\x00\x00AVI "} {
 		if _, err := s.Put(strings.NewReader(in)); !errors.Is(err, ErrUnsupported) {
 			t.Errorf("Put(%q) = %v, want ErrUnsupported", in, err)
 		}
@@ -72,6 +73,9 @@ func TestPutCaps(t *testing.T) {
 	}
 	if _, err := s.Put(bytes.NewReader(padded(pngHead, 5*mib))); err != nil {
 		t.Errorf("5 MiB PNG: %v", err)
+	}
+	if _, err := s.Put(bytes.NewReader(padded(svgHead, 5*mib+1))); !errors.Is(err, ErrTooLarge) {
+		t.Errorf("5 MiB+1 SVG: %v, want ErrTooLarge", err)
 	}
 	if name, err := s.Put(bytes.NewReader(padded([]byte("ID3"), 6*mib))); err != nil || !strings.HasSuffix(name, ".mp3") {
 		t.Errorf("6 MiB MP3 = %q, %v", name, err)
@@ -112,6 +116,36 @@ func TestSniffAudio(t *testing.T) {
 	}
 }
 
+func TestSniffSVG(t *testing.T) {
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"><script>1</script></svg>`
+	for _, in := range []string{
+		svg,
+		"\xef\xbb\xbf" + svg,
+		`<?xml version="1.0" encoding="UTF-8"?>` + "\n" + svg,
+		`<?xml version="1.0" encoding="windows-1251"?>` + svg,
+		"<!-- drawn by hand -->\n" + svg,
+		`<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">` + svg,
+		`<svg:svg xmlns:svg="http://www.w3.org/2000/svg"/>`,
+	} {
+		if got := sniff([]byte(in)); got != "svg" {
+			t.Errorf("sniff(%.60q) = %q, want svg", in, got)
+		}
+	}
+	for _, in := range []string{
+		"<html><body>" + svg + "</body></html>",
+		"<html>",
+		`<?xml version="1.0"?><note/>`,
+		"text",
+		"text " + svg,
+		strings.Repeat(" ", 8<<10) + svg,
+		"<!-- " + strings.Repeat("x", 8<<10) + " -->" + svg,
+	} {
+		if got := sniff([]byte(in)); got != "" {
+			t.Errorf("sniff(%.60q) = %q, want none", in, got)
+		}
+	}
+}
+
 func TestOpenRejectsBadNames(t *testing.T) {
 	s, dir := open(t)
 	if err := os.WriteFile(filepath.Join(filepath.Dir(dir), "klats.db"), []byte("secret"), 0o600); err != nil {
@@ -119,7 +153,7 @@ func TestOpenRejectsBadNames(t *testing.T) {
 	}
 	hash := strings.Repeat("a", 64)
 	missing := hash + ".png"
-	for _, name := range []string{"../klats.db", "x.png", strings.ToUpper(hash) + ".png", missing, hash + ".svg", hash + ".png/", "", "/etc/passwd", `..\klats.db`} {
+	for _, name := range []string{"../klats.db", "x.png", strings.ToUpper(hash) + ".png", missing, hash + ".html", hash + ".png/", "", "/etc/passwd", `..\klats.db`} {
 		if f, _, err := s.Open(name); !errors.Is(err, ErrNotFound) {
 			if f != nil {
 				_ = f.Close()
@@ -156,6 +190,7 @@ func TestOpenContentTypeForEveryExtension(t *testing.T) {
 		{"\x00\x00\x00\x20ftypM4A \x00\x00", "m4a", "audio/mp4"},
 		{"OggS\x00", "ogg", "audio/ogg"},
 		{"RIFF\x24\x00\x00\x00WAVEfmt ", "wav", "audio/wav"},
+		{string(svgHead), "svg", "image/svg+xml"},
 	} {
 		name, err := s.Put(strings.NewReader(c.head))
 		if err != nil || !strings.HasSuffix(name, "."+c.ext) {

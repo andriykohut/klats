@@ -5,7 +5,8 @@ import { ApiError, postMedia } from "../../api/client";
 /*
  * Getting a teacher's picture or recording into the media store. Pictures are
  * shrunk first, so a phone photo costs the lab network a few hundred KB, not
- * several MB.
+ * several MB. An SVG is stored as it came, since redrawing would lose its
+ * sharpness at any size.
  */
 
 /** The longest side, in pixels, a stored image may have. */
@@ -56,19 +57,60 @@ export function keepOriginal(
   );
 }
 
+/**
+ * Returns the size to store for an SVG, fitted by {@link fitSize}: its
+ * `natural` size when both sides are above 0, else the width and height of
+ * its root's `viewBox` attribute, else 300×150, the browser default.
+ */
+export function svgSize(
+  natural: { w: number; h: number },
+  viewBox: string | null,
+): { w: number; h: number } {
+  if (natural.w > 0 && natural.h > 0) return fitSize(natural.w, natural.h);
+  const box = viewBox
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (box?.length === 4 && box[2] > 0 && box[3] > 0) {
+    return fitSize(box[2], box[3]);
+  }
+  return { w: 300, h: 150 };
+}
+
 const encode = (canvas: HTMLCanvasElement, type: string) =>
   new Promise<Blob | null>((done) => canvas.toBlob(done, type, QUALITY));
 
 /**
- * Decodes `file` and returns the image to upload with its size in pixels:
- * `file` itself when {@link keepOriginal} allows, else the picture redrawn at
- * {@link fitSize} as WebP, or as JPEG over white where the browser cannot
- * encode WebP. Rejects with `MediaError("unsupported")` when the browser
- * cannot decode the file, as with HEIC.
+ * Decodes `file` and returns the image to upload with its size in pixels: an
+ * SVG as it came, sized by {@link svgSize}; `file` itself when
+ * {@link keepOriginal} allows; else the picture redrawn at {@link fitSize} as
+ * WebP, or as JPEG over white where the browser cannot encode WebP. Rejects
+ * with `MediaError("unsupported")` when the browser cannot decode the file,
+ * as with HEIC.
  */
 export async function prepareImage(
   file: Blob,
 ): Promise<{ blob: Blob; w: number; h: number }> {
+  if (file.type === "image/svg+xml") {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.src = url;
+    try {
+      await img.decode();
+    } catch {
+      throw new MediaError("unsupported");
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    const natural = { w: img.naturalWidth, h: img.naturalHeight };
+    const viewBox =
+      natural.w > 0 && natural.h > 0
+        ? null
+        : new DOMParser()
+            .parseFromString(await file.text(), "image/svg+xml")
+            .documentElement.getAttribute("viewBox");
+    return { blob: file, ...svgSize(natural, viewBox) };
+  }
   let bitmap: ImageBitmap;
   try {
     bitmap = await createImageBitmap(file);
@@ -119,7 +161,7 @@ export async function uploadMedia(blob: Blob): Promise<string> {
   }
 }
 
-/** Shrinks and uploads the image `file`, and returns it as an option or question image. */
+/** Shrinks (unless it is an SVG) and uploads the image `file`, and returns it as an option or question image. */
 export async function addImage(file: Blob): Promise<Image> {
   const { blob, w, h } = await prepareImage(file);
   return { src: await uploadMedia(blob), w, h };

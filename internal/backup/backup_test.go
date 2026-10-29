@@ -31,7 +31,10 @@ import (
 	"klats/internal/wire"
 )
 
-const pngHead = "\x89PNG\r\n\x1a\n"
+const (
+	pngHead = "\x89PNG\r\n\x1a\n"
+	svgHead = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3">`
+)
 
 // file returns head followed by tag, and its media name with extension ext.
 func file(head, tag, ext string) ([]byte, string) {
@@ -188,7 +191,7 @@ func insertTest(doc string) string {
 
 func TestBackupRoundTrip(t *testing.T) {
 	a := newFolder(t)
-	img, name := file(pngHead, "used", "png")
+	img, name := file(svgHead, "used", "svg")
 	unused, unusedName := file(pngHead, "unused", "png")
 	for _, data := range [][]byte{img, unused} {
 		if _, err := a.ms.Put(bytes.NewReader(data)); err != nil {

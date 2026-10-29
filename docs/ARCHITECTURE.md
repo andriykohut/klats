@@ -408,10 +408,14 @@ Students may have the address bookmarked.
   capped at 4 MiB, and media uploads at 10 MiB.
 - **Uploads are sniffed and capped.** The media store decides a file's type
   from its leading bytes, never from the name or header the client sent.
-  Only JPEG, PNG, GIF, WebP, MP3, M4A, Ogg and WAV are kept; SVG, HTML and
-  anything else is refused. Images are capped at 5 MiB and audio at 10 MiB.
-  Files are served by their content-hash name only, with the type the store
-  chose and `nosniff`.
+  Only JPEG, PNG, GIF, WebP, SVG, MP3, M4A, Ogg and WAV are kept; HTML and
+  anything else is refused. An SVG is XML whose root element is `<svg>`,
+  found with `encoding/xml` within the first 8 KiB, and it is stored as it
+  came. Images are capped at 5 MiB and audio at 10 MiB. Files are served by
+  their content-hash name only, with the type the store chose and `nosniff`.
+  SVG responses also carry `Content-Security-Policy: sandbox`: an `<img>`
+  never runs an SVG's scripts, and the sandbox stops them in an SVG opened
+  directly.
 - **Opened files are untrusted:** `.klats` files and backups.
   - `internal/klatsfile` stores nothing from a `.klats` file until every
     check that does not need the media store has passed. Only `test.json`

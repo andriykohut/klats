@@ -89,6 +89,10 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
     - *Expected:* the question, its answers and «Далі» fit or scroll with
       «Ще N відповідей нижче», and nothing is cut off or overlaps, the
       picture questions and the long code or table included.
+13. **A heavy SVG.** On an old lab PC, open a question whose picture is an
+    SVG of 1 MB or more, such as a GeoGebra export.
+    - *Expected:* it renders acceptably: it shows within a few seconds, and
+      scrolling and moving between questions do not stall.
 
 ## 2. The Windows teacher app (Windows 10)
 

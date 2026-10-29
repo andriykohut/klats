@@ -38,5 +38,10 @@ func (a *api) serveMedia(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", contentType)
 	h.Set("Cache-Control", "public, max-age=31536000, immutable")
 	h.Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// An <img> never runs an SVG's scripts; this stops them when the
+		// file is opened as a page of its own.
+		h.Set("Content-Security-Policy", "sandbox")
+	}
 	http.ServeContent(w, r, "", info.ModTime(), f)
 }
