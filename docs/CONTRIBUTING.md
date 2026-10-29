@@ -48,6 +48,8 @@ system libraries the browsers need too.
 | `make load` | A lesson at full size: 40 simulated students against the sitting engine for a minute. |
 | `make size` | Checks that the student app's JavaScript stays within 350 KB gzipped, as thirty lab PCs load it at once. Part of `make check`. |
 
+While working, `go test -short ./...` skips the slowest Go test, and `cd web && pnpm --filter @klats/e2e exec playwright test --project=chromium <spec>` runs one e2e spec in Chromium, after `make web`. Run `make check` and `make e2e` before pushing.
+
 ### Live reload
 
 To work on a web app with Vite's live reload, start the server, then the

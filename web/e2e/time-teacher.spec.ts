@@ -185,9 +185,10 @@ test("a student who was out of time gets the test back with the extra time", asy
   klats,
 }) => {
   // The waits allow for a machine under load, where Firefox is slowest.
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const { code } = await klats.start(TEST, {
-    settings: { timeLimit: { mode: "student", minutes: 1 } },
+    settings: { timeLimit: { mode: "common", minutes: 30 } },
+    endsAt: Date.now() + 20_000,
   });
   const student = await klats.computer();
   const name = CLASS[0];
@@ -199,7 +200,7 @@ test("a student who was out of time gets the test back with the extra time", asy
   await pick(student, TEST[0], "8");
   await expect(
     student.getByRole("heading", { name: m.finish_time_up() }),
-  ).toBeVisible({ timeout: 90_000 });
+  ).toBeVisible({ timeout: 30_000 });
   await expect(answers(student, TEST[0])).toBeHidden();
 
   await openMenu(teacher, name);
@@ -215,7 +216,7 @@ test("a student who was out of time gets the test back with the extra time", asy
   await expect(
     student.getByRole("heading", { name: m.finish_time_up() }),
   ).toBeHidden();
-  // The minute is spent, so the five added minutes are what is left.
+  // The time is spent, so the five added minutes are what is left.
   const left = await secondsLeft(student);
   expect(left).toBeGreaterThan(4 * 60);
   expect(left).toBeLessThanOrEqual(5 * 60);
@@ -230,9 +231,10 @@ test("a student who was out of time gets the test back with the extra time", asy
 test("a computer that died across the deadline waits for more time", async ({
   klats,
 }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(120_000);
   const { code } = await klats.start(TEST, {
-    settings: { timeLimit: { mode: "student", minutes: 1 } },
+    settings: { timeLimit: { mode: "common", minutes: 30 } },
+    endsAt: Date.now() + 20_000,
   });
   const student = await klats.computer();
   const name = CLASS[0];

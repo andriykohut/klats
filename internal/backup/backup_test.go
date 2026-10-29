@@ -452,7 +452,6 @@ func TestPrepareRejects(t *testing.T) {
 		"a snapshot that fails Decode": zipOf(t, entry{"klats.db", dbFile(t, `INSERT INTO assignments (id, test_snapshot, created_at) VALUES ('a1', '{"version":1,"questions":[{"type":"nope"}]}', 0)`)}),
 		"hash differs from name":       zipOf(t, good, entry{"media/" + name, other}),
 		"50,001 entries":               zipOf(t, append([]entry{good}, mediaEntries(maxEntries)...)...),
-		"media over 2 GiB":             clips(t, maxMediaTotal/maxMediaBytes+1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFolder(t)
@@ -462,6 +461,17 @@ func TestPrepareRejects(t *testing.T) {
 			f.clean(t)
 		})
 	}
+}
+
+func TestPrepareMediaTotal(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reads 2 GiB of media")
+	}
+	f := newFolder(t)
+	if _, err := f.prepare(t, clips(t, maxMediaTotal/maxMediaBytes+1)); !errors.Is(err, ErrDamaged) {
+		t.Errorf("Prepare = %v, want ErrDamaged", err)
+	}
+	f.clean(t)
 }
 
 // A directory of 50,000 entries with the longest media names fits in the
