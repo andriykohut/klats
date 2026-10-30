@@ -153,8 +153,11 @@ func sniff(b []byte) string {
 // it.
 func svgRoot(b []byte) bool {
 	d := xml.NewDecoder(bytes.NewReader(bytes.TrimPrefix(b, []byte("\xef\xbb\xbf"))))
-	// Only the root's ASCII name is read, so any declared encoding will do.
+	// Only the root's ASCII name is read, so any declared encoding will do, and
+	// an entity the doctype declares, as Illustrator's exports use in the
+	// root's attributes, can stay unexpanded.
 	d.CharsetReader = func(_ string, r io.Reader) (io.Reader, error) { return r, nil }
+	d.Strict = false
 	for {
 		tok, err := d.RawToken()
 		if err != nil {

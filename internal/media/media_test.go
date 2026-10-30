@@ -126,6 +126,11 @@ func TestSniffSVG(t *testing.T) {
 		"<!-- drawn by hand -->\n" + svg,
 		`<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">` + svg,
 		`<svg:svg xmlns:svg="http://www.w3.org/2000/svg"/>`,
+		`<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+	<!ENTITY ns_svg "http://www.w3.org/2000/svg">
+	<!ENTITY ns_xlink "http://www.w3.org/1999/xlink">
+]>
+<svg version="1.1" xmlns="&ns_svg;" xmlns:xlink="&ns_xlink;" viewBox="0 0 4 3"></svg>`,
 	} {
 		if got := sniff([]byte(in)); got != "svg" {
 			t.Errorf("sniff(%.60q) = %q, want svg", in, got)
@@ -137,6 +142,8 @@ func TestSniffSVG(t *testing.T) {
 		`<?xml version="1.0"?><note/>`,
 		"text",
 		"text " + svg,
+		"<![CDATA[x]]>" + svg,
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"`,
 		strings.Repeat(" ", 8<<10) + svg,
 		"<!-- " + strings.Repeat("x", 8<<10) + " -->" + svg,
 	} {
