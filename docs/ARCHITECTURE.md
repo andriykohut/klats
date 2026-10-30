@@ -410,8 +410,8 @@ Students may have the address bookmarked.
   from its leading bytes, never from the name or header the client sent.
   Only JPEG, PNG, GIF, WebP, SVG, MP3, M4A, Ogg and WAV are kept; HTML and
   anything else is refused. An SVG is XML whose root element is `<svg>`,
-  found with `encoding/xml` within the first 8 KiB, and it is stored as it
-  came. Images are capped at 5 MiB and audio at 10 MiB. Files are served by
+  which `encoding/xml` must find starting within the first 8 KiB; it is
+  stored as it came. Images are capped at 5 MiB and audio at 10 MiB. Files are served by
   their content-hash name only, with the type the store chose and `nosniff`.
   SVG responses also carry `Content-Security-Policy: sandbox`: an `<img>`
   never runs an SVG's scripts, and the sandbox stops them in an SVG opened

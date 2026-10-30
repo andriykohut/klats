@@ -131,6 +131,7 @@ func TestSniffSVG(t *testing.T) {
 	<!ENTITY ns_xlink "http://www.w3.org/1999/xlink">
 ]>
 <svg version="1.1" xmlns="&ns_svg;" xmlns:xlink="&ns_xlink;" viewBox="0 0 4 3"></svg>`,
+		`<svg xmlns="http://www.w3.org/2000/svg" content="` + strings.Repeat("&lt;mxCell/&gt;", 2<<10) + `"></svg>`,
 	} {
 		if got := sniff([]byte(in)); got != "svg" {
 			t.Errorf("sniff(%.60q) = %q, want svg", in, got)

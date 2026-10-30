@@ -23,7 +23,7 @@ import (
 const (
 	maxImageBytes = 5 << 20
 	maxAudioBytes = 10 << 20
-	// svgWindow is how far into a file sniff looks for an SVG's root element.
+	// svgWindow is how far into a file an SVG's root element may start.
 	svgWindow = 8 << 10
 )
 
@@ -124,7 +124,8 @@ func (s *Store) Open(name string) (*os.File, string, error) {
 // an unsupported type. An SVG is XML whose first element is <svg>, with only a
 // byte order mark, processing instructions such as the XML declaration,
 // comments, a doctype and whitespace before it; that element must start
-// within the first 8 KiB, so a large text file is never parsed in full.
+// within the first 8 KiB, while its start tag may run on, as draw.io's export
+// does with its copy of the diagram in an attribute.
 func sniff(b []byte) string {
 	switch {
 	case bytes.HasPrefix(b, []byte("\xff\xd8\xff")):
@@ -143,7 +144,7 @@ func sniff(b []byte) string {
 		return "mp3"
 	case len(b) >= 12 && string(b[4:8]) == "ftyp" && (string(b[8:12]) == "M4A " || string(b[8:12]) == "isom" || string(b[8:12]) == "mp42"):
 		return "m4a"
-	case svgRoot(b[:min(len(b), svgWindow)]):
+	case svgRoot(b):
 		return "svg"
 	}
 	return ""
@@ -158,7 +159,7 @@ func svgRoot(b []byte) bool {
 	// root's attributes, can stay unexpanded.
 	d.CharsetReader = func(_ string, r io.Reader) (io.Reader, error) { return r, nil }
 	d.Strict = false
-	for {
+	for d.InputOffset() < svgWindow {
 		tok, err := d.RawToken()
 		if err != nil {
 			return false
@@ -172,6 +173,7 @@ func svgRoot(b []byte) bool {
 			}
 		}
 	}
+	return false
 }
 
 // riff reports whether b is a RIFF container of the given form type.
