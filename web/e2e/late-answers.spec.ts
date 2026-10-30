@@ -81,6 +81,12 @@ test("answers queued offline before the end land when the computer comes back du
   await browser.setOffline(false);
   const again = await browser.newPage();
   await again.goto(klats.student);
+  // The join screen follows the sending of the queue. Firefox's close can
+  // skip pagehide, as a crash does, so the new tab may first have to wait
+  // for the closed one's lease to go 15 s without a refresh.
+  await expect(
+    again.getByRole("heading", { name: m.join_title() }),
+  ).toBeVisible({ timeout: 30_000 });
 
   await expect
     .poll(
@@ -92,7 +98,4 @@ test("answers queued offline before the end land when the computer comes back du
       { timeout: 15_000 },
     )
     .toEqual({ q3: [q3.options[0].id], late: [q3.id] });
-  await expect(
-    again.getByRole("heading", { name: m.join_title() }),
-  ).toBeVisible();
 });
