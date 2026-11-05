@@ -139,6 +139,65 @@ func RTF(text string, picts ...[]byte) string {
 	return b.String()
 }
 
+// BMP returns a w×h 24-bit bitmap file, stored bottom-up, whose top-left pixel
+// is pure red and every other pixel white.
+func BMP(w, h int) []byte {
+	stride := (3*w + 3) &^ 3
+	var b writer
+	b.b = append(b.b, "BM"...)
+	b.u32(uint32(54 + stride*h))
+	b.u32(0)
+	b.u32(54) // the offset of the pixels
+	b.u32(40) // the size of the info header
+	b.u32(uint32(w))
+	b.u32(uint32(h))
+	b.b = binary.LittleEndian.AppendUint16(b.b, 1)  // planes
+	b.b = binary.LittleEndian.AppendUint16(b.b, 24) // bits per pixel
+	b.zeros(24)
+	for y := h - 1; y >= 0; y-- {
+		row := bytes.Repeat([]byte{0xff}, 3*w)
+		if y == 0 {
+			copy(row, []byte{0, 0, 0xff}) // blue, green, red
+		}
+		b.b = append(b.b, row...)
+		b.zeros(stride - 3*w)
+	}
+	return b.b
+}
+
+// WMF returns a metafile whose one bitmap record, of the given function
+// (0x0F43 StretchDIB or 0x0B41 DIBStretchBlt), draws bmp, a bitmap file, then
+// its end record; function 0 gives a metafile holding only the end record.
+// placeable puts the 22-byte placeable header first.
+func WMF(bmp []byte, placeable bool, function uint16) []byte {
+	var rec writer
+	if function != 0 {
+		params := 20
+		if function == 0x0F43 {
+			params = 22 // StretchDIB also has a colour usage
+		}
+		dib := bmp[14:]
+		rec.u32(uint32((6 + params + len(dib) + 1) / 2))
+		rec.b = binary.LittleEndian.AppendUint16(rec.b, function)
+		rec.zeros(params)
+		rec.b = append(rec.b, dib...)
+		rec.zeros(len(rec.b) % 2)
+	}
+	rec.u32(3) // META_EOF
+	rec.zeros(2)
+	var w writer
+	if placeable {
+		w.u32(0x9AC6CDD7)
+		w.zeros(18)
+	}
+	for _, v := range []uint16{1, 9, 0x0300} { // type, header size in words, version
+		w.b = binary.LittleEndian.AppendUint16(w.b, v)
+	}
+	w.u32(uint32(9 + len(rec.b)/2)) // the size in words
+	w.zeros(8)
+	return append(w.b, rec.b...)
+}
+
 type writer struct{ b []byte }
 
 func (w *writer) u8(v byte)     { w.b = append(w.b, v) }
