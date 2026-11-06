@@ -1,3 +1,4 @@
+import type { TestDoc } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -17,6 +18,7 @@ import { cooldown } from "../cooldown";
 import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
+import { OpenReport } from "./OpenReport";
 import "./tests.css";
 
 /**
@@ -29,8 +31,9 @@ const searchable = (s: string) =>
 /**
  * The test library: newest first, each row opening the builder. The search
  * matches titles, ignoring case and the kind of apostrophe. «Відкрити» opens a
- * .klats file as a new test, which lands at the top while the page stays on
- * the library.
+ * .klats or .mtf file as a new test, which lands at the top while the page
+ * stays on the library; the notes of an .mtf file's conversion are shown in
+ * {@link OpenReport}.
  */
 export function TestsPage() {
   const tests = useTests();
@@ -41,6 +44,7 @@ export function TestsPage() {
   const exportTest = useExportTest();
   const open = useImportTest();
   const [query, setQuery] = useState("");
+  const [report, setReport] = useState<TestDoc | null>(null);
   const [mayDelete] = useState(() => cooldown());
   const navigate = useNavigate();
   // The server lists the newest edit first.
@@ -56,10 +60,13 @@ export function TestsPage() {
 
   const openFile = (
     <FileTrigger
-      acceptedFileTypes={[".klats"]}
+      acceptedFileTypes={[".klats", ".mtf"]}
       onSelect={(files) => {
         const file = files?.[0];
-        if (file && !busy("importTest")) open.mutate(file);
+        if (!file || busy("importTest")) return;
+        open.mutate(file, {
+          onSuccess: (doc) => doc.notes?.length && setReport(doc),
+        });
       }}
     >
       <Button className="t-btn" data-variant="quiet" isPending={open.isPending}>
@@ -85,6 +92,9 @@ export function TestsPage() {
       {m.tests_new()}
     </Button>
   );
+  const openReport = report && (
+    <OpenReport doc={report} onClose={() => setReport(null)} />
+  );
 
   if (tests.isError) return <LoadError onRetry={() => tests.refetch()} />;
   if (!tests.data) return null;
@@ -102,6 +112,7 @@ export function TestsPage() {
             {newTest}
           </div>
         </div>
+        {openReport}
       </div>
     );
   }
@@ -180,6 +191,7 @@ export function TestsPage() {
           </li>
         ))}
       </ul>
+      {openReport}
     </div>
   );
 }

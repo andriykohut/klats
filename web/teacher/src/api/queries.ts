@@ -186,14 +186,18 @@ export const useExportTest = () =>
 /** The toasts for the files the server refuses to open, by error code. */
 const openErrors: Record<string, () => string> = {
   file_damaged: m.tests_file_damaged,
+  file_too_old: m.tests_file_too_old,
   test_too_new: m.tests_file_too_new,
   too_large: m.tests_file_too_large,
 };
 
 /**
- * Opens a .klats file as a new test, which the library lists first, and names
- * it in a toast. A damaged file, a test from a newer version and a file over
- * the size cap each get their own error toast. Key: "importTest".
+ * Opens a .klats file, or an .mtf file in the older format, as a new test,
+ * which the library lists first, and resolves with it. A test without notes is
+ * named in a toast; one with notes is left to the caller to report. A damaged
+ * file, a test from a newer version, an .mtf file in the format's outdated
+ * layout and a file over the size cap each get their own error toast. Key:
+ * "importTest".
  */
 export function useImportTest() {
   const qc = useQueryClient();
@@ -202,7 +206,7 @@ export function useImportTest() {
     mutationFn: (file: File) => api.importTest(file),
     onSuccess: (doc) => {
       qc.setQueryData(["tests", doc.id], doc);
-      notify(m.tests_opened({ title: doc.test.title }));
+      if (!doc.notes?.length) notify(m.tests_opened({ title: doc.test.title }));
       return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
     },
     onError: (err) => {

@@ -46,10 +46,11 @@ Each type reuses the sync, grading and results paths that M1 proved.
 type, and a `.klats` file carries the whole test format, media included.
 Both wait until M2 has settled that format.
 
-## M4: opening tests from older formats
+## M4: opening tests from older formats (done)
 
 Teachers who already have tests in older formats can open them in Klats.
-They become tests in the library.
+They become tests in the library, with a report of what the teacher should
+check.
 
 *Why here:* a test opened from an older format needs every question type
 and setting to map onto, so it waits for M2 and M3.
@@ -79,4 +80,5 @@ so they come once the features are in place.
 - Personal PINs for students.
 - A teacher build for Windows 7 and 8.
 - Password-protected files in older formats.
+- Tests saved in the 2008–2012 layout of the older `.mtf` format.
 - Math-expression answers and file-upload answers.

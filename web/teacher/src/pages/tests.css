@@ -114,3 +114,38 @@
   padding: 0 14px;
   font-size: 14px;
 }
+
+/* The report on a test opened from the older format. */
+.t-notice.t-report {
+  margin: 0 0 22px;
+}
+
+.t-report p {
+  margin: 0;
+}
+
+.t-report p + p {
+  margin-top: 8px;
+}
+
+.t-report ul {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+
+.t-report li + li {
+  margin-top: 4px;
+}
+
+.t-report-link {
+  border-radius: var(--t-radius-link);
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.t-report-link:focus-visible {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}

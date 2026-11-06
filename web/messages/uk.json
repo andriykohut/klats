@@ -216,6 +216,37 @@
   "tests_file_damaged": "Файл пошкоджений або це не тест Клац.",
   "tests_file_too_new": "Цей тест створено в новішій версії Клац. Оновіть програму.",
   "tests_file_too_large": "Файл завеликий.",
+  "tests_file_too_old": "Цей файл збережено в застарілій версії формату, тому Клац його не відкриває.",
+  "open_report_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Перенесено {count} питання.",
+        "countPlural=few": "Перенесено {count} питання.",
+        "countPlural=*": "Перенесено {count} питань."
+      }
+    }
+  ],
+  "open_report_attention": "Потребують уваги:",
+  "open_report_question": "Питання {number}: {note}",
+  "open_report_open": "Відкрити тест",
+  "note_image_lost": "зображення не вдалося перенести",
+  "note_area_reshaped": "область для кліку стала прямокутною",
+  "note_order_extra_dropped": "прибрано пункти поза порядком: {count}",
+  "note_hint_dropped": "підказку й пояснення не перенесено",
+  "note_text_cut": "задовгий текст скорочено",
+  "note_themes_flattened": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Учні отримають {count} випадкове питання з усього тесту, а не з кожної теми окремо.",
+        "countPlural=few": "Учні отримають {count} випадкові питання з усього тесту, а не з кожної теми окремо.",
+        "countPlural=*": "Учні отримають {count} випадкових питань з усього тесту, а не з кожної теми окремо."
+      }
+    }
+  ],
   "classes_new": "Новий клас",
   "classes_students": [
     {

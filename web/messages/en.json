@@ -210,6 +210,35 @@
   "tests_file_damaged": "The file is damaged or isn’t a Klats test.",
   "tests_file_too_new": "This test was made in a newer Klats. Update the app.",
   "tests_file_too_large": "The file is too large.",
+  "tests_file_too_old": "This file was saved in an outdated version of its format, so Klats can’t open it.",
+  "open_report_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question carried over.",
+        "countPlural=*": "{count} questions carried over."
+      }
+    }
+  ],
+  "open_report_attention": "Needs attention:",
+  "open_report_question": "Question {number}: {note}",
+  "open_report_open": "Open the test",
+  "note_image_lost": "a picture couldn’t be carried over",
+  "note_area_reshaped": "a click area became a rectangle",
+  "note_order_extra_dropped": "items outside the order removed: {count}",
+  "note_hint_dropped": "the hint and explanation weren’t carried over",
+  "note_text_cut": "an overlong text was shortened",
+  "note_themes_flattened": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Students get {count} random question from the whole test, not from each theme separately.",
+        "countPlural=*": "Students get {count} random questions from the whole test, not from each theme separately."
+      }
+    }
+  ],
   "classes_new": "New class",
   "classes_students": [
     {

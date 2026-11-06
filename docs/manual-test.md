@@ -93,6 +93,12 @@ Repeat each check in Chrome 109 and in Firefox 115 ESR.
     SVG of 1 MB or more, such as a GeoGebra export.
     - *Expected:* it renders acceptably: it shows within a few seconds, and
       scrolling and moving between questions do not stall.
+14. **Tests in the older format.** In the teacher app, open five real `.mtf`
+    files with pictures, ordering and matching questions, start a sitting of
+    each and go through it here. When a Windows PC has the program the files
+    were made in, open them there too.
+    - *Expected:* each file opens. Its pictures show, and the click areas,
+      the order and the pairs are those of the original.
 
 ## 2. The Windows teacher app (Windows 10)
 
@@ -237,8 +243,8 @@ happen.
 ### Opening and exporting tests
 
 - In the library, press «Відкрити». *Expected:* the system's file picker
-  opens, and a `.klats` file can be chosen in it. Choosing one adds the test
-  at the top of the list with «Тест «…» відкрито».
+  opens, and a `.klats` or `.mtf` file can be chosen in it. Choosing one adds
+  the test at the top of the list with «Тест «…» відкрито».
 - Press «Експортувати» on a test with a picture. *Expected:* the system's
   save dialog opens in Documents with the file type «Тест Клац» and the
   test's title as the name. The file appears where it was saved.

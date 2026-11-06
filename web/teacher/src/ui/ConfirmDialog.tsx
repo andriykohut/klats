@@ -12,7 +12,9 @@ import {
  * A modal question with «Скасувати» and a red `confirm` button. Escape, a
  * click outside or «Скасувати» close it through `onOpenChange(false)`;
  * `onConfirm` leaves closing to the caller, which can keep the dialog open
- * while `pending`.
+ * while `pending`. `details` go under the text, `cancel` renames «Скасувати»,
+ * and `variant` "primary" colours the confirm button as a step that loses
+ * nothing.
  */
 export function ConfirmDialog(props: {
   isOpen: boolean;
@@ -22,6 +24,9 @@ export function ConfirmDialog(props: {
   confirm: string;
   onConfirm: () => void;
   pending?: boolean;
+  details?: ReactNode;
+  cancel?: string;
+  variant?: "danger" | "primary";
 }) {
   return (
     <ModalOverlay
@@ -34,13 +39,14 @@ export function ConfirmDialog(props: {
         <Dialog role="alertdialog" className="t-dialog">
           <Heading slot="title">{props.title}</Heading>
           <p>{props.children}</p>
+          {props.details}
           <div className="t-dialog-actions">
             <Button slot="close" className="t-btn" data-variant="quiet">
-              {m.action_cancel()}
+              {props.cancel ?? m.action_cancel()}
             </Button>
             <Button
               className="t-btn"
-              data-variant="danger"
+              data-variant={props.variant ?? "danger"}
               onPress={props.onConfirm}
               isPending={props.pending}
             >

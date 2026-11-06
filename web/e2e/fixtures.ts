@@ -319,6 +319,13 @@ export async function pick(page: Page, q: TestQuestion, ...labels: string[]) {
   }
 }
 
+/** Gives the file at `path` to the library's «Відкрити». */
+export async function openFile(page: Page, path: string) {
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: m.tests_open() }).click();
+  await (await chooser).setFiles(path);
+}
+
 /** Waits until the teacher's live snapshot satisfies `ok`. */
 export async function until(
   klats: Klats,

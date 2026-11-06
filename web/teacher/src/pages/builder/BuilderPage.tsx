@@ -2,7 +2,12 @@ import type { Question, Test } from "@klats/shared/generated/testfmt.ts";
 import type { SaveResult, TestDoc } from "@klats/shared/generated/wire.ts";
 import { PALETTES, type PaletteId } from "@klats/shared/palettes.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearch,
+} from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Input,
@@ -76,9 +81,13 @@ function keepPreview(open: boolean): void {
   } catch {}
 }
 
-/** The builder at /tests/$id. It brings its own top bar. */
+/**
+ * The builder at /tests/$id. It brings its own top bar. It opens at the
+ * question `?q=` names, or at the first one when the test has no such question.
+ */
 export function BuilderPage() {
   const { id } = useParams({ from: "/tests/$id" });
+  const { q } = useSearch({ from: "/tests/$id" });
   const doc = useTest(id);
   if (doc.isError) {
     const tooNew =
@@ -96,7 +105,7 @@ export function BuilderPage() {
     );
   }
   if (!doc.data) return null;
-  return <Builder key={id} doc={doc.data} />;
+  return <Builder key={id} doc={doc.data} first={q} />;
 }
 
 function BackLink() {
@@ -115,9 +124,10 @@ function BackLink() {
  * edits wait in memory, with a toast «Зміни не збережено» that goes back to
  * them, until the test is opened again. Deleting a question or an
  * item of one takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
- * that puts it back where it was.
+ * that puts it back where it was. The question `first` is selected at the
+ * start when the test has it.
  */
-function Builder({ doc }: { doc: TestDoc }) {
+function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
   const save = useSaveTest(doc.id);
   const navigate = useNavigate();
   const [seed] = useState(() => kept.get(doc.id)?.test ?? doc.test);
@@ -126,7 +136,9 @@ function Builder({ doc }: { doc: TestDoc }) {
   const latest = useRef(seed);
   const [problems, setProblems] = useState(doc.problems);
   const [status, setStatus] = useState<SaveState>("saved");
-  const [selected, setSelected] = useState(seed.questions[0]?.id ?? "");
+  const [selected, setSelected] = useState(
+    (seed.questions.find((q) => q.id === first) ?? seed.questions[0])?.id ?? "",
+  );
   // A question just added, whose text takes focus.
   const [fresh, setFresh] = useState("");
   const [open, setOpen] = useState(previewOpen);

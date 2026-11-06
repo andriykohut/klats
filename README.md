@@ -9,12 +9,15 @@ school's local network, with no accounts, no internet and nothing to
 install. Answers survive network drops and restarts, and the teacher
 watches the class live and gets graded results.
 
-**Status:** milestone 2, pre-release. The core loop works end to end, with
+**Status:** milestone 4, pre-release. The core loop works end to end, with
 15 question types: single and multiple choice, true/false, choice grids,
 short text, numbers, gaps, ordering, matching, grouping, word banks, clicking
 a spot on a picture, labelling a picture, highlighting words and written
 answers, which the teacher grades. Questions and answers can hold pictures,
-audio, formulas, tables and code. There are no installers yet.
+audio, formulas, tables and code. Tests have settings such as time limits,
+shuffling and grading scales; the library exports and opens `.klats` files,
+opens `.mtf` files in the older format, and everything can be backed up.
+There are no installers yet.
 
 ## Quick start
 

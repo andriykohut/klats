@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { truncateSync, writeFileSync } from "node:fs";
 import type { Download, Page } from "@playwright/test";
-import { expect, type Klats, m, TEST, test } from "./fixtures";
+import { expect, type Klats, m, openFile, TEST, test } from "./fixtures";
 
 /** A 1×1 PNG. */
 const PNG = Buffer.from(
@@ -42,13 +42,6 @@ async function exportTest(page: Page, title: string): Promise<Download> {
     .getByRole("button", { name: m.tests_export() })
     .click();
   return download;
-}
-
-/** Gives the file at `path` to «Відкрити». */
-async function openFile(page: Page, path: string) {
-  const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: m.tests_open() }).click();
-  await (await chooser).setFiles(path);
 }
 
 /**

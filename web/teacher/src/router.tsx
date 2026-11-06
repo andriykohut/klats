@@ -80,6 +80,8 @@ export const testsRoute = createRoute({
 export const testRoute = createRoute({
   getParentRoute: () => root,
   path: "/tests/$id",
+  validateSearch: (search: Record<string, unknown>): { q?: string } =>
+    typeof search.q === "string" ? { q: search.q } : {},
   component: BuilderPage,
 });
 export const classesRoute = createRoute({
