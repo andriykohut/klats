@@ -11,9 +11,11 @@
 // every count and length is capped before anything is allocated.
 //
 // The converter turns what the reader kept into a Klats test. What has no
-// exact counterpart in Klats, such as a hint or a click area that is not a
-// rectangle, is approximated or dropped, and comes back as a note for the
-// teacher.
+// exact counterpart in Klats is approximated or dropped. What needs the
+// teacher's attention, such as a hint or a click area that is not a
+// rectangle, comes back as a note; the description, the author, the grade
+// table and text styling other than bold, italic, superscript and subscript
+// are dropped without one.
 package mtf
 
 import (
@@ -53,8 +55,9 @@ func Sniff(head []byte) bool {
 // Settings the file has no counterpart for keep [testfmt.DefaultSettings]. A
 // picture that cannot be carried over is left out with an "image_lost" note.
 // Errors wrap [ErrDamaged], or are [ErrOldLayout], or are store failures
-// returned as they are, in which case pictures stored before stay in ms. A
-// converted test that Decode refuses is an error of its own, a converter bug.
+// returned as they are. After a store failure, or an [ErrDamaged] found past
+// the first picture, the pictures stored before stay in ms. A converted test
+// that Decode refuses is an error of its own, a converter bug.
 func Open(r io.Reader, ms *media.Store) (testfmt.Test, []wire.OpenNote, error) {
 	pictures := map[string]testfmt.Image{}
 	f, err := read(r, func(key string, data []byte) error {
