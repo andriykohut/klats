@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"reflect"
@@ -240,6 +241,20 @@ func TestOpenPictures(t *testing.T) {
 			t.Errorf("option image = %+v, want %+v", o.Image, fromWMF)
 		}
 		wantNotes(t, notes, wire.OpenNote{QuestionID: "q1", Code: "image_lost", Count: 1})
+	})
+	pict := fmt.Sprintf(`{\pict\wmetafile8\picw1\pich1 %x}`, wmf)
+	t.Run("pict alone above a caption", func(t *testing.T) {
+		q, notes := openOne(t, mtf.Question{Type: 1, Points: 1, Answers: []string{`{\rtf1\ansi ` + pict + `\par Caption}`}, Keys: []uint32{1}})
+		if o := q.Options[0]; o.Image == nil || *o.Image != fromWMF || string(o.Content) != docOf(para(text("Caption"))) {
+			t.Errorf("option = %s, %+v, want Caption with %+v", o.Content, o.Image, fromWMF)
+		}
+		wantNotes(t, notes)
+	})
+	t.Run("pict alone between lines", func(t *testing.T) {
+		q, _ := openOne(t, mtf.Question{Type: 1, Points: 1, Answers: []string{`{\rtf1\ansi A\par ` + pict + `\par B}`}, Keys: []uint32{1}})
+		if want := docOf(para(text("A"), rich.Node{Type: "hardBreak"}, text("B"))); string(q.Options[0].Content) != want {
+			t.Errorf("content = %s, want %s", q.Options[0].Content, want)
+		}
 	})
 	t.Run("hotspot picture refused", func(t *testing.T) {
 		junk := make([]byte, 64)

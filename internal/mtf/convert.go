@@ -310,20 +310,19 @@ func (c *converter) blocks(src string) ([]rich.Node, error) {
 }
 
 // inline returns the RTF document src as option or target content, its
-// paragraphs joined by line breaks into one, and its first picture that
-// stores; every other picture is lost.
+// paragraphs joined by line breaks into one, leaving out the paragraphs that
+// hold only pictures and the blank lines they leave at the start, and its
+// first picture that stores; every other picture is lost.
 func (c *converter) inline(src string) (json.RawMessage, *testfmt.Image, error) {
 	t := c.parse(src)
 	var runs []rich.Node
 	var im *testfmt.Image
-	for i, para := range t.Paras {
-		if i > 0 {
-			runs = append(runs, hardBreak)
-		}
+	for _, para := range t.Paras {
+		var line []rich.Node
 		for _, n := range para {
 			switch {
 			case n.Type != "image":
-				runs = append(runs, n)
+				line = append(line, n)
 			case im == nil:
 				got, ok, err := c.pict(t, n)
 				if err != nil {
@@ -338,6 +337,13 @@ func (c *converter) inline(src string) (json.RawMessage, *testfmt.Image, error) 
 				c.lost++
 			}
 		}
+		if len(line) == 0 && len(para) > 0 {
+			continue
+		}
+		if len(runs) > 0 {
+			runs = append(runs, hardBreak)
+		}
+		runs = append(runs, line...)
 	}
 	return docJSON(paragraph(runs)), im, nil
 }
