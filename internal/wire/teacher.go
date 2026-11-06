@@ -34,6 +34,24 @@ type TestDoc struct {
 	SavedAt  int64             `json:"savedAt"`
 }
 
+// OpenNote is something the teacher should check in a test opened from the
+// older format, about the question QuestionID, or about the whole test when
+// it is empty. Code is, for a question:
+//   - "image_lost": Count pictures could not be carried over;
+//   - "area_reshaped": a click area that was not a rectangle became its
+//     bounding box;
+//   - "order_extra_dropped": Count items outside the order were removed;
+//   - "hint_dropped": the hint or the explanation was not carried over;
+//   - "text_cut": an overlong text was shortened.
+//
+// For the whole test it is "themes_flattened": each student gets Count
+// random questions of the whole test rather than some from each theme.
+type OpenNote struct {
+	QuestionID string `json:"questionId,omitempty"`
+	Code       string `json:"code"`
+	Count      int    `json:"count,omitempty"`
+}
+
 // SaveResult answers a test save. Problems never block saving.
 type SaveResult struct {
 	Problems []testfmt.Problem `json:"problems"`

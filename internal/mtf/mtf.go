@@ -9,12 +9,23 @@
 // use, and hands each picture file to a callback, so a body of a hundred
 // megabytes is never held in memory. Files arrive by email or on flash drives:
 // every count and length is capped before anything is allocated.
+//
+// The converter turns what the reader kept into a Klats test. What has no
+// exact counterpart in Klats, such as a hint or a click area that is not a
+// rectangle, is approximated or dropped, and comes back as a note for the
+// teacher.
 package mtf
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+
+	"klats/internal/media"
+	"klats/internal/testfmt"
+	"klats/internal/wire"
 )
 
 var (
@@ -34,6 +45,40 @@ func Sniff(head []byte) bool {
 		return false
 	}
 	return plain == signature || bytes.HasPrefix(plain[:], oldSignature)
+}
+
+// Open reads an .mtf file, stores its pictures in ms and returns the converted
+// test, already decoded by [testfmt.Decode], with an empty ID, and notes on
+// what the teacher should check: test-level first, then in question order.
+// Settings the file has no counterpart for keep [testfmt.DefaultSettings]. A
+// picture that cannot be carried over is left out with an "image_lost" note.
+// Errors wrap [ErrDamaged], or are [ErrOldLayout], or are store failures
+// returned as they are, in which case pictures stored before stay in ms. A
+// converted test that Decode refuses is an error of its own, a converter bug.
+func Open(r io.Reader, ms *media.Store) (testfmt.Test, []wire.OpenNote, error) {
+	pictures := map[string]testfmt.Image{}
+	f, err := read(r, func(key string, data []byte) error {
+		im, ok, err := storePicture(ms, data)
+		if ok {
+			pictures[key] = im
+		}
+		return err
+	})
+	if err != nil {
+		return testfmt.Test{}, nil, err
+	}
+	t, notes, err := convert(f, ms, pictures)
+	if err != nil {
+		return testfmt.Test{}, nil, err
+	}
+	raw, err := json.Marshal(t)
+	if err == nil {
+		t, err = testfmt.Decode(raw)
+	}
+	if err != nil {
+		return testfmt.Test{}, nil, fmt.Errorf("mtf: converted test is invalid: %w", err)
+	}
+	return t, notes, nil
 }
 
 // File is the part of a test in the older format that Klats converts.

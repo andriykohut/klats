@@ -96,6 +96,7 @@ design follows from where it runs:
 | `internal/lan` | Picks the LAN address students are shown and the student port, and watches for address changes. |
 | `internal/media` | The store for test images and audio: files named by their SHA-256, typed by sniffing their bytes, with size caps. |
 | `internal/mediazip` | The zip layout `.klats` files and backups share, one main entry and `media/<name>` files, and its safe reading: the directory budget, entry names, capped reads and the media hash check. |
+| `internal/mtf` | Reads tests in the older format, `.mtf` files, and converts them into Klats tests, with notes on what needs the teacher's attention. It is the trust boundary for those files. |
 | `internal/power` | Keeps the computer awake while a sitting runs, using each OS's own mechanism. |
 | `internal/rich` | Validates rich text, a strict subset of ProseMirror JSON. It is the single trust boundary for formatted text. |
 | `internal/roster` | Cleans class lists pasted from a spreadsheet, and sorts and tells apart names with Ukrainian collation. |
@@ -600,6 +601,64 @@ current webview.
   restore checks before it reads the body as well as under the lock. A
   backup that would come to over 2 GiB, which a restore would refuse, is
   stopped as it is written and is a 422 `too_large`.
+
+## Opening tests in the older format
+
+Teachers bring tests from the program they used before Klats, saved as
+`.mtf` files of version 10.2 of the older format. `internal/mtf` reads them
+and turns each into a Klats test. Klats never writes the format.
+
+- **The file:** one encrypted stream of a signature, a version string and a
+  zlib stream holding the body. The body is a fixed sequence of records: the
+  test header, its themes, its questions and, last, a table of picture files
+  that questions name by key.
+- **Streaming:** `mtf.Open` decrypts and inflates as it reads, walking the
+  body field by field and keeping only what a converted test uses. Each
+  picture of the table goes to the media store as soon as it is read, so a
+  body of a hundred megabytes is never held in memory.
+- **Caps:** files arrive by e-mail or on flash drives, so every count and
+  length is checked against a cap before anything is allocated: the inflated
+  body at 256 MiB, a string at 8,388,608 UTF-16 code units, a list at 10,000
+  entries and a picture file at 16 MiB. A malformed file is an error wrapping
+  `mtf.ErrDamaged`, never a panic (`FuzzRead`, `FuzzRTF`, `FuzzPictWMF`). A
+  file in the format's 2008–2012 layout is `mtf.ErrOldLayout`; Klats cannot
+  read it.
+- **Converting:**
+  - Texts are RTF. Bold, italic, superscript and subscript are kept, every
+    other style is dropped, and a `\'xx` byte is decoded by the charset of
+    its font rather than by the document's code page, since Cyrillic fonts
+    often sit in documents declared Western.
+  - Pictures are BMP, JPEG or PNG files in the table, or WMF pictures inside
+    RTF. A BMP, and the bitmap a WMF draws, are stored as PNG, since the
+    media store refuses BMP.
+  - The eight question types become `single`, `multi`, `order`, `match`,
+    `truefalse`, `number`, `short` and `hotspot`. A click area becomes the
+    rectangle around it.
+  - The time limit becomes each student's own timer, and a test asking a
+    number of random questions from its themes asks as many from the whole
+    test. Every other setting is the default; the file's grade table is read
+    and ignored.
+  - The converted test passes `testfmt.Decode` before `Open` returns it. A
+    test that Decode refuses is a converter bug, not a damaged file.
+- **Notes:** `Open` also returns what did not carry over exactly, as
+  `wire.OpenNote`s. On a question:
+  - `image_lost`: a picture could not be read or was refused by the store,
+    with how many;
+  - `area_reshaped`: a click area that was not a rectangle became the
+    rectangle around it;
+  - `order_extra_dropped`: ordering items outside the order were removed,
+    with how many;
+  - `hint_dropped`: a hint or an explanation, which Klats has no place for;
+  - `text_cut`: a text over the caps of Klats was shortened.
+
+  On the whole test, `themes_flattened`: students get the given number of
+  random questions from the whole test rather than some from each theme.
+- **Real files in tests:** real files hold personal data, so none is in the
+  repository, and tests build synthetic ones with `internal/mtf/mtftest`,
+  which only tests import. `TestCorpus` opens every `.mtf` file under the
+  directories listed in `KLATS_MTF_CORPUS`, joined by the OS's list
+  separator, and logs for each directory the questions per type, the notes
+  per code and the slowest file. It is skipped when the variable is unset.
 
 ## Languages
 
