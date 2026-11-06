@@ -27,6 +27,8 @@ import (
 	"klats/internal/events"
 	"klats/internal/lan"
 	"klats/internal/media"
+	"klats/internal/mtf"
+	"klats/internal/mtf/mtftest"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/store/db"
@@ -1204,6 +1206,71 @@ func TestImportTooLarge(t *testing.T) {
 	if n := v.testCount(t); n != 0 {
 		t.Errorf("%d tests listed, want 0", n)
 	}
+}
+
+// olderFile returns a two-question test titled "Дроби" in the older format,
+// whose first question has a hint and shows a picture.
+func olderFile() []byte {
+	return mtftest.Encode(mtf.File{Title: "Дроби", Questions: []mtf.Question{
+		{Type: 1, Points: 1, Text: mtftest.RTF("Скільки?"), Picture: "{A}.bmp", Hint: mtftest.RTF("підказка"),
+			Answers: []string{mtftest.RTF("так"), mtftest.RTF("ні")}, Keys: []uint32{1, 0}},
+		{Type: 6, Points: 1, Text: mtftest.RTF("2 + 2 = ?"), Lo: 4, Hi: 4},
+	}}, mtftest.Entry{Key: "{A}.bmp", Data: mtftest.BMP(4, 3)})
+}
+
+func TestImportOlderFormat(t *testing.T) {
+	v := setup(t, false)
+	w := v.do("POST", "/api/tests/import", olderFile())
+	wantStatus(t, w, 201)
+	got := decodeBody[wire.TestDoc](t, w)
+	if got.Test.Title != "Дроби" || len(got.Test.Questions) != 2 {
+		t.Errorf("title %q, %d questions", got.Test.Title, len(got.Test.Questions))
+	}
+	if want := []wire.OpenNote{{QuestionID: "q1", Code: "hint_dropped"}}; !reflect.DeepEqual(got.Notes, want) {
+		t.Errorf("notes = %+v, want %+v", got.Notes, want)
+	}
+	if n := v.testCount(t); n != 1 {
+		t.Errorf("%d tests listed, want 1", n)
+	}
+	v.noTemps(t)
+}
+
+func TestImportOlderTwice(t *testing.T) {
+	v := setup(t, false)
+	var ids []string
+	for range 2 {
+		w := v.do("POST", "/api/tests/import", olderFile())
+		wantStatus(t, w, 201)
+		ids = append(ids, decodeBody[wire.TestDoc](t, w).ID)
+	}
+	if ids[0] == ids[1] {
+		t.Errorf("both opens gave the id %q", ids[0])
+	}
+	if n := v.testCount(t); n != 2 {
+		t.Errorf("%d tests listed, want 2", n)
+	}
+	if files, err := os.ReadDir(filepath.Join(v.dir, "media")); err != nil || len(files) != 1 {
+		t.Errorf("media folder holds %d files, want 1; %v", len(files), err)
+	}
+}
+
+func TestImportOlderDamaged(t *testing.T) {
+	v := setup(t, false)
+	half := olderFile()
+	half = half[:len(half)/2]
+	if !mtf.Sniff(half) {
+		t.Fatal("the cut file lost its signature, so it would be read as .klats")
+	}
+	wantError(t, v.do("POST", "/api/tests/import", half), 422, "file_damaged")
+	if n := v.testCount(t); n != 0 {
+		t.Errorf("%d tests listed, want 0", n)
+	}
+	v.noTemps(t)
+}
+
+func TestImportOlderLayout(t *testing.T) {
+	v := setup(t, false)
+	wantError(t, v.do("POST", "/api/tests/import", mtftest.OldLayout()), 422, "file_too_old")
 }
 
 // A download whose file fails partway is an error, never a short file.

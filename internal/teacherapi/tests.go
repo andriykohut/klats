@@ -13,6 +13,7 @@ import (
 
 	"klats/internal/httpx"
 	"klats/internal/klatsfile"
+	"klats/internal/mtf"
 	"klats/internal/sitting"
 	"klats/internal/store"
 	"klats/internal/store/db"
@@ -63,7 +64,7 @@ func (a *api) createTest(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = newTestTitle
 	}
-	a.insertTest(w, r, testfmt.Test{Version: 1, Title: title, Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}})
+	a.insertTest(w, r, testfmt.Test{Version: 1, Title: title, Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}}, nil)
 }
 
 // duplicateTest stores a copy of the test titled as the request asks, or as
@@ -79,7 +80,7 @@ func (a *api) duplicateTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.Title = cmp.Or(strings.TrimSpace(req.Title), t.Title)
-	a.insertTest(w, r, t)
+	a.insertTest(w, r, t, nil)
 }
 
 // exportTest sends the test as a .klats file named after its title, through
@@ -117,31 +118,44 @@ func (a *api) exportTest(w http.ResponseWriter, r *http.Request) {
 	a.deliver(w, r, name, "application/octet-stream", func(w io.Writer) error { return klatsfile.Write(w, t, a.media) }, nil)
 }
 
-// importTest opens the .klats file in the request body as a new test. The
-// body is capped at 256 MiB (413 "too_large") and spooled to a temporary file
-// in the temp folder, which is removed whatever happens (see [api.spool]). A
-// file that is not a valid test is a 422 "file_damaged", and one from a newer
-// version a 422 "test_too_new".
+// importTest opens the .klats or .mtf file in the request body as a new test,
+// telling the two apart by the file's signature rather than its name. The body
+// is capped at 256 MiB (413 "too_large") and spooled to a temporary file in the
+// temp folder, which is removed whatever happens (see [api.spool]). A file that
+// is not a valid test is a 422 "file_damaged", a .klats file from a newer
+// version a 422 "test_too_new", and an .mtf file in the 2008–2012 layout a 422
+// "file_too_old". The reply to an .mtf file carries the notes of [mtf.Open].
 func (a *api) importTest(w http.ResponseWriter, r *http.Request) {
 	tmp, size, ok := a.spool(w, r, maxKlatsBytes)
 	if !ok {
 		return
 	}
 	defer removeTemp(tmp)
-	t, err := klatsfile.Read(tmp, size, a.media)
-	if errors.Is(err, klatsfile.ErrDamaged) {
+	var head [14]byte
+	n, _ := tmp.ReadAt(head[:], 0) // a short read leaves Sniff false, and klatsfile.Read reports the file
+	var t testfmt.Test
+	var notes []wire.OpenNote
+	var err error
+	if mtf.Sniff(head[:n]) {
+		t, notes, err = mtf.Open(io.NewSectionReader(tmp, 0, size), a.media)
+	} else {
+		t, err = klatsfile.Read(tmp, size, a.media)
+	}
+	switch {
+	case errors.Is(err, klatsfile.ErrDamaged), errors.Is(err, mtf.ErrDamaged):
 		httpx.Error(w, http.StatusUnprocessableEntity, "file_damaged")
-		return
+	case errors.Is(err, mtf.ErrOldLayout):
+		httpx.Error(w, http.StatusUnprocessableEntity, "file_too_old")
+	case err != nil:
+		fail(w, r, err) // test_too_new, a failure of the media store, or a converter bug
+	default:
+		a.insertTest(w, r, t, notes)
 	}
-	if err != nil {
-		fail(w, r, err) // test_too_new, or a failure of the media store
-		return
-	}
-	a.insertTest(w, r, t)
 }
 
-// insertTest stores t under a new id and replies 201 with its [wire.TestDoc].
-func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test) {
+// insertTest stores t under a new id and replies 201 with its [wire.TestDoc],
+// carrying notes.
+func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test, notes []wire.OpenNote) {
 	t.ID = store.NewID()
 	doc, err := json.Marshal(t)
 	if err != nil {
@@ -160,6 +174,7 @@ func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test)
 		fail(w, r, err)
 		return
 	}
+	out.Notes = notes
 	httpx.JSON(w, http.StatusCreated, out)
 }
 

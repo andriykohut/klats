@@ -26,12 +26,14 @@ type ProblemsError struct {
 }
 
 // TestDoc is a stored test with its current problems. SavedAt is when it was
-// last saved.
+// last saved. Notes is set only in the reply to opening a file in the older
+// format, and is not stored.
 type TestDoc struct {
 	ID       string            `json:"id"`
 	Test     testfmt.Test      `json:"test"`
 	Problems []testfmt.Problem `json:"problems"`
 	SavedAt  int64             `json:"savedAt"`
+	Notes    []OpenNote        `json:"notes,omitempty"`
 }
 
 // OpenNote is something the teacher should check in a test opened from the
