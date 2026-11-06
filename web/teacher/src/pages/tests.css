@@ -153,3 +153,33 @@
   outline: var(--t-focus);
   outline-offset: 2px;
 }
+
+/* The layer over the library while a file is dragged across the window. It
+   takes no pointer events, so the drag stays over the page's own elements,
+   whose enter and leave events tell when it has left the window. */
+.t-drop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--t-scrim);
+  pointer-events: none;
+  animation: t-fade var(--k-dur-fast) var(--k-ease-out);
+}
+
+.t-drop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 56px;
+  background: var(--k-paper);
+  border: 3px dashed var(--k-field);
+  border-radius: var(--t-radius-card);
+  box-shadow: var(--t-shadow-dialog);
+  color: var(--k-field);
+  font: 700 22px / 1.3 var(--k-font-display);
+  animation: t-rise var(--k-dur-state) var(--k-ease-spring);
+}

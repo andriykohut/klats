@@ -2,7 +2,7 @@ import type { TestDoc } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Button, FileTrigger, Input, SearchField } from "react-aria-components";
 import {
   busy,
@@ -18,6 +18,7 @@ import { cooldown } from "../cooldown";
 import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
+import { notify } from "../ui/Toasts";
 import { OpenReport } from "./OpenReport";
 import "./tests.css";
 
@@ -30,10 +31,11 @@ const searchable = (s: string) =>
 
 /**
  * The test library: newest first, each row opening the builder. The search
- * matches titles, ignoring case and the kind of apostrophe. «Відкрити» opens a
- * .klats or .mtf file as a new test, which lands at the top while the page
- * stays on the library; the notes of an .mtf file's conversion are shown in
- * {@link OpenReport}.
+ * matches titles, ignoring case and the kind of apostrophe. «Відкрити», or a
+ * file dropped anywhere on the page, opens a .klats or .mtf file as a new
+ * test, which lands at the top while the page stays on the library; the notes
+ * of an .mtf file's conversion are shown in {@link OpenReport}. A dropped file
+ * of another kind is refused with a toast.
  */
 export function TestsPage() {
   const tests = useTests();
@@ -45,6 +47,7 @@ export function TestsPage() {
   const open = useImportTest();
   const [query, setQuery] = useState("");
   const [report, setReport] = useState<TestDoc | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [mayDelete] = useState(() => cooldown());
   const navigate = useNavigate();
   // The server lists the newest edit first.
@@ -58,15 +61,62 @@ export function TestsPage() {
     minute: "2-digit",
   });
 
+  const openTest = (file: File) => {
+    if (busy("importTest")) return;
+    open.mutate(file, {
+      onSuccess: (doc) => doc.notes?.length && setReport(doc),
+    });
+  };
+  const dropped = useEffectEvent((file: File) => {
+    if (/\.(klats|mtf)$/i.test(file.name)) openTest(file);
+    else notify(m.tests_drop_wrong(), true);
+  });
+
+  // Without preventDefault on a file drag, the webview would open the dropped
+  // file in place of the app.
+  useEffect(() => {
+    // dragenter and dragleave fire for each element the pointer crosses, so
+    // the drag has left the window only when every enter is matched.
+    let entered = 0;
+    const files = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+    const enter = (e: DragEvent) => {
+      if (!files(e)) return;
+      e.preventDefault();
+      entered++;
+      setDragging(true);
+    };
+    const over = (e: DragEvent) => {
+      if (files(e)) e.preventDefault();
+    };
+    const leave = (e: DragEvent) => {
+      if (files(e) && --entered === 0) setDragging(false);
+    };
+    const drop = (e: DragEvent) => {
+      if (!files(e)) return;
+      e.preventDefault();
+      entered = 0;
+      setDragging(false);
+      const file = e.dataTransfer?.files[0];
+      if (file) dropped(file);
+    };
+    document.addEventListener("dragenter", enter);
+    document.addEventListener("dragover", over);
+    document.addEventListener("dragleave", leave);
+    document.addEventListener("drop", drop);
+    return () => {
+      document.removeEventListener("dragenter", enter);
+      document.removeEventListener("dragover", over);
+      document.removeEventListener("dragleave", leave);
+      document.removeEventListener("drop", drop);
+    };
+  }, []);
+
   const openFile = (
     <FileTrigger
       acceptedFileTypes={[".klats", ".mtf"]}
       onSelect={(files) => {
         const file = files?.[0];
-        if (!file || busy("importTest")) return;
-        open.mutate(file, {
-          onSuccess: (doc) => doc.notes?.length && setReport(doc),
-        });
+        if (file) openTest(file);
       }}
     >
       <Button className="t-btn" data-variant="quiet" isPending={open.isPending}>
@@ -95,6 +145,17 @@ export function TestsPage() {
   const openReport = report && (
     <OpenReport doc={report} onClose={() => setReport(null)} />
   );
+  // Decorative: «Відкрити» is the way in for the keyboard and screen readers.
+  const dropOverlay = dragging && (
+    <div className="t-drop" aria-hidden="true">
+      <div className="t-drop-card">
+        <span className="t-mark t-mark-big">
+          <Icon name="download" />
+        </span>
+        {m.tests_drop_here()}
+      </div>
+    </div>
+  );
 
   if (tests.isError) return <LoadError onRetry={() => tests.refetch()} />;
   if (!tests.data) return null;
@@ -113,6 +174,7 @@ export function TestsPage() {
           </div>
         </div>
         {openReport}
+        {dropOverlay}
       </div>
     );
   }
@@ -192,6 +254,7 @@ export function TestsPage() {
         ))}
       </ul>
       {openReport}
+      {dropOverlay}
     </div>
   );
 }

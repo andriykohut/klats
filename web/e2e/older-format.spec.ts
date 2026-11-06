@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Page } from "@playwright/test";
 import { expect, m, openFile, TEST, test } from "./fixtures";
 
 // Synthetic files in the older format, written by TestE2EFixtures in
@@ -7,6 +8,37 @@ import { expect, m, openFile, TEST, test } from "./fixtures";
 const OLDER = join(import.meta.dirname, "fixtures", "older.mtf");
 const CLEAN = join(import.meta.dirname, "fixtures", "older-clean.mtf");
 const MANY = join(import.meta.dirname, "fixtures", "older-many.mtf");
+
+/**
+ * Fires the drag events `types` on the page's document, each carrying the
+ * file `name` of `bytes`, as a file dragged in from the system would.
+ */
+async function drag(page: Page, types: string[], name: string, bytes: Buffer) {
+  await page.evaluate(
+    ([types, name, base64]) => {
+      const data = new DataTransfer();
+      const raw = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      data.items.add(new File([raw], name));
+      for (const type of types) {
+        document.dispatchEvent(
+          new DragEvent(type, {
+            dataTransfer: data,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      }
+    },
+    [types, name, bytes.toString("base64")] as const,
+  );
+}
+
+/** Drags the file `name` of `bytes` onto the page and drops it. */
+const drop = (page: Page, name: string, bytes: Buffer) =>
+  drag(page, ["dragenter", "dragover", "drop"], name, bytes);
+
+const SCRIPTED_FILES =
+  "Firefox leaves the files of a script-made DataTransfer empty";
 
 test("an older-format file opens with a report", async ({ klats }) => {
   const page = await klats.teacher("/");
@@ -112,4 +144,64 @@ test("the open button offers .mtf", async ({ klats }) => {
     "accept",
     /\.mtf/,
   );
+});
+
+test("dropping a .klats file opens it", async ({ klats, browserName }) => {
+  test.skip(browserName === "firefox", SCRIPTED_FILES);
+  await klats.create(TEST, undefined, "Дроби");
+  const page = await klats.teacher("/");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: m.tests_export() }).click();
+  const bytes = readFileSync(await (await download).path());
+
+  await drop(page, "Дроби.klats", bytes);
+  await expect(
+    page.getByText(m.tests_opened({ title: "Дроби" }), { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(m.tests_count({ count: 2 }))).toBeVisible();
+});
+
+test("dropping an .mtf file opens it with the report", async ({
+  klats,
+  browserName,
+}) => {
+  test.skip(browserName === "firefox", SCRIPTED_FILES);
+  const page = await klats.teacher("/");
+  // The extension's case does not matter.
+  await drop(page, "older.MTF", readFileSync(OLDER));
+  await expect(
+    page.getByRole("alertdialog", {
+      name: m.tests_opened({ title: "Старий тест" }),
+    }),
+  ).toBeVisible();
+});
+
+test("dropping another file says which files open", async ({
+  klats,
+  browserName,
+}) => {
+  test.skip(browserName === "firefox", SCRIPTED_FILES);
+  const page = await klats.teacher("/");
+  await drop(page, "notes.txt", Buffer.from("x"));
+  await expect(
+    page.getByText(m.tests_drop_wrong(), { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: m.tests_empty_title() }),
+  ).toBeVisible();
+});
+
+test("the drop overlay shows while dragging", async ({ klats }) => {
+  const page = await klats.teacher("/");
+  const overlay = page.getByText(m.tests_drop_here(), { exact: true });
+  const bytes = Buffer.from("x");
+  await drag(page, ["dragenter", "dragover"], "notes.txt", bytes);
+  await expect(overlay).toBeVisible();
+  await drag(page, ["dragleave"], "notes.txt", bytes);
+  await expect(overlay).toBeHidden();
+
+  await drag(page, ["dragenter", "dragover"], "notes.txt", bytes);
+  await expect(overlay).toBeVisible();
+  await drag(page, ["drop"], "notes.txt", bytes);
+  await expect(overlay).toBeHidden();
 });

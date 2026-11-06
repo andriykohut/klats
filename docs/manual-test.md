@@ -245,6 +245,10 @@ happen.
 - In the library, press «Відкрити». *Expected:* the system's file picker
   opens, and a `.klats` or `.mtf` file can be chosen in it. Choosing one adds
   the test at the top of the list with «Тест «…» відкрито».
+- Drag a `.klats` file, then an `.mtf` file, from the system's file manager
+  (Explorer, Finder or Files) onto the library. *Expected:* while the file is
+  over the window, «Відпустіть файл, щоб відкрити тест» shows over the page;
+  dropping it opens the test as «Відкрити» does.
 - Press «Експортувати» on a test with a picture. *Expected:* the system's
   save dialog opens in Documents with the file type «Тест Клац» and the
   test's title as the name. The file appears where it was saved.

@@ -217,6 +217,8 @@
   "tests_file_too_new": "Цей тест створено в новішій версії Клац. Оновіть програму.",
   "tests_file_too_large": "Файл завеликий.",
   "tests_file_too_old": "Цей файл збережено в застарілій версії формату, тому Клац його не відкриває.",
+  "tests_drop_here": "Відпустіть файл, щоб відкрити тест",
+  "tests_drop_wrong": "Клац відкриває файли .klats і .mtf",
   "open_report_count": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
