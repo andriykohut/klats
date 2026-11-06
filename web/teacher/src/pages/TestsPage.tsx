@@ -72,8 +72,6 @@ export function TestsPage() {
     else notify(m.tests_drop_wrong(), true);
   });
 
-  // Without preventDefault on a file drag, the webview would open the dropped
-  // file in place of the app.
   useEffect(() => {
     // dragenter and dragleave fire for each element the pointer crosses, so
     // the drag has left the window only when every enter is matched.
@@ -84,9 +82,6 @@ export function TestsPage() {
       e.preventDefault();
       entered++;
       setDragging(true);
-    };
-    const over = (e: DragEvent) => {
-      if (files(e)) e.preventDefault();
     };
     const leave = (e: DragEvent) => {
       if (files(e) && --entered === 0) setDragging(false);
@@ -100,12 +95,10 @@ export function TestsPage() {
       if (file) dropped(file);
     };
     document.addEventListener("dragenter", enter);
-    document.addEventListener("dragover", over);
     document.addEventListener("dragleave", leave);
     document.addEventListener("drop", drop);
     return () => {
       document.removeEventListener("dragenter", enter);
-      document.removeEventListener("dragover", over);
       document.removeEventListener("dragleave", leave);
       document.removeEventListener("drop", drop);
     };

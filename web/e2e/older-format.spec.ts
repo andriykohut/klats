@@ -11,25 +11,30 @@ const MANY = join(import.meta.dirname, "fixtures", "older-many.mtf");
 
 /**
  * Fires the drag events `types` on the page's document, each carrying the
- * file `name` of `bytes`, as a file dragged in from the system would.
+ * file `name` of `bytes`, as a file dragged in from the system would, or
+ * without `bytes` the text `name`. Returns what each `dispatchEvent`
+ * returned: false for an event a listener cancelled.
  */
-async function drag(page: Page, types: string[], name: string, bytes: Buffer) {
-  await page.evaluate(
+function drag(page: Page, types: string[], name: string, bytes?: Buffer) {
+  return page.evaluate(
     ([types, name, base64]) => {
       const data = new DataTransfer();
-      const raw = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      data.items.add(new File([raw], name));
-      for (const type of types) {
+      if (base64 === null) data.setData("text/plain", name);
+      else {
+        const raw = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        data.items.add(new File([raw], name));
+      }
+      return types.map((type) =>
         document.dispatchEvent(
           new DragEvent(type, {
             dataTransfer: data,
             bubbles: true,
             cancelable: true,
           }),
-        );
-      }
+        ),
+      );
     },
-    [types, name, bytes.toString("base64")] as const,
+    [types, name, bytes?.toString("base64") ?? null] as const,
   );
 }
 
@@ -113,14 +118,14 @@ test("a clean older-format file just opens", async ({ klats }) => {
   await expect(
     page.getByText(m.tests_opened({ title: "Байти" }), { exact: true }),
   ).toBeVisible();
-  // The toast is an alertdialog too, so the report is told by its button.
-  await expect(
-    page.getByRole("button", { name: m.open_report_open() }),
-  ).toBeHidden();
   await expect(page.getByText(m.tests_count({ count: 2 }))).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Байти", exact: true }),
   ).toBeVisible();
+  // The toast is an alertdialog too, so the report is told by its button.
+  await expect(
+    page.getByRole("button", { name: m.open_report_open() }),
+  ).toBeHidden();
 });
 
 test("a damaged older-format file is refused", async ({ klats }, testInfo) => {
@@ -204,4 +209,53 @@ test("the drop overlay shows while dragging", async ({ klats }) => {
   await expect(overlay).toBeVisible();
   await drag(page, ["drop"], "notes.txt", bytes);
   await expect(overlay).toBeHidden();
+});
+
+test("a file dropped off the library does not replace the app", async ({
+  klats,
+}) => {
+  const id = await klats.create(TEST, undefined, "Дроби");
+  const bytes = Buffer.from("x");
+  const classes = await klats.teacher("/classes");
+  await expect(
+    classes.getByRole("heading", { name: m.classes_empty_title() }),
+  ).toBeVisible();
+  expect(await drag(classes, ["dragover", "drop"], "notes.txt", bytes)).toEqual(
+    [false, false],
+  );
+
+  const builder = await klats.teacher(`/tests/${id}`);
+  await expect(
+    builder.getByRole("listbox", { name: m.builder_questions() }),
+  ).toBeVisible();
+  expect(await drag(builder, ["dragover", "drop"], "notes.txt", bytes)).toEqual(
+    [false, false],
+  );
+});
+
+test("the library takes a file drag and leaves a text drag alone", async ({
+  klats,
+}) => {
+  const page = await klats.teacher("/");
+  const overlay = page.getByText(m.tests_drop_here(), { exact: true });
+  const bytes = Buffer.from("x");
+  await expect(
+    page.getByRole("heading", { name: m.tests_empty_title() }),
+  ).toBeVisible();
+  expect(await drag(page, ["dragover", "drop"], "notes.txt", bytes)).toEqual([
+    false,
+    false,
+  ]);
+
+  expect(await drag(page, ["dragenter", "dragover"], "Дроби")).toEqual([
+    true,
+    true,
+  ]);
+  // A text drag counted as entering would keep the overlay up after the
+  // file drag below leaves.
+  await drag(page, ["dragenter"], "notes.txt", bytes);
+  await expect(overlay).toBeVisible();
+  await drag(page, ["dragleave"], "notes.txt", bytes);
+  await expect(overlay).toBeHidden();
+  expect(await drag(page, ["drop"], "Дроби")).toEqual([true]);
 });

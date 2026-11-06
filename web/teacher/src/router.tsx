@@ -5,7 +5,7 @@ import {
   createRouter,
   Outlet,
 } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
 import { BuilderPage } from "./pages/builder/BuilderPage";
@@ -24,11 +24,26 @@ import { TopBar } from "./ui/TopBar";
  * The app root: the 401 gate and the toasts. A 401 replaces the whole app
  * with one message: the launch-token cookie is gone or stale, and only the
  * desktop app can open a new session. Everything below remounts when the
- * language changes, because messages are read at render time.
+ * language changes, because messages are read at render time. A file dropped
+ * on any page is cancelled here; the library opens it on its own.
  */
 function Root() {
   const { unauthorized } = useFlags();
   const { data: settings } = useSettings();
+  // Without the Wails runtime, the webview opens a file dropped outside a
+  // field that takes it in place of the app, and only a restart brings the
+  // app back.
+  useEffect(() => {
+    const keep = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+    };
+    document.addEventListener("dragover", keep);
+    document.addEventListener("drop", keep);
+    return () => {
+      document.removeEventListener("dragover", keep);
+      document.removeEventListener("drop", keep);
+    };
+  }, []);
   if (unauthorized) {
     return (
       <div className="t-locked">
