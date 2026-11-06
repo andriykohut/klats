@@ -563,7 +563,7 @@
   "end_none": "Every student has finished.",
   "end_confirm": "End",
   "live_none_title": "No test is running",
-  "live_none_text": "Open a test in “My tests” and press “Start the test”.",
+  "live_none_text": "Open a test in “My tests” and press “Start test”.",
   "results_empty_title": "Results will appear here",
   "results_empty_text": "Start a test for a class, and every student’s grade will show up here.",
   "results_no_class": "No class list",
