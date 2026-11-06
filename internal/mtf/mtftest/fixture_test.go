@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"klats/internal/mtf"
@@ -16,7 +17,8 @@ var update = flag.Bool("update", false, "write the e2e fixtures instead of check
 // web/e2e/fixtures. older.mtf holds a question of every type but true or
 // false, and converts with three notes: on its two themes asking one question
 // each, on question 3's item outside the order and on question 7's L-shaped
-// click area. older-clean.mtf converts with none.
+// click area. older-clean.mtf converts with none, and older-many.mtf with a
+// hint_dropped note on each of its 30 questions.
 var fixtures = map[string][]byte{
 	"older.mtf": Encode(mtf.File{
 		Title:  "Старий тест",
@@ -43,6 +45,17 @@ var fixtures = map[string][]byte{
 				Answers: []string{RTF("4"), RTF("8"), RTF("16")}, Keys: []uint32{0, 1, 0}},
 		},
 	}),
+	"older-many.mtf": Encode(mtf.File{Title: "Багато підказок", Questions: hinted(30)}),
+}
+
+// hinted returns n number questions, each with a hint.
+func hinted(n int) []mtf.Question {
+	qs := make([]mtf.Question, n)
+	for i := range qs {
+		qs[i] = mtf.Question{Type: 6, Points: 1, Text: RTF("Скільки буде " + strconv.Itoa(i) + " + 1?"),
+			Lo: float64(i + 1), Hi: float64(i + 1), Hint: RTF("Додайте одиницю.")}
+	}
+	return qs
 }
 
 // TestE2EFixtures checks that the committed e2e fixtures are what Encode makes

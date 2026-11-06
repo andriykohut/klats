@@ -128,9 +128,13 @@
   margin-top: 8px;
 }
 
+/* A long list scrolls, so the title and the buttons stay in view; the padding
+   keeps the links' focus ring inside the scroll box, which would clip it. */
 .t-report ul {
-  margin: 4px 0 0;
-  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin: -1px -5px -5px;
+  padding: 5px;
   list-style: none;
   font-weight: 600;
 }

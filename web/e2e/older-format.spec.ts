@@ -6,6 +6,7 @@ import { expect, m, openFile, TEST, test } from "./fixtures";
 // internal/mtf/mtftest.
 const OLDER = join(import.meta.dirname, "fixtures", "older.mtf");
 const CLEAN = join(import.meta.dirname, "fixtures", "older-clean.mtf");
+const MANY = join(import.meta.dirname, "fixtures", "older-many.mtf");
 
 test("an older-format file opens with a report", async ({ klats }) => {
   const page = await klats.teacher("/");
@@ -43,6 +44,32 @@ test("an older-format file opens with a report", async ({ klats }) => {
   await expect
     .poll(() => picture.evaluate((i: HTMLImageElement) => i.naturalWidth))
     .toBeGreaterThan(0);
+});
+
+test("a long report scrolls its notes, keeping the title and buttons in view", async ({
+  klats,
+}) => {
+  const page = await klats.teacher("/");
+  await openFile(page, MANY);
+  const title = m.tests_opened({ title: "Багато підказок" });
+  const report = page.getByRole("alertdialog", { name: title });
+  const heading = report.getByRole("heading", { name: title });
+  const open = report.getByRole("button", { name: m.open_report_open() });
+  const links = report.getByRole("link");
+  await expect(links).toHaveCount(30);
+  await expect(heading).toBeInViewport({ ratio: 1 });
+  await expect(open).toBeInViewport({ ratio: 1 });
+
+  const last = links.last();
+  await expect(last).toHaveText(
+    m.open_report_question({ number: 30, note: m.note_hint_dropped() }),
+  );
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport({ ratio: 1 });
+  await expect(heading).toBeInViewport({ ratio: 1 });
+  await expect(open).toBeInViewport({ ratio: 1 });
+  await last.click();
+  await expect(page).toHaveURL(/\/tests\/[^?]+\?q=q30$/);
 });
 
 test("a clean older-format file just opens", async ({ klats }) => {
