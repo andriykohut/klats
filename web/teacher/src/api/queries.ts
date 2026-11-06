@@ -361,7 +361,7 @@ export function useSetOverride(id: string) {
 
 /**
  * Exports assignment `id` to Excel (see {@link api.exportResults}); the
- * results refetch, as a finished export clears «Експорт застарів». A file
+ * results refetch, as a finished export clears «Змінено після експорту». A file
  * that cannot be written gets its own error toast. Key: "export".
  */
 export function useExport(id: string) {

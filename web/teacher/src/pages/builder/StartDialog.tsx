@@ -64,9 +64,9 @@ interface StartProps {
 }
 
 /**
- * «Почати тест»: a dialog to pick the class (or «Без списку», where students
+ * «Запустити тест»: a dialog to pick the class (or «Без списку», where students
  * type their names) and start a sitting, which then opens the live view. A
- * test with a common end time also asks «Закінчити о», prefilled with the
+ * test with a common end time also asks «Завершити о», prefilled with the
  * test's minutes from now; a time that has passed, or an empty or partly
  * typed one, blocks the start. Problems that block the start, known from the
  * last save or returned by the server, are listed with links to their

@@ -14,7 +14,7 @@ import (
 
 const (
 	cookieName       = "klats_t"
-	unauthorizedText = "Відкрийте Клац із програми."
+	unauthorizedText = "Цю сторінку можна відкрити лише у вікні Клацу."
 )
 
 // NewToken returns a fresh launch token: 32 random bytes, base64url without

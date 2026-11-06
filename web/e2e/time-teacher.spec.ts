@@ -31,7 +31,7 @@ const FIVE_MINUTES = 5 * 60_000;
 
 /**
  * Pins the teacher page's clock at the real time, or at 01:00 tomorrow from
- * 22:00 on, and returns it: the start dialog reads «Закінчити о» as a time
+ * 22:00 on, and returns it: the start dialog reads «Завершити о» as a time
  * today, so now plus a lesson must not pass midnight. The server keeps the
  * real clock and takes an end time up to 12 hours on, so a page pinned ahead
  * of it still starts a real sitting.

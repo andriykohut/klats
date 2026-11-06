@@ -10,7 +10,7 @@ type texts struct {
 var (
 	uk = texts{
 		title: "Клац", show: "Показати вікно", quit: "Вийти", cancel: "Скасувати", quitAsk: "Тест ще триває. Вийти?",
-		testFile: "Тест Клац", backupFile: "Резервна копія Клац",
+		testFile: "Тест Клацу", backupFile: "Резервна копія Клацу",
 	}
 	en = texts{
 		title: "Klats", show: "Show window", quit: "Quit", cancel: "Cancel", quitAsk: "A test is still running. Quit?",

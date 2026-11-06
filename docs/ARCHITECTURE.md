@@ -675,7 +675,7 @@ and turns each into a Klats test. Klats never writes the format.
   and the quit question are in `internal/desktop/strings.go`, in both
   languages, and the workbook takes the language as an argument. Six are
   Ukrainian only, whatever the language setting:
-  - the 401 page's text, «Відкрийте Клац із програми.», in
+  - the 401 page's text, «Цю сторінку можна відкрити лише у вікні Клацу.», in
     `internal/teacherapi/guard.go`;
   - «Новий тест», the title of a new test, in `internal/teacherapi/api.go`;
   - the backup's file name, «Клац — резервна копія — YYYY-MM-DD.klatsbackup»,

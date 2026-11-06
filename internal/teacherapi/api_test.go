@@ -223,7 +223,7 @@ func TestRejectsMissingToken(t *testing.T) {
 	r := v.req("GET", "/", nil)
 	r.Header.Del("Authorization")
 	w := v.serve(r)
-	if w.Code != 401 || w.Body.String() != "Відкрийте Клац із програми." || strings.Contains(w.Body.String(), "teacher") {
+	if w.Code != 401 || w.Body.String() != "Цю сторінку можна відкрити лише у вікні Клацу." || strings.Contains(w.Body.String(), "teacher") {
 		t.Errorf("/ without token = %d %q", w.Code, w.Body)
 	}
 	// The cookie authenticates too.
@@ -989,7 +989,7 @@ func TestQR(t *testing.T) {
 	wantStatus(t, v.do("GET", "/api/qr?text="+strings.Repeat("a", 512), nil), 200)
 }
 
-// The UI says «Експорт застарів» while Exported and ExportStale are both set:
+// The UI says «Змінено після експорту» while Exported and ExportStale are both set:
 // never before the first export, after an export once an answer is stored,
 // and no more after the next export. Both export paths record the export.
 func TestExportedFlag(t *testing.T) {

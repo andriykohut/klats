@@ -128,7 +128,7 @@ const LOOSE = [
  * «Порівняння»: the switches for comparing a typed text with the accepted
  * answers, in the order of the server's `Match`. The first three are on by
  * default and map to the negated fields, so a question without `match` shows
- * them on, as the grader treats it. «Пробачати одну помилку» is off by default.
+ * them on, as the grader treats it. «Зараховувати з однією помилкою» is off by default.
  * Every edit goes through `onChange` as a function of the newest question.
  */
 export function MatchSwitches(props: {

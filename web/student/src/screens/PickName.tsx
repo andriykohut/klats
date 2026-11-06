@@ -29,7 +29,7 @@ const REFRESH_MS = 15_000;
 
 /**
  * The class list as name tiles, with a filter field for long lists: the
- * free names in the server's order, as a radio group, then «Уже приєднались»
+ * free names in the server's order, as a radio group, then «Уже приєдналися»
  * with the names other computers hold, as plain buttons. The list follows
  * `info` as it changes, sliding names between the groups, but holds every
  * change while a pointer is down on it or a pick is on its way (and after it
