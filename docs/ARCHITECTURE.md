@@ -150,8 +150,14 @@ design follows from where it runs:
    and a reload or a move to another computer shows the same questions in
    the same order. Options are shuffled per device instead. Grading, the live
    view, the results and the export work over each participant's own
-   questions; a question a participant did not get shows as «—» and counts
-   in no percent, and a change for it is rejected.
+   questions; a question a participant did not get counts in no percent,
+   and a change for it is rejected. When the test has draw lines, the live
+   and results journals give each participant one column per question they
+   got, in their own order and numbered as on their screen, each cell's
+   tooltip naming the question's number and text in the test; there is no
+   row of class percents, and «—» only pads a row shorter than the longest.
+   The export's «Результати» sheet keeps one column per test question and
+   leaves a question the participant did not get empty.
 
    A test whose settings say forward only carries `navigation: "forward"`,
    and the student app alone enforces it: the progress strip and the
