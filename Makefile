@@ -8,7 +8,7 @@ export MACOSX_DEPLOYMENT_TARGET := 13.0
 export CGO_LDFLAGS := $(or $(CGO_LDFLAGS),-O2 -g) -mmacosx-version-min=13.0
 endif
 
-.PHONY: build check lint test typecheck size web gen e2e load dev demo icons
+.PHONY: build check lint test typecheck size web gen e2e site-shots load dev demo icons
 
 build:
 	go build ./cmd/klats
@@ -47,6 +47,11 @@ gen:
 # builds the klats binary, which embeds the web apps built here.
 e2e: web
 	cd web && pnpm --filter @klats/e2e exec playwright test
+
+# The site's screenshots of the app, in uk and en, taken from the real apps by
+# web/e2e/shots into web/site/src/assets/shots/. The suite never runs them.
+site-shots: web
+	cd web && pnpm --filter @klats/e2e exec playwright test --config shots.config.ts
 
 # A lesson at full size against the sitting engine: 40 students for a minute.
 load:
