@@ -134,6 +134,13 @@ export interface Klats {
   ): Promise<SittingInfo>;
   /** Stores `bytes` in the media store and returns its media name. */
   upload(bytes: Buffer): Promise<string>;
+  /** The .klats file of the test `id`, as an export downloads it. */
+  exportFile(id: string): Promise<Buffer>;
+  /**
+   * Hands the file at `path` to Klats, as the system does when the teacher
+   * double-clicks it.
+   */
+  opened(path: string): Promise<void>;
   /** The teacher's live snapshot. */
   live(): Promise<LiveSnapshot>;
   /** The teacher's results of the assignment `id`. */
@@ -244,6 +251,15 @@ export const test = base.extend<{ klats: Klats }>({
         if (!res.ok) throw new Error(`POST /api/media: ${res.status}`);
         return ((await res.json()) as { name: string }).name;
       },
+      async exportFile(id) {
+        const res = await fetch(`${teacherURL.origin}/api/tests/${id}/export`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error(`export ${id}: ${res.status}`);
+        return Buffer.from(await res.arrayBuffer());
+      },
+      opened: (path) => api("POST", "/api/opened", { path }),
       results: (id) =>
         api<AssignmentResults>("GET", `/api/assignments/${id}/results`),
       create,

@@ -89,6 +89,12 @@ type Deps struct {
 	// Browser opens the pages of POST /api/open/{target}; nil hands each page
 	// to the teacher app to open.
 	Browser Browser
+	// Opened queues the files the system asked Klats to open, for
+	// GET /api/opened; nil starts an empty queue.
+	Opened *OpenedFiles
+	// Dev mounts POST /api/opened, which queues any path as if the system had
+	// opened it. It is for the end-to-end tests only, under -dev.
+	Dev bool
 }
 
 type api struct {
@@ -107,6 +113,7 @@ type api struct {
 	version string
 	updates *Updates
 	browser Browser
+	opened  *OpenedFiles
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -121,11 +128,15 @@ func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir, tmpDir: d.TempDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
-		version: d.Version, updates: d.Updates, browser: d.Browser,
+		version: d.Version, updates: d.Updates, browser: d.Browser, opened: d.Opened,
 	}
 	if a.updates == nil {
 		a.updates = NewUpdates(d.Hub)
 	}
+	if a.opened == nil {
+		a.opened = NewOpenedFiles()
+	}
+	a.opened.attach(d.Hub)
 	if a.ifaces == nil {
 		a.ifaces = lan.System
 	}
@@ -141,6 +152,10 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/tests/{id}/duplicate", a.duplicateTest)
 	mux.HandleFunc("POST /api/tests/{id}/export", a.exportTest)
 	mux.HandleFunc("POST /api/tests/import", a.importTest)
+	mux.HandleFunc("GET /api/opened", a.takeOpened)
+	if d.Dev {
+		mux.HandleFunc("POST /api/opened", a.addOpened)
+	}
 
 	mux.HandleFunc("GET /api/classes", a.listClasses)
 	mux.HandleFunc("POST /api/classes", a.createClass)

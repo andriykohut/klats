@@ -15,9 +15,10 @@ import { setFlags } from "./flags";
  * if the students' URL differs from the one held before; the server reports
  * any change to the candidate addresses, even one that leaves the chosen URL
  * as it was. "update_found" refetches the about info, which then names the
- * newer release. EventSource reconnects by itself after a dropped connection,
- * and each (re)connect refetches the live view in case a "live" event was
- * missed meanwhile.
+ * newer release. "file_opened" raises `fileWaiting`, for the library to take
+ * the file. EventSource reconnects by itself after a dropped connection, and
+ * each (re)connect refetches the live view in case a "live" event was missed
+ * meanwhile.
  */
 export function subscribeTeacherEvents(queryClient: QueryClient): () => void {
   const es = new EventSource("/api/events");
@@ -43,5 +44,6 @@ export function subscribeTeacherEvents(queryClient: QueryClient): () => void {
   es.addEventListener("update_found", () =>
     queryClient.invalidateQueries({ queryKey: ["about"] }),
   );
+  es.addEventListener("file_opened", () => setFlags({ fileWaiting: true }));
   return () => es.close();
 }

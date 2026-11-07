@@ -377,7 +377,7 @@ func TestShellQuitStopsEverything(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ran bool
-	openShell = func(_ func() string, _ func() bool, onShutdown func()) (shell, error) {
+	openShell = func(_ func() string, _ func() bool, onShutdown func(), _ func(string)) (shell, error) {
 		return fakeShell{func(launchURL string) error {
 			ran = true
 			startSitting(t, launchURL)
@@ -413,7 +413,7 @@ func TestSavedLanguageSurvivesAnUnreadableFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got []string
-	openShell = func(language func() string, _ func() bool, _ func()) (shell, error) {
+	openShell = func(language func() string, _ func() bool, _ func(), _ func(string)) (shell, error) {
 		got = append(got, language())
 		return fakeShell{func(string) error {
 			if err := os.WriteFile(filepath.Join(dataDir, "settings.json"), []byte("{"), 0o600); err != nil {

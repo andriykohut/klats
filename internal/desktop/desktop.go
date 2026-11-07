@@ -7,6 +7,10 @@
 // The shell starts in two steps. [New] claims the single instance before the
 // program opens its database, log and ports, and [App.Run] opens the window
 // once the teacher API is listening.
+//
+// A file the system opens with Klats, such as a double-clicked .klats file,
+// reaches [Options.OpenFile] from the system's open event or, when a second
+// launch carries it, through the single instance.
 package desktop
 
 import (
@@ -14,6 +18,7 @@ import (
 	_ "embed"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -28,8 +33,9 @@ import (
 //go:embed icon.png
 var icon []byte
 
-// Options are what the shell needs from the program. New calls Language; the
-// other functions are called only while [App.Run] runs.
+// Options are what the shell needs from the program. New calls Language, and
+// OpenFile may be called from then on, from any goroutine; the other functions
+// are called only while [App.Run] runs.
 type Options struct {
 	// Language returns the saved UI language, "uk" or "en".
 	Language func() string
@@ -39,6 +45,9 @@ type Options struct {
 	// process exits as soon as it returns, so the program's own shutdown
 	// belongs here rather than after Run.
 	OnShutdown func()
+	// OpenFile takes the path of a .klats file the system asked the program
+	// to open. A relative path is relative to the working folder.
+	OpenFile func(path string)
 }
 
 // App is the shell between [New] and the end of [App.Run].
@@ -52,9 +61,10 @@ type App struct {
 }
 
 // New creates the shell and claims its single instance. When another instance
-// of the program is already running, New asks it to show its window and exits
-// this process with status 0, so call it before opening anything the first
-// instance holds, such as the database, the log or the ports.
+// of the program is already running, New asks it to show its window, hands it
+// the .klats files among this process's arguments, and exits with status 0,
+// so call it before opening anything the first instance holds, such as the
+// database, the log or the ports.
 func New(o Options) *App {
 	a := &App{o: o}
 	t := textsFor(o.Language())
@@ -66,9 +76,23 @@ func New(o Options) *App {
 		Logger: slog.New(defaultHandler{}),
 		// The ctx given to Run carries the program's signals.
 		DisableDefaultSignalHandler: true,
+		// On Windows and Linux, Wails reports a first launch with one argument
+		// of this extension as ApplicationOpenedWithFile; macOS reports a
+		// document open there too, at any launch.
+		FileAssociations: []string{".klats"},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "ua.klats.teacher",
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+			OnSecondInstanceLaunch: func(data application.SecondInstanceData) {
+				// Args starts with the program's own path, which never ends in .klats.
+				for _, arg := range data.Args {
+					if !strings.EqualFold(filepath.Ext(arg), ".klats") {
+						continue
+					}
+					if !filepath.IsAbs(arg) {
+						arg = filepath.Join(data.WorkingDir, arg)
+					}
+					o.OpenFile(arg)
+				}
 				if a.started.Load() {
 					a.show()
 				}
@@ -81,6 +105,13 @@ func New(o Options) *App {
 		Title: t.title, Width: 1440, Height: 900, MinWidth: 1366, MinHeight: 768,
 	})
 	a.win.RegisterHook(events.Common.WindowClosing, a.closing)
+	// It can fire before ApplicationStarted, when the window is about to show anyway.
+	a.app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
+		o.OpenFile(e.Context().Filename())
+		if a.started.Load() {
+			a.show()
+		}
+	})
 	return a
 }
 

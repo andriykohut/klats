@@ -2,10 +2,12 @@ import type { TestDoc } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button, FileTrigger, Input, SearchField } from "react-aria-components";
+import { ApiError, takeOpenedFile } from "../api/client";
 import {
   busy,
+  notifyOpenError,
   useCreateTest,
   useDeleteTest,
   useDeletingTests,
@@ -15,6 +17,7 @@ import {
   useTests,
 } from "../api/queries";
 import { cooldown } from "../cooldown";
+import { setFlags, useFlags } from "../flags";
 import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
@@ -35,7 +38,10 @@ const searchable = (s: string) =>
  * file dropped anywhere on the page, opens a .klats or .mtf file as a new
  * test, which lands at the top while the page stays on the library; the notes
  * of an .mtf file's conversion are shown in {@link OpenReport}. A dropped file
- * of another kind is refused with a toast.
+ * of another kind is refused with a toast. The files the system opened Klats
+ * with, such as a double-clicked .klats file, are taken from the server and
+ * opened the same way, one after another: on mount and whenever `fileWaiting`
+ * is raised.
  */
 export function TestsPage() {
   const tests = useTests();
@@ -50,6 +56,8 @@ export function TestsPage() {
   const [dragging, setDragging] = useState(false);
   const [mayDelete] = useState(() => cooldown());
   const navigate = useNavigate();
+  const { fileWaiting } = useFlags();
+  const taking = useRef(Promise.resolve());
   // The server lists the newest edit first.
   const all = (tests.data ?? []).filter((t) => !deleting.includes(t.id));
   const needle = searchable(query.trim());
@@ -61,12 +69,40 @@ export function TestsPage() {
     minute: "2-digit",
   });
 
-  const openTest = (file: File) => {
+  const openTest = async (file: File) => {
     if (busy("importTest")) return;
-    open.mutate(file, {
-      onSuccess: (doc) => doc.notes?.length && setReport(doc),
-    });
+    const doc = await open.mutateAsync(file).catch(() => null); // the mutation toasts the failure
+    if (doc?.notes?.length) setReport(doc);
   };
+  // Chained, so a second call waits instead of finding the import busy.
+  const takeOpened = useEffectEvent(() => {
+    taking.current = taking.current.then(async () => {
+      // Lowered first, so a file opened while these are taken raises it again
+      // and is taken by the next call.
+      setFlags({ fileWaiting: false });
+      for (;;) {
+        let file: File | null;
+        try {
+          file = await takeOpenedFile();
+        } catch (err) {
+          notifyOpenError(err);
+          // A refused file has left the queue; any other failure would repeat.
+          const refused =
+            err instanceof ApiError &&
+            (err.code === "file_missing" || err.code === "too_large");
+          if (refused) continue;
+          return;
+        }
+        if (!file) return;
+        await openTest(file);
+      }
+    });
+  });
+  // On mount, for a file the system opened Klats with before the page loaded.
+  useEffect(() => takeOpened(), []);
+  useEffect(() => {
+    if (fileWaiting) takeOpened();
+  }, [fileWaiting]);
   const dropped = useEffectEvent((file: File) => {
     if (/\.(klats|mtf)$/i.test(file.name)) openTest(file);
     else notify(m.tests_drop_wrong(), true);

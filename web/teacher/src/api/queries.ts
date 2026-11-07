@@ -186,10 +186,20 @@ export const useExportTest = () =>
 /** The toasts for the files the server refuses to open, by error code. */
 const openErrors: Record<string, () => string> = {
   file_damaged: m.tests_file_damaged,
+  file_missing: m.tests_open_missing,
   file_too_old: m.tests_file_too_old,
   test_too_new: m.tests_file_too_new,
   too_large: m.tests_file_too_large,
 };
+
+/**
+ * Toasts why a file did not open: the toast of its refusal code, or the
+ * server error toast for any other failure.
+ */
+export function notifyOpenError(err: unknown): void {
+  const text = err instanceof api.ApiError && openErrors[err.code];
+  notify(text ? text() : m.error_server(), true);
+}
 
 /**
  * Opens a .klats file, or an .mtf file in the older format, as a new test,
@@ -209,10 +219,7 @@ export function useImportTest() {
       if (!doc.notes?.length) notify(m.tests_opened({ title: doc.test.title }));
       return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
     },
-    onError: (err) => {
-      const text = err instanceof api.ApiError && openErrors[err.code];
-      notify(text ? text() : m.error_server(), true);
-    },
+    onError: notifyOpenError,
   });
 }
 

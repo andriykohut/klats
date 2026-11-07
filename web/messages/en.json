@@ -211,6 +211,7 @@
   "tests_file_too_new": "This test was made in a newer Klats. Update the app.",
   "tests_file_too_large": "The file is too large.",
   "tests_file_too_old": "This file was saved in an outdated version of its format, so Klats can’t open it.",
+  "tests_open_missing": "Couldn’t read the file. It may have been moved or deleted.",
   "tests_drop_here": "Drop the file here",
   "tests_drop_wrong": "Klats opens only .klats and .mtf files",
   "open_report_count": [

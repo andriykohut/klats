@@ -130,6 +130,19 @@ export async function importTest(file: File): Promise<TestDoc> {
 }
 
 /**
+ * Takes the oldest file the system opened Klats with, such as a double-clicked
+ * .klats file, or resolves to null when none is waiting. A file over 256 MB
+ * rejects with an ApiError of code "too_large", and one that can no longer be
+ * read with "file_missing"; either way it is no longer waiting.
+ */
+export async function takeOpenedFile(): Promise<File | null> {
+  const res = await send("GET", "/api/opened");
+  if (res.status === 204) return null;
+  const name = decodeURIComponent(res.headers.get("X-File-Name") ?? "");
+  return new File([await res.blob()], name);
+}
+
+/**
  * Exports every test, class and result as a .klatsbackup file, resolving as
  * {@link exportResults} does. A running sitting rejects with code
  * "sitting_active", and data over 2 GB with "too_large".

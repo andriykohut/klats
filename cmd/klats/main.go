@@ -142,14 +142,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 
 	// The shell claims the single instance before anything a running instance
 	// holds is opened; a second instance exits inside newShell. It calls back
-	// into eng and stop only once it runs, after both are set.
+	// into eng and stop only once it runs, after both are set. A file the
+	// system opens Klats with can arrive before then, and waits in opened.
 	var (
 		sh   shell
 		eng  *sitting.Engine
 		stop func()
 	)
+	opened := teacherapi.NewOpenedFiles()
 	if !*dev {
-		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, func() { stop() })
+		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, func() { stop() }, opened.Add)
 		if err != nil {
 			return err
 		}
@@ -261,7 +263,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
 		DataDir: dataDir, TempDir: tmpDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
-		Dialogs: dialogs, Version: version, Updates: updates, Browser: browser,
+		Dialogs: dialogs, Version: version, Updates: updates, Browser: browser, Opened: opened, Dev: *dev,
 	})
 
 	ctx, cancel := context.WithCancel(ctx)

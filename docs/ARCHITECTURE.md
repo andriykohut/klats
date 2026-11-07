@@ -52,7 +52,14 @@ design follows from where it runs:
   for development and tests. The shell adds:
   - a tray icon while a sitting runs, so closing the window does not stop
     the lesson, and a question before quitting during one;
-  - a single instance: a second launch brings the first window forward;
+  - a single instance: a second launch brings the first window forward and
+    hands it the `.klats` files among its arguments;
+  - double-clicked `.klats` files. A path from the system or from a second
+    launch waits in `teacherapi.OpenedFiles`, and the `file_opened` event
+    announces it. The library takes each file from `GET /api/opened` and
+    opens it as «Відкрити» does. The other pages in the top bar's frame go
+    to the library first; the builder and the live view leave the file
+    waiting until the teacher leaves them;
   - the native save dialog for exports.
 
   It uses WebView2 on Windows, WebKitGTK 6.0 on Linux and WKWebView on
@@ -88,7 +95,7 @@ design follows from where it runs:
 | `internal/backup` | Writes all the data to one `.klatsbackup` file, the database and the media it uses, and checks one before a restore. It is the trust boundary for restored backups. |
 | `internal/config` | Finds the per-user data folder and reads and writes `settings.json`: port, address, language, and whether to check for updates, which is on unless the teacher turns it off. `PUT /api/settings` sets the port, the language and the update switch together, so the teacher app always sends all three; the address goes through `PUT /api/network`. |
 | `internal/demo` | Seeds a sample class, test and running sitting for `klats -dev -demo`. |
-| `internal/desktop` | The Wails shell: window, tray, single instance, save dialog, and the system browser for links out. The only package that imports Wails. |
+| `internal/desktop` | The Wails shell: window, tray, single instance, save dialog, the system browser for links out, and the `.klats` files the system opens. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
 | `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into a grade on the test's scale (12-point, percent or pass/fail). It covers every question type. |
 | `internal/httpx` | JSON replies, capped body decoding, file names safe on every OS and the single-page-app file server, shared by both APIs. |
@@ -452,6 +459,10 @@ Students may have the address bookmarked.
     cap into a temporary file in the data folder's `tmp/`, removed whatever
     happens, and stores the test as a new one. An export whose media come to
     over 256 MiB is refused, since the file could not be opened again.
+  - `GET /api/opened` reads only a path the shell queued, never one from the
+    request, and refuses a file over the same 256 MiB cap. The teacher app
+    sends the bytes back through `POST /api/tests/import`. Only under `-dev`
+    does `POST /api/opened` queue any path, for the end-to-end tests.
   - A backup goes through the same pieces (`internal/mediazip`), with caps
     for a whole library: the body at 2 GiB, the central directory at 8 MiB,
     50,000 entries, `klats.db` at 2 GiB inflated, each media entry at

@@ -5,13 +5,16 @@ import { useSyncExternalStore } from "react";
  * refused the launch-token cookie; `addressChanged` once the students' URL
  * changed, until the teacher dismisses the banner; `portSaved` once the
  * teacher saved a port in this session; `focusPort` from a press on the
- * port-busy banner's link until the port field takes focus.
+ * port-busy banner's link until the port field takes focus; `fileWaiting`
+ * from the server's word that the system opened a file with Klats until the
+ * library starts taking the waiting files.
  */
 export interface Flags {
   unauthorized: boolean;
   addressChanged: boolean;
   portSaved: boolean;
   focusPort: boolean;
+  fileWaiting: boolean;
 }
 
 let flags: Flags = {
@@ -19,6 +22,7 @@ let flags: Flags = {
   addressChanged: false,
   portSaved: false,
   focusPort: false,
+  fileWaiting: false,
 };
 const listeners = new Set<() => void>();
 
