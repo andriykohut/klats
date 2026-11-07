@@ -1,0 +1,72 @@
+---
+import type { Lang, ShotName, Slot } from "../i18n";
+import Shot from "./Shot.astro";
+
+interface Props {
+  lang: Lang;
+  /** Each step's text may hold inline markup; slots and shots follow it. */
+  steps: { text: string; slots?: Slot[]; shot?: ShotName }[];
+}
+
+const { lang, steps } = Astro.props;
+---
+
+<ol class="steps">
+  {
+    steps.map((step) => (
+      <li>
+        <p set:html={step.text} />
+        {step.slots?.map((slot) => (
+          <figure class="slot" data-file={slot.file}>
+            <figcaption>{slot.caption}</figcaption>
+          </figure>
+        ))}
+        {step.shot && <Shot lang={lang} name={step.shot} />}
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  ol {
+    list-style: none;
+    counter-reset: step;
+    margin: 0 0 16px;
+    padding: 0;
+  }
+
+  li {
+    counter-increment: step;
+    position: relative;
+    margin-bottom: 22px;
+    padding-left: 48px;
+  }
+
+  li::before {
+    content: counter(step);
+    position: absolute;
+    top: -2px;
+    left: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--tangerine);
+    color: var(--ink);
+    font: 600 15px/32px var(--display);
+    text-align: center;
+  }
+
+  .slot {
+    margin: 14px 0 0;
+    padding: 36px 20px;
+    border: 2px dashed var(--line-strong);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  li :global(.shot) {
+    margin-top: 14px;
+  }
+</style>

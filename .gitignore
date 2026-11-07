@@ -2,6 +2,7 @@
 docs/superpowers/
 web/*/dist/*
 !web/*/dist/.keep
+web/site/.astro/
 node_modules/
 web/*/src/paraglide/
 web/shared/src/generated/

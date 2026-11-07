@@ -1,0 +1,45 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { type Lang, strings } from "../i18n";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = strings[lang].footer;
+---
+
+<footer>
+  <nav class="wrap">
+    <a href={getRelativeLocaleUrl(lang, "install")}>{t.install}</a>
+    <a href={getRelativeLocaleUrl(lang, "first-lesson")}>{t.firstLesson}</a>
+    <a href={getRelativeLocaleUrl(lang, "faq")}>{t.faq}</a>
+    <a href="https://github.com/andriykohut/klats">{t.github}</a>
+  </nav>
+</footer>
+
+<style>
+  footer {
+    background: var(--teal-dark);
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    padding-top: 18px;
+    padding-bottom: 18px;
+    font-size: 15px;
+  }
+
+  a {
+    color: #fff;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+</style>

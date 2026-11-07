@@ -1,0 +1,20 @@
+---
+import Steps from "../components/Steps.astro";
+import { type Lang, strings } from "../i18n";
+import Page from "../layouts/Page.astro";
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = "uk" } = Astro.props;
+const t = strings[lang].firstLesson;
+---
+
+<Page lang={lang} page="first-lesson" title={t.title}>
+  <article class="wrap prose">
+    <h1>{t.title}</h1>
+    <p>{t.intro}</p>
+    <Steps lang={lang} steps={t.steps} />
+  </article>
+</Page>

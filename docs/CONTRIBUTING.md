@@ -41,7 +41,7 @@ system libraries the browsers need too.
 | `make demo` | Builds the web apps and starts a lesson: class 7-Б, a six-question test and a running sitting, in a temporary data folder that is removed on exit. It prints the student address with the join code, and the teacher address. Open both in a browser. |
 | `make dev` | Runs `klats -dev`: no window, the addresses printed instead. It uses your real data folder; to use another, run `go run -tags nodesktop ./cmd/klats -dev -data <folder>`. |
 | `make build` | Builds `klats` with the desktop shell. It embeds the web apps, so run `make web` first. |
-| `make web` | Installs the web dependencies, compiles the messages and builds both apps into `web/*/dist`. |
+| `make web` | Installs the web dependencies, compiles the messages and builds both apps and the website into `web/*/dist`. |
 | `make gen` | Regenerates the Go query code (sqlc) and the TypeScript types (tygo). Run it after changing `internal/store/queries`, `internal/store/migrations`, `internal/wire` or `internal/testfmt`. |
 | `make check` | golangci-lint and Biome, the Go and Vitest tests, the TypeScript types and the size budget. CI runs it on every push. |
 | `make e2e` | Builds the web apps, then runs the Playwright specs in `web/e2e` in Chromium and Firefox. Each test starts its own server with a fresh data folder. |

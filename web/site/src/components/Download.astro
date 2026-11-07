@@ -1,0 +1,101 @@
+---
+import { type Lang, strings } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  /** Set on one block per page: the app's update notice links to #download. */
+  id?: string;
+}
+
+const { lang, id } = Astro.props;
+const t = strings[lang].download;
+// The latest release's assets keep these names, so the links never change.
+const asset = (name: string) =>
+  `https://github.com/andriykohut/klats/releases/latest/download/${name}`;
+---
+
+<div class="download" id={id}>
+  <a class="button" href={asset("Klats-Setup.exe")} data-for="win">
+    {t.win[0]}{" "}<small>{t.win[1]}</small>
+  </a>
+  <a class="button" href={asset("Klats.dmg")} data-for="mac" hidden>
+    {t.mac[0]}{" "}<small>{t.mac[1]}</small>
+  </a>
+  <a class="button" href={asset("Klats-x86_64.AppImage")} data-for="linux" hidden>
+    {t.linux[0]}{" "}<small>{t.linux[1]}</small>
+  </a>
+  <p class="other">
+    <a href={asset("Klats-Setup.exe")} data-for="mac linux" hidden>{t.links.win}</a>
+    <a href={asset("Klats.dmg")} data-for="win linux">{t.links.mac}</a>
+    <a href={asset("Klats-x86_64.AppImage")} data-for="win mac">{t.links.linux}</a>
+    <a href={asset("klats_amd64.deb")}>{t.links.deb}</a>
+    <a href={asset("Klats-Setup-Offline.exe")}>{t.links.offline}</a>
+  </p>
+</div>
+
+<script>
+  // The markup is the Windows view and, without this script, links every
+  // installer. On a Mac or Linux, each [data-for] element is shown only when
+  // it lists that system.
+  const ua = navigator.userAgent;
+  const os = /Macintosh/.test(ua)
+    ? "mac"
+    : /Linux/.test(ua) && !/Android/.test(ua)
+      ? "linux"
+      : "win";
+  for (const el of document.querySelectorAll<HTMLElement>(
+    ".download [data-for]",
+  )) {
+    el.hidden = !el.dataset.for?.split(" ").includes(os);
+  }
+</script>
+
+<style>
+  .button {
+    display: inline-flex;
+    flex-direction: column;
+    margin: 8px 0;
+    padding: 12px 22px;
+    border-radius: 14px;
+    background: var(--tangerine);
+    box-shadow: 0 5px 0 var(--tangerine-dark);
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .button:hover {
+    filter: brightness(1.04);
+  }
+
+  .button:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 var(--tangerine-dark);
+  }
+
+  small {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .other {
+    margin: 4px 0 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .other a {
+    text-decoration: none;
+  }
+
+  .other a:hover {
+    text-decoration: underline;
+  }
+
+  .other a:not([hidden]) ~ a:not([hidden])::before {
+    content: "·";
+    display: inline-block;
+    padding: 0 0.45em;
+  }
+</style>

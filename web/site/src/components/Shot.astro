@@ -1,0 +1,26 @@
+---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import { type Lang, type ShotName, strings } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  name: ShotName;
+  /** Loads at once instead of near the viewport; for the first screen. */
+  eager?: boolean;
+}
+
+const { lang, name, eager } = Astro.props;
+const shots = import.meta.glob<{ default: ImageMetadata }>(
+  "../assets/shots/*/*.png",
+  { eager: true },
+);
+const src = shots[`../assets/shots/${lang}/${name}.png`].default;
+---
+
+<Image
+  class="shot"
+  src={src}
+  alt={strings[lang].shots[name]}
+  loading={eager ? "eager" : "lazy"}
+/>

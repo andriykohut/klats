@@ -1,0 +1,167 @@
+---
+import "@klats/shared/fonts.css";
+import Footer from "../components/Footer.astro";
+import Header from "../components/Header.astro";
+import { type Lang, strings } from "../i18n";
+
+interface Props {
+  lang: Lang;
+  /** The page's path below its language root, such as "install"; "" for the front page. */
+  page: string;
+  /** The tab title; help pages get the program's name after it. */
+  title: string;
+}
+
+const { lang, page, title } = Astro.props;
+const t = strings[lang];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{page ? `${title} — ${t.name}` : title}</title>
+    <meta name="description" content={t.description} />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
+  </head>
+  <body>
+    <Header lang={lang} page={page} />
+    <main><slot /></main>
+    <Footer lang={lang} />
+  </body>
+</html>
+
+<style is:global>
+  /*
+   * The teal palette of web/shared/src/palettes.ts, copied rather than
+   * imported: the site shares only the fonts with the app.
+   */
+  :root {
+    --teal: #0c6b66;
+    --teal-dark: #07504c;
+    --tangerine: #ff9a3d;
+    --tangerine-dark: #d5731c;
+    --ink: #0f2a2a;
+    --muted: #587170;
+    --tint: #eff7f6;
+    --soft: #e2f1ef;
+    --line: #d5ece9;
+    --line-strong: #9ec4c2;
+    --focus: #061212;
+    --display: Unbounded, "Segoe UI", system-ui, sans-serif;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    background: var(--tint);
+    color: var(--ink);
+    font: 17px/1.5 Manrope, "Segoe UI", system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  p {
+    margin: 0 0 12px;
+  }
+
+  a {
+    color: var(--teal);
+  }
+
+  a:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  code {
+    background: var(--soft);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  .shot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .prose {
+    max-width: 824px;
+    padding-top: 48px;
+    padding-bottom: 56px;
+  }
+
+  .prose h1 {
+    font-size: 34px;
+    margin-bottom: 16px;
+  }
+
+  .prose h2 {
+    font-size: 24px;
+    margin: 48px 0 14px;
+  }
+
+  .prose h3 {
+    font-size: 19px;
+    margin: 28px 0 10px;
+  }
+
+  .prose ul {
+    padding-left: 22px;
+  }
+
+  .prose li {
+    margin-bottom: 10px;
+  }
+
+  @media (max-width: 760px) {
+    body {
+      font-size: 16px;
+    }
+
+    .wrap {
+      padding: 0 16px;
+    }
+
+    .prose {
+      padding-top: 32px;
+    }
+
+    .prose h1 {
+      font-size: 27px;
+    }
+
+    .prose h2 {
+      font-size: 21px;
+      margin-top: 36px;
+    }
+  }
+</style>

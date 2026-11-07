@@ -810,3 +810,27 @@ system's installers in `dist/`.
   pre-releases. Started by hand on a branch, the workflow builds version
   `0.0.0-dev.N`, N being the run number, keeps the installers as the run's
   artifacts for a week and drafts nothing.
+
+## Website
+
+The teachers' website, `andriykohut.github.io/klats`, is a plain Astro site
+in the `web/site` workspace package. `make web` builds it with the apps, and
+`.github/workflows/pages.yml` publishes it on GitHub Pages when `web/site`
+or the fonts change on `main`.
+
+- **Languages:** Ukrainian at the root and English under `/en/`, with every
+  string in `web/site/src/i18n.ts`. Each page under `src/pages/en/` renders
+  its Ukrainian page with `lang="en"`.
+- **What it shares with the app:** only the fonts, through
+  `@klats/shared/fonts.css`. The teal palette is copied into CSS variables
+  in `src/layouts/Page.astro`.
+- **Downloads:** the buttons link to `releases/latest/download/<installer>`,
+  so a release needs no change to the site. A small script picks the
+  visitor's system; without it, the page shows the Windows button and links
+  to the other four installers. The front page's first download block has
+  the id `download`, which the app's [update notice](#updates) opens.
+- **Screenshots:** the app's own screens are in `src/assets/shots/<lang>/`.
+  Screens of Windows and macOS that no script can take are dashed slots,
+  listed with their file names in `web/site/SLOTS.md`.
+- **Browsers:** teachers may read it on the same old lab PCs, so it uses no
+  CSS or JS beyond [the browser floor](#the-browser-floor).

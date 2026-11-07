@@ -1,0 +1,182 @@
+---
+import Download from "../components/Download.astro";
+import Shot from "../components/Shot.astro";
+import { type Lang, strings } from "../i18n";
+import Page from "../layouts/Page.astro";
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = "uk" } = Astro.props;
+const t = strings[lang].front;
+---
+
+<Page lang={lang} page="" title={t.title}>
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <h1>{t.h1}</h1>
+        <p>{t.lead}</p>
+        <Download lang={lang} id="download" />
+      </div>
+      <Shot lang={lang} name="live" eager />
+    </section>
+    {
+      t.steps.map((step, i) => (
+        <section class:list={["row", { flip: i % 2 }]}>
+          <div>
+            <span class="num">{i + 1}</span>
+            <h2>{step.h}</h2>
+            <p>{step.p}</p>
+          </div>
+          <Shot lang={lang} name={step.shot} />
+        </section>
+      ))
+    }
+    <section class="more">
+      <h2>{t.more}</h2>
+      <div class="cards">
+        {
+          t.cards.map(([title, text]) => (
+            <div class="card">
+              <h3>{title}</h3>
+              <p>{text}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+    <section class="end">
+      <Download lang={lang} />
+    </section>
+  </div>
+</Page>
+
+<style>
+  section > * {
+    min-width: 0;
+  }
+
+  p {
+    color: var(--muted);
+  }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 32px;
+    align-items: center;
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  h1 {
+    font-size: 30px;
+    margin-bottom: 14px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1.25fr;
+    gap: 28px;
+    align-items: center;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+
+  .row,
+  .more,
+  .end {
+    border-top: 1px solid var(--line);
+  }
+
+  .flip {
+    grid-template-columns: 1.25fr 1fr;
+  }
+
+  .flip > :global(.shot) {
+    order: -1;
+  }
+
+  .row h2,
+  .more h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+
+  .num {
+    font: 600 22px var(--display);
+    color: var(--tangerine);
+  }
+
+  .more {
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
+
+  .more h2 {
+    margin-bottom: 14px;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .card h3 {
+    font: 800 17px/1.35 Manrope, "Segoe UI", system-ui, sans-serif;
+    margin-bottom: 4px;
+  }
+
+  .card p {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  .end {
+    padding-top: 40px;
+    padding-bottom: 48px;
+    text-align: center;
+  }
+
+  @media (max-width: 760px) {
+    .hero,
+    .row,
+    .flip {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .hero {
+      padding-top: 32px;
+      padding-bottom: 32px;
+    }
+
+    h1 {
+      font-size: 27px;
+    }
+
+    .flip > :global(.shot) {
+      order: 0;
+    }
+
+    .cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,4 +1,4 @@
-Klats (Клац) — програма для шкільного тестування. Інструкції українською з’являться на сайті проєкту.
+Вчителям: завантажити Клац і прочитати, як ним користуватися, можна на сайті https://andriykohut.github.io/klats/
 
 # Klats
 
@@ -40,6 +40,13 @@ builds the installers for Windows, macOS and Linux and drafts a GitHub
 release holding them. Fill in its notes, then publish it. To try the
 installers without a release, start the workflow by hand on a branch. See
 [Packaging](docs/ARCHITECTURE.md#packaging).
+
+The [website](https://andriykohut.github.io/klats/) is published by the
+Pages workflow whenever `web/site` changes on `main`. GitHub Pages needs a
+paid plan for a private repository, so the workflow first runs once the
+repository is public: then choose GitHub Actions as the source under
+Settings → Pages, and start the workflow by hand. See
+[Website](docs/ARCHITECTURE.md#website).
 
 ## Learn more
 

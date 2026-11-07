@@ -1,0 +1,34 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { type Lang, strings } from "../i18n";
+import Page from "../layouts/Page.astro";
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = "uk" } = Astro.props;
+const t = strings[lang].faq;
+---
+
+<Page lang={lang} page="faq" title={t.title}>
+  <article class="wrap prose">
+    <h1>{t.title}</h1>
+
+    <h2 id="connect">{t.connect.h}</h2>
+    <p>{t.connect.p}</p>
+    <ul>{t.connect.list.map((item) => <li set:html={item} />)}</ul>
+
+    <h2 id="data">{t.data.h}</h2>
+    <p>{t.data.p}</p>
+    <ul>{t.data.list.map((item) => <li set:html={item} />)}</ul>
+    <p>{t.data.backup}</p>
+
+    <h2 id="update">{t.update.h}</h2>
+    <p>{t.update.p}</p>
+    <p><a href={`${getRelativeLocaleUrl(lang)}#download`}>{t.update.link}</a></p>
+
+    <h2 id="update-check">{t.check.h}</h2>
+    {t.check.paras.map((para) => <p>{para}</p>)}
+  </article>
+</Page>

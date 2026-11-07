@@ -1,0 +1,48 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import Steps from "../components/Steps.astro";
+import { type Lang, strings } from "../i18n";
+import Page from "../layouts/Page.astro";
+
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = "uk" } = Astro.props;
+const t = strings[lang].install;
+---
+
+<Page lang={lang} page="install" title={t.title}>
+  <article class="wrap prose">
+    <h1>{t.title}</h1>
+    <p>{t.intro}</p>
+    <p><a href={`${getRelativeLocaleUrl(lang)}#download`}>{t.toDownload}</a>.</p>
+
+    <h2 id="windows">Windows</h2>
+    <p>{t.windows.intro}</p>
+    <Steps lang={lang} steps={t.windows.steps} />
+    <h3>{t.windows.admin.h}</h3>
+    <p>{t.windows.admin.p}</p>
+    <ul>{t.windows.admin.list.map((item) => <li>{item}</li>)}</ul>
+
+    <h2 id="mac">Mac</h2>
+    <p>{t.mac.intro}</p>
+    <Steps lang={lang} steps={t.mac.steps} />
+
+    <h2 id="linux">Linux</h2>
+    <p>{t.linux.intro}</p>
+    <ul>{t.linux.options.map((item) => <li set:html={item} />)}</ul>
+
+    <h2 id="uninstall">{t.uninstall.h}</h2>
+    <ul>{t.uninstall.list.map((item) => <li set:html={item} />)}</ul>
+
+    <p class="next"><a href={getRelativeLocaleUrl(lang, "first-lesson")}>{t.next} →</a></p>
+  </article>
+</Page>
+
+<style>
+  .next {
+    margin-top: 40px;
+    font-weight: 700;
+  }
+</style>
