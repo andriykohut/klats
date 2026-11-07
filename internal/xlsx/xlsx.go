@@ -46,8 +46,8 @@ var (
 // points cell. On the questions sheet the percent is blank for a question with
 // no [wire.ResultQuestion.CorrectPct]. When r has tags, a third sheet has one
 // column per tag with each student's percent ([wire.ResultRow.TagPct]) and a
-// last row with the whole class's ([wire.AssignmentResults.Tags]); a nil
-// percent is blank.
+// last row with the whole class's ([wire.AssignmentResults.Tags]), each a
+// number shown with a percent sign; a nil percent is blank.
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
 	if lang == "en" {
@@ -65,6 +65,14 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		return err
 	}
 	date, err := f.NewStyle(&excelize.Style{CustomNumFmt: new("dd.mm.yyyy")})
+	if err != nil {
+		return err
+	}
+	pct, err := f.NewStyle(&excelize.Style{CustomNumFmt: new(`0"%"`)})
+	if err != nil {
+		return err
+	}
+	boldPct, err := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}, CustomNumFmt: new(`0"%"`)})
 	if err != nil {
 		return err
 	}
@@ -157,7 +165,7 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 			ts.put(2, i+2, row.Name, 0)
 			for j, p := range row.TagPct {
 				if p != nil {
-					ts.put(3+j, i+2, *p, 0)
+					ts.put(3+j, i+2, *p, pct)
 				}
 			}
 		}
@@ -165,7 +173,7 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 		ts.put(2, last, l.wholeClass, bold)
 		for j, t := range r.Tags {
 			if t.Pct != nil {
-				ts.put(3+j, last, *t.Pct, bold)
+				ts.put(3+j, last, *t.Pct, boldPct)
 			}
 		}
 		ts.width(1, 1, 6)
