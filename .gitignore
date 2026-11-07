@@ -8,5 +8,6 @@ web/shared/src/generated/
 *.db
 /klats
 /klats.exe
+/dist/
 web/e2e/test-results/
 .DS_Store
