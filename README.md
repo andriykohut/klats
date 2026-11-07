@@ -33,6 +33,14 @@ make demo            # a sample lesson to try
 `make demo` prints a student address with the join code, and a teacher
 address. Open each in a browser.
 
+## Releasing
+
+Push a version tag, such as `v1.2.3` or `v0.1.0-rc.1`: the Release workflow
+builds the installers for Windows, macOS and Linux and drafts a GitHub
+release holding them. Fill in its notes, then publish it. To try the
+installers without a release, start the workflow by hand on a branch. See
+[Packaging](docs/ARCHITECTURE.md#packaging).
+
 ## Learn more
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how Klats fits together,

@@ -1,0 +1,128 @@
+name: Release
+
+# A tag such as v1.2.3 builds every installer and drafts a release that holds
+# them, a pre-release if the tag has a "-". Run by hand on a branch, the
+# workflow builds 0.0.0-dev.N and keeps the installers only as the run's
+# artifacts.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.3
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+      # The script's Inno Setup 6 comes with the runner image.
+      - name: Build
+        shell: bash
+        run: |
+          version=0.0.0-dev.$GITHUB_RUN_NUMBER
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
+          go tool sqlc generate
+          go tool tygo generate
+          pwsh -File build/windows/build.ps1 -Version "$version"
+      # Artifacts count against the account's storage for as long as they are
+      # kept, and the offline installer alone carries the WebView2 runtime.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: |
+            dist/Klats-Setup.exe
+            dist/Klats-Setup-Offline.exe
+          retention-days: 7
+
+  # macOS minutes count ten times on a private repo: a release costs about
+  # 100 of the 2,000 free minutes, and the timeout caps what a hung step costs.
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.3
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+      - name: Build
+        run: |
+          version=0.0.0-dev.$GITHUB_RUN_NUMBER
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
+          go tool sqlc generate
+          go tool tygo generate
+          build/macos/build.sh "$version"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos
+          path: dist/Klats.dmg
+          retention-days: 7
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 1.27.3
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 12.14.0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+      - name: Install desktop build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Build
+        run: |
+          version=0.0.0-dev.$GITHUB_RUN_NUMBER
+          if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
+          go tool sqlc generate
+          go tool tygo generate
+          build/linux/build.sh "$version"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux
+          path: |
+            dist/klats_amd64.deb
+            dist/Klats-x86_64.AppImage
+          retention-days: 7
+
+  # A run started by hand drafts nothing, even from a tag.
+  release:
+    if: github.event_name == 'push'
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag
+          ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+          --title "Клац ${GITHUB_REF_NAME#v}" --notes-file build/release-notes.md
+          dist/Klats-Setup.exe dist/Klats-Setup-Offline.exe dist/Klats.dmg
+          dist/klats_amd64.deb dist/Klats-x86_64.AppImage

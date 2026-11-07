@@ -800,3 +800,13 @@ system's installers in `dist/`.
     `appimagetool` 1.9.0 and the AppImage runtime from the `type2-runtime`
     release `20251108`, downloading both and checking each against a
     pinned SHA-256.
+- **Releases:** pushing a tag such as `v1.2.3` starts
+  `.github/workflows/release.yml`, which runs the three scripts on
+  `windows-2025`, `macos-15` and `ubuntu-24.04` with the tag's version, then
+  drafts a release titled «Клац 1.2.3» that holds the five installers, with
+  `build/release-notes.md` as its notes. A tag with a `-`, such as
+  `v0.1.0-rc.1`, makes it a pre-release. The owner fills in the notes and
+  publishes the draft; the [update check](#updates) sees neither drafts nor
+  pre-releases. Started by hand on a branch, the workflow builds version
+  `0.0.0-dev.N`, N being the run number, keeps the installers as the run's
+  artifacts for a week and drafts nothing.

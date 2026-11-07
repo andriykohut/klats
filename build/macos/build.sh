@@ -45,5 +45,12 @@ rm -rf "$stage"
 mkdir "$stage"
 ditto "$app" "$stage/Klats.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Клац" -srcfolder "$stage" -format UDZO -ov dist/Klats.dmg
+# hdiutil now and then fails with "Resource busy", above all on GitHub's macOS
+# runners (actions/runner-images#7522), so it gets five tries.
+tries=1
+until hdiutil create -volname "Клац" -srcfolder "$stage" -format UDZO -ov dist/Klats.dmg; do
+	[ "$tries" -lt 5 ] || exit 1
+	tries=$((tries + 1))
+	sleep 5
+done
 rm -rf "$stage"
