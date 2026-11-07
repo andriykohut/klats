@@ -1,8 +1,9 @@
 #!/bin/sh
 # Builds dist/klats_amd64.deb and dist/Klats-x86_64.AppImage from one x86_64
 # binary, and leaves the binary in dist/klats. Needs Ubuntu 24.04 with Go,
-# pnpm, curl, dpkg-deb and the GTK 4 and WebKitGTK 6.0 development packages
-# (libgtk-4-dev, libwebkitgtk-6.0-dev). Both packages run on the system's
+# pnpm, curl, dpkg-deb, the GTK 4 and WebKitGTK 6.0 development packages
+# (libgtk-4-dev, libwebkitgtk-6.0-dev) and desktop-file-utils, whose
+# desktop-file-validate appimagetool runs. Both packages run on the system's
 # GTK 4 and WebKitGTK 6.0, and the AppImage bundles no libraries, so they need
 # a system no older than the one the binary was built on. It works from the
 # repository root, so it can be started from anywhere.
