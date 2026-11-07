@@ -75,8 +75,10 @@ jobs:
           path: dist/Klats.dmg
           retention-days: 7
 
+  # The timeout caps what a hung step, such as the appimagetool download, costs.
   linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -96,14 +98,18 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
           go tool tygo generate
           build/linux/build.sh "$version"
-      # Shows in the log what each package holds. The AppImage unpacks into
-      # squashfs-root, kept out of the workspace.
+      # Shows in the log what each package holds and the newest glibc version
+      # the binary needs. The AppImage unpacks into squashfs-root, kept out of
+      # the workspace. Unlike the default shell, bash sets pipefail, so a
+      # missing binary fails the step.
       - name: List the packages
+        shell: bash
         run: |
           dpkg-deb -c dist/klats_amd64.deb
           cd "$RUNNER_TEMP"
           "$GITHUB_WORKSPACE/dist/Klats-x86_64.AppImage" --appimage-extract >/dev/null
           ls -R squashfs-root
+          objdump -T squashfs-root/usr/bin/klats | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
       - uses: actions/upload-artifact@v7
         with:
           name: linux

@@ -104,8 +104,8 @@ end;
 // is the folder of the user running the uninstaller.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  // MsgBox has an if of its own, so no other step can reach it, whether or
-  // not Pascal Script short-circuits the and.
+  // MsgBox sits in an inner if rather than in the and, so it is called only
+  // in the post-uninstall step of an uninstall that is not silent.
   if (CurUninstallStep = usPostUninstall) and not UninstallSilent then
     if MsgBox(CustomMessage('DeleteData'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
       DelTree(ExpandConstant('{userappdata}\Klats'), True, True, True);
