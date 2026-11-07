@@ -1,7 +1,7 @@
 ---
 import { Image } from "astro:assets";
-import type { ImageMetadata } from "astro";
 import { type Lang, type ShotName, strings } from "../i18n";
+import { findShot } from "../shots";
 
 interface Props {
   lang: Lang;
@@ -11,11 +11,10 @@ interface Props {
 }
 
 const { lang, name, eager } = Astro.props;
-const shots = import.meta.glob<{ default: ImageMetadata }>(
-  "../assets/shots/*/*.png",
-  { eager: true },
-);
-const src = shots[`../assets/shots/${lang}/${name}.png`].default;
+const src = findShot(lang, name);
+if (!src) {
+  throw new Error(`missing screenshot src/assets/shots/${lang}/${name}.png`);
+}
 ---
 
 <Image

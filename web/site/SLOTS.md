@@ -8,7 +8,8 @@ descriptions and their file names are in `src/i18n.ts`, under
 
 Capture each one on a real machine whose system language matches the page:
 Ukrainian for the Ukrainian page (`/klats/install/`), English for the English
-one (`/klats/en/install/`). Save it as `src/assets/shots/<lang>/<file>.png`.
+one (`/klats/en/install/`). Save it as `src/assets/shots/<lang>/<file>.png`,
+and the next build shows it in place of the box.
 
 | File                  | Screen                                                                | Step               | System language |
 | --------------------- | --------------------------------------------------------------------- | ------------------ | --------------- |

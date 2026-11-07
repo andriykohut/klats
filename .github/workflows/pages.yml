@@ -23,6 +23,9 @@ concurrency:
 
 jobs:
   build:
+    # GitHub Pages needs a paid plan for a private repository. Skipping here
+    # skips deploy too, which needs this job.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

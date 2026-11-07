@@ -1,10 +1,15 @@
 ---
+import { Image } from "astro:assets";
 import type { Lang, ShotName, Slot } from "../i18n";
+import { findShot } from "../shots";
 import Shot from "./Shot.astro";
 
 interface Props {
   lang: Lang;
-  /** Each step's text may hold inline markup; slots and shots follow it. */
+  /**
+   * Each step's text may hold inline markup; slots and shots follow it. A
+   * slot shows its capture once one is saved, and a dashed box until then.
+   */
   steps: { text: string; slots?: Slot[]; shot?: ShotName }[];
 }
 
@@ -16,11 +21,16 @@ const { lang, steps } = Astro.props;
     steps.map((step) => (
       <li>
         <p set:html={step.text} />
-        {step.slots?.map((slot) => (
-          <figure class="slot" data-file={slot.file}>
-            <figcaption>{slot.caption}</figcaption>
-          </figure>
-        ))}
+        {step.slots?.map((slot) => {
+          const capture = findShot(lang, slot.file);
+          return capture ? (
+            <Image class="shot" src={capture} alt={slot.caption} />
+          ) : (
+            <figure class="slot" data-file={slot.file}>
+              <figcaption>{slot.caption}</figcaption>
+            </figure>
+          );
+        })}
         {step.shot && <Shot lang={lang} name={step.shot} />}
       </li>
     ))

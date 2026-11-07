@@ -7,7 +7,11 @@
 
 export type Lang = "uk" | "en";
 
-/** A screen no script can take: shown as a dashed box until captured by hand. */
+/**
+ * A screen no script can take. It shows as a dashed box with its caption
+ * until a capture is saved as src/assets/shots/<lang>/<file>.png; then the
+ * capture shows, with the caption as its alt text.
+ */
 export interface Slot {
   /** The capture's file name, without extension, as listed in SLOTS.md. */
   file: string;
@@ -37,7 +41,7 @@ const uk = {
       mac: "macOS",
       linux: "Linux",
       deb: ".deb",
-      offline: "інсталятор без інтернету",
+      offline: "Windows (без інтернету)",
     },
   },
   shots: {
@@ -92,7 +96,7 @@ const uk = {
       intro: "Підійде Windows 10 або 11.",
       steps: [
         {
-          text: "Завантажте <code>Klats-Setup.exe</code> і запустіть його. Якщо на комп’ютері немає інтернету, беріть інсталятор без інтернету — <code>Klats-Setup-Offline.exe</code>.",
+          text: "Завантажте <code>Klats-Setup.exe</code> і запустіть його. Якщо на вашому комп’ютері немає інтернету, завантажте на іншому інсталятор без інтернету, <code>Klats-Setup-Offline.exe</code>, і перенесіть його на флешці.",
         },
         {
           text: "Windows може показати синє вікно «Windows захистив ваш ПК»: таке вікно з’являється для нових програм, які ще мало хто завантажував. Натисніть «Докладніше», а потім «Усе одно запустити».",
@@ -147,7 +151,7 @@ const uk = {
           ],
         },
         {
-          text: "Відкрийте Клац із папки «Програми». Першого разу macOS не дасть його відкрити, бо програма не підписана в Apple. Закрийте повідомлення — лише не переносьте Клац у Кошик.",
+          text: "Відкрийте Клац із папки «Програми». Першого разу macOS не дасть його відкрити, бо програма не підписана в Apple. Закрийте повідомлення — лише не переносьте Клац у Смітник.",
           slots: [
             {
               file: "mac-not-opened",
@@ -182,7 +186,7 @@ const uk = {
       h: "Як видалити Клац",
       list: [
         "<b>Windows.</b> Видаліть Клац у «Параметрах» → «Програми», як будь-яку іншу програму. Наприкінці програма видалення спитає: «Також видалити мої тести й результати?» Якщо відповісти «Так», вона видалить папку даних того користувача, який видаляє Клац, — <code>%AppData%\\Klats</code>: усі тести, класи, результати й налаштування. Типово вибрано «Ні»: тоді дані лишаються, і їх знову побачить Клац, якщо встановити його ще раз. Резервні копії, збережені в інших папках, не видаляються.",
-        "<b>Mac.</b> Перетягніть Клац із папки «Програми» в Кошик. Дані лишаються в папці <code>~/Library/Application Support/Klats</code>; видаліть її, якщо вони вже не потрібні.",
+        "<b>Mac.</b> Перетягніть Клац із папки «Програми» в Смітник. Дані лишаються в папці <code>~/Library/Application Support/Klats</code>; видаліть її, якщо вони вже не потрібні.",
         "<b>Linux.</b> Пакет видаляють командою <code>sudo apt remove klats</code>, а AppImage — як звичайний файл. Дані лишаються в папці <code>~/.local/share/klats</code>.",
       ],
     },
@@ -285,7 +289,7 @@ const en: typeof uk = {
       mac: "macOS",
       linux: "Linux",
       deb: ".deb",
-      offline: "offline installer",
+      offline: "Windows (offline)",
     },
   },
   shots: {
@@ -340,7 +344,7 @@ const en: typeof uk = {
       intro: "Windows 10 or 11 will do.",
       steps: [
         {
-          text: "Download <code>Klats-Setup.exe</code> and run it. If the computer has no internet, take the offline installer, <code>Klats-Setup-Offline.exe</code>.",
+          text: "Download <code>Klats-Setup.exe</code> and run it. If your computer has no internet, download the offline installer, <code>Klats-Setup-Offline.exe</code>, on another computer and bring it over on a USB stick.",
         },
         {
           text: "Windows may show a blue “Windows protected your PC” window: it appears for new programs that few people have downloaded yet. Click “More info”, then “Run anyway”.",
@@ -396,7 +400,7 @@ const en: typeof uk = {
           ],
         },
         {
-          text: "Open Klats from Applications. The first time, macOS won’t open it, because the app isn’t signed with Apple. Close the message — just don’t move Klats to the Bin.",
+          text: "Open Klats from Applications. The first time, macOS won’t open it, because the app isn’t signed with Apple. Close the message — just don’t move Klats to the Trash.",
           slots: [
             {
               file: "mac-not-opened",
@@ -431,7 +435,7 @@ const en: typeof uk = {
       h: "How to uninstall Klats",
       list: [
         "<b>Windows.</b> Remove Klats in Settings → Apps, like any other program. At the end the uninstaller asks “Also delete my tests and results?” Answer “Yes”, and it deletes the data folder of the user who uninstalls, <code>%AppData%\\Klats</code>: all tests, classes, results and settings. “No” is the default: the data stays, and Klats finds it again if you reinstall. Backups saved in other folders are never deleted.",
-        "<b>Mac.</b> Drag Klats from Applications to the Bin. The data stays in <code>~/Library/Application Support/Klats</code>; delete that folder if you no longer need it.",
+        "<b>Mac.</b> Drag Klats from Applications to the Trash. The data stays in <code>~/Library/Application Support/Klats</code>; delete that folder if you no longer need it.",
         "<b>Linux.</b> Remove the package with <code>sudo apt remove klats</code>, and the AppImage like any file. The data stays in <code>~/.local/share/klats</code>.",
       ],
     },
