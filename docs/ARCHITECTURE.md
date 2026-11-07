@@ -750,10 +750,9 @@ Each system has a script under `build/` that turns a version into that
 system's installers in `dist/`.
 
 - **Windows:** `build/windows/build.ps1 -Version 1.2.3` builds `klats.exe`
-  with the version stamped in and Wails' `production` tag, which leaves out
-  DevTools and the browser's context menu, then compiles
-  `build/windows/klats.iss` with Inno Setup 6 twice, into `Klats-Setup.exe`
-  and `Klats-Setup-Offline.exe`.
+  with the version stamped in and Wails' `production` tag, which turns
+  DevTools off, then compiles `build/windows/klats.iss` with Inno Setup 6
+  twice, into `Klats-Setup.exe` and `Klats-Setup-Offline.exe`.
   The offline one carries Microsoft's WebView2 runtime installer, which the
   script downloads, and runs it only when the runtime is missing.
   - Both ask for admin rights and install for every user into Program
