@@ -936,5 +936,10 @@
   "about_version_dev": "Development build",
   "about_check_updates": "Check for updates",
   "about_check_updates_hint": "Once a day Klats asks GitHub whether a new version is out. Nothing about you or your school is sent.",
+  "update_pill": "New version",
+  "update_title": "Version {latest} is out",
+  "update_text": "You have {current}. Updating keeps your tests and results.",
+  "update_download": "Download",
+  "update_notes": "What’s new",
   "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected."
 }

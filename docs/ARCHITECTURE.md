@@ -88,7 +88,7 @@ design follows from where it runs:
 | `internal/backup` | Writes all the data to one `.klatsbackup` file, the database and the media it uses, and checks one before a restore. It is the trust boundary for restored backups. |
 | `internal/config` | Finds the per-user data folder and reads and writes `settings.json`: port, address, language, and whether to check for updates, which is on unless the teacher turns it off. `PUT /api/settings` sets the port, the language and the update switch together, so the teacher app always sends all three; the address goes through `PUT /api/network`. |
 | `internal/demo` | Seeds a sample class, test and running sitting for `klats -dev -demo`. |
-| `internal/desktop` | The Wails shell: window, tray, single instance, save dialog. The only package that imports Wails. |
+| `internal/desktop` | The Wails shell: window, tray, single instance, save dialog, and the system browser for links out. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
 | `internal/grading` | Judges answers (`Judge`: points, plus a verdict for each part of the answer), and turns points into a grade on the test's scale (12-point, percent or pass/fail). It covers every question type. |
 | `internal/httpx` | JSON replies, capped body decoding, file names safe on every OS and the single-page-app file server, shared by both APIs. |
@@ -106,6 +106,7 @@ design follows from where it runs:
 | `internal/studentapi` | The student HTTP API and the student app host: the only thing on the LAN. |
 | `internal/teacherapi` | The teacher HTTP API and the teacher app host, with its guard. |
 | `internal/testfmt` | The test document a teacher builds, its settings and their defaults (`settings.go`), the fields each question type keeps (`types.go`), its checks (`Problems`) and what makes an answer valid (`CleanAnswer`). |
+| `internal/update` | Asks GitHub whether a newer release is out, and compares versions (see [Updates](#updates)). |
 | `internal/wire` | The JSON shapes of both APIs, from which tygo generates the TypeScript types. |
 | `internal/xlsx` | Writes an assignment's results as an Excel workbook. |
 
@@ -483,8 +484,9 @@ Students may have the address bookmarked.
   elements from it, so highlighting never passes through an HTML string.
 - **Exports are safe to open.** Student names go into the workbook as
   plain strings, so a name beginning with `=` is never a formula.
-- **Nothing leaves the LAN.** There is no telemetry, and no network traffic
-  beyond the LAN.
+- **Nothing leaves the LAN but the update check.** There is no telemetry.
+  The one request beyond the LAN asks GitHub for the newest release (see
+  [Updates](#updates)), and the teacher can turn it off.
 
 ## The browser floor
 
@@ -710,3 +712,23 @@ and turns each into a Klats test. Klats never writes the format.
   and export the server sends is already in that order. The teacher app
   sorts class names itself, with Ukrainian collation too, whatever the UI
   language.
+
+## Updates
+
+Klats never updates itself: it says when a newer version is out, and the
+teacher downloads it from the website.
+
+- **The check:** `update.Watch` asks GitHub's `releases/latest` endpoint,
+  which leaves out drafts and pre-releases, at start and then once a day.
+  It looks every hour whether a check is due, so a failed one is retried an
+  hour later. It never checks from a `dev` build, during a sitting, or with
+  «Перевіряти оновлення» off.
+- **The notice:** a newer release is held in memory by `teacherapi.Updates`,
+  which `GET /api/about` reports and the `update_found` event announces.
+  While no sitting runs, the top bar shows «Нова версія» where the live chip
+  goes, and its card links to the website's download section and to the
+  release's notes.
+- **Links out:** `POST /api/open/{target}` opens, in the system browser,
+  only pages the server names: `download`, in the UI language, or `notes`,
+  the release's https page. Under `-dev` it replies with the page, and the
+  teacher app opens it in a new tab.

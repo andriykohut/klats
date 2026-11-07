@@ -33,6 +33,7 @@ import (
 	"github.com/andriykohut/klats/internal/store"
 	"github.com/andriykohut/klats/internal/store/db"
 	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/update"
 	"github.com/andriykohut/klats/internal/wire"
 )
 
@@ -910,8 +911,63 @@ func TestAbout(t *testing.T) {
 	v := setup(t, false, func(d *Deps) { d.Version = "1.2.3" })
 	w := v.do("GET", "/api/about", nil)
 	wantStatus(t, w, 200)
-	if got := strings.TrimSpace(w.Body.String()); got != `{"version":"1.2.3"}` {
+	if got := strings.TrimSpace(w.Body.String()); got != `{"version":"1.2.3","latest":"","notesUrl":""}` {
 		t.Errorf("about = %s", got)
+	}
+}
+
+func TestAboutNamesTheFoundRelease(t *testing.T) {
+	var u *Updates
+	v := setup(t, false, func(d *Deps) {
+		d.Version = "1.0.0"
+		u = NewUpdates(d.Hub)
+		d.Updates = u
+	})
+	ch, unsub := v.hub.Subscribe("teacher")
+	defer unsub()
+	u.Set(update.Release{Version: "1.1.0", NotesURL: "https://x/r"})
+	select {
+	case e := <-ch:
+		if e.Name != "update_found" {
+			t.Errorf("event = %+v, want update_found", e)
+		}
+	default:
+		t.Error("Set published no event")
+	}
+	if a := decodeBody[wire.AboutInfo](t, v.do("GET", "/api/about", nil)); a != (wire.AboutInfo{Version: "1.0.0", Latest: "1.1.0", NotesURL: "https://x/r"}) {
+		t.Errorf("about = %+v", a)
+	}
+	if got := decodeBody[wire.OpenResult](t, v.do("POST", "/api/open/notes", nil)); got.URL != "https://x/r" {
+		t.Errorf("notes = %+v", got)
+	}
+}
+
+// fakeBrowser records the pages it is asked to open.
+type fakeBrowser struct{ opened []string }
+
+func (f *fakeBrowser) OpenURL(url string) error {
+	f.opened = append(f.opened, url)
+	return nil
+}
+
+func TestOpenLink(t *testing.T) {
+	v := setup(t, false)
+	w := v.do("POST", "/api/open/download", nil)
+	if got := decodeBody[wire.OpenResult](t, w); got.URL != "https://andriykohut.github.io/klats/#download" {
+		t.Errorf("download = %+v", got)
+	}
+	wantStatus(t, v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 8080, Language: "en"}), 200)
+	if got := decodeBody[wire.OpenResult](t, v.do("POST", "/api/open/download", nil)); got.URL != "https://andriykohut.github.io/klats/en/#download" {
+		t.Errorf("download in English = %+v", got)
+	}
+	wantError(t, v.do("POST", "/api/open/notes", nil), 404, "not_found")
+	wantError(t, v.do("POST", "/api/open/other", nil), 404, "not_found")
+
+	b := &fakeBrowser{}
+	v = setup(t, false, func(d *Deps) { d.Browser = b })
+	wantStatus(t, v.do("POST", "/api/open/download", nil), 204)
+	if want := []string{"https://andriykohut.github.io/klats/#download"}; !reflect.DeepEqual(b.opened, want) {
+		t.Errorf("opened %v, want %v", b.opened, want)
 	}
 }
 

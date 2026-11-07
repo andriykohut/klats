@@ -199,6 +199,9 @@ func (a *App) trayWhileActive() {
 // them on the main thread.
 func (a *App) Dialogs() teacherapi.Dialogs { return dialogs{a.app, a.win, a.o.Language} }
 
+// Browser returns the system browser, for the teacher API's links out.
+func (a *App) Browser() teacherapi.Browser { return a.app.Browser }
+
 type dialogs struct {
 	app  *application.App
 	win  *application.WebviewWindow

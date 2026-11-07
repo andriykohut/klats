@@ -47,6 +47,11 @@ type Dialogs interface {
 	SaveFile(defaultName string) (path string, err error)
 }
 
+// Browser opens a web page in the system browser.
+type Browser interface {
+	OpenURL(url string) error
+}
+
 // Deps are what [Handler] serves from.
 type Deps struct {
 	Store  *store.Store
@@ -78,6 +83,12 @@ type Deps struct {
 	Dialogs Dialogs
 	// Version is the program's version, as [wire.AboutInfo] reports it.
 	Version string
+	// Updates holds the newer release the update check found; nil means none
+	// is ever found.
+	Updates *Updates
+	// Browser opens the pages of POST /api/open/{target}; nil hands each page
+	// to the teacher app to open.
+	Browser Browser
 }
 
 type api struct {
@@ -94,6 +105,8 @@ type api struct {
 	lanPort int
 	lanErr  func() string
 	version string
+	updates *Updates
+	browser Browser
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -108,7 +121,10 @@ func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir, tmpDir: d.TempDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
-		version: d.Version,
+		version: d.Version, updates: d.Updates, browser: d.Browser,
+	}
+	if a.updates == nil {
+		a.updates = NewUpdates(d.Hub)
 	}
 	if a.ifaces == nil {
 		a.ifaces = lan.System
@@ -158,6 +174,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/settings", a.getSettings)
 	mux.HandleFunc("PUT /api/settings", a.putSettings)
 	mux.HandleFunc("GET /api/about", a.getAbout)
+	mux.HandleFunc("POST /api/open/{target}", a.open)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("GET /api/qr", a.qr)
 

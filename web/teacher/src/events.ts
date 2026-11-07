@@ -14,9 +14,10 @@ import { setFlags } from "./flags";
  * "address_changed" refetches the network info and raises the address banner
  * if the students' URL differs from the one held before; the server reports
  * any change to the candidate addresses, even one that leaves the chosen URL
- * as it was. EventSource reconnects by itself after a dropped connection, and
- * each (re)connect refetches the live view in case a "live" event was missed
- * meanwhile.
+ * as it was. "update_found" refetches the about info, which then names the
+ * newer release. EventSource reconnects by itself after a dropped connection,
+ * and each (re)connect refetches the live view in case a "live" event was
+ * missed meanwhile.
  */
 export function subscribeTeacherEvents(queryClient: QueryClient): () => void {
   const es = new EventSource("/api/events");
@@ -39,5 +40,8 @@ export function subscribeTeacherEvents(queryClient: QueryClient): () => void {
         () => {}, // unreachable server: the next event or refetch catches up
       );
   });
+  es.addEventListener("update_found", () =>
+    queryClient.invalidateQueries({ queryKey: ["about"] }),
+  );
   return () => es.close();
 }

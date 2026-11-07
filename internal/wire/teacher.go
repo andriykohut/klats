@@ -180,9 +180,19 @@ type SettingsInfo struct {
 }
 
 // AboutInfo describes the running program. Version is its version without
-// the leading "v", or "dev" for a build that is not a release.
+// the leading "v", or "dev" for a build that is not a release. Latest is the
+// version of a newer release the update check found, and NotesURL that
+// release's page; both are empty until one is found.
 type AboutInfo struct {
-	Version string `json:"version"`
+	Version  string `json:"version"`
+	Latest   string `json:"latest"`
+	NotesURL string `json:"notesUrl"`
+}
+
+// OpenResult names the page POST /api/open/{target} asks the teacher app to
+// open, when the program has no window to open it with.
+type OpenResult struct {
+	URL string `json:"url"`
 }
 
 // MediaResult answers an upload with the name the file is stored under.

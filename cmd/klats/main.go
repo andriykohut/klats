@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -34,12 +35,16 @@ import (
 	"github.com/andriykohut/klats/internal/store"
 	"github.com/andriykohut/klats/internal/studentapi"
 	"github.com/andriykohut/klats/internal/teacherapi"
+	"github.com/andriykohut/klats/internal/update"
 	webui "github.com/andriykohut/klats/web"
 )
 
 const (
 	maxLogBytes  = 5 << 20
 	shutdownTime = 3 * time.Second
+	// releasesURL names the newest release; KLATS_RELEASES_URL replaces it
+	// in tests.
+	releasesURL = "https://api.github.com/repos/andriykohut/klats/releases/latest"
 )
 
 // Tests swap these for stand-ins: the built student app, the shell, the
@@ -63,6 +68,7 @@ var errUsage = errors.New("usage")
 type shell interface {
 	Run(ctx context.Context, teacherURL string) error
 	Dialogs() teacherapi.Dialogs
+	Browser() teacherapi.Browser
 }
 
 func main() {
@@ -244,14 +250,18 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	}
 	teacherPort := teacherL.Addr().(*net.TCPAddr).Port
 	token := teacherapi.NewToken()
-	var dialogs teacherapi.Dialogs
+	var (
+		dialogs teacherapi.Dialogs
+		browser teacherapi.Browser
+	)
 	if sh != nil {
-		dialogs = sh.Dialogs()
+		dialogs, browser = sh.Dialogs(), sh.Browser()
 	}
+	updates := teacherapi.NewUpdates(hub)
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
 		DataDir: dataDir, TempDir: tmpDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
-		Dialogs: dialogs, Version: version,
+		Dialogs: dialogs, Version: version, Updates: updates, Browser: browser,
 	})
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -265,6 +275,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	var wg sync.WaitGroup
 	wg.Go(func() { tick(ctx, eng) })
 	wg.Go(func() { watchAddresses(ctx, hub) })
+	wg.Go(func() {
+		update.Watch(ctx, update.Options{
+			URL: cmp.Or(os.Getenv("KLATS_RELEASES_URL"), releasesURL), Client: http.DefaultClient,
+			Every: 24 * time.Hour, Retry: time.Hour, Current: version,
+			Allowed: func() bool { return version != "dev" && !eng.Active() && savedCheckUpdates(dataDir) },
+			Found:   updates.Set,
+		})
+	})
 	// Wails' OnShutdown calls stop, and on macOS the process exits right
 	// after, so no cleanup is left to defer. A failed step is logged and
 	// does not skip the next.
@@ -331,6 +349,13 @@ func savedLanguage(dataDir string) func() string {
 		}
 		return last
 	}
+}
+
+// savedCheckUpdates reports whether the settings, which the teacher API
+// rewrites, allow the update check. Settings that cannot be read do not.
+func savedCheckUpdates(dataDir string) bool {
+	s, err := config.Load(dataDir)
+	return err == nil && s.CheckUpdates
 }
 
 // serve starts an HTTP server on l. Requests see ctx, so open event streams

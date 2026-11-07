@@ -102,5 +102,9 @@ func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) getAbout(w http.ResponseWriter, r *http.Request) {
-	httpx.JSON(w, http.StatusOK, wire.AboutInfo{Version: a.version})
+	info := wire.AboutInfo{Version: a.version}
+	if rel, ok := a.updates.Get(); ok {
+		info.Latest, info.NotesURL = rel.Version, rel.NotesURL
+	}
+	httpx.JSON(w, http.StatusOK, info)
 }

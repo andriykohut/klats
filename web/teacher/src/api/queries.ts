@@ -27,7 +27,7 @@ import * as api from "./client";
  * Query keys: ["tests"] and ["tests", id], ["classes"] and ["classes", id],
  * ["live"], ["assignments"], ["results", id], ["network"], ["settings"],
  * ["about"], ["parse", text]. The event stream (events.ts) invalidates
- * ["live"] and the results of the live view's assignment.
+ * ["live"], the results of the live view's assignment, and ["about"].
  */
 
 /** How long a deleted test can be brought back before the DELETE is sent. */
@@ -441,6 +441,9 @@ export const useSettings = () => useQuery(settingsQuery);
 
 export const useAbout = () =>
   useQuery({ queryKey: ["about"], queryFn: api.getAbout });
+
+/** Opens a page (see {@link api.openLink}); a failure shows the error toast. */
+export const useOpenLink = () => useMutation({ mutationFn: api.openLink });
 
 /**
  * Saves the settings and switches the UI to the saved language at once. The

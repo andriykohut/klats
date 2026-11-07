@@ -356,6 +356,7 @@ type fakeShell struct{ fn func(teacherURL string) error }
 
 func (f fakeShell) Run(_ context.Context, teacherURL string) error { return f.fn(teacherURL) }
 func (fakeShell) Dialogs() teacherapi.Dialogs                      { return nil }
+func (fakeShell) Browser() teacherapi.Browser                      { return nil }
 
 // TestShellQuitStopsEverything checks what is left when the shell reports its
 // shutdown: on macOS the process exits right after, so nothing may wait for

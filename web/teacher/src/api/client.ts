@@ -9,6 +9,7 @@ import type {
   LiveSnapshot,
   MediaResult,
   NetworkInfo,
+  OpenResult,
   OverrideRequest,
   SaveResult,
   SettingsInfo,
@@ -299,3 +300,14 @@ export const getSettings = () => call<SettingsInfo>("GET", "/api/settings");
 export const saveSettings = (s: SettingsInfo) =>
   call<SettingsInfo>("PUT", "/api/settings", s);
 export const getAbout = () => call<AboutInfo>("GET", "/api/about");
+
+/**
+ * Opens a page in the system browser: "download" is the Klats website's
+ * download section in the UI language, "notes" the newer release's notes.
+ * Without the desktop window (`klats -dev`) the page opens in a new tab. The
+ * notes reject with code "not_found" until a newer release is known.
+ */
+export async function openLink(target: "download" | "notes"): Promise<void> {
+  const res = await call<OpenResult | undefined>("POST", `/api/open/${target}`);
+  if (res) window.open(res.url, "_blank", "noopener");
+}
