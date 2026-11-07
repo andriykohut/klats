@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -348,6 +349,46 @@ func TestBusySavedPortKeepsTheTeacherAppUp(t *testing.T) {
 	d.stop(t)
 	if saved, _ := config.Load(dataDir); saved.Port != busy {
 		t.Errorf("the saved port changed to %d", saved.Port)
+	}
+}
+
+// A release build asks for the newest release only while no sitting runs: a
+// run that starts on the demo's sitting asks nothing, and one without a
+// sitting asks once and reports the newer release in GET /api/about.
+func TestUpdateCheckWaitsForNoSitting(t *testing.T) {
+	stubs(t)
+	was := version
+	t.Cleanup(func() { version = was })
+	version = "0.9.0"
+	var asked atomic.Int32
+	releases := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		asked.Add(1)
+		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","html_url":"https://example.com/r"}`))
+	}))
+	t.Cleanup(releases.Close)
+	t.Setenv("KLATS_RELEASES_URL", releases.URL)
+
+	lesson := startDev(t, t.TempDir(), "-demo", "-port", "0")
+	// A check is due at start; stopping at once would cancel one unsent.
+	time.Sleep(200 * time.Millisecond)
+	lesson.stop(t)
+	if n := asked.Load(); n != 0 {
+		t.Fatalf("%d update checks during a sitting, want 0", n)
+	}
+
+	d := startDev(t, t.TempDir(), "-port", "0")
+	defer d.stop(t)
+	var about wire.AboutInfo
+	for deadline := time.Now().Add(5 * time.Second); about.Latest == ""; time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatalf("GET /api/about = %+v after 5 s, want latest 1.0.0 (%d checks)", about, asked.Load())
+		}
+		if code, b := api(t, d.lines["teacher"], "GET", "/api/about", nil); code != 200 || json.Unmarshal(b, &about) != nil {
+			t.Fatalf("GET /api/about = %d %s", code, b)
+		}
+	}
+	if about.Latest != "1.0.0" || asked.Load() != 1 {
+		t.Errorf("GET /api/about = %+v after %d checks, want latest 1.0.0 after one", about, asked.Load())
 	}
 }
 

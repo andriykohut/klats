@@ -14,8 +14,8 @@ import { Icon } from "./icons";
 /**
  * The teal bar over every page: the brand, the four sections, and, while a
  * sitting runs, a chip with its test and join code that opens the live view.
- * With no sitting running, a newer release shows as {@link UpdatePill} in the
- * chip's place.
+ * Once the live view has loaded with no sitting running, a newer release shows
+ * as {@link UpdatePill} in the chip's place.
  */
 export function TopBar() {
   const { data: live } = useLive();
@@ -52,7 +52,7 @@ export function TopBar() {
           </span>
         </Link>
       ) : (
-        about?.latest && <UpdatePill about={about} />
+        live !== undefined && about?.latest && <UpdatePill about={about} />
       )}
     </header>
   );

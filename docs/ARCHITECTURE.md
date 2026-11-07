@@ -736,9 +736,9 @@ teacher downloads it from the website.
   «Перевіряти оновлення» off.
 - **The notice:** a newer release is held in memory by `teacherapi.Updates`,
   which `GET /api/about` reports and the `update_found` event announces.
-  While no sitting runs, the top bar shows «Нова версія» where the live chip
-  goes, and its card links to the website's download section and to the
-  release's notes.
+  Once the live view has loaded and no sitting runs, the top bar shows
+  «Нова версія» where the live chip goes, and its card links to the
+  website's download section and to the release's notes.
 - **Links out:** `POST /api/open/{target}` opens, in the system browser,
   only pages the server names: `download`, in the UI language, or `notes`,
   the release's https page. Under `-dev` it replies with the page, and the
