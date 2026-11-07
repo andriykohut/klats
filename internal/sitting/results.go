@@ -31,7 +31,7 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 	}
 	out := wire.AssignmentResults{
 		Scale: t.Settings.Scale.Kind, AssignmentID: asg.ID, TestTitle: t.Title, ClassName: asg.ClassName.String,
-		Exported: asg.ExportedAt.Valid, ExportStale: asg.ExportStale == 1, ResultsRev: asg.ResultsRev,
+		Exported: asg.ExportedAt.Valid, ExportStale: asg.ExportStale == 1, ResultsRev: asg.ResultsRev, Drawn: len(t.Settings.Draw) > 0,
 		Questions: []wire.ResultQuestion{}, Rows: []wire.ResultRow{},
 	}
 	full, rated := make([]int, len(t.Questions)), make([]int, len(t.Questions))

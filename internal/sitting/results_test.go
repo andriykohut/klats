@@ -28,3 +28,13 @@ func TestResultsOrder(t *testing.T) {
 		t.Errorf("subset 3 of 5: Order = %v, want the student's %v", got, own)
 	}
 }
+
+func TestResultsDrawn(t *testing.T) {
+	for _, draw := range [][]testfmt.DrawLine{nil, {{Count: 3}}} {
+		e, _ := setupSettings(t, 5, testfmt.Settings{Draw: draw})
+		info := start(t, e, nil)
+		if got := resultsOf(t, e, info.AssignmentID).Drawn; got != (draw != nil) {
+			t.Errorf("draw %v: Drawn = %v", draw, got)
+		}
+	}
+}

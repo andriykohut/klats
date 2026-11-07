@@ -258,13 +258,18 @@ type FinishResult struct {
 // out. QuestionPct has one entry per question: the percent of answers to it
 // that score full points, or nil while there are none; written answers waiting
 // for the teacher are left out. Events lists the pinned events waiting for a
-// decision, then the 20 newest others, newest first.
+// decision, then the 20 newest others, newest first. Drawn is set when the
+// sitting's test has draw lines (see [testfmt.Settings.Draw]); only then
+// QuestionTexts holds the plain text of each test question (see
+// [testfmt.Question.PlainText]), in test order, cut at 120 runes with "…".
 type LiveSnapshot struct {
-	Sitting     SittingInfo `json:"sitting"`
-	Counts      Counts      `json:"counts"`
-	Rows        []LiveRow   `json:"rows"`
-	QuestionPct []*int      `json:"questionPct"`
-	Events      []Event     `json:"events"`
+	Sitting       SittingInfo `json:"sitting"`
+	Counts        Counts      `json:"counts"`
+	Rows          []LiveRow   `json:"rows"`
+	QuestionPct   []*int      `json:"questionPct"`
+	Events        []Event     `json:"events"`
+	Drawn         bool        `json:"drawn"`
+	QuestionTexts []string    `json:"questionTexts,omitempty"`
 }
 
 // Counts sums up the live view. ClassSize is 0 for a sitting without a class
@@ -278,20 +283,24 @@ type Counts struct {
 }
 
 // LiveRow is one participant in the live view, in Ukrainian order of Name.
-// Cells has one entry per question of the test, in test order: "correct"
-// (full points), "wrong" (answered with fewer), "pending" (a written answer
-// the teacher has not graded), "current" (while writing, the question after
-// the last one answered in the participant's own order), "empty", or
-// "absent" (a question the participant did not get, see
-// [testfmt.Settings.Draw]). Status is "writing", "offline" or "finished".
-// Grade is set once finished, on the scale of [SittingInfo.Scale]; Pending
-// counts the "pending" cells, which Grade scores as 0.
+// Cells has one entry per question of the test, in test order, unless
+// [LiveSnapshot.Drawn]: then Order holds the 0-based test index of each
+// question the participant got, in their own order, and Cells has one entry
+// per Order entry, in the same order. A cell is "correct" (full points),
+// "wrong" (answered with fewer), "pending" (a written answer the teacher has
+// not graded), "current" (while writing, the question after the last one
+// answered in the participant's own order), "empty", or, in test order only,
+// "absent" (a question the participant did not get). Status is "writing",
+// "offline" or "finished". Grade is set once finished, on the scale of
+// [SittingInfo.Scale]; Pending counts the "pending" cells, which Grade scores
+// as 0.
 type LiveRow struct {
 	ParticipantID  string   `json:"participantId"`
 	Name           string   `json:"name"`
 	DeviceToken    string   `json:"deviceToken"`
 	DeviceLabel    string   `json:"deviceLabel"`
 	Cells          []string `json:"cells"`
+	Order          []int    `json:"order,omitempty"`
 	Status         string   `json:"status"`
 	Grade          *int     `json:"grade"`
 	Pending        int      `json:"pending"`
@@ -304,6 +313,8 @@ type LiveRow struct {
 // export, or, before the first one, since the assignment started; only both
 // together mean an exported file is out of date. Scale is the kind of the
 // test's grading scale (testfmt.Scale.Kind) that every ResultRow.Grade is on.
+// Drawn is set when the test snapshot has draw lines (see
+// [testfmt.Settings.Draw]); ResultRow.Order gives each row's own order.
 type AssignmentResults struct {
 	Scale        string           `json:"scale"`
 	AssignmentID string           `json:"assignmentId"`
@@ -312,6 +323,7 @@ type AssignmentResults struct {
 	Exported     bool             `json:"exported"`
 	ExportStale  bool             `json:"exportStale"`
 	ResultsRev   int64            `json:"resultsRev"`
+	Drawn        bool             `json:"drawn"`
 	Questions    []ResultQuestion `json:"questions"`
 	Rows         []ResultRow      `json:"rows"`
 }

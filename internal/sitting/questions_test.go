@@ -201,11 +201,10 @@ func TestSubsetGrading(t *testing.T) {
 		return new(v[[2]bool{a, b}])
 	}
 	l := liveOf(t, e)
+	cell := map[string]string{right.ID: "correct", wrong.ID: "wrong"} // each answered all three alike
 	for _, row := range l.Rows {
-		for i, cell := range row.Cells {
-			if asked := slices.Contains(got[row.ParticipantID], "q"+strconv.Itoa(i+1)); (cell == "absent") == asked {
-				t.Errorf("%s: live cell %d is %q, asked %v", row.Name, i+1, cell, asked)
-			}
+		if want := slices.Repeat([]string{cell[row.ParticipantID]}, 3); !slices.Equal(row.Cells, want) {
+			t.Errorf("%s: live cells %v, want %v", row.Name, row.Cells, want)
 		}
 	}
 	for i, p := range l.QuestionPct {

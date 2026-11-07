@@ -58,10 +58,18 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 	}
 
 	out.Sitting = a.info()
+	out.Drawn = len(a.test.Settings.Draw) > 0
 	n := len(a.test.Questions)
 	pos := make(map[string]int, n) // question id → its place in the test
 	for i, question := range a.test.Questions {
 		pos[question.ID] = i
+		if out.Drawn {
+			text := []rune(question.PlainText())
+			if len(text) > 120 {
+				text = append(text[:120], '…')
+			}
+			out.QuestionTexts = append(out.QuestionTexts, string(text))
+		}
 	}
 	answered, full := make([]int, n), make([]int, n)
 	for _, p := range a.participants {
@@ -70,28 +78,36 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 		}
 		r := a.grade(p)
 		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: slices.Repeat([]string{cellAbsent}, n), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
+		cell := func(j int) int { return pos[p.questions[j].ID] } // the index in Cells of the participant's j-th question
+		if out.Drawn {
+			row.Cells = make([]string, len(p.questions))
+			for _, question := range p.questions {
+				row.Order = append(row.Order, pos[question.ID])
+			}
+			cell = func(j int) int { return j }
+		}
 		last := -1 // in the participant's order, which "current" follows
 		for j, question := range p.questions {
-			i := pos[question.ID]
-			row.Cells[i] = cellEmpty
+			i, c := pos[question.ID], cell(j)
+			row.Cells[c] = cellEmpty
 			ans := p.answers[question.ID]
 			if ans.IsEmpty() {
 				continue
 			}
 			last = j
 			if _, overridden := p.overrides[question.ID]; grading.IsPending(question, ans, overridden) {
-				row.Cells[i] = cellPending
+				row.Cells[c] = cellPending
 				continue
 			}
 			answered[i]++
-			row.Cells[i] = cellWrong
+			row.Cells[c] = cellWrong
 			if fullPoints(question, r.PerQuestion[question.ID]) {
 				full[i]++
-				row.Cells[i] = cellCorrect
+				row.Cells[c] = cellCorrect
 			}
 		}
 		if p.state == stateWriting && last+1 < len(p.questions) {
-			row.Cells[pos[p.questions[last+1].ID]] = cellCurrent
+			row.Cells[cell(last+1)] = cellCurrent
 		}
 		switch {
 		case p.state == stateFinished:

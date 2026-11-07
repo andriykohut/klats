@@ -95,6 +95,43 @@ func TestLiveCellsAndPct(t *testing.T) {
 	}
 }
 
+func TestLiveDrawnOwnOrder(t *testing.T) {
+	e, _ := setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}, ShuffleQuestions: true})
+	info := start(t, e, nil)
+	p := enter(t, e, info.Code, devA, "Шевченко")
+	own, _ := resumed(t, e, devA)
+	submit(t, e, devA, change(p, own[0], 1, "o0"))
+
+	snap := liveOf(t, e)
+	if !snap.Drawn || len(snap.QuestionTexts) != 5 || snap.QuestionTexts[0] != "Питання" {
+		t.Fatalf("drawn %v, question texts %q; want drawn and one text per test question", snap.Drawn, snap.QuestionTexts)
+	}
+	row := snap.Rows[0]
+	if len(row.Cells) != 3 || len(row.Order) != 3 {
+		t.Fatalf("cells %v, order %v; want three each", row.Cells, row.Order)
+	}
+	for j, id := range own {
+		if row.Order[j] != qIndex(id) {
+			t.Errorf("order %v, want the test places of %v", row.Order, own)
+			break
+		}
+	}
+	if c := row.Cells[0]; (c != "correct" && c != "wrong") || row.Cells[1] != "current" {
+		t.Errorf("cells = %v, want the answered first question, then current", row.Cells)
+	}
+}
+
+func TestLiveNotDrawn(t *testing.T) {
+	e, _ := setupSettings(t, 5, testfmt.Settings{})
+	info := start(t, e, nil)
+	enter(t, e, info.Code, devA, "Шевченко")
+
+	snap := liveOf(t, e)
+	if row := snap.Rows[0]; snap.Drawn || row.Order != nil || snap.QuestionTexts != nil || len(row.Cells) != 5 {
+		t.Errorf("drawn %v, question texts %q, order %v, cells %v; want test order only", snap.Drawn, snap.QuestionTexts, row.Order, row.Cells)
+	}
+}
+
 func TestLiveEvents(t *testing.T) {
 	e, st, _, info, p, eventID := startClash(t)
 	for range 25 {
