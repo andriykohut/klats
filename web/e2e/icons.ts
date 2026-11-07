@@ -37,9 +37,10 @@ const ICONSET: [string, number][] = [
   ["icon_512x512@2x.png", 1024],
 ];
 
-async function render(page: Page, svg: string, size: number) {
+/** Renders svg into a size px PNG, drawn body px wide in its centre. */
+async function render(page: Page, svg: string, size: number, body = size) {
   await page.setContent(
-    `<style>body{margin:0}svg{display:block;width:${size}px;height:${size}px}</style>${svg}`,
+    `<style>body{margin:0;padding:${(size - body) / 2}px}svg{display:block;width:${body}px;height:${body}px}</style>${svg}`,
   );
   const png = await page.screenshot({
     omitBackground: true,
@@ -81,12 +82,16 @@ try {
     ["klats-file", "klats-file"],
   ]) {
     const pngs: Record<number, Buffer> = {};
+    const mac: Record<number, Buffer> = {};
     for (const size of SIZES) {
       const svg = readFileSync(
         join(dir, `${size <= 32 ? small : name}.svg`),
         "utf8",
       );
       pngs[size] = await render(page, svg, size);
+      // Apple's icon grid draws the body 824 px wide in a 1024 px canvas, so
+      // the icon matches its neighbours in the Dock and Finder.
+      mac[size] = await render(page, svg, size, (size * 824) / 1024);
     }
     writeFileSync(
       join(dir, `${name}.ico`),
@@ -95,7 +100,7 @@ try {
     const set = join(tmp, `${name}.iconset`);
     mkdirSync(set);
     for (const [file, size] of ICONSET)
-      writeFileSync(join(set, file), pngs[size]);
+      writeFileSync(join(set, file), mac[size]);
     execFileSync("iconutil", [
       "-c",
       "icns",
