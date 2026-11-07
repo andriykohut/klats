@@ -243,8 +243,7 @@
 }
 
 .r-tags-bar i[data-state="partial"] {
-  background: var(--t-tang-soft);
-  box-shadow: inset 0 0 0 1.5px var(--k-accent);
+  background: var(--t-tang-mid);
 }
 
 .r-tags-bar i[data-state="zero"] {
