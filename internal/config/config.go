@@ -23,9 +23,11 @@ type Settings struct {
 	Address string `json:"address"`
 	// Language is the UI language, "uk" or "en".
 	Language string `json:"language"`
+	// CheckUpdates allows the daily check for a new version on GitHub.
+	CheckUpdates bool `json:"checkUpdates"`
 }
 
-func defaults() Settings { return Settings{Language: "uk"} }
+func defaults() Settings { return Settings{Language: "uk", CheckUpdates: true} }
 
 // DataDir returns the per-user data folder, creating it if missing:
 // %AppData%\Klats on Windows, ~/Library/Application Support/Klats on macOS and
@@ -64,7 +66,7 @@ func dataDirFor(goos, home string, getenv func(string) string) (string, error) {
 }
 
 // Load reads the settings from dir. A missing file, or a key absent from it,
-// yields the default (port 0, language "uk"). A file that cannot be read, is
+// yields the default (port 0, language "uk", update checks on). A file that cannot be read, is
 // not JSON, or holds a port outside 0–65535 or a language other than "uk" or
 // "en" yields every default, with the error.
 func Load(dir string) (Settings, error) {

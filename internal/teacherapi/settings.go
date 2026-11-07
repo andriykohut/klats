@@ -68,7 +68,7 @@ func containsAddr(addrs []netip.Addr, a netip.Addr) bool {
 // settingsInfo describes the saved settings. The caller holds a.mu.
 func (a *api) settingsInfo() wire.SettingsInfo {
 	return wire.SettingsInfo{
-		Port: a.settings.Port, Language: a.settings.Language,
+		Port: a.settings.Port, Language: a.settings.Language, CheckUpdates: a.settings.CheckUpdates,
 		RestartRequired: a.settings.Port != a.lanPort,
 	}
 }
@@ -91,7 +91,7 @@ func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	next := a.settings
-	next.Port, next.Language = req.Port, req.Language
+	next.Port, next.Language, next.CheckUpdates = req.Port, req.Language, req.CheckUpdates
 	if err := config.Save(a.dataDir, next); err != nil {
 		fail(w, r, err)
 		return
@@ -99,4 +99,8 @@ func (a *api) putSettings(w http.ResponseWriter, r *http.Request) {
 	a.settings = next
 	a.eng.SetLanguage(next.Language)
 	httpx.JSON(w, http.StatusOK, a.settingsInfo())
+}
+
+func (a *api) getAbout(w http.ResponseWriter, r *http.Request) {
+	httpx.JSON(w, http.StatusOK, wire.AboutInfo{Version: a.version})
 }

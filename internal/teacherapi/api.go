@@ -76,6 +76,8 @@ type Deps struct {
 	Interfaces func() []lan.Iface
 	// Dialogs picks the export target; nil makes the export a browser download.
 	Dialogs Dialogs
+	// Version is the program's version, as [wire.AboutInfo] reports it.
+	Version string
 }
 
 type api struct {
@@ -91,6 +93,7 @@ type api struct {
 	dialogs Dialogs
 	lanPort int
 	lanErr  func() string
+	version string
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -105,6 +108,7 @@ func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir, tmpDir: d.TempDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
+		version: d.Version,
 	}
 	if a.ifaces == nil {
 		a.ifaces = lan.System
@@ -153,6 +157,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("PUT /api/network", a.putNetwork)
 	mux.HandleFunc("GET /api/settings", a.getSettings)
 	mux.HandleFunc("PUT /api/settings", a.putSettings)
+	mux.HandleFunc("GET /api/about", a.getAbout)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("GET /api/qr", a.qr)
 

@@ -1,4 +1,7 @@
-/* Settings: the student address, the language, the port and the backup. */
+/*
+ * Settings: the student address, the language, the port, the backup and the
+ * about section.
+ */
 
 .t-settings {
   display: grid;
@@ -48,7 +51,8 @@
   margin-top: 22px;
 }
 
-.t-choices [slot="description"] {
+.t-choices [slot="description"],
+.t-about-switch [slot="description"] {
   color: var(--k-muted);
   font-size: 13px;
   font-weight: 600;
@@ -146,4 +150,9 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
+}
+
+.t-about-switch {
+  display: grid;
+  gap: 6px;
 }

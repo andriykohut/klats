@@ -13,11 +13,14 @@ import {
   Label,
   Radio,
   RadioGroup,
+  SwitchButton,
+  SwitchField,
   Text,
   TextField,
 } from "react-aria-components";
 import {
   busy,
+  useAbout,
   useExportBackup,
   useLive,
   useNetwork,
@@ -34,9 +37,15 @@ import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
 import { notify } from "../ui/Toasts";
+import "./live/journal.css";
 import "./settings.css";
 
-/** The student address, the UI language, the student port and the backup. */
+/**
+ * The student address, the UI language, the student port, the backup, and
+ * the version with the update-check switch. Every settings save sends the
+ * whole {@link SettingsInfo}: the server sets the port, the language and the
+ * switch together.
+ */
 export function SettingsPage() {
   const settings = useSettings();
   const network = useNetwork();
@@ -64,6 +73,7 @@ export function SettingsPage() {
           <Language settings={settings.data} port={port} />
           <Port settings={settings.data} net={network.data} port={port} />
           <Backup />
+          <About settings={settings.data} port={port} />
         </div>
       </div>
     </div>
@@ -129,7 +139,9 @@ function Language(props: { settings: SettingsInfo; port: number }) {
         orientation="horizontal"
         className="t-segment"
         value={props.settings.language}
-        onChange={(language) => save.mutate({ port: props.port, language })}
+        onChange={(language) =>
+          save.mutate({ ...props.settings, port: props.port, language })
+        }
       >
         <Radio value="uk">{m.settings_language_uk()}</Radio>
         <Radio value="en">{m.settings_language_en()}</Radio>
@@ -163,7 +175,7 @@ function Port(props: {
           e.preventDefault();
           if (!port || busy("saveSettings")) return;
           save.mutate(
-            { port, language: props.settings.language },
+            { ...props.settings, port },
             { onSuccess: () => setFlags({ portSaved: true }) },
           );
         }}
@@ -247,6 +259,37 @@ function Backup() {
       >
         {m.backup_restore_text()}
       </ConfirmDialog>
+    </section>
+  );
+}
+
+/** The program's version, and the switch for the daily update check. */
+function About(props: { settings: SettingsInfo; port: number }) {
+  const version = useAbout().data?.version;
+  const save = useSaveSettings();
+  return (
+    <section className="t-panel t-section">
+      <h2>{m.about_title()}</h2>
+      {version && (
+        <p className="t-muted">
+          {version === "dev"
+            ? m.about_version_dev()
+            : m.about_version({ version })}
+        </p>
+      )}
+      <SwitchField
+        className="t-about-switch"
+        isSelected={props.settings.checkUpdates}
+        onChange={(checkUpdates) =>
+          save.mutate({ ...props.settings, port: props.port, checkUpdates })
+        }
+      >
+        <SwitchButton className="j-switch-btn">
+          <i className="j-switch-track" aria-hidden="true" />
+          {m.about_check_updates()}
+        </SwitchButton>
+        <Text slot="description">{m.about_check_updates_hint()}</Text>
+      </SwitchField>
     </section>
   );
 }

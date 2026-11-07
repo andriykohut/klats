@@ -887,6 +887,34 @@ func TestSettings(t *testing.T) {
 	}
 }
 
+func TestSettingsCheckUpdates(t *testing.T) {
+	v := setup(t, false, func(d *Deps) { d.Settings.CheckUpdates = true })
+	// The client sends the whole settings, so a language change keeps the switch.
+	wantStatus(t, v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 8080, Language: "en", CheckUpdates: true}), 200)
+	if saved, err := config.Load(v.dir); err != nil || !saved.CheckUpdates || saved.Language != "en" {
+		t.Errorf("saved = %+v, %v", saved, err)
+	}
+	w := v.do("PUT", "/api/settings", wire.SettingsInfo{Port: 8080, Language: "en", CheckUpdates: false})
+	if s := decodeBody[wire.SettingsInfo](t, w); s.CheckUpdates {
+		t.Errorf("settings = %+v", s)
+	}
+	if saved, err := config.Load(v.dir); err != nil || saved.CheckUpdates {
+		t.Errorf("saved = %+v, %v", saved, err)
+	}
+	if s := decodeBody[wire.SettingsInfo](t, v.do("GET", "/api/settings", nil)); s.CheckUpdates {
+		t.Errorf("GET settings = %+v", s)
+	}
+}
+
+func TestAbout(t *testing.T) {
+	v := setup(t, false, func(d *Deps) { d.Version = "1.2.3" })
+	w := v.do("GET", "/api/about", nil)
+	wantStatus(t, w, 200)
+	if got := strings.TrimSpace(w.Body.String()); got != `{"version":"1.2.3"}` {
+		t.Errorf("about = %s", got)
+	}
+}
+
 func TestLANPortIsTheRunningServer(t *testing.T) {
 	// A -port override: the server runs on 8090 while the saved port is 8080.
 	v := setup(t, false, func(d *Deps) { d.LANPort = 8090 })

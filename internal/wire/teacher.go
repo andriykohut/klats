@@ -175,7 +175,14 @@ type NetworkRequest struct {
 type SettingsInfo struct {
 	Port            int    `json:"port"`
 	Language        string `json:"language"`
+	CheckUpdates    bool   `json:"checkUpdates"`
 	RestartRequired bool   `json:"restartRequired"`
+}
+
+// AboutInfo describes the running program. Version is its version without
+// the leading "v", or "dev" for a build that is not a release.
+type AboutInfo struct {
+	Version string `json:"version"`
 }
 
 // MediaResult answers an upload with the name the file is stored under.

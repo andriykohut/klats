@@ -931,5 +931,10 @@
   "backup_running": "End the running test first",
   "backup_restored": "Data restored",
   "backup_too_new": "The backup was made in a newer Klats.",
+  "about_title": "About",
+  "about_version": "Version {version}",
+  "about_version_dev": "Development build",
+  "about_check_updates": "Check for updates",
+  "about_check_updates_hint": "Once a day Klats asks GitHub whether a new version is out. Nothing about you or your school is sent.",
   "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected."
 }

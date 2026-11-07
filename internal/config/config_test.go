@@ -13,7 +13,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (Settings{Port: 0, Language: "uk"}); got != want {
+	if want := (Settings{Port: 0, Language: "uk", CheckUpdates: true}); got != want {
 		t.Fatalf("missing file: got %+v, want %+v", got, want)
 	}
 
@@ -47,8 +47,24 @@ func TestLoadKeepsDefaultsForAbsentKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (Settings{Port: 9000, Language: "uk"}); got != want {
+	if want := (Settings{Port: 9000, Language: "uk", CheckUpdates: true}); got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestLoadDefaultsCheckUpdates(t *testing.T) {
+	missing, err := Load(t.TempDir())
+	if err != nil || !missing.CheckUpdates {
+		t.Errorf("missing file: %+v, %v; want CheckUpdates", missing, err)
+	}
+	for data, want := range map[string]bool{`{"port": 9000}`: true, `{"checkUpdates": false}`: false} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got, err := Load(dir); err != nil || got.CheckUpdates != want {
+			t.Errorf("Load of %s = %+v, %v; want CheckUpdates %v", data, got, err, want)
+		}
 	}
 }
 
@@ -59,7 +75,7 @@ func TestDamagedFileLoadsTheDefaults(t *testing.T) {
 			t.Fatal(err)
 		}
 		got, err := Load(dir)
-		if err == nil || got != (Settings{Language: "uk"}) {
+		if err == nil || got != (Settings{Language: "uk", CheckUpdates: true}) {
 			t.Errorf("Load of %q = %+v, %v; want the defaults and an error", data, got, err)
 		}
 	}

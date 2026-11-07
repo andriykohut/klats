@@ -392,7 +392,7 @@ button.j-cell[data-focus-visible] {
   width: auto;
 }
 
-/* The hide-names switch in the strip. */
+/* The hide-names switch in the strip, and the update-check switch in the settings. */
 .j-switch-btn {
   display: flex;
   align-items: center;

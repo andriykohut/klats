@@ -1,5 +1,6 @@
 import type { Problem, Test } from "@klats/shared/generated/testfmt.ts";
 import type {
+  AboutInfo,
   AssignmentResults,
   AssignmentSummary,
   Class,
@@ -290,6 +291,11 @@ export const getNetwork = () => call<NetworkInfo>("GET", "/api/network");
 export const setAddress = (address: string) =>
   call<NetworkInfo>("PUT", "/api/network", { address });
 export const getSettings = () => call<SettingsInfo>("GET", "/api/settings");
-/** Saves the language and the student port; a new port applies at the next launch. */
-export const saveSettings = (s: Pick<SettingsInfo, "port" | "language">) =>
+/**
+ * Saves the port, the language and the update switch together, so `s`
+ * carries the current value of each one it does not change; a new port
+ * applies at the next launch.
+ */
+export const saveSettings = (s: SettingsInfo) =>
   call<SettingsInfo>("PUT", "/api/settings", s);
+export const getAbout = () => call<AboutInfo>("GET", "/api/about");

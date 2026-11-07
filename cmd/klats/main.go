@@ -52,6 +52,10 @@ var (
 	tickEvery = 2 * time.Second
 )
 
+// version is the program's version without the leading "v"; release builds
+// set it with -ldflags "-X main.version=1.2.3".
+var version = "dev"
+
 // errUsage reports bad flags, which the flag package has already printed.
 var errUsage = errors.New("usage")
 
@@ -247,7 +251,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
 		DataDir: dataDir, TempDir: tmpDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
-		Dialogs: dialogs,
+		Dialogs: dialogs, Version: version,
 	})
 
 	ctx, cancel := context.WithCancel(ctx)
