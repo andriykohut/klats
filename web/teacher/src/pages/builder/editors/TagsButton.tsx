@@ -130,6 +130,7 @@ export function TagsButton(props: {
                 {name && !props.known.some(([t]) => t === name) && (
                   // Its text is the field's, so the default filter keeps it.
                   <ListBoxItem
+                    key={name}
                     id={name}
                     className="b-tags-item"
                     textValue={text}

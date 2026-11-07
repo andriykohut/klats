@@ -51,7 +51,8 @@ test("a teacher tags a question, filters the list, and new questions get the tag
 
   await tags.click();
   const field = page.getByRole("combobox", { name: m.tags_field() });
-  await field.fill("Мережі");
+  // Key by key, as a teacher types: each key changes the offer to create the name.
+  await field.pressSequentially("Мережі");
   await field.press("Enter");
   await page.keyboard.press("Escape");
   await expect(tags).toContainText("Мережі");
