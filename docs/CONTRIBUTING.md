@@ -45,6 +45,8 @@ system libraries the browsers need too.
 | `make gen` | Regenerates the Go query code (sqlc) and the TypeScript types (tygo). Run it after changing `internal/store/queries`, `internal/store/migrations`, `internal/wire` or `internal/testfmt`. |
 | `make check` | golangci-lint and Biome, the Go and Vitest tests, the TypeScript types and the size budget. CI runs it on every push. |
 | `make e2e` | Builds the web apps, then runs the Playwright specs in `web/e2e` in Chromium and Firefox. Each test starts its own server with a fresh data folder. |
+| `make site-shots` | Builds the web apps, then takes the website's screenshots of the app, in Ukrainian and English, from the real apps into `web/site/src/assets/shots/`. `make e2e` never runs them. |
+| `make icons` | Renders the program and `.klats` file icons from the SVGs in `build/icon` into the committed `.ico`, `.icns` and PNG files and the site's favicon. macOS only: `iconutil` packs the `.icns` files. |
 | `make load` | A lesson at full size: 40 simulated students against the sitting engine for a minute. |
 | `make size` | Checks that the student app's JavaScript stays within 350 KB gzipped, as thirty lab PCs load it at once. Part of `make check`. |
 

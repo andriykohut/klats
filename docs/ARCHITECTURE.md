@@ -832,8 +832,9 @@ or the fonts change on `main`.
   visitor's system; without it, the page shows the Windows button and links
   to the other four installers. The front page's first download block has
   the id `download`, which the app's [update notice](#updates) opens.
-- **Screenshots:** the app's own screens are in `src/assets/shots/<lang>/`.
-  Screens of Windows and macOS that no script can take are dashed slots,
-  listed with their file names in `web/site/SLOTS.md`.
+- **Screenshots:** the app's own screens are in `src/assets/shots/<lang>/`,
+  which `make site-shots` takes from the real apps. Screens of Windows and
+  macOS that no script can take are dashed slots, listed with their file
+  names in `web/site/SLOTS.md`.
 - **Browsers:** teachers may read it on the same old lab PCs, so it uses no
   CSS or JS beyond [the browser floor](#the-browser-floor).
