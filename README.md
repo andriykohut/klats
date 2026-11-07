@@ -52,11 +52,8 @@ installers without a release, start the workflow by hand on a branch. See
 [Packaging](docs/ARCHITECTURE.md#packaging).
 
 The [website](https://andriykohut.github.io/klats/) is published by the
-Pages workflow whenever `web/site` changes on `main`. GitHub Pages needs a
-paid plan for a private repository, so while the repository is private the
-workflow skips its jobs. Once it is public, choose GitHub Actions as the
-source under Settings → Pages, and start the workflow by hand. See
-[Website](docs/ARCHITECTURE.md#website).
+Pages workflow whenever `web/site` changes on `main`, or when it is started
+by hand. See [Website](docs/ARCHITECTURE.md#website).
 
 ## Learn more
 
