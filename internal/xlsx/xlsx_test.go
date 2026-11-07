@@ -9,8 +9,8 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func para(s string) []byte {

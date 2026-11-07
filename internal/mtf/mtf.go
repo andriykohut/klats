@@ -25,9 +25,9 @@ import (
 	"fmt"
 	"io"
 
-	"klats/internal/media"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 var (

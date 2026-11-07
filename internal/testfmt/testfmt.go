@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 // Test is a teacher-authored test. Rich-text fields hold canonical rich.Doc JSON.

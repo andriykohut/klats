@@ -14,14 +14,14 @@ import (
 	"slices"
 	"time"
 
-	"klats/internal/media"
-	"klats/internal/rich"
-	"klats/internal/roster"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/rich"
+	"github.com/andriykohut/klats/internal/roster"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // The class and the test have fixed ids, so a later run in the same data

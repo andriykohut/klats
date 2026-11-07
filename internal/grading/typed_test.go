@@ -3,7 +3,7 @@ package grading
 import (
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func TestNormalizeDefaults(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"net/http"
 
-	"klats/internal/httpx"
-	"klats/internal/media"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // maxUploadBytes is the largest upload body: the audio cap of [media.Store.Put].

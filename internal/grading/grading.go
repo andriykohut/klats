@@ -6,7 +6,7 @@ package grading
 import (
 	"math"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // epsilon absorbs float error when comparing scores and 12-point boundaries.

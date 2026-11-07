@@ -20,7 +20,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
-	"klats/internal/teacherapi"
+	"github.com/andriykohut/klats/internal/teacherapi"
 )
 
 // icon is a placeholder mark until the installers bring the real one.

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"klats/internal/httpx"
-	"klats/internal/media"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/media"
 )
 
 // serveMedia serves a media file of the running test, or of the last ended

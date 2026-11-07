@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"klats/internal/events"
+	"github.com/andriykohut/klats/internal/events"
 )
 
 // Stream writes the events received on ch to w as `event: <Name>` and

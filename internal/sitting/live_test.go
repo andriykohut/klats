@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/events"
-	"klats/internal/store"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func liveOf(t *testing.T, e *Engine) wire.LiveSnapshot {

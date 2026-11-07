@@ -20,7 +20,7 @@ import (
 	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite" // registers the "sqlite" driver
 
-	"klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/store/db"
 )
 
 //go:embed migrations/*.sql

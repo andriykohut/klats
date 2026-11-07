@@ -10,10 +10,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"klats/internal/media"
-	"klats/internal/rich"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/rich"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // The caps testfmt.Decode puts on a test, which a converted test keeps to.

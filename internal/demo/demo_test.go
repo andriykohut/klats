@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/events"
-	"klats/internal/media"
-	"klats/internal/rich"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/rich"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func TestSeedStartsASittingOfTheClassAndTest(t *testing.T) {

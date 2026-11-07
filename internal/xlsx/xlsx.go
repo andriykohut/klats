@@ -13,9 +13,9 @@ import (
 
 	"github.com/xuri/excelize/v2"
 
-	"klats/internal/httpx"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 const (

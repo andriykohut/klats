@@ -1,4 +1,4 @@
-module klats
+module github.com/andriykohut/klats
 
 go 1.27
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 func txt(s string, marks ...string) rich.Node {

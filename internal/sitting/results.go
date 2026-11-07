@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strconv"
 
-	"klats/internal/grading"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/grading"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // Results grades every participant of every sitting of the assignment against

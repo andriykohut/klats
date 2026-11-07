@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/image/bmp"
 
-	"klats/internal/media"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // maxSide is the longest side testfmt accepts for an image.

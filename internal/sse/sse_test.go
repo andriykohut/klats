@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/events"
+	"github.com/andriykohut/klats/internal/events"
 )
 
 func TestStreamWritesEventAndKeepAlive(t *testing.T) {

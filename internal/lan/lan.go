@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"klats/internal/config"
+	"github.com/andriykohut/klats/internal/config"
 )
 
 // Iface is a network interface reduced to what address selection needs.

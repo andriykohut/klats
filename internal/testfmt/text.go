@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 // maxWrittenRunes caps a written answer.

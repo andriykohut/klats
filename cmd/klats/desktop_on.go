@@ -2,7 +2,7 @@
 
 package main
 
-import "klats/internal/desktop"
+import "github.com/andriykohut/klats/internal/desktop"
 
 // newShell creates the desktop shell; see [desktop.New] for the single
 // instance.

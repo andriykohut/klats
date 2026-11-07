@@ -14,9 +14,9 @@ import (
 	"fmt"
 	"io"
 
-	"klats/internal/media"
-	"klats/internal/mediazip"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/mediazip"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 const (

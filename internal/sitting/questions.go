@@ -3,7 +3,7 @@ package sitting
 import (
 	"slices"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // questionsFor returns the questions the participant gets, in the order they

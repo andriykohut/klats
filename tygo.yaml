@@ -1,7 +1,7 @@
 packages:
-  - path: "klats/internal/testfmt"
+  - path: "github.com/andriykohut/klats/internal/testfmt"
     output_path: "web/shared/src/generated/testfmt.ts"
-  - path: "klats/internal/wire"
+  - path: "github.com/andriykohut/klats/internal/wire"
     output_path: "web/shared/src/generated/wire.ts"
     frontmatter: "import type { Answer, Image, Point, Problem, Question, Test } from './testfmt';"
     type_mappings:

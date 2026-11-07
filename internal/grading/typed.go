@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // numberEpsilon absorbs float error when comparing a typed number with its key.

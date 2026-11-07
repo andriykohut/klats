@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"klats/internal/rich"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/rich"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // lis marks the members of one longest strictly increasing subsequence of

@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/store"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func mediaTest(t *testing.T, st *store.Store, imgA, imgB string) {

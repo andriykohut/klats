@@ -1,6 +1,6 @@
 package wire
 
-import "klats/internal/testfmt"
+import "github.com/andriykohut/klats/internal/testfmt"
 
 // TestSummary is a row of the test library. Blocking is set when the test has
 // problems that stop it being started.

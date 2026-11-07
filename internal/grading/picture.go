@@ -3,7 +3,7 @@ package grading
 import (
 	"slices"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // judgeHotspot judges a hotspot answer: full points when the point lies inside

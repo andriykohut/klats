@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf"
 )
 
 // TestCorpus opens every .mtf file under the directories listed in

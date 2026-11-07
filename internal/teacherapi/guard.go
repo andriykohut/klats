@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/httpx"
 )
 
 const (

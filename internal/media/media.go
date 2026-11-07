@@ -17,7 +17,7 @@ import (
 	"slices"
 	"strings"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 const (

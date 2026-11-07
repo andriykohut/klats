@@ -11,8 +11,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"klats/internal/roster"
-	"klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/roster"
+	"github.com/andriykohut/klats/internal/store/db"
 )
 
 func openTemp(t *testing.T) *Store {

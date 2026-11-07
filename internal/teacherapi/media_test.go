@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func pngBytes() []byte {

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/events"
-	"klats/internal/store"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // setupTimed returns an engine reading the time from clk over a database

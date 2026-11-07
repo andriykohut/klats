@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"klats/internal/config"
+	"github.com/andriykohut/klats/internal/config"
 )
 
 func ifc(name string, addrs ...string) Iface {

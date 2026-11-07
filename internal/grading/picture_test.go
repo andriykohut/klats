@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func click(x, y float64) testfmt.Answer { return testfmt.Answer{Point: &testfmt.Point{X: x, Y: y}} }

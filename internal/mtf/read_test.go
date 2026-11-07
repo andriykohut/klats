@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"klats/internal/mtf"
-	"klats/internal/mtf/mtftest"
+	"github.com/andriykohut/klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf/mtftest"
 )
 
 // emptyBody is the length of a body of zero bytes that reads as a file whose

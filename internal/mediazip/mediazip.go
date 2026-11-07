@@ -18,8 +18,8 @@ import (
 	"math"
 	"strings"
 
-	"klats/internal/media"
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 const dir = "media/"

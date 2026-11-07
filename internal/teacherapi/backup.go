@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"klats/internal/backup"
-	"klats/internal/httpx"
-	"klats/internal/store"
+	"github.com/andriykohut/klats/internal/backup"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/store"
 )
 
 // backup sends a backup of all the data through [api.deliver], named

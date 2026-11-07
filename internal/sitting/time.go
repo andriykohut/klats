@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 const (

@@ -14,15 +14,15 @@ import (
 	"sync"
 	"time"
 
-	"klats/internal/backup"
-	"klats/internal/config"
-	"klats/internal/events"
-	"klats/internal/httpx"
-	"klats/internal/lan"
-	"klats/internal/media"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/backup"
+	"github.com/andriykohut/klats/internal/config"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/lan"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 const (

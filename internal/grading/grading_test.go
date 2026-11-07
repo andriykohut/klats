@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func q(typ string, partial bool, correct ...string) testfmt.Question {

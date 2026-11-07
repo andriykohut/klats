@@ -6,12 +6,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"klats/internal/httpx"
-	"klats/internal/roster"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/store/db"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/roster"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func (a *api) listClasses(w http.ResponseWriter, r *http.Request) {

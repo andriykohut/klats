@@ -3,7 +3,7 @@ package grading
 import (
 	"strconv"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // judgeHighlight judges a highlight answer as a multiple choice answer over

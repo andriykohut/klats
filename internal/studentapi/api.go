@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"klats/internal/events"
-	"klats/internal/httpx"
-	"klats/internal/media"
-	"klats/internal/sitting"
-	"klats/internal/sse"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/sse"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // deviceHeader carries the device token of every API call except the event

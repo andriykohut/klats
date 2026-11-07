@@ -3,7 +3,7 @@ package grading
 import (
 	"math"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // judgePick judges a single or multiple choice answer. A single question earns

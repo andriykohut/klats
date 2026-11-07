@@ -3,7 +3,7 @@ package testfmt
 import (
 	"encoding/json"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 // Problem is one validation finding about a question.

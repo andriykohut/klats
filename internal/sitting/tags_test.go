@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // pcts renders percents as "67 0", a nil one as "-".

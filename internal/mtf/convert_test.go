@@ -12,11 +12,11 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/mtf"
-	"klats/internal/mtf/mtftest"
-	"klats/internal/rich"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf/mtftest"
+	"github.com/andriykohut/klats/internal/rich"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // open returns f, with the media table given, opened into a new store.

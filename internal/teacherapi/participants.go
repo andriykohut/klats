@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"klats/internal/httpx"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func (a *api) kick(w http.ResponseWriter, r *http.Request) {

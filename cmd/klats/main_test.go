@@ -20,12 +20,12 @@ import (
 	"testing/fstest"
 	"time"
 
-	"klats/internal/config"
-	"klats/internal/lan"
-	"klats/internal/store"
-	"klats/internal/teacherapi"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/config"
+	"github.com/andriykohut/klats/internal/lan"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/teacherapi"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // stubs swaps the program's seams for the test's duration: the student app is

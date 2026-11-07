@@ -24,17 +24,17 @@ import (
 	"syscall"
 	"time"
 
-	"klats/internal/config"
-	"klats/internal/demo"
-	"klats/internal/events"
-	"klats/internal/lan"
-	"klats/internal/media"
-	"klats/internal/power"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/studentapi"
-	"klats/internal/teacherapi"
-	webui "klats/web"
+	"github.com/andriykohut/klats/internal/config"
+	"github.com/andriykohut/klats/internal/demo"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/lan"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/power"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/studentapi"
+	"github.com/andriykohut/klats/internal/teacherapi"
+	webui "github.com/andriykohut/klats/web"
 )
 
 const (

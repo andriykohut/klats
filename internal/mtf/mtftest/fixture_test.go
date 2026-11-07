@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf"
 )
 
 var update = flag.Bool("update", false, "write the e2e fixtures instead of checking them")

@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"klats/internal/backup"
-	"klats/internal/httpx"
-	"klats/internal/store/db"
-	"klats/internal/wire"
-	"klats/internal/xlsx"
+	"github.com/andriykohut/klats/internal/backup"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/wire"
+	"github.com/andriykohut/klats/internal/xlsx"
 )
 
 func (a *api) listAssignments(w http.ResponseWriter, r *http.Request) {

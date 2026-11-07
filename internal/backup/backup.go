@@ -22,10 +22,10 @@ import (
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
-	"klats/internal/media"
-	"klats/internal/mediazip"
-	"klats/internal/store"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/mediazip"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // MaxBytes is the largest backup file: a restore takes no larger one, so

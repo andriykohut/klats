@@ -7,8 +7,8 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // moveSeqStride is how far the seq base rises with each move of a

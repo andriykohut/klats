@@ -9,11 +9,11 @@ import (
 
 	"github.com/skip2/go-qrcode"
 
-	"klats/internal/httpx"
-	"klats/internal/sitting"
-	"klats/internal/sse"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/sse"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // storedTest returns the decoded stored test, or [sitting.ErrNotFound].

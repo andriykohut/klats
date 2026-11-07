@@ -18,10 +18,10 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/media"
-	"klats/internal/mtf"
-	"klats/internal/mtf/mtftest"
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/media"
+	"github.com/andriykohut/klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf/mtftest"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func store(t testing.TB) (*media.Store, string) {

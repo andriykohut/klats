@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func orderQ(partial bool) testfmt.Question {

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"net/netip"
 
-	"klats/internal/config"
-	"klats/internal/httpx"
-	"klats/internal/lan"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/config"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/lan"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // networkInfo describes the address students use. The caller holds a.mu.

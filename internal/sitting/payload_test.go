@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func typedPayloadTest(t *testing.T) testfmt.Test {

@@ -16,11 +16,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"klats/internal/events"
-	"klats/internal/grading"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/events"
+	"github.com/andriykohut/klats/internal/grading"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // TestLoad runs a lesson at full size, through `make load`: for a minute, 40

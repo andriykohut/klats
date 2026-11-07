@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // highlightQ makes a highlight question whose body holds the words w0 to

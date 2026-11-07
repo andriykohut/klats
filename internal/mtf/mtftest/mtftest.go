@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/text/encoding/charmap"
 
-	"klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/mtf"
 )
 
 var (

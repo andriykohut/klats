@@ -1,6 +1,6 @@
 package testfmt
 
-import "klats/internal/rich"
+import "github.com/andriykohut/klats/internal/rich"
 
 // use is a set of the question fields a type keeps. The option fields Correct
 // and Target, and the target fields X and Y, are listed apart from Options and

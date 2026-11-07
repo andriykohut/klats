@@ -4,8 +4,8 @@ import (
 	"math"
 	"slices"
 
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 // tagScores returns the tags of qs in order of first appearance, each with

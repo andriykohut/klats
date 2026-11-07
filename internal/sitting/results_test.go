@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 func TestResultsOrder(t *testing.T) {

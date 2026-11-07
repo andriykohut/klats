@@ -6,7 +6,7 @@ package wire
 import (
 	"encoding/json"
 
-	"klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/testfmt"
 )
 
 // SittingInfo describes a sitting to the teacher. ClassName is empty when the

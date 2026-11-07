@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 // shortProblems reports the findings of a short text question: it needs an

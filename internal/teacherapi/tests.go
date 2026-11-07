@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"klats/internal/httpx"
-	"klats/internal/klatsfile"
-	"klats/internal/mtf"
-	"klats/internal/sitting"
-	"klats/internal/store"
-	"klats/internal/store/db"
-	"klats/internal/testfmt"
-	"klats/internal/wire"
+	"github.com/andriykohut/klats/internal/httpx"
+	"github.com/andriykohut/klats/internal/klatsfile"
+	"github.com/andriykohut/klats/internal/mtf"
+	"github.com/andriykohut/klats/internal/sitting"
+	"github.com/andriykohut/klats/internal/store"
+	"github.com/andriykohut/klats/internal/store/db"
+	"github.com/andriykohut/klats/internal/testfmt"
+	"github.com/andriykohut/klats/internal/wire"
 )
 
 func problemsOf(t testfmt.Test) []testfmt.Problem {

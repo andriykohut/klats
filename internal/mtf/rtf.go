@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/text/encoding/charmap"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 const (

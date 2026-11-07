@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"klats/internal/rich"
+	"github.com/andriykohut/klats/internal/rich"
 )
 
 // orderProblems reports the findings of an ordering question: its options,
