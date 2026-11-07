@@ -58,8 +58,9 @@ design follows from where it runs:
     launch waits in `teacherapi.OpenedFiles`, and the `file_opened` event
     announces it. The library takes each file from `GET /api/opened` and
     opens it as «Відкрити» does. The other pages in the top bar's frame go
-    to the library first; the builder and the live view leave the file
-    waiting until the teacher leaves them;
+    to the library as the event arrives; a file that arrives in the builder
+    or the live view waits until the teacher opens the library, so ending a
+    lesson still lands on its results;
   - the native save dialog for exports.
 
   It uses WebView2 on Windows, WebKitGTK 6.0 on Linux and WKWebView on

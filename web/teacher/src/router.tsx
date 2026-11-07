@@ -6,7 +6,7 @@ import {
   Outlet,
   useNavigate,
 } from "@tanstack/react-router";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
 import { BuilderPage } from "./pages/builder/BuilderPage";
@@ -66,16 +66,18 @@ function Root() {
 /**
  * The frame of the library, classes, results and settings: the top bar and
  * the banners over the page. A route that brings its own bar, such as the
- * builder or the live view, hangs off the root instead. While a file the
- * system opened waits, it goes to the library, which takes the file; the
- * builder and the live view are left alone, and the file waits until the
- * teacher leaves them.
+ * builder or the live view, hangs off the root instead. When the system opens
+ * a file while the frame is shown, it goes to the library, which takes the
+ * file. A file that arrives in the builder or the live view waits until the
+ * teacher opens the library, so ending a lesson still lands on its results.
  */
 function Shell() {
   const { fileWaiting } = useFlags();
   const navigate = useNavigate();
+  const wasWaiting = useRef(fileWaiting);
   useEffect(() => {
-    if (fileWaiting) navigate({ to: "/" });
+    if (fileWaiting && !wasWaiting.current) navigate({ to: "/" });
+    wasWaiting.current = fileWaiting;
   }, [fileWaiting, navigate]);
   return (
     <div className="t-app">
