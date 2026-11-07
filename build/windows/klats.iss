@@ -22,6 +22,10 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ShowLanguageDialog=auto
 ChangesAssociations=yes
 CloseApplications=yes
+; The mutex Wails' single-instance lock holds while Klats runs ("wails-app-" +
+; UniqueID + "-sim"), so setup and uninstall ask the teacher to close Klats
+; first, even when it sits in the tray where the restart manager can't reach it.
+AppMutex=wails-app-ua.klats.teacher-sim
 SetupIconFile=..\icon\klats.ico
 ; klats.exe has no icon resource; the window takes its icon from Wails.
 UninstallDisplayIcon={app}\klats.ico

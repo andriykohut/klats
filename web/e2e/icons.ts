@@ -118,4 +118,7 @@ try {
   rmSync(tmp, { recursive: true, force: true });
 }
 mkdirSync(join(root, "web/site/public"), { recursive: true });
-copyFileSync(join(dir, "klats.svg"), join(root, "web/site/public/favicon.svg"));
+copyFileSync(
+  join(dir, "klats-small.svg"),
+  join(root, "web/site/public/favicon.svg"),
+);
