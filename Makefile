@@ -8,7 +8,7 @@ export MACOSX_DEPLOYMENT_TARGET := 13.0
 export CGO_LDFLAGS := $(or $(CGO_LDFLAGS),-O2 -g) -mmacosx-version-min=13.0
 endif
 
-.PHONY: build check lint test typecheck size web gen e2e load dev demo
+.PHONY: build check lint test typecheck size web gen e2e load dev demo icons
 
 build:
 	go build ./cmd/klats
@@ -60,3 +60,9 @@ dev:
 # address with the join code, and the teacher address.
 demo: web
 	go run -tags nodesktop ./cmd/klats -dev -demo
+
+# The program and .klats file icons, rendered from the SVGs in build/icon into
+# the committed .ico, .icns and PNG files and the site's favicon. macOS only:
+# iconutil packs the .icns files.
+icons:
+	cd web && pnpm --filter @klats/e2e exec node --experimental-strip-types icons.ts

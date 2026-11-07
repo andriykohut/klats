@@ -23,7 +23,7 @@ import (
 	"github.com/andriykohut/klats/internal/teacherapi"
 )
 
-// icon is a placeholder mark until the installers bring the real one.
+// icon is the app icon, rendered from build/icon/klats.svg by `make icons`.
 //
 //go:embed icon.png
 var icon []byte
