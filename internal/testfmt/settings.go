@@ -142,7 +142,7 @@ func (s *Settings) decode() error {
 }
 
 // decodeDraw trims the tag of each draw line and rejects a draw outside the
-// caps.
+// caps or a tag of only white space.
 func (s *Settings) decodeDraw() error {
 	if len(s.Draw) > maxDrawLines {
 		return fmt.Errorf("%d draw lines, at most %d", len(s.Draw), maxDrawLines)

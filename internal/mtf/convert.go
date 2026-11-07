@@ -46,10 +46,10 @@ type converter struct {
 }
 
 // convert returns f as a test with default settings and an empty ID, and its
-// notes: test-level first, then in question order. pictures holds the media
-// table pictures stored, by key; a question whose key is missing from it loses
-// its picture. The error is a store failure, or wraps [ErrDamaged] for a
-// number question whose bounds are not finite.
+// notes, in question order. pictures holds the media table pictures stored, by
+// key; a question whose key is missing from it loses its picture. The error is
+// a store failure, or wraps [ErrDamaged] for a number question whose bounds are
+// not finite.
 func convert(f File, ms *media.Store, pictures map[string]testfmt.Image) (testfmt.Test, []wire.OpenNote, error) {
 	t := testfmt.Test{Version: 1, Title: strings.TrimSpace(f.Title), Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}}
 	if f.TimeLimit > 0 {
@@ -76,12 +76,13 @@ func convert(f File, ms *media.Store, pictures map[string]testfmt.Image) (testfm
 // themes returns the tag of the questions of each theme, by theme id, and
 // the draw lines that ask what f asks. With one theme holding questions there
 // are no tags, and one line from the whole test when the theme asks some but
-// not all of them at random. With more, each theme holding questions is a tag named after
-// it, or after its id when the name is empty, a repeated name numbered " (2)",
-// " (3)" in theme order. When any of them asks at random, each gets a line in
-// theme order: as many as it asks, at most its size; none when it asks 0,
-// since then none of it is asked; and all of it when it does not ask at
-// random. Counts and lines are cut to the caps of testfmt.
+// not all of them at random. With more, each theme holding questions is a tag
+// named after it, or after its id when the name is empty, the name cut to 190
+// runes and a repeated name numbered " (2)", " (3)" in theme order. When any
+// of them asks at random, each gets a line in theme order: as many as it asks,
+// at most its size; none when it asks 0, since then none of it is asked; and
+// all of it when it does not ask at random. Counts and lines are cut to the
+// caps of testfmt.
 func themes(f File) (tags map[uint32]string, draw []testfmt.DrawLine) {
 	size := map[uint32]int{}
 	for _, q := range f.Questions {

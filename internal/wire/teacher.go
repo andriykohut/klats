@@ -37,8 +37,7 @@ type TestDoc struct {
 }
 
 // OpenNote is something the teacher should check in a test opened from the
-// older format, about the question QuestionID, or about the whole test when
-// it is empty. Code is, for a question:
+// older format, about the question QuestionID, which is always set. Code is:
 //   - "image_lost": Count pictures could not be carried over;
 //   - "area_reshaped": a click area that was not a rectangle became its
 //     bounding box;

@@ -97,7 +97,8 @@ export function DrawLines(props: {
                     data-variant="danger"
                     aria-label={m.draw_remove()}
                     onPress={() => {
-                      // The button unmounts with its line, which would drop focus to the page.
+                      // Rows are keyed by index, so after the removal the pressed button belongs to the
+                      // next line, or is gone when it was the last row or one line is left.
                       add.current?.focus();
                       onChange(lines.filter((_, j) => j !== i));
                     }}

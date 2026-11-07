@@ -146,25 +146,25 @@ var ErrTooNew = errors.New("testfmt: test made by a newer version")
 // to the defaults and Scale.Thresholds is never nil. A time limit mode other
 // than "none", "student" or "common", minutes outside 0-300 (or 0 unless the
 // mode is "none"), over 100 draw lines, a draw count outside 1-1000, a draw tag
-// of only white space, a scale kind other than "points12", "percent" or
-// "pass", thresholds that are not 11 strictly rising values in 1-100, a pass
-// mark outside 1-100, a reveal other than "grade", "mistakes" or "nothing" and
-// a navigation other than "free" or "forward" are errors. Every rich-text field
-// is replaced by the canonical JSON of its parsed rich.Doc (a missing or null
-// field becomes an empty document), so callers persist the result rather than
-// the input. Draw and question tags are trimmed. Each question keeps its Tags
-// and only the fields its type uses, though Options is never nil, so it
-// encodes as a list (empty for a type without options), as the TypeScript type
-// promises. An option's Target that names no target or body gap is cleared,
-// and a gaps question's Gaps are brought in line with its body: one entry for
-// each gap node, in body order. A list of over 50 entries or with a repeated
-// id or tag (for gaps, both before and after that step), a blank tag, an
-// accepted text, choice or tag of over 200 characters, a rubric of over
-// 2,000, a coordinate outside 0 to 1, an area shape other than "rect" or
-// "ellipse", a word bank gap with more than one word, a matching target shared
-// by two left items and a label point shared by two labels are errors.
-// Content problems such as a missing correct option are not errors here; see
-// Test.Problems.
+// of only white space or of over 200 characters, a scale kind other than
+// "points12", "percent" or "pass", thresholds that are not 11 strictly rising
+// values in 1-100, a pass mark outside 1-100, a reveal other than "grade",
+// "mistakes" or "nothing" and a navigation other than "free" or "forward" are
+// errors. Every rich-text field is replaced by the canonical JSON of its parsed
+// rich.Doc (a missing or null field becomes an empty document), so callers
+// persist the result rather than the input. Draw and question tags are trimmed.
+// Each question keeps its Tags and only the fields its type uses, though
+// Options is never nil, so it encodes as a list (empty for a type without
+// options), as the TypeScript type promises. An option's Target that names no
+// target or body gap is cleared, and a gaps question's Gaps are brought in line
+// with its body: one entry for each gap node, in body order. A list of over 50
+// entries or with a repeated id or tag (for gaps, both before and after that
+// step), a blank tag, an accepted text, choice or tag of over 200 characters, a
+// rubric of over 2,000, a coordinate outside 0 to 1, an area shape other than
+// "rect" or "ellipse", a word bank gap with more than one word, a matching
+// target shared by two left items and a label point shared by two labels are
+// errors. Content problems such as a missing correct option are not errors
+// here; see Test.Problems.
 func Decode(raw []byte) (Test, error) {
 	var t Test
 	if err := json.Unmarshal(raw, &t); err != nil {

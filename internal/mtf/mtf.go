@@ -51,13 +51,13 @@ func Sniff(head []byte) bool {
 
 // Open reads an .mtf file, stores its pictures in ms and returns the converted
 // test, already decoded by [testfmt.Decode], with an empty ID, and notes on
-// what the teacher should check: test-level first, then in question order.
-// Settings the file has no counterpart for keep [testfmt.DefaultSettings]. A
-// picture that cannot be carried over is left out with an "image_lost" note.
-// Errors wrap [ErrDamaged], or are [ErrOldLayout], or are store failures
-// returned as they are. After a store failure, or an [ErrDamaged] found past
-// the first picture, the pictures stored before stay in ms. A converted test
-// that Decode refuses is an error of its own, a converter bug.
+// what the teacher should check, in question order. Settings the file has no
+// counterpart for keep [testfmt.DefaultSettings]. A picture that cannot be
+// carried over is left out with an "image_lost" note. Errors wrap [ErrDamaged],
+// or are [ErrOldLayout], or are store failures returned as they are. After a
+// store failure, or an [ErrDamaged] found past the first picture, the pictures
+// stored before stay in ms. A converted test that Decode refuses is an error of
+// its own, a converter bug.
 func Open(r io.Reader, ms *media.Store) (testfmt.Test, []wire.OpenNote, error) {
 	pictures := map[string]testfmt.Image{}
 	f, err := read(r, func(key string, data []byte) error {

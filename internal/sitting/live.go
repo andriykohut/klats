@@ -25,7 +25,6 @@ const (
 	cellPending = "pending"
 	cellCurrent = "current"
 	cellEmpty   = "empty"
-	cellAbsent  = "absent"
 )
 
 // SetSnapshotDir makes [Engine.End] snapshot the database into
@@ -77,10 +76,9 @@ func (e *Engine) Live() (wire.LiveSnapshot, error) {
 			continue
 		}
 		r := a.grade(p)
-		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: slices.Repeat([]string{cellAbsent}, n), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
+		row := wire.LiveRow{ParticipantID: p.id, Name: p.name, DeviceToken: p.device, DeviceLabel: labels[p.device], Cells: make([]string, len(p.questions)), Status: p.state, Pending: r.Pending, WindowSwitches: p.switches}
 		cell := func(j int) int { return pos[p.questions[j].ID] } // the index in Cells of the participant's j-th question
 		if out.Drawn {
-			row.Cells = make([]string, len(p.questions))
 			for _, question := range p.questions {
 				row.Order = append(row.Order, pos[question.ID])
 			}

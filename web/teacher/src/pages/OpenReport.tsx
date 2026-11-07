@@ -15,10 +15,9 @@ const NOTES: Record<string, (n: OpenNote) => string> = {
 
 /**
  * The report on a test just opened from the older format: how many questions
- * came across, the notes on the whole test, and for each note on a question a
- * link to the builder at that question. «Відкрити тест» opens the builder at
- * its first question; `onClose` is called when the teacher closes the report,
- * staying on the library.
+ * came across, and for each note a link to the builder at its question.
+ * «Відкрити тест» opens the builder at its first question; `onClose` is called
+ * when the teacher closes the report, staying on the library.
  */
 export function OpenReport({
   doc,
@@ -30,7 +29,6 @@ export function OpenReport({
   const navigate = useNavigate();
   const notes = doc.notes ?? [];
   const number = new Map(doc.test.questions.map((q, i) => [q.id, i + 1]));
-  const onQuestions = notes.filter((n) => n.questionId);
   return (
     <ConfirmDialog
       isOpen
@@ -43,16 +41,11 @@ export function OpenReport({
       details={
         <div className="t-notice t-report">
           <div>
-            {notes
-              .filter((n) => !n.questionId)
-              .map((n) => (
-                <p key={n.code}>{NOTES[n.code](n)}</p>
-              ))}
-            {onQuestions.length > 0 && (
+            {notes.length > 0 && (
               <>
                 <p>{m.open_report_attention()}</p>
                 <ul>
-                  {onQuestions.map((n) => (
+                  {notes.map((n) => (
                     <li key={`${n.questionId} ${n.code}`}>
                       <Link
                         to="/tests/$id"

@@ -289,8 +289,7 @@ type Counts struct {
 // per Order entry, in the same order. A cell is "correct" (full points),
 // "wrong" (answered with fewer), "pending" (a written answer the teacher has
 // not graded), "current" (while writing, the question after the last one
-// answered in the participant's own order), "empty", or, in test order only,
-// "absent" (a question the participant did not get). Status is "writing",
+// answered in the participant's own order) or "empty". Status is "writing",
 // "offline" or "finished". Grade is set once finished, on the scale of
 // [SittingInfo.Scale]; Pending counts the "pending" cells, which Grade scores
 // as 0.
