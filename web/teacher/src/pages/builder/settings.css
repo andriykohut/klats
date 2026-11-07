@@ -49,6 +49,73 @@
   text-align: center;
 }
 
+/* The draw lines line up with the switch's label, past its 38px track and 9px gap. */
+.s-lines {
+  margin: 10px 0 0 47px;
+  padding: 8px 10px;
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-field);
+}
+
+.s-line + .s-line {
+  margin-top: 6px;
+}
+
+.s-line-row,
+.s-src {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.s-src {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* A source shows its name, cut short in the button, then its question count. */
+.s-src-item,
+.s-src-value {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.s-src-value .s-src-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.s-src-item .b-tags-n,
+.s-src-value .b-tags-n {
+  flex: none;
+}
+
+.s-warn {
+  margin: 6px 0 0;
+  padding: 5px 9px;
+  border-radius: var(--t-radius-small);
+  background: var(--t-tang-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.t-btn.s-add {
+  height: 36px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.s-total {
+  margin: 8px 0 0 47px;
+  color: var(--k-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .s-table {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

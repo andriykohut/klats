@@ -361,7 +361,7 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
         </RadioGroup>
         <SettingsDialog
           settings={test.settings}
-          questionCount={test.questions.length}
+          questions={test.questions}
           onChange={(settings) => update((t) => ({ ...t, settings }))}
         />
         <StartDialog

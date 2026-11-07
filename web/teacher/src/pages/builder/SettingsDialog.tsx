@@ -1,4 +1,4 @@
-import type { Settings } from "@klats/shared/generated/testfmt.ts";
+import type { Question, Settings } from "@klats/shared/generated/testfmt.ts";
 import { DEFAULT_THRESHOLDS } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import {
@@ -6,17 +6,18 @@ import {
   Dialog,
   DialogTrigger,
   Heading,
-  Input,
   Label,
   Modal,
   ModalOverlay,
-  NumberField,
   RadioButton,
   RadioField,
   RadioGroup,
   SwitchButton,
   SwitchField,
 } from "react-aria-components";
+import { Count } from "./Count";
+import { DrawLines } from "./DrawLines";
+import { tagCounts } from "./model";
 import "./settings.css";
 
 /** The minutes a time limit starts at when it is first turned on. */
@@ -53,28 +54,6 @@ function Choices<T extends string>(props: {
   );
 }
 
-function Count(props: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <NumberField
-      className="t-field s-num"
-      aria-label={props.label}
-      value={props.value}
-      minValue={props.min}
-      maxValue={props.max}
-      // A cleared field commits NaN, which keeps the value it had.
-      onChange={(v) => !Number.isNaN(v) && props.onChange(v)}
-    >
-      <Input />
-    </NumberField>
-  );
-}
-
 function Toggle(props: {
   label: string;
   value: boolean;
@@ -97,8 +76,9 @@ function Toggle(props: {
 /**
  * «Налаштування»: a button that opens the test's settings in a dialog, where
  * every change goes to `onChange` as the whole new `settings` and the builder
- * autosaves it. `questionCount` bounds the count of the random draw's first
- * line, the only one the dialog edits.
+ * autosaves it. The random draw of a test without tags is one count, up to
+ * the number of `questions`; once the test or a line has a tag, it is a list
+ * of lines (see {@link DrawLines}).
  *
  * A setting a choice hides keeps its value, so a teacher who switches back
  * finds it: the minutes of a time limit, the grade table and pass mark of a
@@ -107,16 +87,20 @@ function Toggle(props: {
  */
 export function SettingsDialog(props: {
   settings: Settings;
-  questionCount: number;
+  questions: Question[];
   onChange: (settings: Settings) => void;
 }) {
-  const { settings: s, questionCount, onChange } = props;
+  const { settings: s, questions, onChange } = props;
+  const questionCount = questions.length;
   const set = (patch: Partial<Settings>) => onChange({ ...s, ...patch });
   const setScale = (patch: Partial<Settings["scale"]>) =>
     set({ scale: { ...s.scale, ...patch } });
   const th = s.scale.thresholds;
   const timed = s.timeLimit.mode !== "none";
   const draw = s.draw ?? [];
+  const lined =
+    draw.length > 0 &&
+    (tagCounts(questions).length > 0 || draw.some((l) => l.tag !== ""));
   const total = Math.max(questionCount, 1);
   const [before, after] = m
     .settings_subset_count({ count: SLOT, total })
@@ -189,7 +173,7 @@ export function SettingsDialog(props: {
                           })
                         }
                       />
-                      {draw.length > 0 && (
+                      {draw.length > 0 && !lined && (
                         <>
                           {before}
                           <Count
@@ -207,6 +191,13 @@ export function SettingsDialog(props: {
                         </>
                       )}
                     </div>
+                    {lined && (
+                      <DrawLines
+                        lines={draw}
+                        questions={questions}
+                        onChange={(draw) => set({ draw })}
+                      />
+                    )}
                     <Choices
                       label={m.settings_reveal()}
                       value={s.reveal}

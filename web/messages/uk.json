@@ -612,6 +612,40 @@
   "tags_show_tag": "З тегом «{tag}»",
   "tags_show_none": "Без тегу",
   "tags_new_hint": "Нове питання отримає тег «{tag}»",
+  "draw_from": "з",
+  "draw_all": "усіх питань",
+  "draw_add": "Додати рядок",
+  "draw_remove": "Видалити рядок",
+  "draw_total": [
+    {
+      "declarations": [
+        "input count",
+        "input total",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Кожен учень отримає {count} питання із {total}",
+        "countPlural=few": "Кожен учень отримає {count} питання із {total}",
+        "countPlural=*": "Кожен учень отримає {count} питань із {total}"
+      }
+    }
+  ],
+  "draw_short": [
+    {
+      "declarations": [
+        "input tag",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "З тегом «{tag}» лише {count} питання",
+        "countPlural=few": "З тегом «{tag}» лише {count} питання",
+        "countPlural=*": "З тегом «{tag}» лише {count} питань"
+      }
+    }
+  ],
   "export_saved": "Збережено: {path}",
   "export_downloaded": "Файл завантажено: {name}",
   "results_write_failed": "Не вдалося записати файл. Якщо він відкритий в Excel, закрийте його й спробуйте ще раз.",

@@ -581,6 +581,25 @@
   "tags_show_tag": "Tagged “{tag}”",
   "tags_show_none": "No tag",
   "tags_new_hint": "New questions get the tag “{tag}”",
+  "draw_from": "from",
+  "draw_all": "all questions",
+  "draw_add": "Add line",
+  "draw_remove": "Remove line",
+  "draw_total": "Each student gets {count} of {total} questions",
+  "draw_short": [
+    {
+      "declarations": [
+        "input tag",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Only {count} question is tagged “{tag}”",
+        "countPlural=*": "Only {count} questions are tagged “{tag}”"
+      }
+    }
+  ],
   "export_saved": "Saved: {path}",
   "export_downloaded": "File downloaded: {name}",
   "results_write_failed": "The file could not be written. If it is open in Excel, close it and try again.",
