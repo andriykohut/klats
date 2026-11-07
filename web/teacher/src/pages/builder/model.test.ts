@@ -17,6 +17,7 @@ import {
   syncGaps,
   tagCounts,
   tagLabel,
+  tagName,
   textDoc,
   toStored,
   trimmedRange,
@@ -670,6 +671,13 @@ test("addTag trims and ignores blanks and repeats", () => {
   expect(addTag(["Мережі"], " Урок 9 ")).toEqual(["Мережі", "Урок 9"]);
   expect(addTag(["Мережі"], "Мережі ")).toEqual(["Мережі"]);
   expect(addTag(undefined, "  ")).toEqual([]);
+});
+
+test("tagName reuses a known tag that differs only in case", () => {
+  expect(tagName(" мережі ", ["Мережі", "Урок 9"])).toBe("Мережі");
+  expect(tagName("інтернет", ["ІНТЕРНЕТ"])).toBe("ІНТЕРНЕТ");
+  expect(tagName("ґанок", ["Ґанок"])).toBe("Ґанок");
+  expect(tagName("Урок 10", ["Урок 9"])).toBe("Урок 10");
 });
 
 test("tagLabel fits whole tags, then counts the rest", () => {

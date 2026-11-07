@@ -419,6 +419,16 @@ export function addTag(tags: string[] | undefined, raw: string): string[] {
   return !tag || all.includes(tag) ? all : [...all, tag];
 }
 
+/**
+ * Returns the tag of `known` that `raw`, trimmed, names when case is ignored,
+ * or `raw` trimmed when none does, so «мережі» joins a test's «Мережі».
+ */
+export function tagName(raw: string, known: string[]): string {
+  const name = raw.trim();
+  const lower = name.toLocaleLowerCase("uk");
+  return known.find((t) => t.toLocaleLowerCase("uk") === lower) ?? name;
+}
+
 /** Returns `q` with `tag` added to its tags (see {@link addTag}). */
 export function withTag(q: Question, tag: string): Question {
   return { ...q, tags: addTag(q.tags, tag) };

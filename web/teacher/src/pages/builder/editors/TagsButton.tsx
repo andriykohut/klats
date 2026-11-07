@@ -14,16 +14,18 @@ import {
   TagList,
 } from "react-aria-components";
 import { Icon } from "../../../ui/icons";
-import { addTag, MAX_LIST, MAX_TEXT, tagLabel } from "../model";
+import { addTag, MAX_LIST, MAX_TEXT, tagLabel, tagName } from "../model";
 
 /**
  * «# Теги»: a button that shows a question's `tags` (see {@link tagLabel}),
  * or «Теги» when it has none, and opens a box with the tags as chips that
  * can be removed and a field that adds one. The field suggests the test's
  * `known` tags the question does not carry, with how many questions carry
- * each, and offers to create the typed name when the test has no such tag.
- * Picking a suggestion, or pressing Enter, adds the tag (see {@link addTag});
- * the field stops at {@link MAX_LIST} tags of {@link MAX_TEXT} characters.
+ * each, and offers to create the typed name when the test has no tag of that
+ * name in any case. Picking a suggestion, or pressing Enter, adds the tag (see
+ * {@link addTag}), spelled as the test's tag that differs only in case when
+ * there is one (see {@link tagName}); the field stops at {@link MAX_LIST} tags
+ * of {@link MAX_TEXT} characters.
  * Every change hands the whole new list to `onChange`.
  */
 export function TagsButton(props: {
@@ -34,11 +36,12 @@ export function TagsButton(props: {
   const { tags, onChange } = props;
   const [text, setText] = useState("");
   const field = useRef<HTMLInputElement>(null);
-  const name = text.trim();
+  const known = props.known.map(([t]) => t);
+  const name = tagName(text, known);
   const { shown, more } = tagLabel(tags);
 
   const add = (raw: string) => {
-    const next = addTag(tags, raw);
+    const next = addTag(tags, tagName(raw, known));
     if (next !== tags) onChange(next);
     setText("");
   };
