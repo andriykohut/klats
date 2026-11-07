@@ -22,15 +22,18 @@ import {
   TYPE_INFO,
   typeIcon,
 } from "../types";
+import { TagsButton } from "./TagsButton";
 
 /**
  * The top row of a question's editor: its type, with all fifteen types and
  * their icons (choosing one converts the question, see {@link convertQuestion}),
- * its points, whether the answers are shuffled for each student (only for the
- * types that shuffle by choice), and a button that deletes the question.
+ * its points, its tags (see {@link TagsButton}, which suggests the test's
+ * `known` tags), whether the answers are shuffled for each student (only for
+ * the types that shuffle by choice), and a button that deletes the question.
  */
 export function EditorHead(props: {
   question: Question;
+  known: [string, number][];
   onChange: (fn: (q: Question) => Question) => void;
   onDelete: () => void;
 }) {
@@ -93,6 +96,11 @@ export function EditorHead(props: {
           <Icon name="plus" />
         </Button>
       </div>
+      <TagsButton
+        tags={q.tags ?? []}
+        known={props.known}
+        onChange={(tags) => onChange((x) => ({ ...x, tags }))}
+      />
       {HAS_SHUFFLE.has(q.type) && (
         <SwitchField
           className="b-tog"

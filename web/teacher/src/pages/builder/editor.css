@@ -177,6 +177,70 @@
   white-space: nowrap;
 }
 
+.b-tags-btn {
+  height: 38px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1.5px solid var(--t-line);
+  border-radius: var(--t-radius-field);
+  background: var(--k-paper);
+  color: var(--k-field);
+  font: 700 14px var(--k-font-text);
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+
+.b-tags-btn[data-has] {
+  border-color: var(--k-tile-shadow);
+  background: var(--k-soft);
+}
+
+.b-tags-btn[data-hovered] {
+  border-color: var(--t-line-strong);
+}
+
+.b-tags-btn[data-focus-visible] {
+  outline: var(--t-focus);
+  outline-offset: 2px;
+}
+
+.b-tags-shown {
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-tags-more,
+.b-tags-n {
+  color: var(--k-muted);
+  font-weight: 600;
+}
+
+/* A choice in the tag suggestions and in the list's «Показати». */
+.b-tags-item {
+  padding: 7px 10px;
+  border-radius: var(--t-radius-small);
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  outline: none;
+}
+
+.b-tags-item[data-focused] {
+  background: var(--t-hover);
+}
+
+.b-tags-item[data-selected] {
+  color: var(--k-sel-dark);
+}
+
 .b-tog {
   margin-left: auto;
 }

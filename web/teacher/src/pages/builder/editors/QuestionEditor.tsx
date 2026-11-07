@@ -50,10 +50,12 @@ const EDITORS: Record<string, ComponentType<EditorProps>> = {
  * and the scoring choice (see {@link Grading}). Every edit goes through
  * `onChange` as a function of the newest question. Removing an item goes
  * through `onRemoveItem`, which owns the undo. The question text takes focus
- * when `focusText` is not 0.
+ * when `focusText` is not 0. `known` holds the test's tags with their counts,
+ * for the head's suggestions.
  */
 export function QuestionEditor(props: {
   question: Question;
+  known: [string, number][];
   focusText: number;
   onChange: (fn: (q: Question) => Question) => void;
   onDelete: () => void;
@@ -63,7 +65,12 @@ export function QuestionEditor(props: {
   const Body = EDITORS[q.type];
   return (
     <div className="b-ed-in">
-      <EditorHead question={q} onChange={onChange} onDelete={props.onDelete} />
+      <EditorHead
+        question={q}
+        known={props.known}
+        onChange={onChange}
+        onDelete={props.onDelete}
+      />
       <div className="b-lbl">{m.builder_question_text()}</div>
       <RichField
         value={q.text}

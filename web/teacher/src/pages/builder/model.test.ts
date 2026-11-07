@@ -1,17 +1,22 @@
+import type { Question } from "@klats/shared/generated/testfmt.ts";
 import { QUESTION_TYPES } from "@klats/shared/questionTypes.ts";
 import { Fragment, Schema, Slice } from "@tiptap/pm/model";
 import { expect, test } from "vitest";
 import {
+  addTag,
   clearTakenTargets,
   convertQuestion,
   fromPasted,
   gapInMode,
   gapsInBody,
+  listed,
   newOption,
   newQuestion,
   oneParagraph,
   plainText,
   syncGaps,
+  tagCounts,
+  tagLabel,
   textDoc,
   toStored,
   trimmedRange,
@@ -644,4 +649,52 @@ test("clearTakenTargets leaves a restored word a decoy when its gap has a word",
   expect(
     clearTakenTargets([word("e", "gone")], [word("f", "gone")], ["g1"]),
   ).toEqual([word("e", "gone")]);
+});
+
+/** A single-choice question with `fields` set. */
+const q = (fields: Partial<Question>): Question => ({
+  ...newQuestion("single"),
+  ...fields,
+});
+
+test("tagCounts in order of first appearance", () => {
+  expect(
+    tagCounts([q({ tags: ["B"] }), q({ tags: ["A", "B"] }), q({})]),
+  ).toEqual([
+    ["B", 2],
+    ["A", 1],
+  ]);
+});
+
+test("addTag trims and ignores blanks and repeats", () => {
+  expect(addTag(["Мережі"], " Урок 9 ")).toEqual(["Мережі", "Урок 9"]);
+  expect(addTag(["Мережі"], "Мережі ")).toEqual(["Мережі"]);
+  expect(addTag(undefined, "  ")).toEqual([]);
+});
+
+test("tagLabel fits whole tags, then counts the rest", () => {
+  expect(tagLabel(["Мережі", "Урок 9"])).toEqual({
+    shown: "Мережі, Урок 9",
+    more: 0,
+  });
+  expect(
+    tagLabel(["Урок_10 Безпечне використання Інтернету", "Мережі"]),
+  ).toEqual({ shown: "Урок_10 Безпечне використання Інтернету", more: 1 });
+});
+
+test("listed keeps real numbers and the selected question", () => {
+  const qs = [
+    q({ id: "a", tags: ["X"] }),
+    q({ id: "b" }),
+    q({ id: "c", tags: ["X"] }),
+  ];
+  expect(listed(qs, "X", "a").map((r) => r.number)).toEqual([1, 3]);
+  expect(listed(qs, "X", "b").map((r) => r.number)).toEqual([1, 2, 3]);
+  expect(listed(qs, "", "a").map((r) => r.number)).toEqual([1, 2]);
+});
+
+test("convertQuestion keeps tags", () => {
+  expect(
+    convertQuestion({ ...newQuestion("single"), tags: ["A"] }, "multi").tags,
+  ).toEqual(["A"]);
 });

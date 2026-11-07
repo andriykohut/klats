@@ -286,9 +286,9 @@ export function newQuestion(type: string): Question {
  * that names it, and gives every other option a new empty one, so that each
  * pair has its own); the body among gaps, word bank and highlight, without the
  * target marks going to gaps or bank, and without the gaps and formulas going
- * to highlight; and the image between hotspot and labels. Every other field
- * starts as {@link newQuestion} has it. Converting to the question's own type
- * returns it as it is.
+ * to highlight; and the image between hotspot and labels. The tags stay,
+ * whatever the type. Every other field starts as {@link newQuestion} has it.
+ * Converting to the question's own type returns it as it is.
  */
 export function convertQuestion(q: Question, type: string): Question {
   if (type === q.type) return q;
@@ -298,6 +298,7 @@ export function convertQuestion(q: Question, type: string): Question {
     text: q.text,
     points: q.points,
   };
+  if (q.tags) out.tags = q.tags;
   // The server clears a field its type does not use, so only a type that uses
   // it holds the teacher's choice.
   if (HAS_PARTIAL.has(q.type)) out.partial = q.partial;
@@ -396,4 +397,64 @@ export function fromPasted(pasted: PastedQuestion[]): Question[] {
     text: textDoc(p.text),
     options: p.options.map((o) => newOption(o.text, o.correct)),
   }));
+}
+
+/** Returns each tag of `questions` with how many questions carry it, in order of first appearance. */
+export function tagCounts(questions: Question[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const q of questions) {
+    for (const t of q.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+  }
+  return [...counts];
+}
+
+/**
+ * Returns `tags` with `raw`, trimmed, added at the end. A blank `raw` or one
+ * already in `tags` returns `tags` itself, or an empty list when it is
+ * undefined.
+ */
+export function addTag(tags: string[] | undefined, raw: string): string[] {
+  const tag = raw.trim();
+  const all = tags ?? [];
+  return !tag || all.includes(tag) ? all : [...all, tag];
+}
+
+/** Returns `q` with `tag` added to its tags (see {@link addTag}). */
+export function withTag(q: Question, tag: string): Question {
+  return { ...q, tags: addTag(q.tags, tag) };
+}
+
+/**
+ * Returns the first of `tags` joined by ", " in `shown`, as many whole tags as
+ * stay within `max` characters but always at least one, and how many are left
+ * out in `more`.
+ */
+export function tagLabel(
+  tags: string[],
+  max = 24,
+): { shown: string; more: number } {
+  let n = Math.min(1, tags.length);
+  while (n < tags.length && tags.slice(0, n + 1).join(", ").length <= max) n++;
+  return { shown: tags.slice(0, n).join(", "), more: tags.length - n };
+}
+
+/**
+ * Returns the questions the list shows, each with its 1-based place in the
+ * whole test: all of them when `shown` is null, those without a tag when it
+ * is "", and otherwise those tagged `shown`. The question `selected` is always
+ * among them.
+ */
+export function listed(
+  questions: Question[],
+  shown: string | null,
+  selected: string,
+): { question: Question; number: number }[] {
+  return questions
+    .map((question, i) => ({ question, number: i + 1 }))
+    .filter(
+      ({ question: q }) =>
+        shown === null ||
+        q.id === selected ||
+        (shown === "" ? !q.tags?.length : !!q.tags?.includes(shown)),
+    );
 }

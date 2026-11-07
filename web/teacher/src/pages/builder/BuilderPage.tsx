@@ -27,7 +27,14 @@ import { notify, toasts } from "../../ui/Toasts";
 import { autosave, type SaveState } from "./autosave";
 import { Checks } from "./Checks";
 import { QuestionEditor } from "./editors/QuestionEditor";
-import { convertQuestion, fromPasted, insertAt, newQuestion } from "./model";
+import {
+  convertQuestion,
+  fromPasted,
+  insertAt,
+  newQuestion,
+  tagCounts,
+  withTag,
+} from "./model";
 import { PasteDialog } from "./PasteDialog";
 import { PreviewPane } from "./PreviewPane";
 import { QuestionList } from "./QuestionList";
@@ -124,8 +131,9 @@ function BackLink() {
  * edits wait in memory, with a toast «Зміни не збережено» that goes back to
  * them, until the test is opened again. Deleting a question or an
  * item of one takes effect at once, with a «Скасувати» toast for {@link UNDO_MS}
- * that puts it back where it was. The question `first` is selected at the
- * start when the test has it.
+ * that puts it back where it was. While the list shows the questions of one
+ * tag, every question added or pasted gets that tag. The question `first` is
+ * selected at the start when the test has it.
  */
 function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
   const save = useSaveTest(doc.id);
@@ -142,6 +150,8 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
   // A question just added, whose text takes focus.
   const [fresh, setFresh] = useState("");
   const [open, setOpen] = useState(previewOpen);
+  // «Показати»: null for every question, "" for those without a tag, or a tag.
+  const [shown, setShown] = useState<string | null>(null);
   // The next question's trash takes the place of the deleted one's.
   const [mayDelete] = useState(() => cooldown());
   const [saver] = useState(() =>
@@ -207,13 +217,25 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
     setFresh("");
   };
 
-  /** Puts `qs` after the selected question and selects the first of them. */
+  const known = tagCounts(test.questions);
+  // A tag no question carries any more shows every question.
+  const showing = shown && !known.some(([t]) => t === shown) ? null : shown;
+
+  /**
+   * Puts `qs` after the selected question, tagged with the tag the list
+   * shows, and selects the first of them.
+   */
   const insert = (qs: Question[]) => {
     const all = latest.current.questions;
     const at = all.findIndex((q) => q.id === selected) + 1 || all.length;
+    const added = showing ? qs.map((q) => withTag(q, showing)) : qs;
     update((t) => ({
       ...t,
-      questions: [...t.questions.slice(0, at), ...qs, ...t.questions.slice(at)],
+      questions: [
+        ...t.questions.slice(0, at),
+        ...added,
+        ...t.questions.slice(at),
+      ],
     }));
     select(qs[0].id);
   };
@@ -357,7 +379,10 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
           questions={test.questions}
           selected={question?.id ?? ""}
           errors={errors}
+          shown={showing}
+          known={known}
           onSelect={select}
+          onShow={setShown}
         >
           <TypePicker
             onPick={(type) => {
@@ -372,12 +397,16 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
               notify(m.paste_added({ count: found.length }));
             }}
           />
+          {showing && (
+            <p className="b-tag-hint">{m.tags_new_hint({ tag: showing })}</p>
+          )}
         </QuestionList>
         <main className="t-panel b-ed">
           {question ? (
             <QuestionEditor
               key={question.id}
               question={question}
+              known={known}
               focusText={fresh === question.id ? 1 : 0}
               onChange={(fn) => updateQuestion(question.id, fn)}
               onDelete={() => mayDelete() && removeQuestion(question.id)}

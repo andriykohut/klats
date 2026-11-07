@@ -120,6 +120,37 @@
   max-width: 420px;
 }
 
+/* A question's tags: the box under «# Теги», with its chips and field. */
+.b-pop.b-tags-pop {
+  width: 280px;
+  padding: 10px;
+}
+
+.b-tags-dialog {
+  display: grid;
+  gap: 8px;
+  outline: none;
+}
+
+.b-tags-pop .b-chips-list {
+  gap: 6px;
+  margin-bottom: 0;
+}
+
+.b-tags-pop .b-chip {
+  padding: 2px 2px 2px 10px;
+  border-color: var(--k-tile-shadow);
+  background: var(--k-soft);
+  color: var(--k-sel-dark);
+  font-size: 13px;
+}
+
+.b-tags-list {
+  max-height: 240px;
+  overflow-y: auto;
+  outline: none;
+}
+
 /* The matching switches stack, each with its hint under it. */
 .b-match {
   display: grid;
