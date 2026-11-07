@@ -18,7 +18,7 @@ import {
   JournalTable,
   PendingGrade,
 } from "./JournalTable";
-import { gradeWidth, initials } from "./journal";
+import { gradeWidth, initials, padCells } from "./journal";
 import { LiveTopBar } from "./LiveTopBar";
 import { RowActions } from "./RowActions";
 import { Summary } from "./Summary";
@@ -136,13 +136,31 @@ function Live({ snap }: { snap: LiveSnapshot }) {
   // The server refuses kicks and renames once the sitting has ended.
   if (!ended) after.push({ head: "", width: 44 });
 
+  // A drawn sitting gives each student a column per question they got, in
+  // their own order, so the columns are numbered as on their screen.
+  const questions = snap.drawn
+    ? Math.max(0, ...snap.rows.map((r) => r.order?.length ?? 0))
+    : snap.sitting.questionCount;
+  const texts = snap.questionTexts ?? [];
+
   const rows: JournalRow[] = snap.rows.map((r) => {
     const clash = clashed.has(r.participantId);
     return {
       key: r.participantId,
       name: who(r.name),
       tone: clash ? "clash" : r.status === "offline" ? "offline" : undefined,
-      cells: r.cells.map((state) => ({ state: liveCell(state, hidden) })),
+      cells: snap.drawn
+        ? padCells(
+            (r.order ?? []).map((at, i) => ({
+              state: liveCell(r.cells[i], hidden),
+              title: m.journal_cell_question({
+                number: at + 1,
+                text: texts[at],
+              }),
+            })),
+            questions,
+          )
+        : r.cells.map((state) => ({ state: liveCell(state, hidden) })),
       before: [
         <td key="pc" className="j-device" title={r.deviceLabel}>
           {r.deviceLabel}
@@ -199,12 +217,12 @@ function Live({ snap }: { snap: LiveSnapshot }) {
       <Summary counts={snap.counts} hidden={hidden} />
       <div className="l-main">
         <JournalTable
-          questions={snap.sitting.questionCount}
+          questions={questions}
           before={[{ head: m.col_device(), width: 100, className: "j-device" }]}
           after={after}
           rows={rows}
-          pct={snap.questionPct.map((p) => p ?? null)}
-          footLabel={m.live_class_correct()}
+          pct={snap.drawn ? undefined : snap.questionPct.map((p) => p ?? null)}
+          footLabel={snap.drawn ? undefined : m.live_class_correct()}
           barLabel={(t) =>
             hidden
               ? m.live_bar_hidden({ answered: t.answered, left: t.left })

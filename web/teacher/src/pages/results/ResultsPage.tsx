@@ -12,6 +12,7 @@ import { busy, useExport, useResults } from "../../api/queries";
 import { finishExport } from "../../ui/finishExport";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
+import { plainText } from "../builder/model";
 import {
   type CellState,
   type JournalCell,
@@ -19,7 +20,12 @@ import {
   JournalTable,
   PendingGrade,
 } from "../live/JournalTable";
-import { formatDate, formatPoints, gradeWidth } from "../live/journal";
+import {
+  formatDate,
+  formatPoints,
+  gradeWidth,
+  padCells,
+} from "../live/journal";
 import { StudentDetail } from "./StudentDetail";
 import "./results.css";
 
@@ -71,6 +77,11 @@ export function ResultsPage() {
   const waiting = res.rows.filter((r) => r.pendingIds.length > 0);
   const toReview = waiting.reduce((n, r) => n + r.pendingIds.length, 0);
 
+  // A drawn test's rows may differ in length: the columns reach the longest.
+  const questions = res.drawn
+    ? Math.max(0, ...res.rows.map((r) => r.order.length))
+    : res.questions.length;
+
   const after: JournalColumn[] = [
     { head: m.col_points(), width: 82, className: "r-col-num" },
     {
@@ -117,15 +128,17 @@ export function ResultsPage() {
       </header>
       <JournalTable
         variant="results"
-        questions={res.questions.length}
+        questions={questions}
         before={
           typed
             ? [{ head: m.typed_class(), width: 70, className: "j-device" }]
             : []
         }
         after={after}
-        pct={res.questions.map((q) => q.correctPct ?? null)}
-        footLabel={m.live_class_correct()}
+        pct={
+          res.drawn ? undefined : res.questions.map((q) => q.correctPct ?? null)
+        }
+        footLabel={res.drawn ? undefined : m.live_class_correct()}
         barLabel={(t) =>
           m.live_bar({ correct: t.good, wrong: t.bad, left: t.left })
         }
@@ -140,8 +153,11 @@ export function ResultsPage() {
               {r.name}
             </Button>
           ),
-          cells: cellsOf(res, r, pts, (focus) =>
-            setOpen({ id: r.participantId, focus }),
+          cells: padCells(
+            cellsOf(res, r, pts, (focus) =>
+              setOpen({ id: r.participantId, focus }),
+            ),
+            questions,
           ),
           before: typed
             ? [
@@ -196,6 +212,8 @@ export function ResultsPage() {
  * and the marks of an override and of a late answer. A written answer waiting
  * for the teacher is a "pending" cell that is a button, which calls `review`
  * with the question's id. A question the student did not get is "absent".
+ * In a drawn test the cells follow the student's own order, numbered as on
+ * their sheet, each with a tooltip naming its question in the test.
  */
 function cellsOf(
   res: AssignmentResults,
@@ -203,14 +221,16 @@ function cellsOf(
   pts: (n: number) => string,
   review: (questionId: string) => void,
 ): JournalCell[] {
-  return res.questions.map(({ question: q }, i) => {
+  // `i` is the question's place in the test, `own` its place on the sheet.
+  const cell = (i: number, own: number): JournalCell => {
+    const q = res.questions[i].question;
     if (r.notAsked.includes(q.id)) return { state: "absent" };
     if (r.pendingIds.includes(q.id)) {
       return {
         state: "pending",
         late: r.late.includes(q.id),
         onPress: () => review(q.id),
-        label: `${i + 1}: ${m.status_pending()}`,
+        label: `${own + 1}: ${m.status_pending()}`,
       };
     }
     const got = r.points[i];
@@ -225,6 +245,20 @@ function cellsOf(
       text: answered ? pts(got) : "",
       overridden,
       late: r.late.includes(q.id),
+    };
+  };
+  if (!res.drawn) return res.questions.map((_, i) => cell(i, i));
+  return r.order.map((id, own) => {
+    const i = res.questions.findIndex((q) => q.question.id === id);
+    const text = [...plainText(res.questions[i].question.text)];
+    return {
+      ...cell(i, own),
+      title: m.journal_cell_question({
+        number: i + 1,
+        // Cut as the live view's texts are.
+        text:
+          text.length > 120 ? `${text.slice(0, 120).join("")}…` : text.join(""),
+      }),
     };
   });
 }

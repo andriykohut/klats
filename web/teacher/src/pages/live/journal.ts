@@ -4,6 +4,8 @@
  * when it is drawn as one bar.
  */
 
+import type { JournalCell } from "./JournalTable";
+
 /** Above this many questions a row is one bar instead of one cell each. */
 export const COMPACT_AFTER = 40;
 
@@ -42,6 +44,18 @@ export function tally(states: string[]): {
     else if (s !== "absent") t.left++;
   }
   return t;
+}
+
+/**
+ * Returns `cells` followed by "absent" cells up to `n` in all, so a drawn
+ * row that got fewer questions than the longest keeps the table square.
+ */
+export function padCells(cells: JournalCell[], n: number): JournalCell[] {
+  const pad = Array.from(
+    { length: n - cells.length },
+    (): JournalCell => ({ state: "absent" }),
+  );
+  return [...cells, ...pad];
 }
 
 /** Returns the width of the grade column: a pass or a fail is a word. */

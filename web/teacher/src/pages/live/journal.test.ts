@@ -3,6 +3,7 @@ import {
   formatDate,
   formatPoints,
   initials,
+  padCells,
   shortName,
   tally,
 } from "./journal";
@@ -58,6 +59,15 @@ test("a tally leaves out the questions a student did not get", () => {
     answered: 0,
     left: 1,
   });
+});
+
+test("padCells fills a short row with absent cells", () => {
+  expect(padCells([{ state: "correct" }], 3)).toEqual([
+    { state: "correct" },
+    { state: "absent" },
+    { state: "absent" },
+  ]);
+  expect(padCells([{ state: "correct" }], 1)).toEqual([{ state: "correct" }]);
 });
 
 test("points show up to two decimals in the UI language", () => {

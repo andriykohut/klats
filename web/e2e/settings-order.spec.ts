@@ -62,10 +62,8 @@ test("each student gets 3 of 5 questions", async ({ klats }) => {
   const rows = results.locator(".j-table tbody tr");
   await expect(rows).toHaveCount(2);
   for (const row of await rows.all()) {
-    await expect(row.getByRole("img", { name: m.legend_absent() })).toHaveText([
-      "—",
-      "—",
-    ]);
+    await expect(row.locator(".j-cell")).toHaveCount(3);
+    await expect(row.locator('[data-state="absent"]')).toHaveCount(0);
   }
 });
 

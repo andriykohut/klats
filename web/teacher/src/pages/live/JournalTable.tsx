@@ -34,6 +34,7 @@ export type CellState =
  * One question cell: `state` picks its colour and `text` is drawn inside. An
  * override puts a dot on its corner and a late answer outlines it. A cell
  * with `onPress` is a button named `label`, above the row's own button.
+ * `title` is the tooltip of its table cell.
  */
 export interface JournalCell {
   state: CellState;
@@ -42,6 +43,7 @@ export interface JournalCell {
   late?: boolean;
   onPress?: () => void;
   label?: string;
+  title?: string;
 }
 
 /** A student's row: the name cell, the cells, and the columns around them. */
@@ -73,13 +75,14 @@ const MIN_CELL = 8;
 
 /**
  * The class journal: one row per student in the order given, one cell per
- * question, and a footer with the percent of full-point answers per question
- * (`pct`, null while nobody answered), those under 60% highlighted. Above
- * {@link COMPACT_AFTER} questions each row's cells become one bar split into
- * full, fewer and no points, labelled by `barLabel`. `tools` and `legend`
- * (a sample cell beside each label) fill the strip above the head. Space
- * left over goes to an empty last column, so every column stays near the
- * name. The "results" variant draws taller cells with the points inside.
+ * question, and, given `pct`, a footer `footLabel` with the percent of
+ * full-point answers per question (null while nobody answered), those under
+ * 60% highlighted. Above {@link COMPACT_AFTER} questions each row's cells
+ * become one bar split into full, fewer and no points, labelled by
+ * `barLabel`. `tools` and `legend` (a sample cell beside each label) fill the
+ * strip above the head. Space left over goes to an empty last column, so
+ * every column stays near the name. The "results" variant draws taller cells
+ * with the points inside.
  */
 export function JournalTable(props: {
   variant?: "results";
@@ -87,8 +90,8 @@ export function JournalTable(props: {
   before: JournalColumn[];
   after: JournalColumn[];
   rows: JournalRow[];
-  pct: (number | null)[];
-  footLabel: string;
+  pct?: (number | null)[];
+  footLabel?: string;
   barLabel: (t: ReturnType<typeof tally>) => string;
   tools?: ReactNode;
   legend: readonly { swatch: JournalCell; label: string }[];
@@ -178,7 +181,8 @@ export function JournalTable(props: {
                   </td>
                 ) : (
                   r.cells.map((c, q) => (
-                    <td key={q} className="j-q">
+                    // On the td: a pressable cell's Button drops a title.
+                    <td key={q} className="j-q" title={c.title}>
                       <Cell cell={c} />
                     </td>
                   ))
@@ -188,34 +192,36 @@ export function JournalTable(props: {
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr>
-              <td />
-              <td colSpan={1 + props.before.length}>{props.footLabel}</td>
-              {compact ? (
-                <td className="j-q">
-                  <span className="j-hist">
-                    {props.pct.map((p, q) => (
-                      <Pct key={q} pct={p} number={q + 1} />
-                    ))}
-                  </span>
-                </td>
-              ) : (
-                props.pct.map((p, q) => (
-                  <td key={q} className="j-q j-q-pct">
-                    {n <= PCT_AS_TEXT ? (
-                      <span className="j-pct" data-low={low(p)}>
-                        {p === null ? "—" : `${p}%`}
-                      </span>
-                    ) : (
-                      <Pct pct={p} number={q + 1} />
-                    )}
+          {props.pct && (
+            <tfoot>
+              <tr>
+                <td />
+                <td colSpan={1 + props.before.length}>{props.footLabel}</td>
+                {compact ? (
+                  <td className="j-q">
+                    <span className="j-hist">
+                      {props.pct.map((p, q) => (
+                        <Pct key={q} pct={p} number={q + 1} />
+                      ))}
+                    </span>
                   </td>
-                ))
-              )}
-              <td colSpan={props.after.length + 1} />
-            </tr>
-          </tfoot>
+                ) : (
+                  props.pct.map((p, q) => (
+                    <td key={q} className="j-q j-q-pct">
+                      {n <= PCT_AS_TEXT ? (
+                        <span className="j-pct" data-low={low(p)}>
+                          {p === null ? "—" : `${p}%`}
+                        </span>
+                      ) : (
+                        <Pct pct={p} number={q + 1} />
+                      )}
+                    </td>
+                  ))
+                )}
+                <td colSpan={props.after.length + 1} />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

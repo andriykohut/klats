@@ -610,6 +610,7 @@
   "legend_overridden": "змінив учитель",
   "legend_late": "надійшла пізно",
   "legend_absent": "не випало учневі",
+  "journal_cell_question": "Питання {number} у тесті: «{text}»",
   "detail_question": "Питання {number}",
   "detail_question_own": "Питання {number} (в учня — {own})",
   "detail_picked": "Обрано",

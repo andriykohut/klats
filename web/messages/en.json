@@ -579,6 +579,7 @@
   "legend_overridden": "changed by the teacher",
   "legend_late": "arrived late",
   "legend_absent": "not in this student’s test",
+  "journal_cell_question": "Question {number} in the test: “{text}”",
   "detail_question": "Question {number}",
   "detail_question_own": "Question {number} (student’s no. {own})",
   "detail_picked": "Chosen",
