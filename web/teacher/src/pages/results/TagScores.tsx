@@ -3,8 +3,8 @@ import { m } from "@klats/shared/paraglide/messages.js";
 
 /**
  * «За тегами»: one row per tag with the whole class's share of points on its
- * questions, as a bar in the journal's full, partial or zero colour and a
- * percent, «—» for a tag nobody could score on yet.
+ * questions, as a bar in the journal's full or zero colour with a lighter
+ * orange between, and a percent, «—» for a tag nobody could score on yet.
  */
 export function TagScores({ tags }: { tags: TagScore[] }) {
   return (
