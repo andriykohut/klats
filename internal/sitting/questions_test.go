@@ -162,6 +162,16 @@ func TestDrawLines(t *testing.T) {
 		t.Errorf("2 of a missing tag, 1 of all: %v, want one question", got)
 	}
 
+	// The «усіх питань» line runs after the tag line although it is written first.
+	allFirst := with(testfmt.DrawLine{Count: 2}, testfmt.DrawLine{Tag: "A", Count: 3})
+	for i := range 20 {
+		id := "p" + strconv.Itoa(i)
+		got := testIDs(questionsFor(allFirst, id))
+		if len(got) != 5 || !slices.Contains(got, "q1") || !slices.Contains(got, "q2") || !slices.Contains(got, "q5") {
+			t.Errorf("2 of all, then 3 of A, for %s: %v, want all 3 of A and 2 others", id, got)
+		}
+	}
+
 	shuffled := with(testfmt.DrawLine{Count: 2})
 	shuffled.Settings.ShuffleQuestions = true
 	got := testIDs(questionsFor(shuffled, "p1"))

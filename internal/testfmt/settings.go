@@ -14,10 +14,11 @@ type Settings struct {
 	TimeLimit TimeLimit `json:"timeLimit"`
 	// ShuffleQuestions gives each student the questions in an order of their own.
 	ShuffleQuestions bool `json:"shuffleQuestions"`
-	// Draw picks each student's questions at random. Its lines run top to
-	// bottom, and each picks Count of the questions carrying its Tag (any
-	// question for an empty Tag) that no earlier line picked, or fewer when
-	// they run out. Empty means everyone gets every question.
+	// Draw picks each student's questions at random. Its tag lines run first,
+	// top to bottom, then its lines with an empty Tag; each picks Count of the
+	// questions carrying its Tag (any question for an empty Tag) that no
+	// earlier line picked, or fewer when they run out. Empty means everyone
+	// gets every question.
 	Draw       []DrawLine `json:"draw,omitempty"`
 	Scale      Scale      `json:"scale"`
 	Reveal     string     `json:"reveal"`

@@ -9,8 +9,8 @@ export function sourceSize(questions: Question[], tag: string): number {
 
 /**
  * Returns how many questions `lines` give each student: each line's count up
- * to the size of its source, summed, and at most the whole test. Lines whose
- * sources share questions can give fewer, since no question is picked twice.
+ * to the size of its source, summed, and at most the whole test. Tag lines
+ * whose tags share questions can give fewer, since no question is picked twice.
  */
 export function drawTotal(questions: Question[], lines: DrawLine[]): number {
   const sum = lines.reduce(

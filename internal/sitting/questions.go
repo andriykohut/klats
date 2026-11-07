@@ -24,14 +24,20 @@ func questionsFor(t testfmt.Test, participantID string) []testfmt.Question {
 	shuffle(idx, participantID+"#q")
 	if len(s.Draw) > 0 {
 		// Each line takes the first of its questions in the shuffled order, and
-		// idx keeps that order so a shuffled sitting mixes the lines.
+		// idx keeps that order so a shuffled sitting mixes the lines. The lines
+		// from all questions go last, so they cannot take a tag line's questions.
 		picked := make([]bool, len(idx))
-		for _, l := range s.Draw {
-			n := 0
-			for _, i := range idx {
-				if n < l.Count && !picked[i] && (l.Tag == "" || slices.Contains(t.Questions[i].Tags, l.Tag)) {
-					picked[i] = true
-					n++
+		for _, fromAll := range []bool{false, true} {
+			for _, l := range s.Draw {
+				if (l.Tag == "") != fromAll {
+					continue
+				}
+				n := 0
+				for _, i := range idx {
+					if n < l.Count && !picked[i] && (l.Tag == "" || slices.Contains(t.Questions[i].Tags, l.Tag)) {
+						picked[i] = true
+						n++
+					}
 				}
 			}
 		}
