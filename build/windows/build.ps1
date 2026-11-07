@@ -31,7 +31,7 @@ New-Item -ItemType Directory -Force dist | Out-Null
 
 Invoke-Native { pnpm -C web install }
 Invoke-Native { pnpm -C web -r --if-present build }
-Invoke-Native { go build -trimpath -ldflags "-H windowsgui -s -w -X main.version=$Version" -o dist/klats.exe ./cmd/klats }
+Invoke-Native { go build -tags production -trimpath -ldflags "-H windowsgui -s -w -X main.version=$Version" -o dist/klats.exe ./cmd/klats }
 
 # klats.iss bundles this file under this name into the offline installer.
 $webView2 = 'dist\MicrosoftEdgeWebView2RuntimeInstallerX64.exe'

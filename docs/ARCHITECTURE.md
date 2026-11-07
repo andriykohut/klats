@@ -750,17 +750,19 @@ Each system has a script under `build/` that turns a version into that
 system's installers in `dist/`.
 
 - **Windows:** `build/windows/build.ps1 -Version 1.2.3` builds `klats.exe`
-  with the version stamped in, then compiles `build/windows/klats.iss` with
-  Inno Setup 6 twice, into `Klats-Setup.exe` and `Klats-Setup-Offline.exe`.
+  with the version stamped in and Wails' `production` tag, which leaves out
+  DevTools and the browser's context menu, then compiles
+  `build/windows/klats.iss` with Inno Setup 6 twice, into `Klats-Setup.exe`
+  and `Klats-Setup-Offline.exe`.
   The offline one carries Microsoft's WebView2 runtime installer, which the
   script downloads, and runs it only when the runtime is missing.
   - Both ask for admin rights and install for every user into Program
     Files. They speak the Windows display language if it is Ukrainian or
     English, and otherwise ask, offering Ukrainian.
   - They add a firewall rule that lets the local subnet reach `klats.exe` on
-    private and public networks, and make `.klats` files open in Klats with
-    the path as the only argument, the one case in which Wails reports a
-    file opened at launch.
+    domain, private and public networks, and make `.klats` files open in
+    Klats with the path as the only argument, the one case in which Wails
+    reports a file opened at launch.
   - `klats.exe` has no icon resource: the window takes its icon from Wails,
     and the shortcuts, the uninstall entry and the file type use
     `klats.ico` and `klats-file.ico`, installed beside it.

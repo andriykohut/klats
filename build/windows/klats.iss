@@ -73,10 +73,11 @@ Root: HKA; Subkey: "Software\Classes\Klats.Test\DefaultIcon"; ValueType: string;
 Root: HKA; Subkey: "Software\Classes\Klats.Test\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\klats.exe"" ""%1"""
 
 [Run]
-; Students reach Klats over the lab network, which Windows often marks Public.
+; Students reach Klats over the lab network: Windows marks unknown networks
+; Public, and a domain-joined PC's school network is Domain.
 ; The delete keeps an install over an older version from adding a second rule.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Klats"""; Flags: runhidden
-Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Klats"" dir=in action=allow program=""{app}\klats.exe"" profile=private,public remoteip=localsubnet enable=yes"; Flags: runhidden
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Klats"" dir=in action=allow program=""{app}\klats.exe"" profile=domain,private,public remoteip=localsubnet enable=yes"; Flags: runhidden
 #ifdef Offline
 Filename: "{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe"; Parameters: "/silent /install"; Check: WebView2Missing
 #endif
