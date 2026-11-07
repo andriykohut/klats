@@ -3,9 +3,11 @@
  * app in each language into web/site/src/assets/shots/<lang>/. Six students
  * of class 7-Б take a nine-question test on networks: the live journal is
  * taken with one finished, one offline and the rest part-way through, the
- * results once all have finished. The students answer in Ukrainian, since
- * they join before the teacher app switches language; only the teacher's
- * screens and the test's content follow the capture's language.
+ * results once all have finished. The six students' own sheets stay in
+ * Ukrainian, since they join before the teacher app switches language and
+ * none of them is captured. The teacher's screens, the test, the class name
+ * and the join screen, through the computer's remembered `klats.lang`,
+ * follow the capture's language.
  */
 import { join } from "node:path";
 import type { SittingInfo } from "@klats/shared/generated/wire.ts";
@@ -149,10 +151,18 @@ const exact = (id: string, tags: string[], text: string, value: number) =>
     number: { mode: "exact", value, tolerance: 0, min: 0, max: 0 },
   });
 
-/** The same test in each language. */
-const TESTS: Record<Lang, { title: string; items: Item[] }> = {
+/** The test and class of one language's captures. */
+interface Content {
+  title: string;
+  className: string;
+  items: Item[];
+}
+
+/** The same test and class in each language. */
+const TESTS: Record<Lang, Content> = {
   uk: {
     title: "Інформатика. Мережі",
+    className: "7-Б",
     items: [
       choice("q1", ["Мережі", "Урок 8"], "Що таке комп’ютерна мережа?", [
         "*Комп’ютери, з’єднані між собою для обміну даними",
@@ -230,6 +240,7 @@ const TESTS: Record<Lang, { title: string; items: Item[] }> = {
   },
   en: {
     title: "Computer Science. Networks",
+    className: "7-B",
     items: [
       choice("q1", ["Networks", "Lesson 8"], "What is a computer network?", [
         "*Computers connected to each other to share data",
@@ -308,15 +319,29 @@ const TESTS: Record<Lang, { title: string; items: Item[] }> = {
  * six rows. `pc` labels the student's computer; `plan` marks each answer
  * right (+) or wrong (-), most mistakes falling on «Урок 9» so the scores
  * per tag differ; `live` is how many are answered when the live journal is
- * taken, and `away` loses the network after them.
+ * taken, and `away` loses the network after them. `time` is the time the
+ * results show, as m:ss.
  */
 const STUDENTS = [
-  { name: CLASS[0], pc: "3", plan: "+++++++-+", live: 9 },
-  { name: CLASS[2], pc: "12", plan: "++-++-+-+", live: 3, away: true },
-  { name: CLASS[1], pc: "7", plan: "+-++--+-+", live: 5 },
-  { name: "Мельник Софія", pc: "5", plan: "+++++++++", live: 6 },
-  { name: CLASS[3], pc: "9", plan: "-+++++-++", live: 4 },
-  { name: "Шевченко Андрій", pc: "14", plan: "++-+++--+", live: 2 },
+  { name: CLASS[0], pc: "3", plan: "+++++++-+", live: 9, time: "14:52" },
+  {
+    name: CLASS[2],
+    pc: "12",
+    plan: "++-++-+-+",
+    live: 3,
+    away: true,
+    time: "31:37",
+  },
+  { name: CLASS[1], pc: "7", plan: "+-++--+-+", live: 5, time: "27:05" },
+  { name: "Мельник Софія", pc: "5", plan: "+++++++++", live: 6, time: "22:18" },
+  { name: CLASS[3], pc: "9", plan: "-+++++-++", live: 4, time: "25:43" },
+  {
+    name: "Шевченко Андрій",
+    pc: "14",
+    plan: "++-+++--+",
+    live: 2,
+    time: "29:10",
+  },
 ];
 
 /** Answers questions `from` up to `to` as `plan` says, handing the test in after the last. */
@@ -354,7 +379,7 @@ const shot = (page: Page, lang: Lang, name: string) =>
 
 for (const lang of ["uk", "en"] as const) {
   test(`the site's screenshots in ${lang}`, async ({ klats }) => {
-    const { title, items } = TESTS[lang];
+    const { title, className, items } = TESTS[lang];
     const locale = { locale: lang };
     const teacher = await klats.teacher("/live");
     const origin = new URL(teacher.url()).origin;
@@ -376,7 +401,7 @@ for (const lang of ["uk", "en"] as const) {
     );
     const cls = await api<{ id: string }>("POST", "/api/classes", {
       id: "",
-      name: "7-Б",
+      name: className,
       students: STUDENTS.map(({ name }) => ({ id: "", name })),
     });
     const { code, assignmentId } = await api<SittingInfo>(
@@ -460,14 +485,30 @@ for (const lang of ["uk", "en"] as const) {
     await expect(
       teacher.getByRole("heading", { name: m.results_tags({}, locale) }),
     ).toBeVisible();
+    // shortcut: the server times real join→finish, which an automated run makes seconds long; rewritten for the picture only. Upgrade: a server clock seam, if shots ever need real durations.
+    const times = Object.fromEntries(STUDENTS.map((s) => [s.name, s.time]));
+    const rewritten = await teacher.evaluate((times) => {
+      let n = 0;
+      for (const tr of document.querySelectorAll(".j-table tbody tr")) {
+        const name = tr.querySelector(".r-open")?.textContent ?? "";
+        // A row's number cells are its points, then its time.
+        const cell = tr.querySelectorAll("td.r-col-num")[1];
+        if (cell && times[name]) {
+          cell.textContent = times[name];
+          n++;
+        }
+      }
+      return n;
+    }, times);
+    expect(rewritten).toBe(STUDENTS.length);
     await shot(teacher, lang, "results");
 
-    await teacher.goto(`${origin}/tests/${testId}?q=q2`);
+    await teacher.goto(`${origin}/tests/${testId}?q=q1`);
     await expect(
       teacher.getByRole("textbox", {
         name: m.builder_question_text({}, locale),
       }),
-    ).toContainText(items[1].question.title);
+    ).toContainText(items[0].question.title);
     await shot(teacher, lang, "builder");
 
     // A lab computer opens the student app in the language of its last test.
