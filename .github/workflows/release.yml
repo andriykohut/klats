@@ -13,8 +13,11 @@ permissions:
   contents: read
 
 jobs:
+  # Windows minutes count twice; the timeout caps what a hung step, such as
+  # the WebView2 download, costs.
   windows:
     runs-on: windows-2025
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -32,7 +35,6 @@ jobs:
         run: |
           version=0.0.0-dev.$GITHUB_RUN_NUMBER
           if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
-          go tool sqlc generate
           go tool tygo generate
           pwsh -File build/windows/build.ps1 -Version "$version"
       # Artifacts count against the account's storage for as long as they are
@@ -65,7 +67,6 @@ jobs:
         run: |
           version=0.0.0-dev.$GITHUB_RUN_NUMBER
           if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
-          go tool sqlc generate
           go tool tygo generate
           build/macos/build.sh "$version"
       - uses: actions/upload-artifact@v7
@@ -93,9 +94,16 @@ jobs:
         run: |
           version=0.0.0-dev.$GITHUB_RUN_NUMBER
           if [ "$GITHUB_REF_TYPE" = tag ]; then version=${GITHUB_REF_NAME#v}; fi
-          go tool sqlc generate
           go tool tygo generate
           build/linux/build.sh "$version"
+      # Shows in the log what each package holds. The AppImage unpacks into
+      # squashfs-root, kept out of the workspace.
+      - name: List the packages
+        run: |
+          dpkg-deb -c dist/klats_amd64.deb
+          cd "$RUNNER_TEMP"
+          "$GITHUB_WORKSPACE/dist/Klats-x86_64.AppImage" --appimage-extract >/dev/null
+          ls -R squashfs-root
       - uses: actions/upload-artifact@v7
         with:
           name: linux
