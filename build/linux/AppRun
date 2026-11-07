@@ -1,0 +1,6 @@
+#!/bin/sh
+# Starts Klats from the AppImage. The AppImage runtime sets APPDIR to the
+# mounted image; an AppRun started by hand from an extracted squashfs-root
+# finds its own folder instead. The arguments pass through unchanged, because
+# Wails reports a file opened at launch only when its path is the one argument.
+exec "${APPDIR:-$(dirname "$(readlink -f "$0")")}/usr/bin/klats" "$@"

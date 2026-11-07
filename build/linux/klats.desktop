@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Klats
+Name[uk]=Клац
+# The path is the only argument: Wails reports a file opened at launch only then.
+Exec=klats %f
+Icon=klats
+Categories=Education;
+MimeType=application/x-klats-test;

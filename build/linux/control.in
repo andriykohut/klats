@@ -1,0 +1,7 @@
+Package: klats
+Version: @VERSION@
+Architecture: amd64
+Maintainer: Andrii Kohut <kogut.andriy@gmail.com>
+Depends: libgtk-4-1, libwebkitgtk-6.0-4
+Description: Клац — тести в комп’ютерному класі
+ Klats is a free, open-source app for running tests in school computer labs.

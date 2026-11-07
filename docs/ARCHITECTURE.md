@@ -780,3 +780,23 @@ system's installers in `dist/`.
     `ua.klats.teacher` and macOS 13 as its floor, and exports the type
     `ua.klats.test` for `.klats` files with Klats as their editor; macOS
     sends Klats a document open only for a type the bundle declares.
+- **Linux:** `build/linux/build.sh 1.2.3` builds one x86_64 binary on
+  Ubuntu 24.04 with the version stamped in and the `production` tag, and
+  packs it into `klats_amd64.deb` and `Klats-x86_64.AppImage`. Both run on
+  the system's GTK 4 and WebKitGTK 6.0, and the AppImage bundles no
+  libraries, so both need a system no older than Ubuntu 24.04, Debian 13
+  or Fedora 40.
+  - The `.deb` depends on `libgtk-4-1` and `libwebkitgtk-6.0-4` and installs
+    the binary, a menu entry, the icon and the `application/x-klats-test`
+    type for `.klats` files. The menu entry runs `klats %f`, so a
+    double-clicked file arrives as the only argument, as Wails needs at
+    launch. The menu and type caches update through the dpkg triggers of
+    `desktop-file-utils` and `shared-mime-info`, so the package has no
+    maintainer scripts. A pre-release version such as `0.1.0-rc.1` becomes
+    `0.1.0~rc.1`, which dpkg sorts before `0.1.0`.
+  - The AppImage holds the same files and an `AppRun` that passes its
+    arguments on unchanged. It runs without installing and registers no
+    menu entry or file type itself. The script builds it with
+    `appimagetool` 1.9.0 and the AppImage runtime from the `type2-runtime`
+    release `20251108`, downloading both and checking each against a
+    pinned SHA-256.
