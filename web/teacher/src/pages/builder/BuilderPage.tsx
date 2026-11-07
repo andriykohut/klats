@@ -31,6 +31,7 @@ import {
   convertQuestion,
   fromPasted,
   insertAt,
+  listed,
   newQuestion,
   tagCounts,
   withTag,
@@ -269,7 +270,11 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
       ...t,
       questions: t.questions.filter((q) => q.id !== id),
     }));
-    select(all[index + 1]?.id ?? all[index - 1]?.id ?? "");
+    // The next row the list shows, so a filtered list keeps to its filter.
+    const rows = listed(all, showing, id);
+    const row = rows.findIndex((r) => r.question.id === id);
+    const next = rows[row + 1] ?? rows[row - 1];
+    select(next?.question.id ?? all[index + 1]?.id ?? all[index - 1]?.id ?? "");
     offerUndo(m.builder_question_deleted({ number: index + 1 }), () => {
       update((t) => ({ ...t, questions: insertAt(t.questions, index, gone) }));
       select(gone.id);

@@ -72,6 +72,11 @@ test("a teacher tags a question, filters the list, and new questions get the tag
   await expect
     .poll(() => savedTags(page, id))
     .toEqual([["Мережі"], ["Мережі"], [], []]);
+
+  // The new question is the last «Мережі» row, and an untagged one follows it in the test.
+  await page.getByRole("button", { name: m.builder_delete_question() }).click();
+  await expect(list.locator(".b-qi-n")).toHaveText(["1"]);
+  await expect(tags).toContainText("Мережі");
 });
 
 test("a pasted question gets the filtered tag", async ({ klats }) => {
