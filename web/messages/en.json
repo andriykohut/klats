@@ -590,6 +590,7 @@
       }
     }
   ],
+  "start_draw_empty": "Each student would get 0 questions: no question in the test carries the tags named in the settings.",
   "export_saved": "Saved: {path}",
   "export_downloaded": "File downloaded: {name}",
   "results_write_failed": "The file could not be written. If it is open in Excel, close it and try again.",

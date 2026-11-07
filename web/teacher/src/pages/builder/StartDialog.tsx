@@ -26,6 +26,7 @@ import { ApiError, startSitting } from "../../api/client";
 import { busy, useClasses, useLive } from "../../api/queries";
 import { notify } from "../../ui/Toasts";
 import { problemText } from "./Checks";
+import { drawTotal } from "./draw";
 
 /** The value of «Без списку»; class ids are never empty. */
 const NO_LIST = "";
@@ -70,7 +71,8 @@ interface StartProps {
  * test's minutes from now; a time that has passed, or an empty or partly
  * typed one, blocks the start. Problems that block the start, known from the
  * last save or returned by the server, are listed with links to their
- * questions; a sitting already running is named, with a link to it.
+ * questions; a draw that would give each student no question also blocks it,
+ * and a sitting already running is named, with a link to it.
  */
 export function StartDialog(props: StartProps & { isDisabled: boolean }) {
   return (
@@ -144,6 +146,9 @@ function StartForm(props: StartProps & { close: () => void }) {
     (p) => p.severity === "error" && number.has(p.questionId),
   );
   const running = taken || (live.data != null && !live.data.sitting.ended);
+  const drawEmpty =
+    (props.settings.draw?.length ?? 0) > 0 &&
+    drawTotal(props.questions, props.settings.draw ?? []) === 0;
   const collator = new Intl.Collator("uk", { numeric: true });
   const sorted = [...(classes.data ?? [])].sort((a, b) =>
     collator.compare(a.name, b.name),
@@ -214,6 +219,11 @@ function StartForm(props: StartProps & { close: () => void }) {
           </div>
         </div>
       )}
+      {drawEmpty && (
+        <p className="t-notice b-start-draw" data-tone="error">
+          {m.start_draw_empty()}
+        </p>
+      )}
       {running && (
         <div className="t-notice b-start-running">
           <div>
@@ -234,6 +244,7 @@ function StartForm(props: StartProps & { close: () => void }) {
           isDisabled={
             choice === null ||
             blocking.length > 0 ||
+            drawEmpty ||
             running ||
             (common && (endsAt === null || past))
           }

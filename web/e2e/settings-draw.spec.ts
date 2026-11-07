@@ -90,3 +90,20 @@ test("a test without tags keeps the plain count", async ({ klats }) => {
     0,
   );
 });
+
+test("a draw from tags no question carries blocks the start", async ({
+  klats,
+}) => {
+  const id = await klats.create(FIVE, { draw: [{ tag: "Z", count: 2 }] });
+  const page = await klats.teacher(`/tests/${id}`);
+  await page.getByRole("button", { name: m.builder_start() }).click();
+  const dialog = page.getByRole("dialog");
+  // With a class chosen, only the empty draw keeps «Запустити» disabled.
+  await dialog.getByText(m.start_no_list(), { exact: true }).click();
+  await expect(
+    dialog.getByText(m.start_draw_empty(), { exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: m.start_go() }),
+  ).toBeDisabled();
+});
