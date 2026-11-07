@@ -186,6 +186,9 @@ func TestDrawLines(t *testing.T) {
 func TestSubsetGrading(t *testing.T) {
 	e, _ := setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}})
 	info := start(t, e, nil)
+	if info.PerStudent != 3 || info.QuestionCount != 5 {
+		t.Errorf("PerStudent %d of %d, want 3 of 5", info.PerStudent, info.QuestionCount)
+	}
 	right := enter(t, e, info.Code, devA, "Шевченко")
 	wrong := enter(t, e, info.Code, devB, "Франко")
 	got := map[string][]string{} // participant id → the ids of its questions

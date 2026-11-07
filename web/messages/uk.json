@@ -955,6 +955,20 @@
   "scale_pass": "Зараховано / не зараховано",
   "time_add_five": "+5 хв",
   "live_time_student": "{minutes} хв на учня",
+  "live_count_drawn": [
+    {
+      "declarations": [
+        "input count",
+        "input total",
+        "local totalPlural = total: plural"
+      ],
+      "selectors": ["totalPlural"],
+      "match": {
+        "totalPlural=one": "{count} з {total} питання",
+        "totalPlural=*": "{count} з {total} питань"
+      }
+    }
+  ],
   "live_time_until": "до {time}",
   "start_end_at": "Завершити о",
   "start_end_past": "Цей час уже минув",

@@ -46,6 +46,8 @@ test("a drawn sitting shows each student's own questions", async ({
       live.rows.every((r) => r.cells[0] === "correct"),
   );
 
-  await expectOwnColumns(await klats.teacher("/live"));
+  const live = await klats.teacher("/live");
+  await expect(live.locator(".l-title span")).toContainText("2 з 5 питань");
+  await expectOwnColumns(live);
   await expectOwnColumns(await klats.teacher(`/assignments/${assignmentId}`));
 });

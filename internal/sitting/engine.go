@@ -415,12 +415,14 @@ func (a *active) info() wire.SittingInfo {
 		TestTitle:     a.test.Title,
 		ClassName:     a.assignment.ClassName.String,
 		QuestionCount: len(a.test.Questions),
-		StartedAt:     a.sitting.StartedAt,
-		Ended:         a.sitting.EndedAt.Valid,
-		Scale:         a.test.Settings.Scale.Kind,
-		TimeMode:      a.test.Settings.TimeLimit.Mode,
-		Minutes:       a.test.Settings.TimeLimit.Minutes,
-		EndsAt:        a.sitting.EndsAt.Int64,
+		// Any participant id gives the count; only tag lines sharing questions vary it.
+		PerStudent: len(questionsFor(a.test, a.sitting.ID)),
+		StartedAt:  a.sitting.StartedAt,
+		Ended:      a.sitting.EndedAt.Valid,
+		Scale:      a.test.Settings.Scale.Kind,
+		TimeMode:   a.test.Settings.TimeLimit.Mode,
+		Minutes:    a.test.Settings.TimeLimit.Minutes,
+		EndsAt:     a.sitting.EndsAt.Int64,
 	}
 }
 

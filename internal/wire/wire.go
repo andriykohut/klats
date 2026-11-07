@@ -10,10 +10,12 @@ import (
 )
 
 // SittingInfo describes a sitting to the teacher. ClassName is empty when the
-// sitting has no class list. Ended is set once the teacher ended it. Scale is
-// the kind of the test's grading scale (testfmt.Scale.Kind) that the grades in
-// the live view are on. TimeMode and Minutes are the test's time limit
-// (testfmt.TimeLimit); EndsAt is the common end time of a "common" one, else 0.
+// sitting has no class list. PerStudent is how many questions each student
+// gets: QuestionCount, or fewer when the test draws them at random. Ended is
+// set once the teacher ended it. Scale is the kind of the test's grading scale
+// (testfmt.Scale.Kind) that the grades in the live view are on. TimeMode and
+// Minutes are the test's time limit (testfmt.TimeLimit); EndsAt is the common
+// end time of a "common" one, else 0.
 type SittingInfo struct {
 	SittingID     string `json:"sittingId"`
 	AssignmentID  string `json:"assignmentId"`
@@ -21,6 +23,7 @@ type SittingInfo struct {
 	TestTitle     string `json:"testTitle"`
 	ClassName     string `json:"className"`
 	QuestionCount int    `json:"questionCount"`
+	PerStudent    int    `json:"perStudent"`
 	StartedAt     int64  `json:"startedAt"`
 	Ended         bool   `json:"ended"`
 	Scale         string `json:"scale"`

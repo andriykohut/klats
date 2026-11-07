@@ -13,11 +13,12 @@ const SCALE_NAMES = {
 };
 
 /**
- * The live view's own bar: the test, its class, question count, scale and
- * per-student time limit, the end time with the time left when the sitting
- * has a common one, the join code with «Показати на дошці», and «Завершити
- * тест». Once the sitting has ended, the time and the code go and the button
- * opens the results instead. The mark leads back to «Мої тести».
+ * The live view's own bar: the test, its class, question count («4 з 9
+ * питань» when each student gets some of them), scale and per-student time
+ * limit, the end time with the time left when the sitting has a common one,
+ * the join code with «Показати на дошці», and «Завершити тест». Once the
+ * sitting has ended, the time and the code go and the button opens the
+ * results instead. The mark leads back to «Мої тести».
  */
 export function LiveTopBar(props: {
   sitting: SittingInfo;
@@ -27,7 +28,9 @@ export function LiveTopBar(props: {
   const s = props.sitting;
   const about = [
     s.className,
-    m.builder_count_questions({ count: s.questionCount }),
+    s.perStudent < s.questionCount
+      ? m.live_count_drawn({ count: s.perStudent, total: s.questionCount })
+      : m.builder_count_questions({ count: s.questionCount }),
     SCALE_NAMES[s.scale as keyof typeof SCALE_NAMES]?.(),
     s.timeMode === "student" && m.live_time_student({ minutes: s.minutes }),
   ]

@@ -904,6 +904,20 @@
   "scale_pass": "Pass / fail",
   "time_add_five": "+5 min",
   "live_time_student": "{minutes} min per student",
+  "live_count_drawn": [
+    {
+      "declarations": [
+        "input count",
+        "input total",
+        "local totalPlural = total: plural"
+      ],
+      "selectors": ["totalPlural"],
+      "match": {
+        "totalPlural=one": "{count} of {total} question",
+        "totalPlural=*": "{count} of {total} questions"
+      }
+    }
+  ],
   "live_time_until": "until {time}",
   "start_end_at": "End at",
   "start_end_past": "That time has passed",
