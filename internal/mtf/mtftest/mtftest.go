@@ -70,7 +70,7 @@ func Encode(f mtf.File, media ...Entry) []byte {
 	w.u32(uint32(len(f.Themes)))
 	for _, t := range f.Themes {
 		w.u32(t.ID)
-		w.str("") // name
+		w.str(t.Name)
 		w.str("") // description
 		w.u32(uint32(t.Ask))
 		w.bool(t.AskOn)

@@ -22,7 +22,7 @@ func sample() (mtf.File, []mtftest.Entry) {
 	f := mtf.File{
 		Title:     "Дроби",
 		TimeLimit: 720,
-		Themes:    []mtf.Theme{{ID: 0}, {ID: 4, Ask: 2, AskOn: true}},
+		Themes:    []mtf.Theme{{ID: 0, Name: "Повторення"}, {ID: 4, Name: "Дроби", Ask: 2, AskOn: true}},
 		Questions: []mtf.Question{
 			{Type: 1, Text: mtftest.RTF("Скільки буде 1/2 + 1/4?"), Picture: "{A1}.bmp", Points: 1, Answers: []string{"3/4", "2/6"}, Keys: []uint32{1, 0}},
 			{Type: 2, Text: "{\\rtf1 b}", Points: 2, Hint: mtftest.RTF("підказка"), Comment: mtftest.RTF("коментар"), ThemeID: 4, Answers: []string{"a", "b"}, Keys: []uint32{1, 1}},

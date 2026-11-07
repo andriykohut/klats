@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { TestDoc } from "@klats/shared/generated/wire.ts";
 import type { Page } from "@playwright/test";
 import { expect, m, openFile, TEST, test } from "./fixtures";
 
@@ -54,10 +55,6 @@ test("an older-format file opens with a report", async ({ klats }) => {
   await expect(
     report.getByText(m.open_report_count({ count: 7 }), { exact: true }),
   ).toBeVisible();
-  // Questions 1–4 sit in the two themes asking one each, 5–7 in no theme.
-  await expect(
-    report.getByText(m.note_themes_flattened({ count: 5 }), { exact: true }),
-  ).toBeVisible();
   const links = report.getByRole("link");
   await expect(links).toHaveText([
     m.open_report_question({
@@ -69,6 +66,22 @@ test("an older-format file opens with a report", async ({ klats }) => {
 
   await links.nth(1).click();
   await expect(page).toHaveURL(/\/tests\/[^?]+\?q=q7$/);
+  // Questions 1–2, 3–4 and 5–7 sit in three themes; the first two ask one
+  // question each.
+  const doc: TestDoc = await page.evaluate(
+    async (id) => (await fetch(`/api/tests/${id}`)).json(),
+    new URL(page.url()).pathname.split("/")[2],
+  );
+  expect(doc.test.questions.map((q) => q.tags)).toEqual([
+    ...Array(2).fill(["Урок 1"]),
+    ...Array(2).fill(["Урок 2"]),
+    ...Array(3).fill(["Урок 3"]),
+  ]);
+  expect(doc.test.settings.draw).toEqual([
+    { tag: "Урок 1", count: 1 },
+    { tag: "Урок 2", count: 1 },
+    { tag: "Урок 3", count: 3 },
+  ]);
   await expect(
     page
       .getByRole("listbox", { name: m.builder_questions() })

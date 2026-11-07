@@ -20,9 +20,13 @@ import (
 const (
 	maxItems     = 50  // entries of one list of a question
 	maxAccepted  = 200 // runes of an accepted answer
+	maxDrawLines = 100
 	maxDrawCount = 1000
 	maxPoints    = 12
 	maxMinutes   = 300
+	// maxThemeName is the runes of a theme name a tag keeps, leaving room
+	// for a " (n)" suffix within the 200 of a tag.
+	maxThemeName = 190
 )
 
 // typeIDs holds the Klats type of each question type of the older format.
@@ -51,18 +55,17 @@ func convert(f File, ms *media.Store, pictures map[string]testfmt.Image) (testfm
 	if f.TimeLimit > 0 {
 		t.Settings.TimeLimit = testfmt.TimeLimit{Mode: testfmt.TimeStudent, Minutes: min((f.TimeLimit+59)/60, maxMinutes)}
 	}
+	tags, draw := themes(f)
+	t.Settings.Draw = draw
 	var notes []wire.OpenNote
-	if n, mixed := subset(f); n > 0 {
-		t.Settings.Draw = []testfmt.DrawLine{{Count: n}}
-		if mixed {
-			notes = append(notes, wire.OpenNote{Code: "themes_flattened", Count: n})
-		}
-	}
 	c := converter{ms: ms, pictures: pictures}
 	for i, src := range f.Questions {
 		q, qn, err := c.question(fmt.Sprintf("q%d", i+1), src)
 		if err != nil {
 			return testfmt.Test{}, nil, err
+		}
+		if tag, ok := tags[src.ThemeID]; ok {
+			q.Tags = []string{tag}
 		}
 		t.Questions = append(t.Questions, q)
 		notes = append(notes, qn...)
@@ -70,32 +73,59 @@ func convert(f File, ms *media.Store, pictures map[string]testfmt.Image) (testfm
 	return t, notes, nil
 }
 
-// subset returns how many questions f asks, 0 for all of them: as many as a
-// theme picking at random asks, at most its size, and every question of the
-// other themes. mixed reports that some are asked and more than one theme
-// holds questions, so picking from the whole test changes which ones a
-// student may get.
-func subset(f File) (n int, mixed bool) {
-	ask := map[uint32]int{}
-	for _, t := range f.Themes {
-		if t.AskOn && t.Ask > 0 {
-			ask[t.ID] = t.Ask
-		}
-	}
+// themes returns the tag of the questions of each theme, by theme id, and
+// the draw lines that ask what f asks. With one theme holding questions there
+// are no tags, and one line from the whole test when the theme asks some but
+// not all of them at random. With more, each theme holding questions is a tag named after
+// it, or after its id when the name is empty, a repeated name numbered " (2)",
+// " (3)" in theme order. When any of them asks at random, each gets a line in
+// theme order: as many as it asks, at most its size; none when it asks 0,
+// since then none of it is asked; and all of it when it does not ask at
+// random. Counts and lines are cut to the caps of testfmt.
+func themes(f File) (tags map[uint32]string, draw []testfmt.DrawLine) {
 	size := map[uint32]int{}
 	for _, q := range f.Questions {
 		size[q.ThemeID]++
 	}
-	for id, k := range size {
-		if a, ok := ask[id]; ok {
-			k = min(k, a)
+	var held []Theme
+	for _, t := range f.Themes {
+		if size[t.ID] > 0 {
+			held = append(held, t)
 		}
-		n += k
 	}
-	if n == len(f.Questions) {
-		return 0, false
+	if len(held) == 1 {
+		if t := held[0]; t.AskOn && t.Ask > 0 && t.Ask < size[t.ID] {
+			draw = []testfmt.DrawLine{{Count: min(t.Ask, maxDrawCount)}}
+		}
+		return nil, draw
 	}
-	return min(n, maxDrawCount), len(size) > 1
+	tags = map[uint32]string{}
+	seen := map[string]int{}
+	picks := false
+	for _, t := range held {
+		name := strings.TrimSpace(t.Name)
+		if name == "" {
+			name = strconv.FormatUint(uint64(t.ID), 10)
+		}
+		if r := []rune(name); len(r) > maxThemeName {
+			name = strings.TrimSpace(string(r[:maxThemeName]))
+		}
+		if seen[name]++; seen[name] > 1 {
+			name += fmt.Sprintf(" (%d)", seen[name])
+		}
+		tags[t.ID] = name
+		picks = picks || t.AskOn
+		switch n := size[t.ID]; {
+		case !t.AskOn:
+			draw = append(draw, testfmt.DrawLine{Tag: name, Count: min(n, maxDrawCount)})
+		case t.Ask > 0:
+			draw = append(draw, testfmt.DrawLine{Tag: name, Count: min(t.Ask, n, maxDrawCount)})
+		}
+	}
+	if !picks {
+		return tags, nil
+	}
+	return tags, draw[:min(len(draw), maxDrawLines)]
 }
 
 // question returns src converted into the question id, and the notes on it.

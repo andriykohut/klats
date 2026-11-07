@@ -15,14 +15,15 @@ var update = flag.Bool("update", false, "write the e2e fixtures instead of check
 
 // fixtures are the older-format files the e2e specs open, by file name under
 // web/e2e/fixtures. older.mtf holds a question of every type but true or
-// false, and converts with three notes: on its two themes asking one question
-// each, on question 3's item outside the order and on question 7's L-shaped
-// click area. older-clean.mtf converts with none, and older-many.mtf with a
-// hint_dropped note on each of its 30 questions.
+// false in three themes, which become tags drawing 1 of questions 1–2, 1 of
+// 3–4 and all of 5–7, and converts with two notes: on question 3's item
+// outside the order and on question 7's L-shaped click area. older-clean.mtf
+// converts with none, and older-many.mtf with a hint_dropped note on each of
+// its 30 questions.
 var fixtures = map[string][]byte{
 	"older.mtf": Encode(mtf.File{
 		Title:  "Старий тест",
-		Themes: []mtf.Theme{{ID: 1, Ask: 1, AskOn: true}, {ID: 2, Ask: 1, AskOn: true}},
+		Themes: []mtf.Theme{{ID: 1, Name: "Урок 1", Ask: 1, AskOn: true}, {ID: 2, Name: "Урок 2", Ask: 1, AskOn: true}, {ID: 0, Name: "Урок 3"}},
 		Questions: []mtf.Question{
 			{Type: 1, Points: 1, ThemeID: 1, Text: RTF("Скільки біт в одному байті?"),
 				Answers: []string{RTF("4"), RTF("8", WMF(BMP(16, 16), false, 0x0F43)), RTF("16")}, Keys: []uint32{0, 1, 0}},

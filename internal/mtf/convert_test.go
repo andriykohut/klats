@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -280,40 +281,80 @@ func TestOpenSettings(t *testing.T) {
 			t.Errorf("scale = %+v, want the default", got.Settings.Scale)
 		}
 	})
-	t.Run("themes flattened", func(t *testing.T) {
-		f := mtf.File{Themes: []mtf.Theme{{ID: 1, Ask: 1, AskOn: true}, {ID: 2, Ask: 1, AskOn: true}}}
-		for i := range 6 {
-			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1, ThemeID: uint32(1 + i/3)})
-		}
-		f.Questions[0].Hint = mtftest.RTF("підказка")
-		got, notes := open(t, f)
-		if want := []testfmt.DrawLine{{Count: 2}}; !reflect.DeepEqual(got.Settings.Draw, want) {
-			t.Errorf("draw = %+v, want %+v", got.Settings.Draw, want)
-		}
-		wantNotes(t, notes, wire.OpenNote{Code: "themes_flattened", Count: 2}, wire.OpenNote{QuestionID: "q1", Code: "hint_dropped"})
+	t.Run("themes become tags and lines", func(t *testing.T) {
+		got, notes := open(t, themed([]mtf.Theme{
+			{ID: 0, Name: "Урок 1", Ask: 2, AskOn: true},
+			{ID: 1, Name: " Урок 2 ", Ask: 1, AskOn: true},
+			{ID: 2, Name: "Урок 3"},
+			{ID: 3, Name: "Урок 4", AskOn: true},
+			{ID: 4, Name: "Порожня", Ask: 1, AskOn: true},
+		}, 3, 2, 2, 2))
+		wantThemes(t, got, slices.Concat(tagged(3, "Урок 1"), tagged(2, "Урок 2"), tagged(2, "Урок 3"), tagged(2, "Урок 4")),
+			[]testfmt.DrawLine{{Tag: "Урок 1", Count: 2}, {Tag: "Урок 2", Count: 1}, {Tag: "Урок 3", Count: 2}})
+		wantNotes(t, notes)
+	})
+	t.Run("one theme gets no tags", func(t *testing.T) {
+		got, notes := open(t, themed([]mtf.Theme{{ID: 0, Name: "Урок 1", Ask: 3, AskOn: true}}, 5))
+		wantThemes(t, got, tagged(5), []testfmt.DrawLine{{Count: 3}})
+		wantNotes(t, notes)
+		got, _ = open(t, themed([]mtf.Theme{{ID: 0, Name: "Урок 1", Ask: 5, AskOn: true}}, 5))
+		wantThemes(t, got, tagged(5), nil)
+	})
+	t.Run("repeated theme names stay apart", func(t *testing.T) {
+		got, _ := open(t, themed([]mtf.Theme{{ID: 0, Name: "Урок 9", Ask: 1, AskOn: true}, {ID: 1, Name: "Урок 9", Ask: 1, AskOn: true}}, 2, 2))
+		wantThemes(t, got, slices.Concat(tagged(2, "Урок 9"), tagged(2, "Урок 9 (2)")),
+			[]testfmt.DrawLine{{Tag: "Урок 9", Count: 1}, {Tag: "Урок 9 (2)", Count: 1}})
+	})
+	t.Run("themes without picks", func(t *testing.T) {
+		got, _ := open(t, themed([]mtf.Theme{{ID: 0, Name: "Урок 1"}, {ID: 1, Name: "Урок 2"}}, 1, 1))
+		wantThemes(t, got, slices.Concat(tagged(1, "Урок 1"), tagged(1, "Урок 2")), nil)
 	})
 	t.Run("theme asking more than it holds", func(t *testing.T) {
-		f := mtf.File{Themes: []mtf.Theme{{ID: 0}, {ID: 1, Ask: 5, AskOn: true}}}
-		for i := range 4 {
-			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1, ThemeID: uint32(i % 2)})
-		}
-		got, notes := open(t, f)
-		if got.Settings.Draw != nil {
-			t.Errorf("draw = %+v, want none, every question", got.Settings.Draw)
-		}
-		wantNotes(t, notes)
+		got, _ := open(t, themed([]mtf.Theme{{ID: 0, Name: "Урок 1", Ask: 5, AskOn: true}, {ID: 1, Name: "Урок 2", Ask: 1, AskOn: true}}, 2, 3))
+		wantThemes(t, got, slices.Concat(tagged(2, "Урок 1"), tagged(3, "Урок 2")),
+			[]testfmt.DrawLine{{Tag: "Урок 1", Count: 2}, {Tag: "Урок 2", Count: 1}})
 	})
-	t.Run("one theme", func(t *testing.T) {
-		f := mtf.File{Themes: []mtf.Theme{{ID: 0, Ask: 5, AskOn: true}}}
-		for range 10 {
-			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1})
-		}
-		got, notes := open(t, f)
-		if want := []testfmt.DrawLine{{Count: 5}}; !reflect.DeepEqual(got.Settings.Draw, want) {
-			t.Errorf("draw = %+v, want %+v", got.Settings.Draw, want)
-		}
-		wantNotes(t, notes)
+	t.Run("long and empty theme names", func(t *testing.T) {
+		long := strings.Repeat("я", 300)
+		got, _ := open(t, themed([]mtf.Theme{{ID: 0, Name: long}, {ID: 1, Name: long}, {ID: 7, Name: " "}}, 1, 1, 1))
+		wantThemes(t, got, slices.Concat(tagged(1, long[:2*190]), tagged(1, long[:2*190]+" (2)"), tagged(1, "7")), nil)
 	})
+}
+
+// themed returns a file of themes holding sizes[i] number questions in the
+// i-th.
+func themed(themes []mtf.Theme, sizes ...int) mtf.File {
+	f := mtf.File{Themes: themes}
+	for i, n := range sizes {
+		for range n {
+			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1, ThemeID: themes[i].ID})
+		}
+	}
+	return f
+}
+
+// tagged returns the tags of n questions, each tagged with tags.
+func tagged(n int, tags ...string) [][]string {
+	out := make([][]string, n)
+	for i := range out {
+		out[i] = tags
+	}
+	return out
+}
+
+// wantThemes checks the tags of each question of got and its draw.
+func wantThemes(t *testing.T, got testfmt.Test, tags [][]string, draw []testfmt.DrawLine) {
+	t.Helper()
+	var gotTags [][]string
+	for _, q := range got.Questions {
+		gotTags = append(gotTags, q.Tags)
+	}
+	if !reflect.DeepEqual(gotTags, tags) {
+		t.Errorf("tags = %q, want %q", gotTags, tags)
+	}
+	if !reflect.DeepEqual(got.Settings.Draw, draw) {
+		t.Errorf("draw = %+v, want %+v", got.Settings.Draw, draw)
+	}
 }
 
 func TestOpenNotes(t *testing.T) {

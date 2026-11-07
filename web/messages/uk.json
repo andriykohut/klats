@@ -238,17 +238,6 @@
   "note_order_extra_dropped": "прибрано елементи поза порядком: {count}",
   "note_hint_dropped": "підказку й пояснення не перенесено",
   "note_text_cut": "задовгий текст скорочено",
-  "note_themes_flattened": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Учні отримають {count} випадкове питання з усього тесту, а не з кожної теми окремо.",
-        "countPlural=few": "Учні отримають {count} випадкові питання з усього тесту, а не з кожної теми окремо.",
-        "countPlural=*": "Учні отримають {count} випадкових питань з усього тесту, а не з кожної теми окремо."
-      }
-    }
-  ],
   "classes_new": "Новий клас",
   "classes_students": [
     {

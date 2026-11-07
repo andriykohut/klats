@@ -11,7 +11,6 @@ const NOTES: Record<string, (n: OpenNote) => string> = {
     m.note_order_extra_dropped({ count: n.count ?? 0 }),
   hint_dropped: () => m.note_hint_dropped(),
   text_cut: () => m.note_text_cut(),
-  themes_flattened: (n) => m.note_themes_flattened({ count: n.count ?? 0 }),
 };
 
 /**

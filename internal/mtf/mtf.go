@@ -95,7 +95,8 @@ type File struct {
 
 // Theme is a group of questions, from which a test may ask some at random.
 type Theme struct {
-	ID uint32
+	ID   uint32
+	Name string
 	// Ask is how many random questions of the theme a test asks when AskOn is
 	// set.
 	Ask   int

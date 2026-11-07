@@ -231,16 +231,6 @@
   "note_order_extra_dropped": "items outside the order removed: {count}",
   "note_hint_dropped": "the hint and explanation weren’t carried over",
   "note_text_cut": "an overlong text was shortened",
-  "note_themes_flattened": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Students get {count} random question from the whole test, not from each theme separately.",
-        "countPlural=*": "Students get {count} random questions from the whole test, not from each theme separately."
-      }
-    }
-  ],
   "classes_new": "New class",
   "classes_students": [
     {

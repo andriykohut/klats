@@ -241,8 +241,7 @@ func (w *walker) header() File {
 }
 
 func (w *walker) theme() Theme {
-	t := Theme{ID: w.u32()}
-	w.str() // name
+	t := Theme{ID: w.u32(), Name: w.str()}
 	w.str() // description
 	t.Ask = int(w.u32())
 	t.AskOn = w.u8() != 0

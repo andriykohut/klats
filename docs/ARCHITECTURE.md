@@ -651,10 +651,17 @@ and turns each into a Klats test. Klats never writes the format.
   - The eight question types become `single`, `multi`, `order`, `match`,
     `truefalse`, `number`, `short` and `hotspot`. A click area becomes the
     rectangle around it.
-  - The time limit becomes each student's own timer, and a test asking a
-    number of random questions from its themes asks as many from the whole
-    test. Every other setting is the default; the file's grade table is read
-    and ignored.
+  - The time limit becomes each student's own timer. Every other setting is
+    the default; the file's grade table is read and ignored.
+  - Themes group questions, and a theme may ask some of its own at random. A
+    file with one theme holding questions gets no tags; when that theme asks
+    some but not all of them at random, the test draws as many from all its
+    questions. With
+    more, each theme holding questions becomes a tag named after it, a
+    repeated name numbered « (2)», « (3)» in theme order. When any of them
+    asks at random, each gets a draw line in theme order: as many as it asks,
+    at most its size; none when it asks 0, since then none of it is asked;
+    and all of it when it does not ask at random.
   - The converted test passes `testfmt.Decode` before `Open` returns it. A
     test that Decode refuses is a converter bug, not a damaged file.
 - **Notes:** `Open` also returns what did not carry over exactly, as
@@ -667,9 +674,6 @@ and turns each into a Klats test. Klats never writes the format.
     with how many;
   - `hint_dropped`: a hint or an explanation, which Klats has no place for;
   - `text_cut`: a text over the caps of Klats was shortened.
-
-  On the whole test, `themes_flattened`: students get the given number of
-  random questions from the whole test rather than some from each theme.
 - **Real files in tests:** real files hold personal data, so none is in the
   repository, and tests build synthetic ones with `internal/mtf/mtftest`,
   which only tests import. `TestCorpus` opens every `.mtf` file under the

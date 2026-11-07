@@ -45,9 +45,6 @@ type TestDoc struct {
 //   - "order_extra_dropped": Count items outside the order were removed;
 //   - "hint_dropped": the hint or the explanation was not carried over;
 //   - "text_cut": an overlong text was shortened.
-//
-// For the whole test it is "themes_flattened": each student gets Count
-// random questions of the whole test rather than some from each theme.
 type OpenNote struct {
 	QuestionID string `json:"questionId,omitempty"`
 	Code       string `json:"code"`
