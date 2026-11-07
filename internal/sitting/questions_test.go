@@ -86,13 +86,13 @@ func TestQuestionsFor(t *testing.T) {
 	if got := testIDs(questionsFor(five, "p1")); !slices.Equal(got, all) {
 		t.Errorf("no settings: %v, want the test's order", got)
 	}
-	for _, n := range []int{0, 9} {
-		if got := testIDs(questionsFor(with(testfmt.Settings{Subset: n}), "p1")); !slices.Equal(got, all) {
-			t.Errorf("subset %d of 5: %v, want every question", n, got)
+	for _, draw := range [][]testfmt.DrawLine{nil, {{Count: 9}}} {
+		if got := testIDs(questionsFor(with(testfmt.Settings{Draw: draw}), "p1")); !slices.Equal(got, all) {
+			t.Errorf("draw %v of 5: %v, want every question", draw, got)
 		}
 	}
 
-	subset := with(testfmt.Settings{Subset: 3})
+	subset := with(testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}})
 	drawn := map[string]bool{}
 	for i := range 20 {
 		id := "p" + strconv.Itoa(i)
@@ -128,14 +128,53 @@ func TestQuestionsFor(t *testing.T) {
 		t.Error("shuffle: all 20 ids got the test's order")
 	}
 
-	both := with(testfmt.Settings{ShuffleQuestions: true, Subset: 3})
+	both := with(testfmt.Settings{ShuffleQuestions: true, Draw: []testfmt.DrawLine{{Count: 3}}})
 	if got := testIDs(questionsFor(both, "p1")); len(got) != 3 || len(slices.Compact(slices.Sorted(slices.Values(got)))) != 3 {
 		t.Errorf("shuffled subset 3 of 5: %v", got)
 	}
 }
 
+func TestDrawLines(t *testing.T) {
+	qs := singles(6) // q1,q2: A; q3,q4: B; q5: A and B; q6: none
+	for i, tags := range [][]string{{"A"}, {"A"}, {"B"}, {"B"}, {"A", "B"}, nil} {
+		qs[i].Tags = tags
+	}
+	with := func(lines ...testfmt.DrawLine) testfmt.Test {
+		return testfmt.Test{Questions: qs, Settings: testfmt.Settings{Draw: lines}}
+	}
+
+	ab := with(testfmt.DrawLine{Tag: "A", Count: 2}, testfmt.DrawLine{Tag: "B", Count: 1})
+	for i := range 20 {
+		id := "p" + strconv.Itoa(i)
+		got := testIDs(questionsFor(ab, id))
+		if len(got) != 3 || !slices.IsSortedFunc(got, func(a, b string) int { return qIndex(a) - qIndex(b) }) || len(slices.Compact(slices.Sorted(slices.Values(got)))) != 3 || slices.Contains(got, "q6") {
+			t.Errorf("2 of A, 1 of B for %s: %v, want 3 distinct tagged questions in test order", id, got)
+		}
+		if again := testIDs(questionsFor(ab, id)); !slices.Equal(again, got) {
+			t.Errorf("2 of A, 1 of B for %s: %v, then %v", id, got, again)
+		}
+	}
+
+	if got := testIDs(questionsFor(with(testfmt.DrawLine{Tag: "A", Count: 5}), "p1")); !slices.Equal(got, []string{"q1", "q2", "q5"}) {
+		t.Errorf("5 of A: %v, want the 3 tagged A", got)
+	}
+	if got := testIDs(questionsFor(with(testfmt.DrawLine{Tag: "Z", Count: 2}, testfmt.DrawLine{Count: 1}), "p1")); len(got) != 1 {
+		t.Errorf("2 of a missing tag, 1 of all: %v, want one question", got)
+	}
+
+	shuffled := with(testfmt.DrawLine{Count: 2})
+	shuffled.Settings.ShuffleQuestions = true
+	got := testIDs(questionsFor(shuffled, "p1"))
+	if len(got) != 2 || len(slices.Compact(slices.Sorted(slices.Values(got)))) != 2 {
+		t.Errorf("shuffled 2 of all: %v, want 2 distinct questions", got)
+	}
+	if again := testIDs(questionsFor(shuffled, "p1")); !slices.Equal(again, got) {
+		t.Errorf("shuffled 2 of all: %v, then %v", got, again)
+	}
+}
+
 func TestSubsetGrading(t *testing.T) {
-	e, _ := setupSettings(t, 5, testfmt.Settings{Subset: 3})
+	e, _ := setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}})
 	info := start(t, e, nil)
 	right := enter(t, e, info.Code, devA, "Шевченко")
 	wrong := enter(t, e, info.Code, devB, "Франко")
@@ -203,7 +242,7 @@ func TestSubsetGrading(t *testing.T) {
 }
 
 func TestChangeForQuestionNotAsked(t *testing.T) {
-	e, st := setupSettings(t, 5, testfmt.Settings{Subset: 3})
+	e, st := setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}})
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
 	asked, _ := resumed(t, e, devA)
@@ -222,7 +261,7 @@ func TestChangeForQuestionNotAsked(t *testing.T) {
 }
 
 func TestMoveKeepsQuestions(t *testing.T) {
-	e, st := setupSettings(t, 6, testfmt.Settings{ShuffleQuestions: true, Subset: 3})
+	e, st := setupSettings(t, 6, testfmt.Settings{ShuffleQuestions: true, Draw: []testfmt.DrawLine{{Count: 3}}})
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
 	before, _ := resumed(t, e, devA)

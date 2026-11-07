@@ -8,23 +8,34 @@ import (
 
 // questionsFor returns the questions the participant gets, in the order they
 // see them, fixed by the participant id so that a reload or a move to another
-// device shows the same ones. With a [testfmt.Settings.Subset] of 1 to n−1 it
-// draws that many, kept in test order unless ShuffleQuestions; with
+// device shows the same ones. With a [testfmt.Settings.Draw] it returns the
+// questions its lines pick, kept in test order unless ShuffleQuestions; with
 // ShuffleQuestions alone it returns every question in an order of the
 // participant's own; otherwise it returns the test's questions.
 func questionsFor(t testfmt.Test, participantID string) []testfmt.Question {
-	n, s := len(t.Questions), t.Settings
-	subset := s.Subset > 0 && s.Subset < n
-	if !subset && !s.ShuffleQuestions {
+	s := t.Settings
+	if len(s.Draw) == 0 && !s.ShuffleQuestions {
 		return t.Questions
 	}
-	idx := make([]int, n)
+	idx := make([]int, len(t.Questions))
 	for i := range idx {
 		idx[i] = i
 	}
 	shuffle(idx, participantID+"#q")
-	if subset {
-		idx = idx[:s.Subset]
+	if len(s.Draw) > 0 {
+		// Each line takes the first of its questions in the shuffled order, and
+		// idx keeps that order so a shuffled sitting mixes the lines.
+		picked := make([]bool, len(idx))
+		for _, l := range s.Draw {
+			n := 0
+			for _, i := range idx {
+				if n < l.Count && !picked[i] && (l.Tag == "" || slices.Contains(t.Questions[i].Tags, l.Tag)) {
+					picked[i] = true
+					n++
+				}
+			}
+		}
+		idx = slices.DeleteFunc(idx, func(i int) bool { return !picked[i] })
 		if !s.ShuffleQuestions {
 			slices.Sort(idx)
 		}

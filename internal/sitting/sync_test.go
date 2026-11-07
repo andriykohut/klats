@@ -382,7 +382,7 @@ func TestFinishResultReveal(t *testing.T) {
 	}
 
 	// Questions a subset left out are not asked, so they are no mistakes.
-	e, _ = setupSettings(t, 5, testfmt.Settings{Subset: 3, Reveal: "mistakes"})
+	e, _ = setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}, Reveal: "mistakes"})
 	info = start(t, e, nil)
 	p = enter(t, e, info.Code, devA, "Шевченко")
 	ids, _ := resumed(t, e, devA)

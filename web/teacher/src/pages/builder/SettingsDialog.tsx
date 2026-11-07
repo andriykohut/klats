@@ -97,12 +97,13 @@ function Toggle(props: {
 /**
  * «Налаштування»: a button that opens the test's settings in a dialog, where
  * every change goes to `onChange` as the whole new `settings` and the builder
- * autosaves it. `questionCount` bounds the random subset.
+ * autosaves it. `questionCount` bounds the count of the random draw's first
+ * line, the only one the dialog edits.
  *
  * A setting a choice hides keeps its value, so a teacher who switches back
  * finds it: the minutes of a time limit, the grade table and pass mark of a
- * scale. Only turning off the random subset resets it, to 0. Each row of the
- * 12-point table stays between its neighbours, from 1 up to 100.
+ * scale. Only turning off the random draw resets it, to no lines. Each row of
+ * the 12-point table stays between its neighbours, from 1 up to 100.
  */
 export function SettingsDialog(props: {
   settings: Settings;
@@ -115,6 +116,7 @@ export function SettingsDialog(props: {
     set({ scale: { ...s.scale, ...patch } });
   const th = s.scale.thresholds;
   const timed = s.timeLimit.mode !== "none";
+  const draw = s.draw ?? [];
   const total = Math.max(questionCount, 1);
   const [before, after] = m
     .settings_subset_count({ count: SLOT, total })
@@ -173,22 +175,33 @@ export function SettingsDialog(props: {
                     <div className="s-inline">
                       <Toggle
                         label={m.settings_subset()}
-                        value={s.subset > 0}
+                        value={draw.length > 0}
                         onChange={(on) =>
                           set({
-                            subset: on ? Math.max(1, questionCount - 1) : 0,
+                            draw: on
+                              ? [
+                                  {
+                                    tag: "",
+                                    count: Math.max(1, questionCount - 1),
+                                  },
+                                ]
+                              : [],
                           })
                         }
                       />
-                      {s.subset > 0 && (
+                      {draw.length > 0 && (
                         <>
                           {before}
                           <Count
                             label={m.settings_subset()}
-                            value={s.subset}
+                            value={draw[0].count}
                             min={1}
                             max={total}
-                            onChange={(subset) => set({ subset })}
+                            onChange={(count) =>
+                              set({
+                                draw: [{ ...draw[0], count }, ...draw.slice(1)],
+                              })
+                            }
                           />
                           {after}
                         </>

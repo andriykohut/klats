@@ -24,7 +24,7 @@ func TestResultsOrder(t *testing.T) {
 	if got, own := order(testfmt.Settings{ShuffleQuestions: true}); !slices.Equal(got, own) {
 		t.Errorf("shuffle: Order = %v, want the student's %v", got, own)
 	}
-	if got, own := order(testfmt.Settings{Subset: 3}); len(got) != 3 || !slices.Equal(got, own) {
+	if got, own := order(testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}}); len(got) != 3 || !slices.Equal(got, own) {
 		t.Errorf("subset 3 of 5: Order = %v, want the student's %v", got, own)
 	}
 }

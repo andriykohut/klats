@@ -287,8 +287,8 @@ func TestOpenSettings(t *testing.T) {
 		}
 		f.Questions[0].Hint = mtftest.RTF("підказка")
 		got, notes := open(t, f)
-		if got.Settings.Subset != 2 {
-			t.Errorf("subset = %d, want 2", got.Settings.Subset)
+		if want := []testfmt.DrawLine{{Count: 2}}; !reflect.DeepEqual(got.Settings.Draw, want) {
+			t.Errorf("draw = %+v, want %+v", got.Settings.Draw, want)
 		}
 		wantNotes(t, notes, wire.OpenNote{Code: "themes_flattened", Count: 2}, wire.OpenNote{QuestionID: "q1", Code: "hint_dropped"})
 	})
@@ -298,8 +298,8 @@ func TestOpenSettings(t *testing.T) {
 			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1, ThemeID: uint32(i % 2)})
 		}
 		got, notes := open(t, f)
-		if got.Settings.Subset != 0 {
-			t.Errorf("subset = %d, want 0, every question", got.Settings.Subset)
+		if got.Settings.Draw != nil {
+			t.Errorf("draw = %+v, want none, every question", got.Settings.Draw)
 		}
 		wantNotes(t, notes)
 	})
@@ -309,8 +309,8 @@ func TestOpenSettings(t *testing.T) {
 			f.Questions = append(f.Questions, mtf.Question{Type: 6, Points: 1})
 		}
 		got, notes := open(t, f)
-		if got.Settings.Subset != 5 {
-			t.Errorf("subset = %d, want 5", got.Settings.Subset)
+		if want := []testfmt.DrawLine{{Count: 5}}; !reflect.DeepEqual(got.Settings.Draw, want) {
+			t.Errorf("draw = %+v, want %+v", got.Settings.Draw, want)
 		}
 		wantNotes(t, notes)
 	})

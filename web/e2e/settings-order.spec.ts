@@ -35,7 +35,7 @@ async function shown(page: Page, done: Set<string>): Promise<TestQuestion> {
 
 test("each student gets 3 of 5 questions", async ({ klats }) => {
   const { code, assignmentId } = await klats.start(FIVE, {
-    settings: { shuffleQuestions: true, subset: 3 },
+    settings: { shuffleQuestions: true, draw: [{ tag: "", count: 3 }] },
   });
 
   for (const name of CLASS.slice(0, 2)) {

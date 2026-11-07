@@ -1,8 +1,11 @@
 package testfmt
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
+	"unicode/utf8"
 )
 
 // Settings say how a test runs. A zero Settings is not valid: [Decode] fills
@@ -11,12 +14,21 @@ type Settings struct {
 	TimeLimit TimeLimit `json:"timeLimit"`
 	// ShuffleQuestions gives each student the questions in an order of their own.
 	ShuffleQuestions bool `json:"shuffleQuestions"`
-	// Subset is how many questions each student gets, at most 1000. 0, or a
-	// value at or above the question count, means every question.
-	Subset     int    `json:"subset"`
-	Scale      Scale  `json:"scale"`
-	Reveal     string `json:"reveal"`
-	Navigation string `json:"navigation"`
+	// Draw picks each student's questions at random. Its lines run top to
+	// bottom, and each picks Count of the questions carrying its Tag (any
+	// question for an empty Tag) that no earlier line picked, or fewer when
+	// they run out. Empty means everyone gets every question.
+	Draw       []DrawLine `json:"draw,omitempty"`
+	Scale      Scale      `json:"scale"`
+	Reveal     string     `json:"reveal"`
+	Navigation string     `json:"navigation"`
+}
+
+// DrawLine is one line of [Settings.Draw]: Count questions, 1-1000, from those
+// tagged Tag, or from every question when Tag is empty.
+type DrawLine struct {
+	Tag   string `json:"tag"`
+	Count int    `json:"count"`
 }
 
 // TimeLimit is the time students get. Minutes is 1-300 unless Mode is
@@ -63,8 +75,9 @@ var DefaultThresholds = []int{16, 25, 33, 41, 50, 58, 66, 75, 83, 91, 100}
 const DefaultPass = 60
 
 const (
-	maxMinutes = 300
-	maxSubset  = 1000
+	maxMinutes   = 300
+	maxDrawLines = 100
+	maxDrawCount = 1000
 )
 
 // DefaultSettings returns the settings of a new test. Its Thresholds are a
@@ -78,8 +91,8 @@ func DefaultSettings() Settings {
 	}
 }
 
-// decode fills in the defaults of an empty field and rejects a value outside
-// the allowed ones.
+// decode fills in the defaults of an empty field, trims the draw tags and
+// rejects a value outside the allowed ones.
 func (s *Settings) decode() error {
 	def := DefaultSettings()
 	if s.TimeLimit.Mode == "" {
@@ -107,8 +120,8 @@ func (s *Settings) decode() error {
 	if m := s.TimeLimit.Minutes; m < 0 || m > maxMinutes || (m == 0 && s.TimeLimit.Mode != TimeNone) {
 		return fmt.Errorf("time limit of %d minutes outside 1-%d", m, maxMinutes)
 	}
-	if s.Subset < 0 || s.Subset > maxSubset {
-		return fmt.Errorf("subset %d outside 0-%d", s.Subset, maxSubset)
+	if err := s.decodeDraw(); err != nil {
+		return err
 	}
 	if !slices.Contains([]string{ScalePoints12, ScalePercent, ScalePass}, s.Scale.Kind) {
 		return fmt.Errorf("unknown scale %q", s.Scale.Kind)
@@ -124,6 +137,29 @@ func (s *Settings) decode() error {
 	}
 	if !slices.Contains([]string{NavFree, NavForward}, s.Navigation) {
 		return fmt.Errorf("unknown navigation %q", s.Navigation)
+	}
+	return nil
+}
+
+// decodeDraw trims the tag of each draw line and rejects a draw outside the
+// caps.
+func (s *Settings) decodeDraw() error {
+	if len(s.Draw) > maxDrawLines {
+		return fmt.Errorf("%d draw lines, at most %d", len(s.Draw), maxDrawLines)
+	}
+	for i := range s.Draw {
+		l := &s.Draw[i]
+		if l.Count < 1 || l.Count > maxDrawCount {
+			return fmt.Errorf("draw count %d outside 1-%d", l.Count, maxDrawCount)
+		}
+		tag := strings.TrimSpace(l.Tag)
+		if tag == "" && l.Tag != "" {
+			return errors.New("blank draw tag")
+		}
+		if utf8.RuneCountInString(tag) > maxTextRunes {
+			return fmt.Errorf("draw tag over %d characters", maxTextRunes)
+		}
+		l.Tag = tag
 	}
 	return nil
 }

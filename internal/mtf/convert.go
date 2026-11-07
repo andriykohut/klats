@@ -18,11 +18,11 @@ import (
 
 // The caps testfmt.Decode puts on a test, which a converted test keeps to.
 const (
-	maxItems    = 50  // entries of one list of a question
-	maxAccepted = 200 // runes of an accepted answer
-	maxSubset   = 1000
-	maxPoints   = 12
-	maxMinutes  = 300
+	maxItems     = 50  // entries of one list of a question
+	maxAccepted  = 200 // runes of an accepted answer
+	maxDrawCount = 1000
+	maxPoints    = 12
+	maxMinutes   = 300
 )
 
 // typeIDs holds the Klats type of each question type of the older format.
@@ -52,9 +52,11 @@ func convert(f File, ms *media.Store, pictures map[string]testfmt.Image) (testfm
 		t.Settings.TimeLimit = testfmt.TimeLimit{Mode: testfmt.TimeStudent, Minutes: min((f.TimeLimit+59)/60, maxMinutes)}
 	}
 	var notes []wire.OpenNote
-	var mixed bool
-	if t.Settings.Subset, mixed = subset(f); mixed {
-		notes = append(notes, wire.OpenNote{Code: "themes_flattened", Count: t.Settings.Subset})
+	if n, mixed := subset(f); n > 0 {
+		t.Settings.Draw = []testfmt.DrawLine{{Count: n}}
+		if mixed {
+			notes = append(notes, wire.OpenNote{Code: "themes_flattened", Count: n})
+		}
 	}
 	c := converter{ms: ms, pictures: pictures}
 	for i, src := range f.Questions {
@@ -93,7 +95,7 @@ func subset(f File) (n int, mixed bool) {
 	if n == len(f.Questions) {
 		return 0, false
 	}
-	return min(n, maxSubset), len(size) > 1
+	return min(n, maxDrawCount), len(size) > 1
 }
 
 // question returns src converted into the question id, and the notes on it.

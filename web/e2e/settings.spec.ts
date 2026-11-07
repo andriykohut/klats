@@ -53,7 +53,7 @@ test("settings survive a reload", async ({ klats }) => {
   const all = {
     timeLimit: { mode: "student", minutes: 25 },
     shuffleQuestions: true,
-    subset: 3,
+    draw: [{ tag: "", count: 3 }],
     scale: { kind: "points12" },
     reveal: "mistakes",
     navigation: "forward",

@@ -283,7 +283,7 @@ type Counts struct {
 // the teacher has not graded), "current" (while writing, the question after
 // the last one answered in the participant's own order), "empty", or
 // "absent" (a question the participant did not get, see
-// [testfmt.Settings.Subset]). Status is "writing", "offline" or "finished".
+// [testfmt.Settings.Draw]). Status is "writing", "offline" or "finished".
 // Grade is set once finished, on the scale of [SittingInfo.Scale]; Pending
 // counts the "pending" cells, which Grade scores as 0.
 type LiveRow struct {
@@ -346,7 +346,7 @@ type ResultQuestion struct {
 // test order, the questions whose written answer waits for the teacher's
 // points (see grading.IsPending); they score 0 until then. NotAsked lists, in
 // test order, the questions the participant did not get (see
-// testfmt.Settings.Subset): their Points are 0, and Earned and Max leave them
+// testfmt.Settings.Draw): their Points are 0, and Earned and Max leave them
 // out. Order lists the questions the participant got, in the order they got
 // them, so a question's number on their sheet is its place in Order plus one.
 type ResultRow struct {

@@ -174,6 +174,37 @@ func TestDecodeRejectsOversize(t *testing.T) {
 	}
 }
 
+// withTags returns a valid single-choice question carrying the tags.
+func withTags(tags ...string) Question {
+	return Question{ID: "q1", Type: "single", Text: rj("Q"), Points: 1, Options: []Option{stmt("a", "a", true), stmt("b", "b", false)}, Tags: tags}
+}
+
+func TestDecodeTags(t *testing.T) {
+	q := mustDecodeQ(t, withTags(" Мережі ", "Урок 9"))
+	if !slices.Equal(q.Tags, []string{"Мережі", "Урок 9"}) {
+		t.Errorf("tags %q", q.Tags)
+	}
+	g := grid([]Target{col("c1", "A")}, row("r1", "x", "c1"))
+	g.Tags = []string{"Мережі"}
+	if got := mustDecodeQ(t, g).Tags; !slices.Equal(got, g.Tags) {
+		t.Errorf("grid tags %q, want %q", got, g.Tags)
+	}
+	var many []string
+	for i := range 51 {
+		many = append(many, strings.Repeat("x", i+1))
+	}
+	for name, tags := range map[string][]string{
+		"blank":    {"  "},
+		"repeated": {"Мережі", "Мережі "},
+		"51 tags":  many,
+		"too long": {strings.Repeat("я", 201)},
+	} {
+		if _, err := decodeQ(t, withTags(tags...)); err == nil {
+			t.Errorf("%s: want error", name)
+		}
+	}
+}
+
 func TestMediaListsTargetAndQuestionImages(t *testing.T) {
 	a, b := strings.Repeat("a", 64)+".png", strings.Repeat("b", 64)+".png"
 	tst := Test{Questions: []Question{{

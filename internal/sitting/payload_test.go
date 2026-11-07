@@ -23,7 +23,7 @@ func typedPayloadTest(t *testing.T) testfmt.Test {
 			{ID: "g2", Choices: choices},
 			{ID: "g1", Accepted: []string{"secret"}},
 		}},
-		{ID: "q2", Type: "short", Points: 1, Accepted: []string{"secret"}, Match: &testfmt.Match{}},
+		{ID: "q2", Type: "short", Points: 1, Accepted: []string{"secret"}, Match: &testfmt.Match{}, Tags: []string{"прихований-тег"}},
 		{ID: "q3", Type: "number", Points: 1, Number: &testfmt.NumberKey{Mode: "exact", Value: 4242}},
 	}})
 	if err != nil {
@@ -51,7 +51,7 @@ func TestStudentPayloadGaps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, leak := range []string{`"accepted":`, `"correct":`, `"match":`, `"number":`, "secret", "4242"} {
+	for _, leak := range []string{`"accepted":`, `"correct":`, `"match":`, `"number":`, "secret", "4242", "прихований-тег"} {
 		if strings.Contains(string(raw), leak) {
 			t.Errorf("payload carries %s: %s", leak, raw)
 		}

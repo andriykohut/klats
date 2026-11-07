@@ -142,9 +142,11 @@ design follows from where it runs:
 
    The participant's questions are a pure function of the assignment's
    snapshot and the participant id (`questionsFor`, in
-   `internal/sitting/questions.go`): a random subset when the test's
-   settings ask for one, kept in test order unless questions are shuffled,
-   and an order of the participant's own when they are. Nothing is stored,
+   `internal/sitting/questions.go`): the questions the draw lines of the
+   test's settings pick at random, when it has any (each line a count from
+   one tag or from all questions, none picked twice), kept in test order
+   unless questions are shuffled, and an order of the participant's own when
+   they are. Nothing is stored,
    and a reload or a move to another computer shows the same questions in
    the same order. Options are shuffled per device instead. Grading, the live
    view, the results and the export work over each participant's own

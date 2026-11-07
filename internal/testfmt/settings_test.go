@@ -51,7 +51,7 @@ func TestDecodeSettingsKeepsValues(t *testing.T) {
 	want := Settings{
 		TimeLimit:        TimeLimit{Mode: TimeCommon, Minutes: 45},
 		ShuffleQuestions: true,
-		Subset:           7,
+		Draw:             []DrawLine{{Count: 7}, {Tag: "Мережі", Count: 2}},
 		Scale:            Scale{Kind: ScalePass, Thresholds: []int{10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100}, Pass: 75},
 		Reveal:           RevealMistakes,
 		Navigation:       NavForward,
@@ -86,8 +86,11 @@ func TestDecodeSettingsInvalid(t *testing.T) {
 		{"unknown mode", func(s *Settings) { s.TimeLimit = TimeLimit{Mode: "hour", Minutes: 10} }},
 		{"student mode without minutes", func(s *Settings) { s.TimeLimit = TimeLimit{Mode: TimeStudent} }},
 		{"too many minutes", func(s *Settings) { s.TimeLimit = TimeLimit{Mode: TimeStudent, Minutes: 301} }},
-		{"negative subset", func(s *Settings) { s.Subset = -1 }},
-		{"huge subset", func(s *Settings) { s.Subset = 1001 }},
+		{"draw count 0", func(s *Settings) { s.Draw = []DrawLine{{Count: 0}} }},
+		{"draw count over 1000", func(s *Settings) { s.Draw = []DrawLine{{Count: 1001}} }},
+		{"101 draw lines", func(s *Settings) { s.Draw = slices.Repeat([]DrawLine{{Count: 1}}, 101) }},
+		{"draw tag over 200 runes", func(s *Settings) { s.Draw = []DrawLine{{Tag: strings.Repeat("я", 201), Count: 1}} }},
+		{"blank draw tag", func(s *Settings) { s.Draw = []DrawLine{{Tag: "  ", Count: 1}} }},
 		{"ten thresholds", func(s *Settings) { s.Scale.Thresholds = DefaultThresholds[:10] }},
 		{"repeated threshold", func(s *Settings) { s.Scale.Thresholds = rising(25) }},
 		{"threshold over 100", func(s *Settings) { s.Scale.Thresholds[10] = 101 }},
@@ -109,6 +112,13 @@ func TestDecodeSettingsInvalid(t *testing.T) {
 				t.Fatal("Decode accepted the settings")
 			}
 		})
+	}
+}
+
+func TestDecodeTrimsDrawTag(t *testing.T) {
+	tst := decode(t, []byte(`{"id":"t1","version":1,"title":"T","questions":[],"settings":{"draw":[{"tag":" Мережі ","count":1}]}}`))
+	if want := []DrawLine{{Tag: "Мережі", Count: 1}}; !slices.Equal(tst.Settings.Draw, want) {
+		t.Fatalf("draw = %+v, want %+v", tst.Settings.Draw, want)
 	}
 }
 
