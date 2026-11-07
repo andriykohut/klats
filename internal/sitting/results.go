@@ -106,6 +106,11 @@ func (e *Engine) Results(assignmentID string) (wire.AssignmentResults, error) {
 		out.Questions = append(out.Questions, rq)
 	}
 	byName(out.Rows, func(r wire.ResultRow) string { return r.Name })
+	var per [][]*int
+	out.Tags, per = tagScores(t.Questions, out.Rows)
+	for i := range out.Rows {
+		out.Rows[i].TagPct = per[i]
+	}
 	return out, nil
 }
 

@@ -28,11 +28,12 @@ type labels struct {
 	no, student, class, points, grade, timeCol string
 	date, question, correct                    string
 	pass, fail                                 string
+	tags, wholeClass                           string
 }
 
 var (
-	uk = labels{"Результати", "Питання", "№", "Учень", "Клас", "Бали", "Оцінка", "Час", "Дата", "Питання", "Правильно", "зараховано", "не зараховано"}
-	en = labels{"Results", "Questions", "No.", "Student", "Class", "Points", "Grade", "Time", "Date", "Question", "Correct", "pass", "fail"}
+	uk = labels{"Результати", "Питання", "№", "Учень", "Клас", "Бали", "Оцінка", "Час", "Дата", "Питання", "Правильно", "зараховано", "не зараховано", "Теги", "Увесь клас"}
+	en = labels{"Results", "Questions", "No.", "Student", "Class", "Points", "Grade", "Time", "Date", "Question", "Correct", "pass", "fail", "Tags", "Whole class"}
 )
 
 // Export writes the workbook for r to w. lang "en" gives English sheet and
@@ -43,7 +44,10 @@ var (
 // answer waiting for the teacher has an empty grade cell, and that answer an
 // empty points cell; a question the student did not get also has an empty
 // points cell. On the questions sheet the percent is blank for a question with
-// no [wire.ResultQuestion.CorrectPct].
+// no [wire.ResultQuestion.CorrectPct]. When r has tags, a third sheet has one
+// column per tag with each student's percent ([wire.ResultRow.TagPct]) and a
+// last row with the whole class's ([wire.AssignmentResults.Tags]); a nil
+// percent is blank.
 func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	l := uk
 	if lang == "en" {
@@ -136,6 +140,40 @@ func Export(w io.Writer, r wire.AssignmentResults, lang string) error {
 	qs.width(3, 3, 12)
 	if qs.err != nil {
 		return qs.err
+	}
+
+	if len(r.Tags) > 0 {
+		if _, err := f.NewSheet(l.tags); err != nil {
+			return err
+		}
+		ts := &sheet{f: f, name: l.tags}
+		header := []string{l.no, l.student}
+		for _, t := range r.Tags {
+			header = append(header, t.Tag)
+		}
+		ts.header(header, bold)
+		for i, row := range r.Rows {
+			ts.put(1, i+2, i+1, 0)
+			ts.put(2, i+2, row.Name, 0)
+			for j, p := range row.TagPct {
+				if p != nil {
+					ts.put(3+j, i+2, *p, 0)
+				}
+			}
+		}
+		last := len(r.Rows) + 2
+		ts.put(2, last, l.wholeClass, bold)
+		for j, t := range r.Tags {
+			if t.Pct != nil {
+				ts.put(3+j, last, *t.Pct, bold)
+			}
+		}
+		ts.width(1, 1, 6)
+		ts.width(2, 2, 32)
+		ts.width(3, 2+len(r.Tags), 12)
+		if ts.err != nil {
+			return ts.err
+		}
 	}
 
 	f.SetActiveSheet(0)

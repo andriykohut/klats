@@ -27,6 +27,7 @@ import {
   padCells,
 } from "../live/journal";
 import { StudentDetail } from "./StudentDetail";
+import { TagScores } from "./TagScores";
 import "./results.css";
 
 const RESULTS_LEGEND = () =>
@@ -49,9 +50,9 @@ const duration = (sec: number) =>
     : "—";
 
 /**
- * The results of one assignment at /assignments/$id: the journal with the
- * points per question, each row opening the student's answers, and the
- * Excel export.
+ * The results of one assignment at /assignments/$id: the scores per tag when
+ * the test has tags, the journal with the points per question, each row
+ * opening the student's answers, and the Excel export.
  */
 export function ResultsPage() {
   const { id } = useParams({ from: "/shell/assignments/$id" });
@@ -126,6 +127,7 @@ export function ResultsPage() {
           <ExportButton id={id} />
         </div>
       </header>
+      {res.tags.length > 0 && <TagScores tags={res.tags} />}
       <JournalTable
         variant="results"
         questions={questions}

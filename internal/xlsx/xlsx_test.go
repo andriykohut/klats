@@ -169,6 +169,33 @@ func TestExportEnglish(t *testing.T) {
 	}
 }
 
+func TestExportTags(t *testing.T) {
+	r := sample()
+	r.Tags = []wire.TagScore{{Tag: "A", Pct: new(75)}, {Tag: "B"}}
+	r.Rows[0].TagPct = []*int{new(67), nil}
+	r.Rows[1].TagPct = []*int{new(80), new(0)}
+	f := open(t, r, "uk")
+	if got := f.GetSheetList(); strings.Join(got, "|") != "Результати|Питання|Теги" {
+		t.Fatalf("sheets = %q", got)
+	}
+	eq(t, "header", row(t, f, "Теги", 1, false), []string{"№", "Учень", "A", "B"})
+	eq(t, "row 2", row(t, f, "Теги", 2, false), []string{"1", "=1+1", "67"})
+	eq(t, "row 3", row(t, f, "Теги", 3, false), []string{"2", "Шевченко Тарас", "80", "0"})
+	eq(t, "class", row(t, f, "Теги", 4, false), []string{"", "Увесь клас", "75"})
+	if got, _ := f.GetCellType("Теги", "C2"); got != excelize.CellTypeUnset {
+		t.Errorf("type of C2 = %v, want a number", got)
+	}
+	if p, err := f.GetPanes("Теги"); err != nil || !p.Freeze || p.YSplit != 1 {
+		t.Errorf("panes = %+v, %v", p, err)
+	}
+
+	en := open(t, r, "en")
+	if got := en.GetSheetList(); strings.Join(got, "|") != "Results|Questions|Tags" {
+		t.Fatalf("en sheets = %q", got)
+	}
+	eq(t, "en class", row(t, en, "Tags", 4, false), []string{"", "Whole class", "75"})
+}
+
 func TestFileName(t *testing.T) {
 	r := sample()
 	for _, tc := range []struct {

@@ -570,6 +570,8 @@
   "results_average": "Average grade",
   "results_export": "Export to Excel",
   "results_stale": "Changed since export",
+  "results_tags": "By tag",
+  "results_tags_hint": "share of points earned, whole class",
   "export_saved": "Saved: {path}",
   "export_downloaded": "File downloaded: {name}",
   "results_write_failed": "The file could not be written. If it is open in Excel, close it and try again.",

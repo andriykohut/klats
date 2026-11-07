@@ -196,6 +196,15 @@ design follows from where it runs:
    A blank written answer scores 0 and is not pending. Setting the points,
    even 0, grades it, and the student's device gets the new grade.
 
+   When the test's questions carry tags, the results also score each tag
+   (`tagScores`, in `internal/sitting/tags.go`): the points earned on its
+   questions out of the points available on them, counting only the
+   questions each participant got and leaving out answers still pending. A
+   question with two tags counts toward both. The results page shows the
+   whole class's percent per tag in a «За тегами» block above the journal,
+   and the export adds a «Теги» sheet with each student's percents and a
+   last row «Увесь клас». A test without tags has neither.
+
    How much of the grade a device is told follows the test's `reveal`
    setting. Every result a device gets, from the finish or in the status of
    a heartbeat, a submit or `GET /api/test`, comes from `finishResult` in

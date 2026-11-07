@@ -315,6 +315,9 @@ type LiveRow struct {
 // test's grading scale (testfmt.Scale.Kind) that every ResultRow.Grade is on.
 // Drawn is set when the test snapshot has draw lines (see
 // [testfmt.Settings.Draw]); ResultRow.Order gives each row's own order.
+// Tags lists the test's question tags in order of first appearance through
+// its questions, each with the whole class's share of points on it; it is
+// empty, never nil, when no question has a tag.
 type AssignmentResults struct {
 	Scale        string           `json:"scale"`
 	AssignmentID string           `json:"assignmentId"`
@@ -326,6 +329,17 @@ type AssignmentResults struct {
 	Drawn        bool             `json:"drawn"`
 	Questions    []ResultQuestion `json:"questions"`
 	Rows         []ResultRow      `json:"rows"`
+	Tags         []TagScore       `json:"tags"`
+}
+
+// TagScore is a question tag with a share of points on its questions:
+// round(100 × earned / available) over the questions carrying the tag that
+// the rows counted got (see ResultRow.Order) and whose points are not
+// waiting for the teacher (see ResultRow.PendingIDs). Pct is nil when no
+// points are available. A question with two tags counts toward both.
+type TagScore struct {
+	Tag string `json:"tag"`
+	Pct *int   `json:"pct"`
 }
 
 // ResultQuestion is a question of the results table, as the assignment's test
@@ -361,6 +375,9 @@ type ResultQuestion struct {
 // testfmt.Settings.Draw): their Points are 0, and Earned and Max leave them
 // out. Order lists the questions the participant got, in the order they got
 // them, so a question's number on their sheet is its place in Order plus one.
+// TagPct has the participant's own share of points on each tag of
+// [AssignmentResults.Tags], in the same order, nil where they had none
+// available (see TagScore).
 type ResultRow struct {
 	ParticipantID string                     `json:"participantId"`
 	Name          string                     `json:"name"`
@@ -379,4 +396,5 @@ type ResultRow struct {
 	Late          []string                   `json:"late"`
 	NotAsked      []string                   `json:"notAsked"`
 	Order         []string                   `json:"order"`
+	TagPct        []*int                     `json:"tagPct"`
 }

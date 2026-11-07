@@ -601,6 +601,8 @@
   "results_average": "Середня оцінка",
   "results_export": "Експорт в Excel",
   "results_stale": "Змінено після експорту",
+  "results_tags": "За тегами",
+  "results_tags_hint": "частка набраних балів, увесь клас",
   "export_saved": "Збережено: {path}",
   "export_downloaded": "Файл завантажено: {name}",
   "results_write_failed": "Не вдалося записати файл. Якщо він відкритий в Excel, закрийте його й спробуйте ще раз.",
