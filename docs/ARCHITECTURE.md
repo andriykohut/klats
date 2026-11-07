@@ -86,7 +86,7 @@ design follows from where it runs:
 |---|---|
 | `cmd/klats` | The program: flags, the data folder, both servers, the tick loop, start-up and shutdown. Its version is `dev` unless a release build sets `main.version` with `-ldflags`; the settings page shows it under «Про програму». |
 | `internal/backup` | Writes all the data to one `.klatsbackup` file, the database and the media it uses, and checks one before a restore. It is the trust boundary for restored backups. |
-| `internal/config` | Finds the per-user data folder and reads and writes `settings.json`: port, address, language, and whether to check for updates, which is on unless the teacher turns it off. `PUT /api/settings` sets the last three together, so the teacher app always sends all three. |
+| `internal/config` | Finds the per-user data folder and reads and writes `settings.json`: port, address, language, and whether to check for updates, which is on unless the teacher turns it off. `PUT /api/settings` sets the port, the language and the update switch together, so the teacher app always sends all three; the address goes through `PUT /api/network`. |
 | `internal/demo` | Seeds a sample class, test and running sitting for `klats -dev -demo`. |
 | `internal/desktop` | The Wails shell: window, tray, single instance, save dialog. The only package that imports Wails. |
 | `internal/events` | The in-process pub/sub hub behind the event streams. Its topics are `teacher`, `device:<token>` and `names:<sitting>`. |
