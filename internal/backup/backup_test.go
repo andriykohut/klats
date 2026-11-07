@@ -506,31 +506,6 @@ func TestPrepareTooNew(t *testing.T) {
 	}
 }
 
-// A backup of a database at migration 2, before sittings.ends_at, is migrated
-// and applies.
-func TestPrepareMigratesOlder(t *testing.T) {
-	old := dbFile(t,
-		`ALTER TABLE participants DROP COLUMN extra_ms`,
-		`ALTER TABLE sittings DROP COLUMN ends_at`,
-		`DELETE FROM goose_db_version WHERE version_id > 2`,
-		insertTest(testDoc(1)),
-		`INSERT INTO assignments (id, test_snapshot, created_at) VALUES ('a1', '`+testDoc(1)+`', 1)`,
-		`INSERT INTO sittings (id, assignment_id, join_code, started_at, ended_at) VALUES ('si1', 'a1', '1234', 1, 2)`,
-	)
-	f := newFolder(t)
-	p, err := f.prepare(t, zipOf(t, entry{"klats.db", old}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := p.Apply(f.st); err != nil {
-		t.Fatal(err)
-	}
-	s, err := f.st.Q().GetLatestSitting(context.Background())
-	if err != nil || s.ID != "si1" || s.EndsAt.Valid {
-		t.Errorf("latest sitting = %+v, %v; want si1 with no ends_at", s, err)
-	}
-}
-
 func TestPrepareStoreFailure(t *testing.T) {
 	img, name := file(pngHead, "a", "png")
 	f := newFolder(t)

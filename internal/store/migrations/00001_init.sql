@@ -38,7 +38,8 @@ CREATE TABLE sittings (
     assignment_id TEXT NOT NULL REFERENCES assignments (id) ON DELETE CASCADE,
     join_code     TEXT NOT NULL,
     started_at    INTEGER NOT NULL,
-    ended_at      INTEGER
+    ended_at      INTEGER,
+    ends_at       INTEGER
 );
 
 CREATE TABLE devices (
@@ -61,7 +62,8 @@ CREATE TABLE participants (
     finished_at     INTEGER,
     finished_by     TEXT CHECK (finished_by IN ('student', 'end', 'end_synced')),
     window_switches INTEGER NOT NULL DEFAULT 0,
-    moves           INTEGER NOT NULL DEFAULT 0
+    moves           INTEGER NOT NULL DEFAULT 0,
+    extra_ms        INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX participants_sitting ON participants (sitting_id);
 
@@ -74,7 +76,7 @@ CREATE TABLE moved_devices (
 CREATE TABLE answers (
     participant_id TEXT NOT NULL REFERENCES participants (id) ON DELETE CASCADE,
     question_id    TEXT NOT NULL,
-    option_ids     TEXT NOT NULL CHECK (json_valid(option_ids)),
+    value          TEXT NOT NULL CHECK (json_valid(value)),
     seq            INTEGER NOT NULL,
     change_id      TEXT NOT NULL UNIQUE,
     received_at    INTEGER NOT NULL,
