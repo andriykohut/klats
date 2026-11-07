@@ -9,15 +9,25 @@ school's local network, with no accounts, no internet and nothing to
 install. Answers survive network drops and restarts, and the teacher
 watches the class live and gets graded results.
 
-**Status:** milestone 4, pre-release. The core loop works end to end, with
-15 question types: single and multiple choice, true/false, choice grids,
-short text, numbers, gaps, ordering, matching, grouping, word banks, clicking
-a spot on a picture, labelling a picture, highlighting words and written
-answers, which the teacher grades. Questions and answers can hold pictures,
-audio, formulas, tables and code. Tests have settings such as time limits,
-shuffling and grading scales; the library exports and opens `.klats` files,
-opens `.mtf` files in the older format, and everything can be backed up.
-There are no installers yet.
+![The live journal: six students part-way through a test](web/site/src/assets/shots/en/live.png)
+
+It has 15 question types: single and multiple choice, true/false, choice
+grids, short text, numbers, gaps, ordering, matching, grouping, word banks,
+clicking a spot on a picture, labelling a picture, highlighting words and
+written answers, which the teacher grades. Questions and answers can hold
+pictures, audio, formulas, tables and code. Tests have settings such as time
+limits, shuffling, a different set of questions for each student, and
+grading scales. The library exports and opens `.klats` files, opens `.mtf`
+files in the older format, and everything can be backed up.
+
+## Download
+
+Installers for Windows 10 and 11, macOS 13 or newer, and Linux (Ubuntu
+24.04, Linux Mint 22, Debian 13, Fedora 40 or newer) are on the
+[website](https://andriykohut.github.io/klats/en/#download) and under
+[Releases](https://github.com/andriykohut/klats/releases/latest). They are
+not signed yet; [the install guide](https://andriykohut.github.io/klats/en/install/)
+shows how to get past the warnings.
 
 ## Quick start
 

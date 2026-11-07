@@ -55,10 +55,11 @@ check.
 *Why here:* a test opened from an older format needs every question type
 and setting to map onto, so it waits for M2 and M3.
 
-## M5: installers and the website
+## M5: installers and the website (done)
 
-- **Installers:** Windows, macOS and Linux.
-- **Signing.**
+- **Installers:** Windows, macOS and Linux. They ship unsigned for now, and
+  the website shows how to open them; Windows signing follows once the
+  repository is public.
 - **The update check:** it only reports a new release, and never updates
   during a lesson.
 - **The website:** a bilingual site for teachers, with the instructions in
