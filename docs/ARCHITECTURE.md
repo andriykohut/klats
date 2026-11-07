@@ -769,3 +769,14 @@ system's installers in `dist/`.
     offers to close a running Klats first. Uninstalling removes the rule
     and asks, defaulting to «Ні», whether to delete the data folder of the
     user who uninstalls.
+- **macOS:** `build/macos/build.sh 1.2.3` builds the binary for Apple
+  Silicon and for Intel with the same version stamp and tag, joins them
+  with `lipo` into one universal `Klats.app`, signs it ad hoc and packs it
+  into `Klats.dmg`, a volume named «Клац» that holds the app and a link to
+  `/Applications`.
+  - The app has no Developer ID signature; the ad hoc one makes macOS
+    report an app from an unidentified developer rather than a damaged one.
+  - `build/macos/Info.plist.in` gives the bundle the single-instance ID
+    `ua.klats.teacher` and macOS 13 as its floor, and exports the type
+    `ua.klats.test` for `.klats` files with Klats as their editor; macOS
+    sends Klats a document open only for a type the bundle declares.
