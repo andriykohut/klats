@@ -78,6 +78,8 @@ interface State {
    * «+5 хв» or the end of the sitting; see {@link finishTest}.
    */
   askTeacher: boolean;
+  /** A throw from loading the test, which `App` rethrows while rendering; null until then. */
+  crashed: unknown;
 }
 
 /** What survives a reload, under `klats.participant`. */
@@ -122,6 +124,7 @@ let state: State = {
   remainingMs: 0,
   timeUp: false,
   askTeacher: false,
+  crashed: null,
 };
 const listeners = new Set<() => void>();
 
@@ -328,7 +331,7 @@ function end(): void {
  * Loads the test this device writes and shows it where the student left off.
  * `name` is the name just picked; after a reload the saved one is used.
  */
-async function resume(name?: string): Promise<void> {
+async function enterTest(name?: string): Promise<void> {
   let res: TestResponse;
   try {
     res = await retry(api.loadTest);
@@ -389,6 +392,15 @@ async function resume(name?: string): Promise<void> {
   count(res.status);
   if (res.status.state === "writing") show({ name: "test" });
   else await follow(res.status);
+}
+
+/** {@link enterTest}, with a throw while the test loads stored in `crashed` for the crash screen. */
+async function resume(name?: string): Promise<void> {
+  try {
+    await enterTest(name);
+  } catch (err) {
+    update({ crashed: err });
+  }
 }
 
 /** Moves the app to where the server's status for this device says it is. */

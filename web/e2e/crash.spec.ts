@@ -90,6 +90,36 @@ test("student: a broken question can be skipped, and the test finished", async (
   ).toBeVisible();
 });
 
+test("student: a test that can't be loaded shows the crash screen and reports it", async ({
+  klats,
+}) => {
+  const { code } = await klats.start(TEST.slice(0, 2));
+  const page = await klats.computer();
+  // A question without an options list throws while the test is processed.
+  await page.route("**/api/test", async (route) => {
+    const body = await (await route.fetch()).json();
+    body.test.questions[0].options = null;
+    await route.fulfill({ json: body });
+  });
+  const report = page.waitForRequest(
+    (r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/crash",
+  );
+  // Not joinAs: it waits for a question that never shows.
+  await page.goto(`${klats.student}/?code=${code}`);
+  await page.getByText(CLASS[0], { exact: true }).click();
+  await page.getByRole("button", { name: m.pick_start() }).click();
+
+  await expect(
+    page.getByRole("heading", { name: m.crash_title() }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: m.crash_reload() }),
+  ).toBeVisible();
+  const sent = (await report).postDataJSON();
+  expect(sent.page).toBe("pick");
+  expect(sent.message).not.toBe("");
+});
+
 test("student: the broken-question sheet shows when the report can't be sent", async ({
   klats,
 }) => {

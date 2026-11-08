@@ -42,6 +42,7 @@ const TEST_SCREENS = new Set(["test", "review", "finish", "address"]);
 
 function App() {
   const s = useSyncExternalStore(subscribe, getState);
+  if (s.crashed != null) throw s.crashed;
   const { screen, test } = s;
   const inTest = TEST_SCREENS.has(screen.name) && s.title !== "";
   const offline = s.net.state === "offline";

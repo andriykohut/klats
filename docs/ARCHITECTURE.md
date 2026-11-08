@@ -569,6 +569,9 @@ current webview.
   crash screen in the app's language and sends the error to `klats.log` as
   one line. The teacher's screen offers a reload and, away from the library,
   a way back to it; the student's offers a reload, which resumes the test.
+  A throw while the student app loads the test is rethrown in render, so it
+  gets the same screen and report; a throw in an event handler or a timer is
+  not caught.
 - **`tmp/`** holds what lives only for one request: uploaded files and
   backups spooled from the request body, downloads waiting to be sent, the
   database copy a backup is made from and the folder a restore checks a
