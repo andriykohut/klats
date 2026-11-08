@@ -165,15 +165,18 @@ Start from an empty data folder (`%APPDATA%\Klats`, or move it aside).
    `sqlite3 klats.db "insert into goose_db_version(version_id, is_applied) values (99, 1)"`.
    Start Klats.
    - *Expected:* «Не вдалося відкрити дані Клацу» comes to the front, with
-     no window behind it, and its buttons read «Відкрити сайт» and
-     «Закрити».
-   - Press «Відкрити сайт». *Expected:* the browser opens the website's
-     download section, and Klats exits.
+     no window behind it. Its message ends with «Відкрити сайт?», and its
+     buttons are Windows's own «Так» and «Ні» (Yes and No on an English
+     Windows).
+   - Press «Так». *Expected:* the browser opens the website's download
+     section, and Klats exits. Start Klats again and press «Ні».
+     *Expected:* Klats exits.
    - Put the data folder back, rename `klats.db` and make a folder named
      `klats.db` in its place. Start Klats. *Expected:* «Клац не запустився»
-     comes to the front with the path of `logs\klats.log`.
-   - Press «Показати журнал». *Expected:* Explorer opens the `logs` folder,
-     and Klats exits.
+     comes to the front with the path of `logs\klats.log`, then «Показати
+     журнал?», over «Так» and «Ні».
+   - Press «Так». *Expected:* Explorer opens the `logs` folder, and Klats
+     exits. Start Klats again and press «Ні». *Expected:* Klats exits.
    - Remove the folder and rename the file back. Start Klats, then quit it
      and double-click a `.klats` file. *Expected:* the window opens each
      time.
@@ -198,8 +201,9 @@ Use a real desktop session, not a container.
 5. **Save dialog.** Repeat check 2.7 with the GTK dialog.
    - *Expected:* the same results.
 6. **A failed start.** Repeat check 2.8.
-   - *Expected:* the same results; «Показати журнал» opens the `logs` folder
-     in the file manager.
+   - *Expected:* the same results, except that the buttons read «Відкрити
+     сайт» or «Показати журнал», in place of «Так», and «Закрити», in place
+     of «Ні». «Показати журнал» opens the `logs` folder in the file manager.
 
 ## 4. The export in real Excel
 
@@ -299,4 +303,4 @@ happen.
 ### Starting
 
 - macOS only: repeat check 2.8, starting Klats.app from the Dock or Finder.
-  *Expected:* the same results.
+  *Expected:* the same results as check 3.6.

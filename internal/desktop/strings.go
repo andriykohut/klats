@@ -3,12 +3,13 @@ package desktop
 // texts are the shell's own UI strings in one language; the teacher app has
 // its own. testFile and backupFile name the file types in the save dialog.
 // The rest are [App.Fail]'s: tooNew* for data from a newer version, fail*
-// for any other error.
+// for any other error. downloadAsk and showLogAsk end its messages with the
+// question that Windows's Yes and No buttons answer.
 type texts struct {
-	title, show, quit, cancel, quitAsk  string
-	testFile, backupFile                string
-	tooNewTitle, tooNewText, download   string
-	failTitle, failText, showLog, close string
+	title, show, quit, cancel, quitAsk              string
+	testFile, backupFile                            string
+	tooNewTitle, tooNewText, download, downloadAsk  string
+	failTitle, failText, showLog, showLogAsk, close string
 }
 
 var (
@@ -18,9 +19,11 @@ var (
 		tooNewTitle: "Не вдалося відкрити дані Клацу",
 		tooNewText:  "Їх збережено новішою версією Клацу. Установіть її з сайту, щоб далі працювати з цими тестами й результатами.",
 		download:    "Відкрити сайт",
+		downloadAsk: "Відкрити сайт?",
 		failTitle:   "Клац не запустився",
 		failText:    "Під час запуску сталася помилка. Подробиці записано в журнал:",
 		showLog:     "Показати журнал",
+		showLogAsk:  "Показати журнал?",
 		close:       "Закрити",
 	}
 	en = texts{
@@ -29,9 +32,11 @@ var (
 		tooNewTitle: "Klats can’t open its data",
 		tooNewText:  "They were saved by a newer version of Klats. Install it from the website to keep working with these tests and results.",
 		download:    "Open the website",
+		downloadAsk: "Open the website?",
 		failTitle:   "Klats didn’t start",
 		failText:    "Something went wrong at startup. The details are in the log:",
 		showLog:     "Show the log",
+		showLogAsk:  "Show the log?",
 		close:       "Close",
 	}
 )

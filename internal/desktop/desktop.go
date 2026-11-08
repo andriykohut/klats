@@ -153,17 +153,21 @@ func (a *App) Fail(newerData bool, logDir string) {
 	a.confirmed.Store(true)
 	lang := a.o.Language()
 	t := textsFor(lang)
-	title, text, action := t.tooNewTitle, t.tooNewText, t.download
+	title, text, action := t.tooNewTitle, t.tooNewText+"\n\n"+t.downloadAsk, t.download
 	open := func() error { return a.app.Browser.OpenURL(teacherapi.DownloadURL(lang)) }
 	if !newerData {
-		title, text, action = t.failTitle, t.failText+"\n\n"+filepath.Join(logDir, "klats.log"), t.showLog
+		title, text, action = t.failTitle, t.failText+"\n\n"+filepath.Join(logDir, "klats.log")+"\n\n"+t.showLogAsk, t.showLog
 		open = func() error { return a.app.Browser.OpenFile(logDir) }
 	}
 	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		go func() {
 			// On Windows, Wails v3.0.0-beta.34 shows custom buttons only on a
-			// question dialog. An error dialog there has a single OK that runs
-			// no button's action, so the program would never quit.
+			// question dialog in a process that loads comctl32 v6; otherwise
+			// it shows Yes, which runs the action, and No, which runs Close,
+			// so each message ends with the question they answer. An error
+			// dialog there has a single OK that runs no button's action, so
+			// the program would never quit.
+			// shortcut: no comctl32 v6 manifest is embedded, so Windows shows the system Yes/No captions; embed a manifest if custom captions matter.
 			d := a.app.Dialog.Question().SetTitle(title).SetMessage(text)
 			d.SetDefaultButton(d.AddButton(action).OnClick(func() {
 				if err := open(); err != nil {

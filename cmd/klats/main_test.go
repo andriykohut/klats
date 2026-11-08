@@ -395,7 +395,8 @@ func TestUpdateCheckWaitsForNoSitting(t *testing.T) {
 }
 
 // fakeShell stands in for the desktop window: Run calls fn, and Fail appends
-// its arguments to failed, when set.
+// its arguments, and whether klats.log in logDir already holds the error line,
+// to failed, when set.
 type fakeShell struct {
 	fn     func(teacherURL string) error
 	failed *[]failCall
@@ -404,6 +405,7 @@ type fakeShell struct {
 type failCall struct {
 	newer  bool
 	logDir string
+	logged bool
 }
 
 func (f fakeShell) Run(_ context.Context, teacherURL string) error { return f.fn(teacherURL) }
@@ -411,7 +413,8 @@ func (fakeShell) Dialogs() teacherapi.Dialogs                      { return nil 
 func (fakeShell) Browser() teacherapi.Browser                      { return nil }
 func (f fakeShell) Fail(newerData bool, logDir string) {
 	if f.failed != nil {
-		*f.failed = append(*f.failed, failCall{newerData, logDir})
+		log, _ := os.ReadFile(filepath.Join(logDir, "klats.log"))
+		*f.failed = append(*f.failed, failCall{newerData, logDir, bytes.Contains(log, []byte("klats stopped on an error"))})
 	}
 }
 
@@ -453,7 +456,7 @@ func TestNewerDataShowsTheDialog(t *testing.T) {
 	if !errors.Is(err, store.ErrSchemaTooNew) {
 		t.Errorf("run = %v, want ErrSchemaTooNew", err)
 	}
-	if want := []failCall{{true, filepath.Join(dataDir, "logs")}}; !slices.Equal(fails, want) {
+	if want := []failCall{{true, filepath.Join(dataDir, "logs"), true}}; !slices.Equal(fails, want) {
 		t.Errorf("Fail calls = %+v, want %+v", fails, want)
 	}
 	if ran {
@@ -474,11 +477,10 @@ func TestStartupErrorShowsTheDialog(t *testing.T) {
 	if err == nil {
 		t.Error("run = nil, want an error")
 	}
-	if want := []failCall{{false, filepath.Join(dataDir, "logs")}}; !slices.Equal(fails, want) {
+	// On macOS the process exits inside Fail, so the error line must be in
+	// klats.log by the time Fail is called.
+	if want := []failCall{{false, filepath.Join(dataDir, "logs"), true}}; !slices.Equal(fails, want) {
 		t.Errorf("Fail calls = %+v, want %+v", fails, want)
-	}
-	if log, _ := os.ReadFile(filepath.Join(dataDir, "logs", "klats.log")); !bytes.Contains(log, []byte("klats stopped on an error")) {
-		t.Errorf("klats.log = %q, want the error logged", log)
 	}
 }
 
