@@ -440,6 +440,17 @@ func TestCrashIsLogged(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Errorf("an oversized crash report logged %q", buf.String())
 	}
+
+	buf.Reset()
+	body := strings.Repeat("x", 16<<10-64)
+	r = httptest.NewRequest("POST", "/api/crash", strings.NewReader(`{"message":"`+body+`"}`))
+	r.Header.Set("User-Agent", strings.Repeat("a", 64<<10))
+	w = httptest.NewRecorder()
+	v.h.ServeHTTP(w, r)
+	wantStatus(t, w, 204)
+	if n := buf.Len(); n < len(body) || n > 20<<10 {
+		t.Errorf("a crash report with a 64 KiB User-Agent logged %d bytes, want the report in under 20 KiB", n)
+	}
 }
 
 func TestCrashLogIsCapped(t *testing.T) {
