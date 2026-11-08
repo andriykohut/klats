@@ -5,10 +5,17 @@ import type {
 import { gradeBand, gradeText } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "react-aria-components";
-import { busy, useExport, useResults } from "../../api/queries";
+import {
+  busy,
+  useDeleteAssignment,
+  useDeletingParticipants,
+  useExport,
+  useResults,
+  useRunningAssignment,
+} from "../../api/queries";
 import { finishExport } from "../../ui/finishExport";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
@@ -57,12 +64,21 @@ const duration = (sec: number) =>
 export function ResultsPage() {
   const { id } = useParams({ from: "/shell/assignments/$id" });
   const results = useResults(id);
+  const deleting = useDeletingParticipants();
+  const remove = useDeleteAssignment();
+  const running = useRunningAssignment();
+  const navigate = useNavigate();
   // The student whose answers are open, and the question whose points field
   // takes focus there.
   const [open, setOpen] = useState<{ id: string; focus?: string } | null>(null);
   if (results.isError) return <LoadError onRetry={() => results.refetch()} />;
-  const res = results.data;
-  if (!res) return null;
+  if (!results.data) return null;
+  // The rows of students whose deletion is pending are left out, and every
+  // use of the rows below sees the same list.
+  const res = {
+    ...results.data,
+    rows: results.data.rows.filter((r) => !deleting.includes(r.participantId)),
+  };
   const locale = getLocale();
   const first = Math.min(...res.rows.map((r) => r.sittingDate));
   const about = [
@@ -125,6 +141,18 @@ export function ResultsPage() {
             </span>
           )}
           <ExportButton id={id} />
+          <Button
+            className="t-icon-btn"
+            data-variant="danger"
+            aria-label={m.results_delete({ title: res.testTitle })}
+            isDisabled={id === running}
+            onPress={() => {
+              navigate({ to: "/assignments" });
+              remove.mutate({ id, title: res.testTitle });
+            }}
+          >
+            <Icon name="trash" />
+          </Button>
         </div>
       </header>
       {res.tags.length > 0 && <TagScores tags={res.tags} />}

@@ -20,7 +20,12 @@ import {
   ModalOverlay,
   NumberField,
 } from "react-aria-components";
-import { busy, useSetOverride } from "../../api/queries";
+import {
+  busy,
+  useDeleteParticipant,
+  useRunningAssignment,
+  useSetOverride,
+} from "../../api/queries";
 import { Icon } from "../../ui/icons";
 import { formatDate, formatPoints } from "../live/journal";
 import { AnswerReview } from "./AnswerReview";
@@ -42,6 +47,8 @@ export function StudentDetail(props: {
   focus?: string;
   onClose: () => void;
 }) {
+  const remove = useDeleteParticipant(props.results.assignmentId);
+  const running = useRunningAssignment();
   const row = props.results.rows.find(
     (r) => r.participantId === props.participantId,
   );
@@ -91,6 +98,18 @@ export function StudentDetail(props: {
                     .join(" · ")}
                 </p>
               </div>
+              <Button
+                className="t-icon-btn"
+                data-variant="danger"
+                aria-label={m.results_student_delete()}
+                isDisabled={props.results.assignmentId === running}
+                onPress={() => {
+                  props.onClose();
+                  remove.mutate(row);
+                }}
+              >
+                <Icon name="trash" />
+              </Button>
               <Button
                 slot="close"
                 className="t-icon-btn"

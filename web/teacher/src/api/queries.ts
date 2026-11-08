@@ -2,6 +2,7 @@ import type { Test } from "@klats/shared/generated/testfmt.ts";
 import type {
   Class,
   OverrideRequest,
+  ResultRow,
   SettingsInfo,
   TestDoc,
   TestSummary,
@@ -345,6 +346,104 @@ export const useAssignments = () =>
 
 export const useResults = (id: string) =>
   useQuery({ queryKey: ["results", id], queryFn: () => api.results(id) });
+
+/**
+ * Toasts `text` with «Скасувати» for {@link UNDO_MS}, then calls `send`.
+ * Resolves true when `send` ran and false when the teacher undid the action.
+ */
+async function sendAfterUndo(text: string, send: () => Promise<void>) {
+  const w = undoWindow(UNDO_MS);
+  const key = toasts.add({
+    text,
+    action: { label: m.action_undo(), onAction: w.undo },
+  });
+  const commit = await w.done;
+  toasts.close(key);
+  if (commit) await send();
+  return commit;
+}
+
+/** Toasts why a deletion of results failed: the sitting still runs, or not. */
+function deleteResultsFailed(err: Error) {
+  notify(
+    err instanceof api.ApiError && err.code === "sitting_active"
+      ? m.results_delete_running()
+      : m.results_delete_failed(),
+    true,
+  );
+}
+
+/**
+ * Deletes a test's whole results entry after {@link UNDO_MS}, while a toast
+ * offers «Скасувати». It is pending through the wait, so
+ * {@link useDeletingAssignments} hides the entry at once; an undo or a failed
+ * DELETE ends it and the entry comes back, a failure with an error toast. The
+ * server refuses an entry whose sitting runs. Key: "deleteAssignment".
+ */
+export function useDeleteAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["deleteAssignment"],
+    mutationFn: (v: { id: string; title: string }) =>
+      sendAfterUndo(m.results_deleted({ title: v.title }), () =>
+        api.deleteAssignment(v.id),
+      ),
+    onSuccess: (deleted, v) => {
+      if (deleted)
+        qc.removeQueries({ queryKey: ["results", v.id], exact: true });
+    },
+    onError: deleteResultsFailed,
+    onSettled: () =>
+      qc.invalidateQueries({ queryKey: ["assignments"], exact: true }),
+  });
+}
+
+/** Returns the ids of the assignments whose deletion is pending. */
+export const useDeletingAssignments = () =>
+  useMutationState({
+    filters: { mutationKey: ["deleteAssignment"], status: "pending" },
+    select: (mut) => (mut.state.variables as { id: string }).id,
+  });
+
+/**
+ * Deletes one student's row from assignment `assignmentId` after
+ * {@link UNDO_MS}, as {@link useDeleteAssignment} does, hidden meanwhile by
+ * {@link useDeletingParticipants}. The tag percents, the class-correct row and
+ * the list's average follow only once the DELETE lands, when the results
+ * refetch. Key: "deleteParticipant".
+ */
+export function useDeleteParticipant(assignmentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["deleteParticipant"],
+    mutationFn: (row: ResultRow) =>
+      sendAfterUndo(m.results_student_deleted({ name: row.name }), () =>
+        api.deleteParticipant(assignmentId, row.participantId),
+      ),
+    onError: deleteResultsFailed,
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["results", assignmentId] }),
+        qc.invalidateQueries({ queryKey: ["assignments"], exact: true }),
+      ]),
+  });
+}
+
+/** Returns the participant ids whose row deletion is pending. */
+export const useDeletingParticipants = () =>
+  useMutationState({
+    filters: { mutationKey: ["deleteParticipant"], status: "pending" },
+    select: (mut) => (mut.state.variables as ResultRow).participantId,
+  });
+
+/**
+ * Returns the id of the assignment whose sitting is running, or null. Its
+ * results cannot be deleted until the sitting ends.
+ */
+export function useRunningAssignment(): string | null {
+  const { data: live } = useLive();
+  return live && !live.sitting.ended ? live.sitting.assignmentId : null;
+}
 
 /**
  * Sets or clears an override on assignment `id`; the reply replaces the

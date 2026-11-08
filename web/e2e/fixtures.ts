@@ -143,6 +143,8 @@ export interface Klats {
   opened(path: string): Promise<void>;
   /** The teacher's live snapshot. */
   live(): Promise<LiveSnapshot>;
+  /** Ends the running sitting, as the live view's end button does. */
+  end(): Promise<void>;
   /** The teacher's results of the assignment `id`. */
   results(id: string): Promise<AssignmentResults>;
   /** Sets the teacher's points for a participant's answer, as the results table does. */
@@ -242,6 +244,7 @@ export const test = base.extend<{ klats: Klats }>({
     await use({
       student: urls.get("student") ?? "",
       live,
+      end: () => api("POST", "/api/sittings/current/end", {}),
       async upload(bytes) {
         const res = await fetch(`${teacherURL.origin}/api/media`, {
           method: "POST",

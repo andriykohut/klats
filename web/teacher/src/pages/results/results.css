@@ -65,6 +65,11 @@
   outline-offset: 2px;
 }
 
+/* Above the title link's row-wide cover, so the bin takes its own press. */
+.r-item .t-icon-btn {
+  position: relative;
+}
+
 .r-item-meta {
   color: var(--k-muted);
   font-size: 13px;

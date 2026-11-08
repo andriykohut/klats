@@ -93,6 +93,16 @@ export const saveTest = (testId: string, test: Test) =>
   call<SaveResult>("PUT", `/api/tests/${id(testId)}`, test);
 export const deleteTest = (testId: string) =>
   call<void>("DELETE", `/api/tests/${id(testId)}`);
+export const deleteAssignment = (assignmentId: string) =>
+  call<void>("DELETE", `/api/assignments/${id(assignmentId)}`);
+export const deleteParticipant = (
+  assignmentId: string,
+  participantId: string,
+) =>
+  call<void>(
+    "DELETE",
+    `/api/assignments/${id(assignmentId)}/participants/${id(participantId)}`,
+  );
 /** Stores a copy of the test, titled `title`, and resolves to the copy. */
 export const duplicateTest = (testId: string, title: string) =>
   call<TestDoc>("POST", `/api/tests/${id(testId)}/duplicate`, { title });

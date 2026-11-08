@@ -2,7 +2,15 @@ import { averageText, gradeBand } from "@klats/shared/grades.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { getLocale } from "@klats/shared/paraglide/runtime.js";
 import { Link } from "@tanstack/react-router";
-import { useAssignments } from "../../api/queries";
+import { useState } from "react";
+import { Button } from "react-aria-components";
+import {
+  useAssignments,
+  useDeleteAssignment,
+  useDeletingAssignments,
+  useRunningAssignment,
+} from "../../api/queries";
+import { cooldown } from "../../cooldown";
 import { Icon } from "../../ui/icons";
 import { LoadError } from "../../ui/LoadError";
 import { formatDate } from "../live/journal";
@@ -12,8 +20,13 @@ import "./results.css";
 /** «Результати»: every assignment, newest first, each opening its results. */
 export function AssignmentsPage() {
   const list = useAssignments();
+  const deleting = useDeletingAssignments();
+  const remove = useDeleteAssignment();
+  const running = useRunningAssignment();
+  const [mayDelete] = useState(() => cooldown());
   if (list.isError) return <LoadError onRetry={() => list.refetch()} />;
   if (!list.data) return null;
+  const rows = list.data.filter((a) => !deleting.includes(a.id));
   const locale = getLocale();
   const when = (at: number) =>
     formatDate(at, locale, {
@@ -22,7 +35,7 @@ export function AssignmentsPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  if (list.data.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className="t-page">
         <div className="t-empty">
@@ -41,7 +54,7 @@ export function AssignmentsPage() {
         <h1>{m.nav_results()}</h1>
       </header>
       <ul className="r-list">
-        {list.data.map((a) => (
+        {rows.map((a) => (
           <li key={a.id} className="r-item">
             <span className="r-item-main">
               <Link
@@ -75,6 +88,17 @@ export function AssignmentsPage() {
                 </b>
               )}
             </span>
+            <Button
+              className="t-icon-btn"
+              data-variant="danger"
+              aria-label={m.results_delete({ title: a.testTitle })}
+              isDisabled={a.id === running}
+              onPress={() =>
+                mayDelete() && remove.mutate({ id: a.id, title: a.testTitle })
+              }
+            >
+              <Icon name="trash" />
+            </Button>
           </li>
         ))}
       </ul>
