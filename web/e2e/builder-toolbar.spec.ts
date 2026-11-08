@@ -116,6 +116,11 @@ for (const c of CASES) {
         )
         .getByRole("toolbar");
       await expect(bar).toBeVisible();
+      // The toolbar drops in from 8 px higher, so its box settles only once
+      // the animation ends.
+      await bar.evaluate((el) =>
+        Promise.all(el.getAnimations().map((a) => a.finished)),
+      );
 
       const h = await heading.boundingBox();
       const b = await bar.boundingBox();
