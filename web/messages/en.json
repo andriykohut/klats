@@ -945,6 +945,7 @@
   "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected.",
   "crash_title": "Something went wrong",
   "crash_teacher_text": "This page hit an error. Everything you saved is safe.",
+  "crash_student_text": "Your answers are saved. Reload the page, and if it happens again, call your teacher.",
   "crash_reload": "Reload the page",
   "crash_to_tests": "Back to tests"
 }

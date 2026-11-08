@@ -1,8 +1,9 @@
 // Package studentapi is the HTTP API student browsers call over the school
 // LAN, and the host of the student web app. It is the only thing the program
 // exposes on the network, so every request is untrusted: device tokens are
-// validated, bodies are capped, join and pick are rate limited, and engine
-// errors are mapped to fixed codes without internal detail.
+// validated, bodies are capped, join and pick are rate limited, crash reports
+// are capped, and engine errors are mapped to fixed codes without internal
+// detail.
 package studentapi
 
 import (
@@ -44,6 +45,8 @@ type api struct {
 	media *media.Store
 	spa   http.Handler
 	rate  *limiter
+	// crashes caps the crash reports written to the log.
+	crashes *limiter
 
 	streamsMu sync.Mutex
 	streams   map[string]int // client IP → open event streams
@@ -58,7 +61,7 @@ func Handler(e *sitting.Engine, hub *events.Hub, assets fs.FS, ms *media.Store) 
 }
 
 func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, ms *media.Store, now func() time.Time) http.Handler {
-	a := &api{e: e, hub: hub, media: ms, spa: httpx.SPA(assets), rate: newLimiter(now), streams: map[string]int{}}
+	a := &api{e: e, hub: hub, media: ms, spa: httpx.SPA(assets), rate: newLimiter(now), crashes: newLimiter(now), streams: map[string]int{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/join", a.device(a.join))
 	mux.HandleFunc("POST /api/pick", a.device(a.pick))
@@ -67,6 +70,7 @@ func newHandler(e *sitting.Engine, hub *events.Hub, assets fs.FS, ms *media.Stor
 	mux.HandleFunc("POST /api/heartbeat", a.device(a.heartbeat))
 	mux.HandleFunc("POST /api/finish", a.device(a.finish))
 	mux.HandleFunc("POST /api/focus", a.device(a.focus))
+	mux.HandleFunc("POST /api/crash", a.crash)
 	mux.HandleFunc("GET /api/media/{name}", a.serveMedia)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("/", a.static)

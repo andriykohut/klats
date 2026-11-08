@@ -1,4 +1,5 @@
 import type {
+  ClientError,
   FinishResult,
   JoinInfo,
   NamesTaken,
@@ -123,6 +124,14 @@ export function reportFocus(left: boolean): void {
   // shortcut: a report that fails, such as during an outage, is dropped, so
   // the teacher's window switch count can be low; queue them if that matters.
   call(base, "/api/focus", { left }).catch(() => {});
+}
+
+/**
+ * Sends a crash of the app, with its stack and screen, to the teacher's log,
+ * which keeps ten a minute from all students together; failures are dropped.
+ */
+export function reportCrash(c: ClientError): void {
+  call(base, "/api/crash", c).catch(() => {});
 }
 
 /** The answer and heartbeat calls the Connection makes. */

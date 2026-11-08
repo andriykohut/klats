@@ -404,6 +404,62 @@ func TestInternalErrorLeaksNothing(t *testing.T) {
 	}
 }
 
+// captureLog sends the default logger's lines to the returned buffer until
+// the test ends.
+func captureLog(t *testing.T) *bytes.Buffer {
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil))) })
+	return &buf
+}
+
+func TestCrashIsLogged(t *testing.T) {
+	v := setup(t)
+	buf := captureLog(t)
+	r := httptest.NewRequest("POST", "/api/crash", strings.NewReader(`{"message":"boom","stack":"at X","page":"test 2"}`))
+	r.RemoteAddr = "10.0.0.5:4000"
+	r.Header.Set("User-Agent", "TestBrowser/1")
+	w := httptest.NewRecorder()
+	v.h.ServeHTTP(w, r)
+	wantStatus(t, w, 204)
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("%d log lines, want 1: %q", len(lines), buf.String())
+	}
+	for _, want := range []string{"student app crashed", "ip=10.0.0.5", "browser=TestBrowser/1", "message=boom", `page="test 2"`} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("log line %q lacks %q", lines[0], want)
+		}
+	}
+
+	buf.Reset()
+	w = v.do("POST", "/api/crash", "", map[string]string{"message": strings.Repeat("x", 64<<10)})
+	if w.Code < 300 {
+		t.Errorf("an oversized crash report got %d", w.Code)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("an oversized crash report logged %q", buf.String())
+	}
+}
+
+func TestCrashLogIsCapped(t *testing.T) {
+	v := setup(t)
+	buf := captureLog(t)
+	report := map[string]string{"message": "boom", "stack": "at X", "page": "test 1"}
+	for i := range 12 {
+		// Each report comes from another student: the cap is shared by all.
+		wantStatus(t, v.doFrom(fmt.Sprintf("10.0.0.%d:4000", i+1), "POST", "/api/crash", "", report), 204)
+	}
+	if n := strings.Count(buf.String(), "\n"); n != 10 {
+		t.Errorf("%d crash lines logged in one window, want 10", n)
+	}
+	v.now.add(rateWindow)
+	wantStatus(t, v.do("POST", "/api/crash", "", report), 204)
+	if n := strings.Count(buf.String(), "\n"); n != 11 {
+		t.Errorf("%d crash lines logged after the window, want 11", n)
+	}
+}
+
 func TestPickRateLimit(t *testing.T) {
 	v := setup(t)
 	pick := func() *httptest.ResponseRecorder {

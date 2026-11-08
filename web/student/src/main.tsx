@@ -27,6 +27,7 @@ import {
   tryAgain,
 } from "./app";
 import { AddressChanged } from "./screens/AddressChanged";
+import { CrashBoundary } from "./screens/Crash";
 import { JoinCode } from "./screens/JoinCode";
 import { Kicked, Moved } from "./screens/Kicked";
 import { OtherTab } from "./screens/OtherTab";
@@ -184,12 +185,17 @@ function App() {
   );
 }
 
-/** Gives React Aria's own strings, such as a popover's dismiss label, the app's language. */
+/**
+ * Gives React Aria's own strings, such as a popover's dismiss label, the
+ * app's language, and shows the crash screen in place of an app that threw.
+ */
 function Root() {
   const lang = useSyncExternalStore(subscribe, () => getState().lang);
   return (
     <I18nProvider locale={lang === "uk" ? "uk-UA" : "en-US"}>
-      <App />
+      <CrashBoundary>
+        <App />
+      </CrashBoundary>
     </I18nProvider>
   );
 }
