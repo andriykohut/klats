@@ -54,18 +54,21 @@ export class CrashBoundary extends Component<
 }
 
 /**
- * Stands in for a question that threw while rendering: one button leads on to
- * the next question, or to the review after the last one.
+ * Stands in for a question that threw while rendering: a sheet with one
+ * button, labelled Finish when `last` and Next otherwise, that calls `onNext`.
+ * `timer` sits in the sheet's top right corner.
  */
 export function BrokenQuestion({
   last,
+  timer,
   onNext,
 }: {
   last: boolean;
+  timer?: ReactNode;
   onNext: () => void;
 }) {
   return (
-    <Notice icon={ICONS.broken} title={m.crash_question_title()}>
+    <Notice icon={ICONS.broken} title={m.crash_question_title()} timer={timer}>
       <p className="s-lead">{m.crash_question_text()}</p>
       <div className="s-actions">
         <button type="button" className="s-btn" onClick={onNext}>

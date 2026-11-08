@@ -48,7 +48,9 @@ test("student: a broken question can be skipped, and the test finished", async (
   klats,
 }) => {
   const questions = TEST.slice(0, 2);
-  const { code } = await klats.start(questions);
+  const { code } = await klats.start(questions, {
+    settings: { timeLimit: { mode: "student", minutes: 20 } },
+  });
   const page = await klats.computer();
   await breakSecondQuestion(page);
   const report = page.waitForRequest(
@@ -67,8 +69,12 @@ test("student: a broken question can be skipped, and the test finished", async (
     }),
   ).toBeVisible();
 
+  const timer = page.getByRole("timer", { name: m.timer_label() });
+  await expect(timer).toBeVisible();
+
   await page.reload();
   await expect(sheet).toBeVisible();
+  await expect(timer).toBeVisible();
   await expect(
     page.getByRole("heading", { name: m.crash_title() }),
   ).toHaveCount(0);

@@ -30,15 +30,18 @@ export function Sheet({
 /**
  * A sheet laid out like the finish screen: an icon in a ring, which draws
  * itself in, beside a title and whatever the screen adds below it. `icon` is
- * the path data of 24×24 stroked icon lines.
+ * the path data of 24×24 stroked icon lines. `timer` sits at the sheet's top
+ * right, as on a question sheet.
  */
 export function Notice({
   icon,
   title,
+  timer,
   children,
 }: {
   icon: string[];
   title: string;
+  timer?: ReactNode;
   children: ReactNode;
 }) {
   const reduced = useReducedMotionConfig();
@@ -68,6 +71,7 @@ export function Notice({
         <h1 className="k-finish-title">{title}</h1>
         {children}
       </div>
+      {timer && <div className="k-sheet-timer">{timer}</div>}
     </Sheet>
   );
 }

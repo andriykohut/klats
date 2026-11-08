@@ -86,6 +86,7 @@ function App() {
             fallback={
               <BrokenQuestion
                 last={last}
+                timer={timer}
                 onNext={() =>
                   last ? show({ name: "review" }) : go(s.index + 1)
                 }
