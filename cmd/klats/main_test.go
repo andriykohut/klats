@@ -395,7 +395,7 @@ func TestUpdateCheckWaitsForNoSitting(t *testing.T) {
 }
 
 // fakeShell stands in for the desktop window: Run calls fn, and Fail appends
-// its arguments to failed.
+// its arguments to failed, when set.
 type fakeShell struct {
 	fn     func(teacherURL string) error
 	failed *[]failCall
@@ -410,7 +410,9 @@ func (f fakeShell) Run(_ context.Context, teacherURL string) error { return f.fn
 func (fakeShell) Dialogs() teacherapi.Dialogs                      { return nil }
 func (fakeShell) Browser() teacherapi.Browser                      { return nil }
 func (f fakeShell) Fail(newerData bool, logDir string) {
-	*f.failed = append(*f.failed, failCall{newerData, logDir})
+	if f.failed != nil {
+		*f.failed = append(*f.failed, failCall{newerData, logDir})
+	}
 }
 
 // startWithShell runs the program without -dev on dataDir, with a shell whose

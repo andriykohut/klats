@@ -157,11 +157,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	opened := teacherapi.NewOpenedFiles()
 	if !*dev {
 		onShutdown := func() {
-			if stop != nil { // a failed start quits before stop is set
+			if stop != nil { // a failed start quits before eng and stop are set
 				stop()
 			}
 		}
-		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, onShutdown, opened.Add)
+		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng != nil && eng.Active() }, onShutdown, opened.Add)
 		if err != nil {
 			return err
 		}

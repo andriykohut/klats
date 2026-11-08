@@ -169,8 +169,14 @@ Start from an empty data folder (`%APPDATA%\Klats`, or move it aside).
      «Закрити».
    - Press «Відкрити сайт». *Expected:* the browser opens the website's
      download section, and Klats exits.
-   - Put the data folder back. Start Klats, then quit it and double-click a
-     `.klats` file. *Expected:* the window opens each time.
+   - Put the data folder back, rename `klats.db` and make a folder named
+     `klats.db` in its place. Start Klats. *Expected:* «Клац не запустився»
+     comes to the front with the path of `logs\klats.log`.
+   - Press «Показати журнал». *Expected:* Explorer opens the `logs` folder,
+     and Klats exits.
+   - Remove the folder and rename the file back. Start Klats, then quit it
+     and double-click a `.klats` file. *Expected:* the window opens each
+     time.
 
 ## 3. A Linux teacher run (Ubuntu 24.04, amd64)
 
@@ -192,7 +198,8 @@ Use a real desktop session, not a container.
 5. **Save dialog.** Repeat check 2.7 with the GTK dialog.
    - *Expected:* the same results.
 6. **A failed start.** Repeat check 2.8.
-   - *Expected:* the same results.
+   - *Expected:* the same results; «Показати журнал» opens the `logs` folder
+     in the file manager.
 
 ## 4. The export in real Excel
 

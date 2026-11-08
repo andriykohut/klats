@@ -104,8 +104,6 @@ func New(o Options) *App {
 	})
 	a.win = a.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: t.title, Width: 1440, Height: 900, MinWidth: 1366, MinHeight: 768,
-		// Run shows it, so no empty window stands behind Fail's dialog.
-		Hidden: true,
 	})
 	a.win.RegisterHook(events.Common.WindowClosing, a.closing)
 	// It can fire before ApplicationStarted, when the window is about to show anyway.
@@ -132,7 +130,6 @@ func (a *App) Run(ctx context.Context, teacherURL string) error {
 	// Both goroutines call into Wails, which is ready only once the app runs.
 	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		a.started.Store(true)
-		a.show()
 		go func() {
 			select {
 			case <-ctx.Done():
@@ -178,6 +175,9 @@ func (a *App) Fail(newerData bool, logDir string) {
 			d.Show()
 		}()
 	})
+	// Before the app runs, Hide only marks the window to be created hidden,
+	// so no empty window stands behind the dialog.
+	a.win.Hide()
 	if err := a.app.Run(); err != nil {
 		slog.Error("the startup dialog did not show", "err", err)
 	}
