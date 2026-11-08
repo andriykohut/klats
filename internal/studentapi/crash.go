@@ -9,10 +9,10 @@ import (
 )
 
 // maxCrashBytes caps a crash report. A real one is a few KiB, while anyone on
-// the LAN can post them and the log rotates only at startup. Decoding turns
-// each invalid UTF-8 byte into U+FFFD, three bytes, so a line at the cap logs
-// up to about 49 KiB with the clipped User-Agent, and deviceLimit lines a
-// minute grow the log by at most about 29 MiB an hour.
+// the LAN can post them and the log rotates only at startup. The log quotes
+// each control byte such as DEL as \x7f, four bytes, so a line at the cap logs
+// up to about 65 KiB with the clipped User-Agent, and deviceLimit lines a
+// minute grow the log by at most about 38 MiB an hour.
 const maxCrashBytes = 16 << 10
 
 // maxUserAgentBytes clips the logged User-Agent: the server accepts headers
