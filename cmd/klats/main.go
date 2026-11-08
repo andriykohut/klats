@@ -69,6 +69,10 @@ type shell interface {
 	Run(ctx context.Context, teacherURL string) error
 	Dialogs() teacherapi.Dialogs
 	Browser() teacherapi.Browser
+	// Fail shows why the program could not start, instead of Run: the data
+	// is from a newer version, or another error is in logDir/klats.log. On
+	// macOS it never returns.
+	Fail(newerData bool, logDir string)
 }
 
 func main() {
@@ -145,16 +149,29 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	// into eng and stop only once it runs, after both are set. A file the
 	// system opens Klats with can arrive before then, and waits in opened.
 	var (
-		sh   shell
-		eng  *sitting.Engine
-		stop func()
+		sh       shell
+		shellRan bool
+		eng      *sitting.Engine
+		stop     func()
 	)
 	opened := teacherapi.NewOpenedFiles()
 	if !*dev {
-		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, func() { stop() }, opened.Add)
+		onShutdown := func() {
+			if stop != nil { // a failed start quits before stop is set
+				stop()
+			}
+		}
+		sh, err = openShell(savedLanguage(dataDir), func() bool { return eng.Active() }, onShutdown, opened.Add)
 		if err != nil {
 			return err
 		}
+		// Deferred first, so the error is logged and the store and the log
+		// are closed before it runs: on macOS the process exits inside Fail.
+		defer func() {
+			if err != nil && !shellRan {
+				sh.Fail(errors.Is(err, store.ErrSchemaTooNew), filepath.Join(dataDir, "logs"))
+			}
+		}()
 	}
 
 	logFile, err := openLog(dataDir)
@@ -323,6 +340,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		<-ctx.Done()
 		return nil
 	}
+	shellRan = true
 	return sh.Run(ctx, teacherURL)
 }
 

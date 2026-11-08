@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -392,12 +394,102 @@ func TestUpdateCheckWaitsForNoSitting(t *testing.T) {
 	}
 }
 
-// fakeShell stands in for the desktop window: Run calls fn.
-type fakeShell struct{ fn func(teacherURL string) error }
+// fakeShell stands in for the desktop window: Run calls fn, and Fail appends
+// its arguments to failed.
+type fakeShell struct {
+	fn     func(teacherURL string) error
+	failed *[]failCall
+}
+
+type failCall struct {
+	newer  bool
+	logDir string
+}
 
 func (f fakeShell) Run(_ context.Context, teacherURL string) error { return f.fn(teacherURL) }
 func (fakeShell) Dialogs() teacherapi.Dialogs                      { return nil }
 func (fakeShell) Browser() teacherapi.Browser                      { return nil }
+func (f fakeShell) Fail(newerData bool, logDir string) {
+	*f.failed = append(*f.failed, failCall{newerData, logDir})
+}
+
+// startWithShell runs the program without -dev on dataDir, with a shell whose
+// Run returns runErr. It returns the shell's Fail calls, whether Run was
+// called, and run's error.
+func startWithShell(t *testing.T, dataDir string, runErr error) (fails []failCall, ran bool, err error) {
+	t.Helper()
+	stubs(t)
+	openShell = func(func() string, func() bool, func(), func(string)) (shell, error) {
+		return fakeShell{fn: func(string) error { ran = true; return runErr }, failed: &fails}, nil
+	}
+	err = run(context.Background(), []string{"-data", dataDir}, io.Discard, io.Discard)
+	return fails, ran, err
+}
+
+func TestNewerDataShowsTheDialog(t *testing.T) {
+	dataDir := t.TempDir()
+	path := filepath.Join(dataDir, "klats.db")
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(`INSERT INTO goose_db_version (version_id, is_applied) VALUES (99, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	_ = conn.Close()
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fails, ran, err := startWithShell(t, dataDir, nil)
+	if !errors.Is(err, store.ErrSchemaTooNew) {
+		t.Errorf("run = %v, want ErrSchemaTooNew", err)
+	}
+	if want := []failCall{{true, filepath.Join(dataDir, "logs")}}; !slices.Equal(fails, want) {
+		t.Errorf("Fail calls = %+v, want %+v", fails, want)
+	}
+	if ran {
+		t.Error("the shell ran")
+	}
+	if after, err := os.ReadFile(path); err != nil || !bytes.Equal(before, after) {
+		t.Errorf("klats.db changed (read error %v)", err)
+	}
+}
+
+func TestStartupErrorShowsTheDialog(t *testing.T) {
+	dataDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dataDir, "klats.db"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	fails, _, err := startWithShell(t, dataDir, nil)
+	if err == nil {
+		t.Error("run = nil, want an error")
+	}
+	if want := []failCall{{false, filepath.Join(dataDir, "logs")}}; !slices.Equal(fails, want) {
+		t.Errorf("Fail calls = %+v, want %+v", fails, want)
+	}
+	if log, _ := os.ReadFile(filepath.Join(dataDir, "logs", "klats.log")); !bytes.Contains(log, []byte("klats stopped on an error")) {
+		t.Errorf("klats.log = %q, want the error logged", log)
+	}
+}
+
+func TestShellErrorShowsNoDialog(t *testing.T) {
+	boom := errors.New("boom")
+	fails, _, err := startWithShell(t, t.TempDir(), boom)
+	if !errors.Is(err, boom) {
+		t.Errorf("run = %v, want %v", err, boom)
+	}
+	if len(fails) != 0 {
+		t.Errorf("Fail calls = %+v, want none", fails)
+	}
+}
 
 // TestShellQuitStopsEverything checks what is left when the shell reports its
 // shutdown: on macOS the process exits right after, so nothing may wait for
@@ -419,7 +511,7 @@ func TestShellQuitStopsEverything(t *testing.T) {
 	}
 	var ran bool
 	openShell = func(_ func() string, _ func() bool, onShutdown func(), _ func(string)) (shell, error) {
-		return fakeShell{func(launchURL string) error {
+		return fakeShell{fn: func(launchURL string) error {
 			ran = true
 			startSitting(t, launchURL)
 			for deadline := time.Now().Add(5 * time.Second); held.Load() == 0; time.Sleep(5 * time.Millisecond) {
@@ -456,7 +548,7 @@ func TestSavedLanguageSurvivesAnUnreadableFile(t *testing.T) {
 	var got []string
 	openShell = func(language func() string, _ func() bool, _ func(), _ func(string)) (shell, error) {
 		got = append(got, language())
-		return fakeShell{func(string) error {
+		return fakeShell{fn: func(string) error {
 			if err := os.WriteFile(filepath.Join(dataDir, "settings.json"), []byte("{"), 0o600); err != nil {
 				t.Error(err)
 			}

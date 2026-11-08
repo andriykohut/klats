@@ -548,7 +548,9 @@ current webview.
 
   It holds `klats.db`, `settings.json`, `media/`, `snapshots/`, `tmp/` and
   `logs/klats.log` (the log is rotated at 5 MB). A damaged `settings.json` is logged, and the
-  program starts with the defaults.
+  program starts with the defaults. A start that fails once the window holds
+  the single instance shows a native dialog: it offers the website's download
+  page for data from a newer version, and the log folder otherwise.
 - **`tmp/`** holds what lives only for one request: uploaded files and
   backups spooled from the request body, downloads waiting to be sent, the
   database copy a backup is made from and the folder a restore checks a

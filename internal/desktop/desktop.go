@@ -6,7 +6,8 @@
 //
 // The shell starts in two steps. [New] claims the single instance before the
 // program opens its database, log and ports, and [App.Run] opens the window
-// once the teacher API is listening.
+// once the teacher API is listening. When the program cannot get that far,
+// [App.Fail] says why in a dialog instead.
 //
 // A file the system opens with Klats, such as a double-clicked .klats file,
 // reaches [Options.OpenFile] from the system's open event or, when a second
@@ -103,6 +104,8 @@ func New(o Options) *App {
 	})
 	a.win = a.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: t.title, Width: 1440, Height: 900, MinWidth: 1366, MinHeight: 768,
+		// Run shows it, so no empty window stands behind Fail's dialog.
+		Hidden: true,
 	})
 	a.win.RegisterHook(events.Common.WindowClosing, a.closing)
 	// It can fire before ApplicationStarted, when the window is about to show anyway.
@@ -129,6 +132,7 @@ func (a *App) Run(ctx context.Context, teacherURL string) error {
 	// Both goroutines call into Wails, which is ready only once the app runs.
 	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		a.started.Store(true)
+		a.show()
 		go func() {
 			select {
 			case <-ctx.Done():
@@ -140,6 +144,43 @@ func (a *App) Run(ctx context.Context, teacherURL string) error {
 		go a.trayWhileActive()
 	})
 	return a.app.Run()
+}
+
+// Fail shows, instead of [App.Run], a dialog that says why the program could
+// not start, and quits once the teacher closes it. With newerData the data
+// was saved by a newer version, and the dialog offers the website's download
+// page; otherwise it names logDir/klats.log and offers to show logDir. On
+// macOS the process exits once Options.OnShutdown returns, so Fail does not
+// return there.
+func (a *App) Fail(newerData bool, logDir string) {
+	a.confirmed.Store(true)
+	lang := a.o.Language()
+	t := textsFor(lang)
+	title, text, action := t.tooNewTitle, t.tooNewText, t.download
+	open := func() error { return a.app.Browser.OpenURL(teacherapi.DownloadURL(lang)) }
+	if !newerData {
+		title, text, action = t.failTitle, t.failText+"\n\n"+filepath.Join(logDir, "klats.log"), t.showLog
+		open = func() error { return a.app.Browser.OpenFile(logDir) }
+	}
+	a.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		go func() {
+			// On Windows, Wails v3.0.0-beta.34 shows custom buttons only on a
+			// question dialog. An error dialog there has a single OK that runs
+			// no button's action, so the program would never quit.
+			d := a.app.Dialog.Question().SetTitle(title).SetMessage(text)
+			d.SetDefaultButton(d.AddButton(action).OnClick(func() {
+				if err := open(); err != nil {
+					slog.Warn("the startup dialog's link did not open", "err", err)
+				}
+				a.app.Quit()
+			}))
+			d.SetCancelButton(d.AddButton(t.close).OnClick(a.app.Quit))
+			d.Show()
+		}()
+	})
+	if err := a.app.Run(); err != nil {
+		slog.Error("the startup dialog did not show", "err", err)
+	}
 }
 
 func (a *App) show() {

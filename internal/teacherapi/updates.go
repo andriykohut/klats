@@ -13,6 +13,15 @@ import (
 // siteURL is the Klats website in Ukrainian; the English pages sit under en/.
 const siteURL = "https://andriykohut.github.io/klats/"
 
+// DownloadURL returns the website's download section in lang: English for
+// "en", Ukrainian otherwise.
+func DownloadURL(lang string) string {
+	if lang == "en" {
+		return siteURL + "en/#download"
+	}
+	return siteURL + "#download"
+}
+
 // Updates holds the newer release the update check found, which
 // GET /api/about reports. It is safe for concurrent use.
 type Updates struct {
@@ -51,12 +60,8 @@ func (a *api) open(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("target") {
 	case "download":
 		a.mu.Lock()
-		lang := a.settings.Language
+		url = DownloadURL(a.settings.Language)
 		a.mu.Unlock()
-		url = siteURL + "#download"
-		if lang == "en" {
-			url = siteURL + "en/#download"
-		}
 	case "notes":
 		rel, ok := a.updates.Get()
 		if !ok {

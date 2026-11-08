@@ -160,6 +160,17 @@ Start from an empty data folder (`%APPDATA%\Klats`, or move it aside).
    - Open the file in Excel and export to the same path again.
      *Expected:* «Не вдалося записати файл. Якщо він відкритий в Excel,
      закрийте його й спробуйте ще раз.»
+8. **A failed start.** Quit Klats, copy the data folder aside, and mark the
+   database as made by a newer version:
+   `sqlite3 klats.db "insert into goose_db_version(version_id, is_applied) values (99, 1)"`.
+   Start Klats.
+   - *Expected:* «Не вдалося відкрити дані Клацу» comes to the front, with
+     no window behind it, and its buttons read «Відкрити сайт» and
+     «Закрити».
+   - Press «Відкрити сайт». *Expected:* the browser opens the website's
+     download section, and Klats exits.
+   - Put the data folder back. Start Klats, then quit it and double-click a
+     `.klats` file. *Expected:* the window opens each time.
 
 ## 3. A Linux teacher run (Ubuntu 24.04, amd64)
 
@@ -179,6 +190,8 @@ Use a real desktop session, not a container.
    - After the end, and again after quitting, `pgrep -a systemd-inhibit`
      and `pgrep -a tail` show nothing Klats started.
 5. **Save dialog.** Repeat check 2.7 with the GTK dialog.
+   - *Expected:* the same results.
+6. **A failed start.** Repeat check 2.8.
    - *Expected:* the same results.
 
 ## 4. The export in real Excel
@@ -275,3 +288,8 @@ happen.
   `kill -9`). *Expected:* each time, the student
   pages reconnect with «Зв’язок відновлено», and every answer given before
   and during the break is in the results.
+
+### Starting
+
+- macOS only: repeat check 2.8, starting Klats.app from the Dock or Finder.
+  *Expected:* the same results.
