@@ -433,7 +433,7 @@ func TestCrashIsLogged(t *testing.T) {
 	}
 
 	buf.Reset()
-	w = v.do("POST", "/api/crash", "", map[string]string{"message": strings.Repeat("x", 64<<10)})
+	w = v.do("POST", "/api/crash", "", map[string]string{"message": strings.Repeat("x", 16<<10)})
 	if w.Code < 300 {
 		t.Errorf("an oversized crash report got %d", w.Code)
 	}

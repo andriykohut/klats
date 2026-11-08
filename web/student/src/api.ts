@@ -126,10 +126,7 @@ export function reportFocus(left: boolean): void {
   call(base, "/api/focus", { left }).catch(() => {});
 }
 
-/**
- * Sends a crash of the app, with its stack and screen, to the teacher's log,
- * which keeps ten a minute from all students together; failures are dropped.
- */
+/** Sends a crash of the app, with its stack and screen, to the teacher's log; failures are dropped. */
 export function reportCrash(c: ClientError): void {
   call(base, "/api/crash", c).catch(() => {});
 }

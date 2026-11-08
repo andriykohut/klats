@@ -7,12 +7,14 @@ import (
 
 const (
 	rateWindow  = time.Minute
-	deviceLimit = 10  // joins and picks per device token per window
+	deviceLimit = 10  // joins and picks per device token, and crash lines from all students together, per window
 	ipLimit     = 300 // joins and picks per client IP per window
 )
 
 // limiter counts join and pick attempts in sliding windows, per device token
-// and per client IP. Counts live in memory only.
+// and per client IP. The crash limiter counts every report under one shared
+// key (see crash.go), so deviceLimit also caps the crash lines all students
+// log together. Counts live in memory only.
 type limiter struct {
 	now func() time.Time
 
