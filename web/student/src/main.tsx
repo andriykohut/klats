@@ -27,7 +27,7 @@ import {
   tryAgain,
 } from "./app";
 import { AddressChanged } from "./screens/AddressChanged";
-import { CrashBoundary } from "./screens/Crash";
+import { BrokenQuestion, CrashBoundary } from "./screens/Crash";
 import { JoinCode } from "./screens/JoinCode";
 import { Kicked, Moved } from "./screens/Kicked";
 import { OtherTab } from "./screens/OtherTab";
@@ -79,18 +79,30 @@ function App() {
       break;
     case "test":
       if (test) {
+        const last = s.index === test.questions.length - 1;
         content = (
-          <TakeTest
+          <CrashBoundary
             key={test.questions[s.index].id}
-            test={test}
-            index={s.index}
-            answers={s.answers}
-            onAnswer={answer}
-            onGo={go}
-            onReview={() => show({ name: "review" })}
-            readOnly={s.timeUp}
-            timer={timer}
-          />
+            fallback={
+              <BrokenQuestion
+                last={last}
+                onNext={() =>
+                  last ? show({ name: "review" }) : go(s.index + 1)
+                }
+              />
+            }
+          >
+            <TakeTest
+              test={test}
+              index={s.index}
+              answers={s.answers}
+              onAnswer={answer}
+              onGo={go}
+              onReview={() => show({ name: "review" })}
+              readOnly={s.timeUp}
+              timer={timer}
+            />
+          </CrashBoundary>
         );
       }
       break;

@@ -7,6 +7,7 @@ import { popIn } from "@klats/shared/student-ui/motion.ts";
 import { motion, useReducedMotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 import { Button } from "react-aria-components/Button";
+import { CrashBoundary } from "./Crash";
 import { Sheet } from "./ui";
 import "@klats/shared/student-ui/AnswerTile.css";
 import "@klats/shared/student-ui/QuestionSheet.css";
@@ -77,7 +78,9 @@ export function Review({
                         {m.review_question({ number: i + 1 })}
                       </span>
                       <span className="s-excerpt">
-                        <RichView doc={q.text} />
+                        <CrashBoundary fallback={null}>
+                          <RichView doc={q.text} />
+                        </CrashBoundary>
                       </span>
                     </span>
                   </span>

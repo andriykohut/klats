@@ -953,5 +953,7 @@
   "crash_teacher_text": "This page hit an error. Everything you saved is safe.",
   "crash_student_text": "Your answers are saved. Reload the page, and if it happens again, call your teacher.",
   "crash_reload": "Reload the page",
-  "crash_to_tests": "Back to tests"
+  "crash_to_tests": "Back to tests",
+  "crash_question_title": "This question couldn’t be shown",
+  "crash_question_text": "Go on to the next one, and let your teacher know."
 }

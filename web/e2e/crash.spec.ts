@@ -1,14 +1,5 @@
 import type { Page } from "@playwright/test";
-import {
-  answers,
-  CLASS,
-  expect,
-  joinAs,
-  m,
-  pick,
-  TEST,
-  test,
-} from "./fixtures";
+import { CLASS, expect, joinAs, m, pick, TEST, test } from "./fixtures";
 
 /**
  * Makes the second question of the test `page` loads throw while it renders:
@@ -53,7 +44,7 @@ test("teacher: a crashed page shows the crash screen and reports it", async ({
   ).toBeVisible();
 });
 
-test("student: a crashed question shows the crash screen, and a reload resumes", async ({
+test("student: a broken question can be skipped, and the test finished", async ({
   klats,
 }) => {
   const questions = TEST.slice(0, 2);
@@ -67,24 +58,33 @@ test("student: a crashed question shows the crash screen, and a reload resumes",
   await pick(page, questions[0], "8");
   await page.getByRole("button", { name: m.test_next() }).click();
 
+  const sheet = page.getByRole("heading", { name: m.crash_question_title() });
+  await expect(sheet).toBeVisible();
+  expect((await report).postDataJSON().page).toBe("test 2");
+  await expect(
+    page.getByRole("button", {
+      name: m.progress_question_answered({ number: 1 }),
+    }),
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(sheet).toBeVisible();
   await expect(
     page.getByRole("heading", { name: m.crash_title() }),
-  ).toBeVisible();
-  const reload = page.getByRole("button", { name: m.crash_reload() });
-  await expect(reload).toBeVisible();
-  expect((await report).postDataJSON().page).toBe("test 2");
+  ).toHaveCount(0);
 
-  await page.unroute("**/api/test");
-  await reload.click();
-  await page
-    .getByRole("button", { name: m.progress_question_answered({ number: 1 }) })
-    .click();
+  await page.getByRole("button", { name: m.test_finish() }).click();
   await expect(
-    answers(page, questions[0]).getByRole("radio", { name: "8" }),
-  ).toBeChecked();
+    page.getByRole("heading", { name: m.review_title() }),
+  ).toBeVisible();
+  await expect(page.getByText(m.review_question({ number: 2 }))).toBeVisible();
+  await page.getByRole("button", { name: m.review_finish() }).click();
+  await expect(
+    page.getByRole("heading", { name: m.finish_title() }),
+  ).toBeVisible();
 });
 
-test("student: the crash screen shows when the report can't be sent", async ({
+test("student: the broken-question sheet shows when the report can't be sent", async ({
   klats,
 }) => {
   const { code } = await klats.start(TEST.slice(0, 2));
@@ -95,9 +95,6 @@ test("student: the crash screen shows when the report can't be sent", async ({
   await page.getByRole("button", { name: m.test_skip() }).click();
 
   await expect(
-    page.getByRole("heading", { name: m.crash_title() }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: m.crash_reload() }),
+    page.getByRole("heading", { name: m.crash_question_title() }),
   ).toBeVisible();
 });
