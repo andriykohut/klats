@@ -131,7 +131,7 @@ export function GroupsEditor({
 
   return (
     <div ref={root}>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_groups()}
         <em>{m.builder_groups_hint()}</em>
       </div>

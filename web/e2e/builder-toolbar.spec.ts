@@ -92,6 +92,14 @@ const CASES = [
       options: [option("l1", "Сонце", "p1"), option("l2", "Місяць")],
     }),
   },
+  {
+    type: "groups",
+    headings: [m.builder_groups],
+    fields: () => ({
+      targets: [target("g1", "Ссавці"), target("g2", "Птахи")],
+      options: [option("i1", "Кіт", "g1"), option("i2", "Горобець", "g2")],
+    }),
+  },
 ];
 
 for (const c of CASES) {
