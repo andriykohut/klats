@@ -12,7 +12,7 @@ export function CrashScreen() {
   return (
     <div className="t-page">
       <div className="t-empty">
-        <h2>{m.crash_title()}</h2>
+        <h1>{m.crash_title()}</h1>
         <p>{m.crash_teacher_text()}</p>
         <Button
           className="t-btn"

@@ -1489,9 +1489,8 @@ func TestRestoreRefuses(t *testing.T) {
 func TestCrashIsLogged(t *testing.T) {
 	v := setup(t, false)
 	var buf bytes.Buffer
-	prev := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
-	t.Cleanup(func() { slog.SetDefault(prev) })
+	t.Cleanup(func() { slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil))) })
 
 	w := v.do("POST", "/api/crash", map[string]string{"message": "boom", "stack": "at X", "page": "/classes"})
 	wantStatus(t, w, 204)

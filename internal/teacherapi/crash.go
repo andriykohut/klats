@@ -8,8 +8,8 @@ import (
 	"github.com/andriykohut/klats/internal/wire"
 )
 
-// maxCrashBytes caps a crash report: room for a long stack trace, and small
-// enough to stay one readable line of the log.
+// maxCrashBytes caps a crash report: room for a long stack trace, while a
+// runaway report cannot bloat the log.
 const maxCrashBytes = 64 << 10
 
 // crash writes a crash report from the teacher app to the log.
