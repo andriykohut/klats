@@ -192,6 +192,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("POST /api/open/{target}", a.open)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("GET /api/qr", a.qr)
+	mux.HandleFunc("POST /api/crash", a.crash)
 
 	spa := httpx.SPA(d.Assets)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

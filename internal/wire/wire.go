@@ -400,3 +400,12 @@ type ResultRow struct {
 	Order         []string                   `json:"order"`
 	TagPct        []*int                     `json:"tagPct"`
 }
+
+// ClientError is what a web app sends when a page crashed: the error's
+// message and stack, and Page, the path or screen it happened on, never with
+// a query string.
+type ClientError struct {
+	Message string `json:"message"`
+	Stack   string `json:"stack"`
+	Page    string `json:"page"`
+}

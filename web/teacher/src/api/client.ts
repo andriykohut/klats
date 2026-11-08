@@ -5,6 +5,7 @@ import type {
   AssignmentSummary,
   Class,
   ClassSummary,
+  ClientError,
   ExportResult,
   LiveSnapshot,
   MediaResult,
@@ -313,6 +314,9 @@ export const getSettings = () => call<SettingsInfo>("GET", "/api/settings");
 export const saveSettings = (s: SettingsInfo) =>
   call<SettingsInfo>("PUT", "/api/settings", s);
 export const getAbout = () => call<AboutInfo>("GET", "/api/about");
+/** Writes a crash of the app, with its stack and page, to the server's log. */
+export const reportCrash = (c: ClientError) =>
+  call<void>("POST", "/api/crash", c);
 
 /**
  * Opens a page in the system browser: "download" is the Klats website's

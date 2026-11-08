@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"image/png"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -1483,4 +1484,33 @@ func TestRestoreRefuses(t *testing.T) {
 		t.Errorf("tests = %+v, want %s untouched", tests, id)
 	}
 	v.noTemps(t)
+}
+
+func TestCrashIsLogged(t *testing.T) {
+	v := setup(t, false)
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	w := v.do("POST", "/api/crash", map[string]string{"message": "boom", "stack": "at X", "page": "/classes"})
+	wantStatus(t, w, 204)
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("%d log lines, want 1: %q", len(lines), buf.String())
+	}
+	for _, want := range []string{"teacher app crashed", "message=boom", "page=/classes"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("log line %q lacks %q", lines[0], want)
+		}
+	}
+
+	buf.Reset()
+	w = v.do("POST", "/api/crash", map[string]string{"message": strings.Repeat("x", 64<<10)})
+	if w.Code < 300 {
+		t.Errorf("an oversized crash report got %d", w.Code)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("an oversized crash report logged %q", buf.String())
+	}
 }

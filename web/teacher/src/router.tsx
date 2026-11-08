@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Fragment, useEffect, useRef } from "react";
+import { reportCrash } from "./api/client";
 import { useSettings } from "./api/queries";
 import { useFlags } from "./flags";
 import { BuilderPage } from "./pages/builder/BuilderPage";
@@ -17,6 +18,7 @@ import { ResultsPage } from "./pages/results/ResultsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestsPage } from "./pages/TestsPage";
 import { Banners } from "./ui/Banners";
+import { CrashScreen } from "./ui/CrashScreen";
 import { Icon } from "./ui/icons";
 import { Toasts } from "./ui/Toasts";
 import { TopBar } from "./ui/TopBar";
@@ -148,6 +150,15 @@ export const router = createRouter({
       settingsRoute,
     ]),
   ]),
+  defaultErrorComponent: CrashScreen,
+  defaultOnCatch: (error, info) => {
+    const e = error instanceof Error ? error : undefined;
+    reportCrash({
+      message: e ? e.message : String(error),
+      stack: `${e?.stack ?? ""}\n${info.componentStack ?? ""}`,
+      page: location.pathname,
+    }).catch(() => {});
+  },
 });
 
 declare module "@tanstack/react-router" {

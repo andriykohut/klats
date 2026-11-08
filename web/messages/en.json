@@ -942,5 +942,9 @@
   "update_text": "You have {current}. Updating keeps your tests and results.",
   "update_download": "Download",
   "update_notes": "What’s new",
-  "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected."
+  "file_write_failed": "The file could not be written. Check that the drive has free space and is not write-protected.",
+  "crash_title": "Something went wrong",
+  "crash_teacher_text": "This page hit an error. Everything you saved is safe.",
+  "crash_reload": "Reload the page",
+  "crash_to_tests": "Back to tests"
 }
