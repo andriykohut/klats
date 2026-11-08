@@ -54,7 +54,7 @@ export function GridEditor({
 
   return (
     <>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_columns()}
         <em>{m.builder_columns_hint()}</em>
       </div>
@@ -71,7 +71,7 @@ export function GridEditor({
         onRemoveItem={removeColumn}
       />
 
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_rows()}
         <em>{m.builder_rows_hint()}</em>
       </div>

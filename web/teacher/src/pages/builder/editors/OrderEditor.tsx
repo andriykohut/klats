@@ -20,7 +20,7 @@ export function OrderEditor({
 }: EditorProps) {
   return (
     <>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_order_items()}
         <em>{m.builder_order_items_hint()}</em>
       </div>

@@ -16,7 +16,7 @@ export function TrueFalseEditor({
 }: EditorProps) {
   return (
     <>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_statements()}
         <em>{m.builder_statements_hint()}</em>
       </div>

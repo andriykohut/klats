@@ -67,7 +67,7 @@ export function BankEditor({
 
   return (
     <>
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_bank_body()}
         <em>{m.builder_bank_body_hint()}</em>
       </div>
@@ -85,7 +85,7 @@ export function BankEditor({
 
       {gaps.length > 0 && (
         <>
-          <div className="b-lbl">
+          <div className="b-lbl" data-bar-room>
             {m.builder_bank_words()}
             <em>{m.builder_bank_words_hint()}</em>
           </div>
@@ -124,7 +124,7 @@ export function BankEditor({
         </>
       )}
 
-      <div className="b-lbl">
+      <div className="b-lbl" data-bar-room>
         {m.builder_bank_decoys()}
         <em>{m.builder_bank_decoys_hint()}</em>
       </div>
