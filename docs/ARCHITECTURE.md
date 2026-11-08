@@ -418,6 +418,9 @@ Students may have the address bookmarked.
     per IP address or IPv6 /64 (300 a minute, enough for a class behind one
     NAT).
   - Event streams are capped at 64 per address.
+  - `/api/crash` takes no device token. Its body is capped at 16 KiB, the
+    User-Agent is clipped, and it writes at most 10 lines a minute from all
+    students together.
   - Errors are fixed codes, without internal detail.
 - **The teacher API listens on 127.0.0.1 only, and checks every request
   three ways:**
@@ -551,6 +554,10 @@ current webview.
   program starts with the defaults. A start that fails once the window holds
   the single instance shows a native dialog: it offers the website's download
   page for data from a newer version, and the log folder otherwise.
+  A page of the teacher or student app that throws while drawing shows a
+  crash screen in the app's language and sends the error to `klats.log` as
+  one line. The teacher's screen offers a reload and, away from the library,
+  a way back to it; the student's offers a reload, which resumes the test.
 - **`tmp/`** holds what lives only for one request: uploaded files and
   backups spooled from the request body, downloads waiting to be sent, the
   database copy a backup is made from and the folder a restore checks a
