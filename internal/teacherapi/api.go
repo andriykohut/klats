@@ -86,6 +86,9 @@ type Deps struct {
 	// Updates holds the newer release the update check found; nil means none
 	// is ever found.
 	Updates *Updates
+	// ReleasesURL is the GitHub releases/latest endpoint POST /api/updates/check
+	// asks.
+	ReleasesURL string
 	// Browser opens the pages of POST /api/open/{target}; nil hands each page
 	// to the teacher app to open.
 	Browser Browser
@@ -112,8 +115,10 @@ type api struct {
 	lanErr  func() string
 	version string
 	updates *Updates
-	browser Browser
-	opened  *OpenedFiles
+	// releasesURL is Deps.ReleasesURL.
+	releasesURL string
+	browser     Browser
+	opened      *OpenedFiles
 
 	mu       sync.Mutex
 	settings config.Settings // as saved on disk
@@ -128,7 +133,7 @@ func Handler(d Deps) http.Handler {
 	a := &api{
 		st: d.Store, eng: d.Engine, hub: d.Hub, media: d.Media, token: d.Token, port: d.Port, dataDir: d.DataDir, tmpDir: d.TempDir,
 		ifaces: d.Interfaces, dialogs: d.Dialogs, lanPort: d.LANPort, lanErr: d.LANError, settings: *d.Settings,
-		version: d.Version, updates: d.Updates, browser: d.Browser, opened: d.Opened,
+		version: d.Version, updates: d.Updates, releasesURL: d.ReleasesURL, browser: d.Browser, opened: d.Opened,
 	}
 	if a.updates == nil {
 		a.updates = NewUpdates(d.Hub)
@@ -191,6 +196,7 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/settings", a.getSettings)
 	mux.HandleFunc("PUT /api/settings", a.putSettings)
 	mux.HandleFunc("GET /api/about", a.getAbout)
+	mux.HandleFunc("POST /api/updates/check", a.checkUpdates)
 	mux.HandleFunc("POST /api/open/{target}", a.open)
 	mux.HandleFunc("GET /api/events", a.events)
 	mux.HandleFunc("GET /api/qr", a.qr)

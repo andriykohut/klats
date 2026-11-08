@@ -763,6 +763,13 @@ teacher downloads it from the website.
   Once the live view has loaded and no sitting runs, the top bar shows
   «Нова версія» where the live chip goes, and its card links to the
   website's download section and to the release's notes.
+- **The manual check:** «Перевірити зараз» in «Про програму» calls
+  `POST /api/updates/check`, which asks GitHub once at `Deps.ReleasesURL`, the
+  same endpoint the daily check uses. It runs on request, so it ignores the
+  switch and a running sitting, and a `dev` build always finds nothing newer.
+  A newer release goes to the same `teacherapi.Updates` holder, so the top
+  bar's pill lights up as after the daily check. A failed check replies 502
+  `check_failed`.
 - **Links out:** `POST /api/open/{target}` opens, in the system browser,
   only pages the server names: `download`, in the UI language, or `notes`,
   the release's https page. Under `-dev` it replies with the page, and the

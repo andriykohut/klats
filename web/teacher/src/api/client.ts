@@ -324,6 +324,8 @@ export const getSettings = () => call<SettingsInfo>("GET", "/api/settings");
 export const saveSettings = (s: SettingsInfo) =>
   call<SettingsInfo>("PUT", "/api/settings", s);
 export const getAbout = () => call<AboutInfo>("GET", "/api/about");
+/** Asks GitHub for a newer release now; a failed check is an ApiError. */
+export const checkUpdates = () => call<AboutInfo>("POST", "/api/updates/check");
 /** Writes a crash of the app, with its stack and page, to the server's log. */
 export const reportCrash = (c: ClientError) =>
   call<void>("POST", "/api/crash", c);

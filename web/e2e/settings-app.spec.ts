@@ -25,3 +25,36 @@ test("the update switch survives a language change and a reload", async ({
   await page.reload();
   await expect(toggle).not.toBeChecked();
 });
+
+test("the manual update check says what it found", async ({ klats }) => {
+  const page = await klats.teacher("/settings");
+  const check = page.getByRole("button", { name: m.about_check_now() });
+  const answer = (status: number, json: object) =>
+    page.route("**/api/updates/check", (route) =>
+      route.fulfill({ status, json }),
+    );
+
+  await answer(200, { version: "dev", latest: "", notesUrl: "" });
+  await check.click();
+  await expect(page.getByText(m.about_up_to_date())).toBeVisible();
+
+  await page.unroute("**/api/updates/check");
+  await answer(502, { error: "check_failed" });
+  await check.click();
+  await expect(page.getByText(m.about_check_failed())).toBeVisible();
+  await expect(page.getByText(m.error_server())).toHaveCount(0);
+
+  await page.unroute("**/api/updates/check");
+  await answer(200, {
+    version: "dev",
+    latest: "9.9.9",
+    notesUrl: "https://x/r",
+  });
+  await check.click();
+  await expect(
+    page.getByText(m.update_title({ latest: "9.9.9" })),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: m.update_download() }),
+  ).toBeVisible();
+});

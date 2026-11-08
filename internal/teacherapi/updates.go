@@ -1,6 +1,7 @@
 package teacherapi
 
 import (
+	"log/slog"
 	"net/http"
 	"sync"
 
@@ -49,6 +50,25 @@ func (u *Updates) Get() (update.Release, bool) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return u.r, u.ok
+}
+
+// checkUpdates asks GitHub once whether a newer release is out and replies
+// with the about info, which names the newer release when one is stored. A
+// newer release goes to the same holder the daily check feeds, so the top
+// bar's pill lights up too. It runs when the teacher asks, so it ignores the
+// daily-check switch and a running sitting. A failed check replies 502
+// "check_failed".
+func (a *api) checkUpdates(w http.ResponseWriter, r *http.Request) {
+	rel, err := update.Latest(r.Context(), http.DefaultClient, a.releasesURL)
+	if err != nil {
+		slog.Info("manual update check failed", "err", err)
+		httpx.Error(w, http.StatusBadGateway, "check_failed")
+		return
+	}
+	if update.Newer(a.version, rel.Version) {
+		a.updates.Set(rel)
+	}
+	a.getAbout(w, r)
 }
 
 // open opens a page the server names, never one from the request: "download"

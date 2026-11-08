@@ -282,6 +282,9 @@ happen.
   копії…» with that file on another, then confirm. *Expected:* the save dialog
   opens with the file type «Резервна копія Клацу»; after the restore every test,
   class, result and picture is there.
+- On a release build, press «Перевірити зараз» in «Про програму». *Expected:*
+  «У вас найновіша версія.» shows under the button. With the network off it
+  says «Не вдалося перевірити оновлення. Перевірте підключення до інтернету.»
 
 ### Layout
 

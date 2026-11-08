@@ -548,6 +548,21 @@ export const useSettings = () => useQuery(settingsQuery);
 export const useAbout = () =>
   useQuery({ queryKey: ["about"], queryFn: api.getAbout });
 
+/**
+ * Checks for a newer release now and caches the answer as ["about"], which
+ * lights the top bar's update pill. The caller shows a failure itself. Key:
+ * "checkUpdates".
+ */
+export function useCheckUpdates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: ["checkUpdates"],
+    mutationFn: api.checkUpdates,
+    onSuccess: (info) => qc.setQueryData(["about"], info),
+    onError: () => {},
+  });
+}
+
 /** Opens a page (see {@link api.openLink}); a failure shows the error toast. */
 export const useOpenLink = () => useMutation({ mutationFn: api.openLink });
 

@@ -277,10 +277,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 		dialogs, browser = sh.Dialogs(), sh.Browser()
 	}
 	updates := teacherapi.NewUpdates(hub)
+	releases := cmp.Or(os.Getenv("KLATS_RELEASES_URL"), releasesURL)
 	teacher := teacherapi.Handler(teacherapi.Deps{
 		Store: st, Engine: eng, Hub: hub, Media: ms, Assets: webui.Teacher, Token: token, Port: teacherPort,
 		DataDir: dataDir, TempDir: tmpDir, LANPort: lanPort, LANError: func() string { return lanErr }, Settings: &settings,
-		Dialogs: dialogs, Version: version, Updates: updates, Browser: browser, Opened: opened, Dev: *dev,
+		Dialogs: dialogs, Version: version, Updates: updates, ReleasesURL: releases, Browser: browser, Opened: opened, Dev: *dev,
 	})
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -296,7 +297,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) (err erro
 	wg.Go(func() { watchAddresses(ctx, hub) })
 	wg.Go(func() {
 		update.Watch(ctx, update.Options{
-			URL: cmp.Or(os.Getenv("KLATS_RELEASES_URL"), releasesURL), Client: http.DefaultClient,
+			URL: releases, Client: http.DefaultClient,
 			Every: 24 * time.Hour, Retry: time.Hour, Current: version,
 			Allowed: func() bool { return version != "dev" && !eng.Active() && savedCheckUpdates(dataDir) },
 			Found:   updates.Set,

@@ -964,6 +964,34 @@ func TestAboutNamesTheFoundRelease(t *testing.T) {
 	}
 }
 
+func TestCheckUpdatesNow(t *testing.T) {
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if status != http.StatusOK {
+			http.Error(w, "boom", status)
+			return
+		}
+		_, _ = w.Write([]byte(`{"tag_name":"v1.2.0","html_url":"https://x/r"}`))
+	}))
+	defer srv.Close()
+	v := setup(t, false, func(d *Deps) { d.Version = "1.0.0"; d.ReleasesURL = srv.URL })
+	want := wire.AboutInfo{Version: "1.0.0", Latest: "1.2.0", NotesURL: "https://x/r"}
+	if a := decodeBody[wire.AboutInfo](t, v.do("POST", "/api/updates/check", nil)); a != want {
+		t.Errorf("check = %+v, want %+v", a, want)
+	}
+	if a := decodeBody[wire.AboutInfo](t, v.do("GET", "/api/about", nil)); a != want {
+		t.Errorf("about = %+v, want %+v", a, want)
+	}
+
+	current := setup(t, false, func(d *Deps) { d.Version = "1.2.0"; d.ReleasesURL = srv.URL })
+	if a := decodeBody[wire.AboutInfo](t, current.do("POST", "/api/updates/check", nil)); a != (wire.AboutInfo{Version: "1.2.0"}) {
+		t.Errorf("check on the latest version = %+v", a)
+	}
+
+	status = http.StatusInternalServerError
+	wantError(t, v.do("POST", "/api/updates/check", nil), 502, "check_failed")
+}
+
 // fakeBrowser records the pages it is asked to open.
 type fakeBrowser struct{ opened []string }
 
