@@ -231,6 +231,17 @@ design follows from where it runs:
    written to a temporary file in the data folder's `tmp/` first and sent
    with its length, so a write that fails partway is an error, never a short
    file.
+9. **Deleting results.** `DELETE /api/assignments/{id}` removes a test's
+   results, and `DELETE /api/assignments/{id}/participants/{participantId}`
+   one student's row. The foreign keys cascade: an assignment takes its
+   sittings, participants, answers, moved devices, overrides and events with
+   it, and a participant takes its answers, moved devices and overrides.
+   Deleting a participant also marks the export stale. Both reply 204, 404
+   `not_found` for an unknown id (or a participant of another assignment),
+   and 409 `sitting_active` while that assignment's sitting runs. The
+   browser waits out the undo toast before it sends the request. The daily
+   snapshots (`SnapshotsKeep` = 10) keep the deleted results until they
+   rotate out.
 
 ## Answer sync
 

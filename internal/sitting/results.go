@@ -168,6 +168,66 @@ func (e *Engine) SetOverride(assignmentID, participantID, questionID string, poi
 	})
 }
 
+// DeleteAssignment deletes the assignment with its sittings, participants,
+// answers, overrides and events. It returns [ErrNotFound] for an unknown
+// assignment and [ErrSittingActive] while its sitting runs.
+func (e *Engine) DeleteAssignment(id string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cur != nil && e.cur.assignment.ID == id {
+		return ErrSittingActive
+	}
+	return e.commit(func(q *db.Queries) (func(), error) {
+		n, err := q.DeleteAssignment(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, ErrNotFound
+		}
+		return func() {
+			if e.ended != nil && e.ended.assignment.ID == id {
+				e.ended = nil
+			}
+		}, nil
+	})
+}
+
+// DeleteParticipant deletes one participant of the assignment with its
+// answers and overrides, and marks the assignment's export stale. It returns
+// [ErrNotFound] for an unknown participant or one of another assignment, and
+// [ErrSittingActive] while the participant's sitting runs. A device that still
+// held the participant is "unjoined" from then on.
+func (e *Engine) DeleteParticipant(assignmentID, participantID string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	q := e.st.Q()
+	row, err := q.GetParticipant(ctx, participantID)
+	if err != nil {
+		return notFound(err)
+	}
+	s, err := q.GetSitting(ctx, row.SittingID)
+	if err != nil {
+		return err
+	}
+	if s.AssignmentID != assignmentID {
+		return ErrNotFound
+	}
+	if e.cur != nil && e.cur.sitting.ID == s.ID {
+		return ErrSittingActive
+	}
+	return e.commit(func(q *db.Queries) (func(), error) {
+		if err := q.DeleteParticipant(ctx, participantID); err != nil {
+			return nil, err
+		}
+		return func() {
+			if a, _ := e.held(participantID); a != nil {
+				a.participants = slices.DeleteFunc(a.participants, func(p *participant) bool { return p.id == participantID })
+			}
+		}, q.SetExportStale(ctx, assignmentID)
+	})
+}
+
 // assignmentTest returns the assignment and its test snapshot through
 // [testfmt.Decode], so a snapshot stored before tests had settings gets the
 // default ones, or [ErrNotFound].

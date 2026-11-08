@@ -65,6 +65,18 @@ func (q *Queries) ClearExportStale(ctx context.Context, arg ClearExportStalePara
 	return err
 }
 
+const deleteAssignment = `-- name: DeleteAssignment :execrows
+DELETE FROM assignments WHERE id = ?
+`
+
+func (q *Queries) DeleteAssignment(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAssignment, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteOverride = `-- name: DeleteOverride :exec
 DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND question_id = ?
 `
@@ -77,6 +89,15 @@ type DeleteOverrideParams struct {
 
 func (q *Queries) DeleteOverride(ctx context.Context, arg DeleteOverrideParams) error {
 	_, err := q.db.ExecContext(ctx, deleteOverride, arg.AssignmentID, arg.ParticipantID, arg.QuestionID)
+	return err
+}
+
+const deleteParticipant = `-- name: DeleteParticipant :exec
+DELETE FROM participants WHERE id = ?
+`
+
+func (q *Queries) DeleteParticipant(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteParticipant, id)
 	return err
 }
 

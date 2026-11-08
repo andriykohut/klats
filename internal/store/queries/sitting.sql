@@ -128,6 +128,12 @@ DELETE FROM overrides WHERE assignment_id = ? AND participant_id = ? AND questio
 -- name: SetExportStale :exec
 UPDATE assignments SET export_stale = 1, results_rev = results_rev + 1 WHERE id = ?;
 
+-- name: DeleteAssignment :execrows
+DELETE FROM assignments WHERE id = ?;
+
+-- name: DeleteParticipant :exec
+DELETE FROM participants WHERE id = ?;
+
 -- Events of one millisecond keep their insertion order by rowid.
 -- name: ListOpenPinnedEvents :many
 SELECT * FROM events WHERE sitting_id = ? AND pinned = 1 AND resolved_at IS NULL

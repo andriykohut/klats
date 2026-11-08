@@ -577,6 +577,27 @@ func TestParticipantRoutesAndOverrides(t *testing.T) {
 	wantStatus(t, v.do("POST", "/api/participants/"+ids[0]+"/move", wire.MoveRequest{Device: "dev2"}), 204)
 }
 
+func TestDeleteResultsRoutes(t *testing.T) {
+	v := setup(t, false)
+	asg := v.startSitting(t)
+	p := v.enterStudent(t)
+	row := "/api/assignments/" + asg + "/participants/" + p
+	wantError(t, v.do("DELETE", row, nil), 409, "sitting_active")
+	wantError(t, v.do("DELETE", "/api/assignments/"+asg, nil), 409, "sitting_active")
+
+	wantStatus(t, v.do("POST", "/api/sittings/current/end", nil), 204)
+	wantError(t, v.do("DELETE", "/api/assignments/"+asg+"/participants/nope", nil), 404, "not_found")
+	wantStatus(t, v.do("DELETE", row, nil), 204)
+	if rows := decodeBody[wire.AssignmentResults](t, v.do("GET", "/api/assignments/"+asg+"/results", nil)).Rows; len(rows) != 0 {
+		t.Errorf("rows = %+v, want none", rows)
+	}
+	wantStatus(t, v.do("DELETE", "/api/assignments/"+asg, nil), 204)
+	if list := decodeBody[[]wire.AssignmentSummary](t, v.do("GET", "/api/assignments", nil)); len(list) != 0 {
+		t.Errorf("assignments = %+v, want none", list)
+	}
+	wantError(t, v.do("DELETE", "/api/assignments/"+asg, nil), 404, "not_found")
+}
+
 func TestAddTimeRoute(t *testing.T) {
 	v := setup(t, false)
 	common := goodTest("")

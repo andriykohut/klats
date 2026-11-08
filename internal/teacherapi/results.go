@@ -77,6 +77,14 @@ func (a *api) override(w http.ResponseWriter, r *http.Request) {
 	a.results(w, r)
 }
 
+func (a *api) deleteAssignment(w http.ResponseWriter, r *http.Request) {
+	noContent(w, r, a.eng.DeleteAssignment(r.PathValue("id")))
+}
+
+func (a *api) deleteParticipant(w http.ResponseWriter, r *http.Request) {
+	noContent(w, r, a.eng.DeleteParticipant(r.PathValue("id"), r.PathValue("participantId")))
+}
+
 func (a *api) language() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()

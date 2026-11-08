@@ -176,6 +176,8 @@ func Handler(d Deps) http.Handler {
 	mux.HandleFunc("GET /api/assignments", a.listAssignments)
 	mux.HandleFunc("GET /api/assignments/{id}/results", a.results)
 	mux.HandleFunc("PUT /api/assignments/{id}/overrides", a.override)
+	mux.HandleFunc("DELETE /api/assignments/{id}", a.deleteAssignment)
+	mux.HandleFunc("DELETE /api/assignments/{id}/participants/{participantId}", a.deleteParticipant)
 	mux.HandleFunc("POST /api/assignments/{id}/export", a.export)
 
 	mux.HandleFunc("POST /api/media", a.putMedia)
