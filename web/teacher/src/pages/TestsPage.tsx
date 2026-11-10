@@ -21,7 +21,7 @@ import { setFlags, useFlags } from "../flags";
 import { finishExport } from "../ui/finishExport";
 import { Icon } from "../ui/icons";
 import { LoadError } from "../ui/LoadError";
-import { notify } from "../ui/Toasts";
+import { notify, toasts } from "../ui/Toasts";
 import { OpenReport } from "./OpenReport";
 import "./tests.css";
 
@@ -37,7 +37,9 @@ const searchable = (s: string) =>
  * matches titles, ignoring case and the kind of apostrophe. «Відкрити», or a
  * file dropped anywhere on the page, opens a .klats or .mtf file as a new
  * test, which lands at the top while the page stays on the library; the notes
- * of an .mtf file's conversion are shown in {@link OpenReport}. A dropped file
+ * of an .mtf file's conversion are shown in {@link OpenReport}. A file the
+ * library already has a test from adds nothing: a toast names the test and
+ * offers «Додати копію». A dropped file
  * of another kind is refused with a toast. The files the system opened Klats
  * with, such as a double-clicked .klats file, are taken from the server and
  * opened the same way, one after another: on mount and whenever `fileWaiting`
@@ -69,10 +71,24 @@ export function TestsPage() {
     minute: "2-digit",
   });
 
-  const openTest = async (file: File) => {
+  const openTest = async (file: File, copy = false) => {
     if (busy("importTest")) return;
-    const doc = await open.mutateAsync(file).catch(() => null); // the mutation toasts the failure
-    if (doc?.notes?.length) setReport(doc);
+    const doc = await open.mutateAsync({ file, copy }).catch(() => null); // the mutation toasts the failure
+    if (doc?.existing) {
+      const toast = toasts.add(
+        {
+          text: m.tests_open_existing({ title: doc.test.title }),
+          action: {
+            label: m.tests_open_copy(),
+            onAction: () => {
+              toasts.close(toast);
+              openTest(file, true);
+            },
+          },
+        },
+        { timeout: 8000 },
+      );
+    } else if (doc?.notes?.length) setReport(doc);
   };
   // Chained, so a second call waits instead of finding the import busy.
   const takeOpened = useEffectEvent(() => {

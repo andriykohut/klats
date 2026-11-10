@@ -125,17 +125,20 @@ const MAX_KLATS_BYTES = 256 * 2 ** 20;
 /**
  * Opens a .klats file, or an .mtf file in the older format, as a new test and
  * resolves to it; a test from an .mtf file carries the notes of its
- * conversion. A file that is not a test rejects with an ApiError of code
+ * conversion. A file the library already has a test from, because the test
+ * was opened from it or exported to it, resolves to that test, marked
+ * `existing`, unless `copy` is set. A file that is not a test rejects with an ApiError of code
  * "file_damaged", a test from a newer version with "test_too_new", an .mtf
  * file in the format's outdated layout with "file_too_old", and a file over
  * 256 MB with "too_large", which a file over {@link MAX_KLATS_BYTES} gets
  * without being sent.
  */
-export async function importTest(file: File): Promise<TestDoc> {
+export async function importTest(file: File, copy = false): Promise<TestDoc> {
   // The server's 413 cuts the upload short, which Firefox reports as a
   // network error and WebKit never settles.
   if (file.size > MAX_KLATS_BYTES) throw new ApiError(413, "too_large");
-  const res = await fetch("/api/tests/import", { method: "POST", body: file });
+  const url = copy ? "/api/tests/import?copy" : "/api/tests/import";
+  const res = await fetch(url, { method: "POST", body: file });
   if (!res.ok) throw await apiError(res);
   return res.json();
 }

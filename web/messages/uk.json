@@ -213,6 +213,8 @@
   "tests_none_found": "Нічого не знайдено",
   "tests_copy_title": "{title} (копія)",
   "tests_opened": "Тест «{title}» відкрито",
+  "tests_open_existing": "Тест «{title}» уже є серед ваших тестів",
+  "tests_open_copy": "Додати копію",
   "tests_file_damaged": "Файл пошкоджений, або це не тест Клацу.",
   "tests_file_too_new": "Цей тест створено в новішій версії Клацу. Оновіть програму.",
   "tests_file_too_large": "Файл завеликий.",

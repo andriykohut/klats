@@ -105,3 +105,8 @@ type Test struct {
 	CreatedAt int64
 	UpdatedAt int64
 }
+
+type TestFile struct {
+	Sha256 []byte
+	TestID string
+}

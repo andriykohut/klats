@@ -38,6 +38,24 @@ func (q *Queries) GetTest(ctx context.Context, id string) (Test, error) {
 	return i, err
 }
 
+const getTestByFile = `-- name: GetTestByFile :one
+SELECT tests.id, tests.title, tests.doc, tests.created_at, tests.updated_at FROM tests JOIN test_files ON test_files.test_id = tests.id
+WHERE test_files.sha256 = ?
+`
+
+func (q *Queries) GetTestByFile(ctx context.Context, sha256 []byte) (Test, error) {
+	row := q.db.QueryRowContext(ctx, getTestByFile, sha256)
+	var i Test
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Doc,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertTest = `-- name: InsertTest :exec
 INSERT INTO tests (id, title, doc, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?)
@@ -93,6 +111,21 @@ func (q *Queries) ListTests(ctx context.Context) ([]Test, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setTestFile = `-- name: SetTestFile :exec
+INSERT INTO test_files (sha256, test_id) VALUES (?, ?)
+ON CONFLICT (sha256) DO UPDATE SET test_id = excluded.test_id
+`
+
+type SetTestFileParams struct {
+	Sha256 []byte
+	TestID string
+}
+
+func (q *Queries) SetTestFile(ctx context.Context, arg SetTestFileParams) error {
+	_, err := q.db.ExecContext(ctx, setTestFile, arg.Sha256, arg.TestID)
+	return err
 }
 
 const updateTest = `-- name: UpdateTest :execrows

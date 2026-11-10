@@ -173,6 +173,7 @@ test("dropping a .klats file opens it", async ({ klats, browserName }) => {
   const bytes = readFileSync(await (await download).path());
 
   await drop(page, "Дроби.klats", bytes);
+  await page.getByRole("button", { name: m.tests_open_copy() }).click();
   await expect(
     page.getByText(m.tests_opened({ title: "Дроби" }), { exact: true }),
   ).toBeVisible();

@@ -207,6 +207,8 @@
   "tests_none_found": "No tests found",
   "tests_copy_title": "{title} (copy)",
   "tests_opened": "Opened “{title}”",
+  "tests_open_existing": "“{title}” is already in My tests",
+  "tests_open_copy": "Add a copy",
   "tests_file_damaged": "The file is damaged or isn’t a Klats test.",
   "tests_file_too_new": "This test was made in a newer Klats. Update the app.",
   "tests_file_too_large": "The file is too large.",

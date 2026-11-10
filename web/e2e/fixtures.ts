@@ -134,8 +134,13 @@ export interface Klats {
   ): Promise<SittingInfo>;
   /** Stores `bytes` in the media store and returns its media name. */
   upload(bytes: Buffer): Promise<string>;
-  /** The .klats file of the test `id`, as an export downloads it. */
+  /**
+   * The .klats file of the test `id`, as an export downloads it. Klats then
+   * knows the file as that test's until the test is removed.
+   */
   exportFile(id: string): Promise<Buffer>;
+  /** Deletes the test `id`. */
+  remove(id: string): Promise<void>;
   /**
    * Hands the file at `path` to Klats, as the system does when the teacher
    * double-clicks it.
@@ -262,6 +267,7 @@ export const test = base.extend<{ klats: Klats }>({
         if (!res.ok) throw new Error(`export ${id}: ${res.status}`);
         return Buffer.from(await res.arrayBuffer());
       },
+      remove: (id) => api("DELETE", `/api/tests/${id}`),
       opened: (path) => api("POST", "/api/opened", { path }),
       results: (id) =>
         api<AssignmentResults>("GET", `/api/assignments/${id}/results`),

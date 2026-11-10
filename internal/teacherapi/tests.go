@@ -2,6 +2,8 @@ package teacherapi
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,7 +66,7 @@ func (a *api) createTest(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = newTestTitle
 	}
-	a.insertTest(w, r, testfmt.Test{Version: 1, Title: title, Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}}, nil)
+	a.insertTest(w, r, testfmt.Test{Version: 1, Title: title, Palette: testfmt.DefaultPalette, Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{}}, nil, nil)
 }
 
 // duplicateTest stores a copy of the test titled as the request asks, or as
@@ -80,14 +82,17 @@ func (a *api) duplicateTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t.Title = cmp.Or(strings.TrimSpace(req.Title), t.Title)
-	a.insertTest(w, r, t, nil)
+	a.insertTest(w, r, t, nil, nil)
 }
 
 // exportTest sends the test as a .klats file named after its title, through
-// [api.deliver]. A test whose media come to over 256 MiB is refused with 422
-// "too_large", since [klatsfile.Read] would refuse the file.
+// [api.deliver], and once the file is saved records its SHA-256 against the
+// test, so [api.importTest] finds the test when that file is opened. A test
+// whose media come to over 256 MiB is refused with 422 "too_large", since
+// [klatsfile.Read] would refuse the file.
 func (a *api) exportTest(w http.ResponseWriter, r *http.Request) {
-	t, err := a.storedTest(r.Context(), r.PathValue("id"))
+	id := r.PathValue("id")
+	t, err := a.storedTest(r.Context(), id)
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -115,11 +120,25 @@ func (a *api) exportTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := cmp.Or(httpx.SafeFileName(t.Title, maxFileTitleRunes), "Тест") + ".klats"
-	a.deliver(w, r, name, "application/octet-stream", func(w io.Writer) error { return klatsfile.Write(w, t, a.media) }, nil)
+	sum := sha256.New()
+	write := func(w io.Writer) error {
+		sum.Reset()
+		return klatsfile.Write(io.MultiWriter(w, sum), t, a.media)
+	}
+	saved := func() error {
+		return a.st.Q().SetTestFile(r.Context(), db.SetTestFileParams{Sha256: sum.Sum(nil), TestID: id})
+	}
+	a.deliver(w, r, name, "application/octet-stream", write, saved)
 }
 
 // importTest opens the .klats or .mtf file in the request body as a new test,
-// telling the two apart by the file's signature rather than its name. The body
+// telling the two apart by the file's signature rather than its name. A file
+// whose SHA-256 is recorded against a test, because the test was opened from
+// it or exported to it, is not opened again: the reply is 200 with that test,
+// as it is now, and Existing set. With the query parameter "copy" the file
+// opens as a new test whatever it holds, and its SHA-256 stays with the test
+// it was recorded against. A new test is 201 with the file's SHA-256 recorded
+// against it unless "copy" is given. The body
 // is capped at 256 MiB (413 "too_large") and spooled to a temporary file in the
 // temp folder, which is removed whatever happens (see [api.spool]). A file that
 // is not a valid test is a 422 "file_damaged", a .klats file from a newer
@@ -131,6 +150,30 @@ func (a *api) importTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer removeTemp(tmp)
+	sum := sha256.New()
+	if _, err := io.Copy(sum, io.NewSectionReader(tmp, 0, size)); err != nil {
+		fail(w, r, err)
+		return
+	}
+	var file []byte
+	if !r.URL.Query().Has("copy") {
+		file = sum.Sum(nil)
+		row, err := a.st.Q().GetTestByFile(r.Context(), file)
+		if err == nil {
+			out, err := testDoc(row)
+			if err != nil {
+				fail(w, r, err)
+				return
+			}
+			out.Existing = true
+			httpx.JSON(w, http.StatusOK, out)
+			return
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			fail(w, r, err)
+			return
+		}
+	}
 	var head [14]byte
 	n, _ := tmp.ReadAt(head[:], 0) // a short read leaves Sniff false, and klatsfile.Read reports the file
 	var t testfmt.Test
@@ -149,13 +192,14 @@ func (a *api) importTest(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		fail(w, r, err) // test_too_new, a failure of the media store, or a converter bug
 	default:
-		a.insertTest(w, r, t, notes)
+		a.insertTest(w, r, t, notes, file)
 	}
 }
 
-// insertTest stores t under a new id and replies 201 with its [wire.TestDoc],
-// carrying notes.
-func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test, notes []wire.OpenNote) {
+// insertTest stores t under a new id, with the file SHA-256 recorded against
+// it unless file is nil, and replies 201 with its [wire.TestDoc], carrying
+// notes.
+func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test, notes []wire.OpenNote, file []byte) {
 	t.ID = store.NewID()
 	doc, err := json.Marshal(t)
 	if err != nil {
@@ -164,7 +208,12 @@ func (a *api) insertTest(w http.ResponseWriter, r *http.Request, t testfmt.Test,
 	}
 	now := time.Now().UnixMilli()
 	row := db.Test{ID: t.ID, Title: t.Title, Doc: string(doc), CreatedAt: now, UpdatedAt: now}
-	err = a.st.Q().InsertTest(r.Context(), db.InsertTestParams{ID: row.ID, Title: row.Title, Doc: row.Doc, CreatedAt: now, UpdatedAt: now})
+	err = a.st.Tx(r.Context(), func(q *db.Queries) error {
+		if err := q.InsertTest(r.Context(), db.InsertTestParams{ID: row.ID, Title: row.Title, Doc: row.Doc, CreatedAt: now, UpdatedAt: now}); err != nil || file == nil {
+			return err
+		}
+		return q.SetTestFile(r.Context(), db.SetTestFileParams{Sha256: file, TestID: row.ID})
+	})
 	if err != nil {
 		fail(w, r, err)
 		return

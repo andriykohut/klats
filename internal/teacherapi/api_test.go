@@ -1231,11 +1231,11 @@ func TestImportRoundTrip(t *testing.T) {
 	}
 	v.noTemps(t)
 
-	w = v.do("POST", "/api/tests/import", w.Body.Bytes())
+	w = v.do("POST", "/api/tests/import?copy", w.Body.Bytes())
 	wantStatus(t, w, 201)
 	got := decodeBody[wire.TestDoc](t, w)
-	if got.ID == id || got.Test.Title != "7/8: Дроби?" {
-		t.Errorf("imported id %q, title %q", got.ID, got.Test.Title)
+	if got.ID == id || got.Test.Title != "7/8: Дроби?" || got.Existing {
+		t.Errorf("imported id %q, title %q, existing %v", got.ID, got.Test.Title, got.Existing)
 	}
 	if !reflect.DeepEqual(v.getTest(t, got.ID).Test.Questions, v.getTest(t, id).Test.Questions) {
 		t.Error("the imported questions differ from the exported ones")
@@ -1372,8 +1372,8 @@ func TestImportOlderFormat(t *testing.T) {
 func TestImportOlderTwice(t *testing.T) {
 	v := setup(t, false)
 	var ids []string
-	for range 2 {
-		w := v.do("POST", "/api/tests/import", olderFile())
+	for _, path := range []string{"/api/tests/import", "/api/tests/import?copy"} {
+		w := v.do("POST", path, olderFile())
 		wantStatus(t, w, 201)
 		ids = append(ids, decodeBody[wire.TestDoc](t, w).ID)
 	}
@@ -1385,6 +1385,48 @@ func TestImportOlderTwice(t *testing.T) {
 	}
 	if files, err := os.ReadDir(filepath.Join(v.dir, "media")); err != nil || len(files) != 1 {
 		t.Errorf("media folder holds %d files, want 1; %v", len(files), err)
+	}
+}
+
+// A file opened again, or one the test was exported to, finds the test as it
+// is now instead of copying it, until the test is deleted.
+func TestImportSameFile(t *testing.T) {
+	v := setup(t, false)
+	open := func(path string, data []byte, status int) wire.TestDoc {
+		t.Helper()
+		w := v.do("POST", path, data)
+		wantStatus(t, w, status)
+		return decodeBody[wire.TestDoc](t, w)
+	}
+	file := olderFile()
+	id := open("/api/tests/import", file, 201).ID
+
+	edited := v.getTest(t, id).Test
+	edited.Title = "Дроби, змінено"
+	wantStatus(t, v.do("PUT", "/api/tests/"+id, edited), 200)
+	if got := open("/api/tests/import", file, 200); got.ID != id || !got.Existing || got.Test.Title != "Дроби, змінено" {
+		t.Errorf("reopened: id %q, existing %v, title %q", got.ID, got.Existing, got.Test.Title)
+	}
+
+	w := v.do("POST", "/api/tests/"+id+"/export", nil)
+	wantStatus(t, w, 200)
+	if got := open("/api/tests/import", w.Body.Bytes(), 200); got.ID != id {
+		t.Errorf("the exported file opened as %q, want %q", got.ID, id)
+	}
+
+	if got := open("/api/tests/import?copy", file, 201); got.ID == id || got.Existing {
+		t.Errorf("copy: id %q, existing %v", got.ID, got.Existing)
+	}
+	if got := open("/api/tests/import", file, 200); got.ID != id {
+		t.Errorf("after a copy the file opened as %q, want %q", got.ID, id)
+	}
+
+	wantStatus(t, v.do("DELETE", "/api/tests/"+id, nil), 204)
+	if got := open("/api/tests/import", file, 201); got.ID == id || got.Existing {
+		t.Errorf("after deleting: id %q, existing %v", got.ID, got.Existing)
+	}
+	if n := v.testCount(t); n != 2 {
+		t.Errorf("%d tests listed, want 2", n)
 	}
 }
 

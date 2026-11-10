@@ -204,8 +204,10 @@ export function notifyOpenError(err: unknown): void {
 
 /**
  * Opens a .klats file, or an .mtf file in the older format, as a new test,
- * which the library lists first, and resolves with it. A test without notes is
- * named in a toast; one with notes is left to the caller to report. A damaged
+ * which the library lists first, and resolves with it, or with the test
+ * already in the library for that file (see {@link api.importTest}). A new
+ * test without notes is named in a toast; one with notes, and a test already
+ * in the library, are left to the caller to report. A damaged
  * file, a test from a newer version, an .mtf file in the format's outdated
  * layout and a file over the size cap each get their own error toast. Key:
  * "importTest".
@@ -214,10 +216,12 @@ export function useImportTest() {
   const qc = useQueryClient();
   return useMutation({
     mutationKey: ["importTest"],
-    mutationFn: (file: File) => api.importTest(file),
+    mutationFn: ({ file, copy }: { file: File; copy?: boolean }) =>
+      api.importTest(file, copy),
     onSuccess: (doc) => {
       qc.setQueryData(["tests", doc.id], doc);
-      if (!doc.notes?.length) notify(m.tests_opened({ title: doc.test.title }));
+      if (!doc.existing && !doc.notes?.length)
+        notify(m.tests_opened({ title: doc.test.title }));
       return qc.invalidateQueries({ queryKey: ["tests"], exact: true });
     },
     onError: notifyOpenError,

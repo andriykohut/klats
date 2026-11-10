@@ -108,7 +108,9 @@ test("duplicate opens with the same questions", async ({ klats }) => {
   await expectPictureTest(page);
 });
 
-test("export then open brings the test back", async ({ klats }, testInfo) => {
+test("an exported file opens as its test, or as a copy", async ({
+  klats,
+}, testInfo) => {
   const original = await pictureTest(klats, "Дроби");
   const page = await klats.teacher("/");
   const download = await exportTest(page, "Дроби");
@@ -116,6 +118,13 @@ test("export then open brings the test back", async ({ klats }, testInfo) => {
   await download.saveAs(file);
 
   await openFile(page, file);
+  await expect(
+    page.getByText(m.tests_open_existing({ title: "Дроби" }), {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(rows(page)).toHaveCount(1);
+  await page.getByRole("button", { name: m.tests_open_copy() }).click();
   await expect(
     page.getByText(m.tests_opened({ title: "Дроби" }), { exact: true }),
   ).toBeVisible();
@@ -178,6 +187,7 @@ test("an unsafe title exports to a safe name", async ({ klats }, testInfo) => {
   await download.saveAs(file);
 
   await openFile(page, file);
+  await page.getByRole("button", { name: m.tests_open_copy() }).click();
   await expect(
     page.getByText(m.tests_opened({ title }), { exact: true }),
   ).toBeVisible();
