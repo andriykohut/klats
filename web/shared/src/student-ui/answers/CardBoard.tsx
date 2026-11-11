@@ -134,7 +134,6 @@ export function CardBoard({
   };
 
   // After a keyboard pick, the first slot with room takes focus.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the pick changes
   useEffect(() => {
     if (!picked || !focusSlot.current) return;
     focusSlot.current = false;
@@ -235,7 +234,6 @@ export function CardBoard({
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the keys belong to the cards and buttons inside; React Aria's presses stop them before they bubble
     <div className="k-board" ref={root} onKeyDownCapture={onKeyDown}>
       <VisuallyHidden>
         <div aria-live="polite">{said}</div>

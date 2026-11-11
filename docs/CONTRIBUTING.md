@@ -8,8 +8,8 @@ fit together, and why, read [ARCHITECTURE.md](ARCHITECTURE.md).
 
 You need:
 
-- **Go 1.27.3**;
-- **Node.js 26.12.1** and **pnpm 12.14.0**, for the web apps;
+- **Go 1.27.4**;
+- **Node.js 26.13.0** and **pnpm 12.18.0**, for the web apps;
 - **for the desktop shell, on Linux:** GTK 4 and WebKitGTK 6.0. On Ubuntu
   24.04, run `sudo apt-get install libgtk-4-dev libwebkitgtk-6.0-dev`. On
   macOS the shell needs the Xcode command line tools; Windows needs nothing

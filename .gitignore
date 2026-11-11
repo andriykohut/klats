@@ -5,6 +5,7 @@ web/*/dist/*
 web/site/.astro/
 node_modules/
 web/*/src/paraglide/
+web/messages/project.inlang/cache/
 web/shared/src/generated/
 *.db
 /klats

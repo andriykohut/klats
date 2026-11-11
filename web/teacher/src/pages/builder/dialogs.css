@@ -236,8 +236,8 @@
   margin: 0 0 18px;
 }
 
-.b-start-problems p,
-.b-start-running p {
+.t-notice.b-start-problems p,
+.t-notice.b-start-running p {
   margin: 0 0 4px;
 }
 

@@ -43,7 +43,6 @@ export function OrderAnswers({
   // React Aria renders a collection one frame after its items change, so the
   // moved row is found on the next one. At the end of the list its button is
   // off, and the other one takes focus.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when a move changes the order
   useEffect(() => {
     const f = refocus.current;
     if (!f) return;

@@ -830,7 +830,7 @@ system's installers in `dist/`.
   - The AppImage holds the same files and an `AppRun` that passes its
     arguments on unchanged. It runs without installing and registers no
     menu entry or file type itself. The script builds it with
-    `appimagetool` 1.9.0 and the AppImage runtime from the `type2-runtime`
+    `appimagetool` 1.9.1 and the AppImage runtime from the `type2-runtime`
     release `20251108`, downloading both and checking each against a
     pinned SHA-256.
 - **Releases:** pushing a tag such as `v1.2.3` starts

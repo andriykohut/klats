@@ -301,7 +301,7 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
   };
 
   const found = test.questions.findIndex((q) => q.id === selected);
-  const index = found < 0 ? 0 : found;
+  const index = Math.max(found, 0);
   const question = test.questions[index];
   const errors = new Set(
     problems.filter((p) => p.severity === "error").map((p) => p.questionId),

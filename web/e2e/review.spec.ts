@@ -137,6 +137,7 @@ test("the teacher reviews every answer type and grades the written one", async (
   await expect(written).toContainText("і ще інакше");
   await expect(written).toHaveCSS("white-space", "pre-wrap");
   expect(
+    // biome-ignore lint/performance/useDomNodeTextContent: innerText shows the line break as rendered, which textContent can't
     await written.evaluate((el) => (el as HTMLElement).innerText),
   ).toContain("\n");
 

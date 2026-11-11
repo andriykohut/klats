@@ -40,7 +40,7 @@ mkdir "$deb/DEBIAN"
 sed "s/@VERSION@/$(printf %s "$version" | tr - '~')/" build/linux/control.in >"$deb/DEBIAN/control"
 dpkg-deb --root-owner-group --build "$deb" dist/klats_amd64.deb
 
-# appimagetool 1.9.0, and the AppImage runtime it puts at the front of the
+# appimagetool 1.9.1, and the AppImage runtime it puts at the front of the
 # AppImage, each checked against its release asset's SHA-256. Without
 # --runtime-file, appimagetool downloads the runtime's "continuous" build,
 # which changes under the same URL.
@@ -48,11 +48,11 @@ tools=dist/appimagetool
 rm -rf "$tools"
 mkdir "$tools"
 curl -fsSL --retry 3 -o "$tools/appimagetool" \
-	https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage
+	https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
 curl -fsSL --retry 3 -o "$tools/runtime" \
 	https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
 sha256sum -c - <<EOF
-46fdd785094c7f6e545b61afcfb0f3d98d8eab243f644b4b17698c01d06083d1  $tools/appimagetool
+ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  $tools/appimagetool
 2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d  $tools/runtime
 EOF
 chmod +x "$tools/appimagetool"

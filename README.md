@@ -31,7 +31,7 @@ shows how to get past the warnings.
 
 ## Quick start
 
-You need Go 1.27.3, Node.js 26.12.1 and pnpm 12.14.0. On Linux, the desktop
+You need Go 1.27.4, Node.js 26.13.0 and pnpm 12.18.0. On Linux, the desktop
 window also needs GTK 4 and WebKitGTK 6.0 (see
 [CONTRIBUTING.md](docs/CONTRIBUTING.md)).
 
