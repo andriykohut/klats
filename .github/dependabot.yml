@@ -1,0 +1,38 @@
+# Each week brings at most one pull request per ecosystem for its minor and
+# patch updates, plus one per major update. The pins Dependabot can't see are
+# listed in docs/CONTRIBUTING.md.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        update-types: [minor, patch]
+    ignore:
+      # Playwright 1.65's Firefox crashes on the Order and matching questions (#16).
+      - dependency-name: "@playwright/test"
+        versions: ["1.65.x"]
+    commit-message:
+      prefix: chore(deps)
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: ci
