@@ -104,6 +104,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
     <motion.section
       className="k-sheet"
       data-density={density || undefined}
+      data-timed={props.timer ? true : undefined}
       {...sheet(reduced)}
     >
       <div className="k-sheet-main">

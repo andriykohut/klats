@@ -91,7 +91,7 @@ test("answers that overflow only at the first density stop at the second", async
   await expect(page.locator(".k-more[data-show]")).toHaveCount(0);
 });
 
-test("a matching question taller than the screen keeps its cards in reach", async ({
+test("a timed matching question taller than the screen keeps its cards in reach", async ({
   klats,
 }) => {
   const pairs = [
@@ -118,32 +118,28 @@ test("a matching question taller than the screen keeps its cards in reach", asyn
       target: `t${i}`,
     })),
   });
-  const { code } = await klats.start([q]);
+  const { code } = await klats.start([q], {
+    settings: { timeLimit: { mode: "student", minutes: 20 } },
+  });
   const page = await klats.computer();
   await joinAs(page, klats, code, CLASS[0]);
   const tray = page.getByRole("grid", { name: m.cards_tray() });
   const card = (label: string) => tray.getByRole("row", { name: label });
   const place = (name: string) => page.getByRole("grid", { name });
 
-  // Scrolled down to the last place, the tray is still on screen, and a card
-  // dragged from it by the mouse lands there. A drag started while the tray
-  // is still settling can miss, so it is tried again.
+  // Scrolled down to the last place, the tray is still on screen, clear of
+  // the timer, and a card dragged from it by the mouse lands there.
   await place("Португалія").scrollIntoViewIfNeeded();
   await expect(tray).toBeInViewport({ ratio: 1 });
-  await expect(async () => {
-    const from = await card("Лісабон").boundingBox();
-    const to = await place("Португалія").boundingBox();
-    if (!from || !to) throw new Error("the card or the place is not shown");
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
-      steps: 5,
-    });
-    await page.mouse.up();
-    await expect(
-      place("Португалія").getByRole("row", { name: "Лісабон" }),
-    ).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 10_000 });
+  const trayRight = await tray.evaluate((e) => e.getBoundingClientRect().right);
+  const timerLeft = await page
+    .getByRole("timer")
+    .evaluate((e) => e.getBoundingClientRect().left);
+  expect(trayRight).toBeLessThanOrEqual(timerLeft);
+  await card("Лісабон").dragTo(place("Португалія"));
+  await expect(
+    place("Португалія").getByRole("row", { name: "Лісабон" }),
+  ).toBeVisible();
 
   // A keyboard pick sends focus up to the first place, which scrolls into
   // view below the tray rather than under it.

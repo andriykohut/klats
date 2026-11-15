@@ -205,10 +205,47 @@ fieldset.k-set {
   pointer-events: none;
 }
 
-/* A long tray scrolls on its own rather than cover the sheet. */
+/*
+ * The timer sits over the sheet's top right, where it would cover the end of
+ * a pinned tray's first row: by 83 design pixels at m:ss, and more at
+ * h:mm:ss. The cards keep clear of it, while the tray's paper still spans the
+ * board, so no place shows through beside them.
+ */
+.k-sheet[data-timed] .k-tray {
+  padding-right: calc(130 * var(--k-px));
+}
+
+.k-sheet[data-timed] .k-tray > .k-slot-hit {
+  right: calc(130 * var(--k-px));
+}
+
+/*
+ * A long tray scrolls on its own rather than cover the sheet: 30cqh is about
+ * 40% of the sheet's scroller, in a preview pane too. A fade in place of the
+ * bottom padding sticks to the tray's foot while cards are below the fold,
+ * and lies on empty paper once the last row is in view.
+ */
 .k-tray-list {
-  max-height: 30vh;
+  max-height: 30cqh;
   overflow-y: auto;
+  padding-bottom: 0;
+}
+
+.k-tray-list::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  flex: 0 0 100%;
+  height: calc(10 * var(--k-px) + var(--k-depth));
+  /* Cancels the row gap above it. */
+  margin-top: calc(-12 * var(--k-px));
+  background: linear-gradient(var(--k-paper-clear), var(--k-paper));
+  pointer-events: none;
+}
+
+.k-tray-list[data-drop-target]::after {
+  visibility: hidden;
 }
 
 /* A place that takes focus scrolls into view below the tray, not under it. */
