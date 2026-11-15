@@ -1,11 +1,13 @@
 import {
   answers,
   CLASS,
+  doc,
   expect,
   joinAs,
   m,
   pick,
   question,
+  questionOf,
   test,
 } from "./fixtures";
 
@@ -87,4 +89,80 @@ test("answers that overflow only at the first density stop at the second", async
   await expect(answers(page, q)).toBeVisible();
   await expect(page.locator(".k-sheet")).toHaveAttribute("data-density", "1");
   await expect(page.locator(".k-more[data-show]")).toHaveCount(0);
+});
+
+test("a matching question taller than the screen keeps its cards in reach", async ({
+  klats,
+}) => {
+  const pairs = [
+    ["Україна", "Київ"],
+    ["Польща", "Варшава"],
+    ["Німеччина", "Берлін"],
+    ["Чехія", "Прага"],
+    ["Австрія", "Відень"],
+    ["Італія", "Рим"],
+    ["Іспанія", "Мадрид"],
+    ["Португалія", "Лісабон"],
+  ];
+  const q = questionOf("match", "q1", "З’єднайте країни зі столицями", {
+    targets: pairs.map(([, city], i) => ({
+      id: `t${i}`,
+      content: doc(city),
+      x: 0,
+      y: 0,
+    })),
+    options: pairs.map(([country], i) => ({
+      id: `o${i}`,
+      content: doc(country),
+      correct: false,
+      target: `t${i}`,
+    })),
+  });
+  const { code } = await klats.start([q]);
+  const page = await klats.computer();
+  await joinAs(page, klats, code, CLASS[0]);
+  const tray = page.getByRole("grid", { name: m.cards_tray() });
+  const card = (label: string) => tray.getByRole("row", { name: label });
+  const place = (name: string) => page.getByRole("grid", { name });
+
+  // Scrolled down to the last place, the tray is still on screen, and a card
+  // dragged from it by the mouse lands there. A drag started while the tray
+  // is still settling can miss, so it is tried again.
+  await place("Португалія").scrollIntoViewIfNeeded();
+  await expect(tray).toBeInViewport({ ratio: 1 });
+  await expect(async () => {
+    const from = await card("Лісабон").boundingBox();
+    const to = await place("Португалія").boundingBox();
+    if (!from || !to) throw new Error("the card or the place is not shown");
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, {
+      steps: 5,
+    });
+    await page.mouse.up();
+    await expect(
+      place("Португалія").getByRole("row", { name: "Лісабон" }),
+    ).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
+
+  // A keyboard pick sends focus up to the first place, which scrolls into
+  // view below the tray rather than under it.
+  await card("Київ").focus();
+  await page.keyboard.press("Space");
+  const first = page.getByRole("button", {
+    name: m.card_place({ slot: "Україна" }),
+  });
+  await expect(first).toBeFocused();
+  await expect
+    .poll(() =>
+      first.evaluate((e) => {
+        const r = e.getBoundingClientRect();
+        const at = document.elementFromPoint(
+          r.x + r.width / 2,
+          r.y + r.height / 2,
+        );
+        return e.contains(at);
+      }),
+    )
+    .toBe(true);
 });

@@ -43,9 +43,11 @@ export interface QuestionSheetProps {
  *
  * What overflows scrolls while the footer stays in place, with a fade and a
  * «Ще N відповіді нижче» button over the cut edge until the last element
- * marked `data-more-item` is in view. Pressing the button scrolls on and
- * keeps focus on the first element it revealed. Key presses are the caller's
- * to handle; for single and multiple choice the footer names the keys.
+ * marked `data-more-item` is in view. Pressing the button scrolls on by most
+ * of the view left below an element marked `data-pinned`, which stays at the
+ * top, and keeps focus on the first element it revealed. Key presses are the
+ * caller's to handle; for single and multiple choice the footer names the
+ * keys.
  */
 export function QuestionSheet(props: QuestionSheetProps) {
   const { number, total, question } = props;
@@ -148,8 +150,11 @@ export function QuestionSheet(props: QuestionSheetProps) {
                   const scroller = scrollRef.current;
                   if (!scroller) return;
                   revealed.current = itemsBelow(scroller)[0] ?? null;
+                  const pinned =
+                    scroller.querySelector<HTMLElement>("[data-pinned]")
+                      ?.offsetHeight ?? 0;
                   scroller.scrollBy({
-                    top: scroller.clientHeight * 0.8,
+                    top: (scroller.clientHeight - pinned) * 0.8,
                     behavior,
                   });
                 }}

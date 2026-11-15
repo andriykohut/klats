@@ -173,8 +173,48 @@ fieldset.k-set {
   outline-offset: 3px;
 }
 
+/*
+ * The tray stays at the top of the sheet's scroller while the places scroll
+ * under it, so a drag always starts and ends on screen. Sticky offsets count
+ * from the scroller's content box (see .k-grid in choice.css), so the offset
+ * cancels the scroller's top padding and leaves a gap. The shadow paints
+ * paper over the gap above the tray, and the places fade in through the gap
+ * below it.
+ */
+.k-board {
+  --k-tray-gap: calc(18 * var(--k-px));
+}
+
 .k-tray {
-  margin-bottom: calc(18 * var(--k-px));
+  position: sticky;
+  top: calc(var(--k-tray-gap) - var(--k-pad-top));
+  z-index: 4;
+  margin-bottom: var(--k-tray-gap);
+  background: var(--k-paper);
+  box-shadow: 0 calc(-1 * var(--k-tray-gap)) 0 var(--k-paper);
+}
+
+.k-tray::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--k-tray-gap);
+  background: linear-gradient(var(--k-paper), var(--k-paper-clear));
+  pointer-events: none;
+}
+
+/* A long tray scrolls on its own rather than cover the sheet. */
+.k-tray-list {
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+/* A place that takes focus scrolls into view below the tray, not under it. */
+.k-slot,
+.k-slot * {
+  scroll-margin-top: calc(var(--k-tray-h, 0px) + 2 * var(--k-tray-gap));
 }
 
 /* Tray cards stay pressable above the tray's overlay, so a card can be picked in place of a placed one. */

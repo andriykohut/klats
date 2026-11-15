@@ -66,6 +66,10 @@ export function CardFace({ card }: { card: Card }) {
  * back to the tray (see {@link place}). Escape unpicks. A hidden live region
  * says which card is picked and where one was put.
  *
+ * The tray stays at the top of the sheet while the places scroll under it, so
+ * a drag can reach any place, and a place that takes focus scrolls into view
+ * below the tray.
+ *
  * The caller lays out the slots: `children` gets a function that draws the
  * slot with a given id, and returns the markup around them.
  */
@@ -87,6 +91,7 @@ export function CardBoard({
   const [picked, setPicked] = useState<string | null>(null);
   const [said, setSaid] = useState("");
   const root = useRef<HTMLDivElement>(null);
+  const tray = useRef<HTMLDivElement>(null);
   const refocus = useRef<string | null>(null);
   // Set by Enter on a card, which React Aria turns into an action on key up.
   const enterPending = useRef(false);
@@ -132,6 +137,18 @@ export function CardBoard({
       }
     },
   };
+
+  // The places' scroll margin (see cards.css) keeps up with the tray's height.
+  useEffect(() => {
+    const board = root.current;
+    const el = tray.current;
+    if (!board || !el) return;
+    const ro = new ResizeObserver(() =>
+      board.style.setProperty("--k-tray-h", `${el.offsetHeight}px`),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // After a keyboard pick, the first slot with room takes focus.
   useEffect(() => {
@@ -238,7 +255,7 @@ export function CardBoard({
       <VisuallyHidden>
         <div aria-live="polite">{said}</div>
       </VisuallyHidden>
-      <div className="k-tray">
+      <div className="k-tray" ref={tray} data-pinned>
         {picked && placed[picked] !== undefined
           ? hit(m.card_return(), null)
           : null}
