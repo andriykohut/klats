@@ -266,8 +266,8 @@ function Backup() {
 }
 
 /**
- * The program's version, a button that checks for an update now, and the
- * switch for the daily update check. The check works with the switch off and
+ * The program's version, the switch for the daily update check, and a button
+ * that checks for an update now. The check works with the switch off and
  * during a sitting; its answer shows under the button.
  */
 function About(props: { settings: SettingsInfo; port: number }) {
@@ -285,30 +285,6 @@ function About(props: { settings: SettingsInfo; port: number }) {
             : m.about_version({ version })}
         </p>
       )}
-      <Button
-        className="t-btn"
-        data-variant="quiet"
-        isPending={check.isPending}
-        onPress={() => check.mutate()}
-      >
-        {m.about_check_now()}
-      </Button>
-      {check.isError && <p className="t-muted">{m.about_check_failed()}</p>}
-      {check.data &&
-        (check.data.latest ? (
-          <p className="t-muted">
-            {m.update_title({ latest: check.data.latest })}{" "}
-            <Button
-              className="t-btn"
-              data-variant="quiet"
-              onPress={() => open.mutate("download")}
-            >
-              {m.update_download()}
-            </Button>
-          </p>
-        ) : (
-          <p className="t-muted">{m.about_up_to_date()}</p>
-        ))}
       <SwitchField
         className="t-about-switch"
         isSelected={props.settings.checkUpdates}
@@ -322,6 +298,32 @@ function About(props: { settings: SettingsInfo; port: number }) {
         </SwitchButton>
         <Text slot="description">{m.about_check_updates_hint()}</Text>
       </SwitchField>
+      <div className="t-about-check">
+        <Button
+          className="t-btn"
+          data-variant="quiet"
+          isPending={check.isPending}
+          onPress={() => check.mutate()}
+        >
+          {m.about_check_now()}
+        </Button>
+        {check.isError && <p className="t-muted">{m.about_check_failed()}</p>}
+        {check.data &&
+          (check.data.latest ? (
+            <p className="t-muted">
+              {m.update_title({ latest: check.data.latest })}{" "}
+              <Button
+                className="t-btn"
+                data-variant="quiet"
+                onPress={() => open.mutate("download")}
+              >
+                {m.update_download()}
+              </Button>
+            </p>
+          ) : (
+            <p className="t-muted">{m.about_up_to_date()}</p>
+          ))}
+      </div>
     </section>
   );
 }

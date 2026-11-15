@@ -212,6 +212,10 @@ test("dropping another file says which files open", async ({
 
 test("the drop overlay shows while dragging", async ({ klats }) => {
   const page = await klats.teacher("/");
+  // The library listens for drags only once it has rendered.
+  await expect(
+    page.getByRole("heading", { name: m.tests_empty_title() }),
+  ).toBeVisible();
   const overlay = page.getByText(m.tests_drop_here(), { exact: true });
   const bytes = Buffer.from("x");
   await drag(page, ["dragenter", "dragover"], "notes.txt", bytes);
