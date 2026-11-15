@@ -24,6 +24,11 @@ const t = strings[lang].faq;
     <ul>{t.data.list.map((item) => <li set:html={item} />)}</ul>
     <p>{t.data.backup}</p>
 
+    <h2 id="ai">{t.ai.h}</h2>
+    <p>{t.ai.p}</p>
+    <ol>{t.ai.steps.map((step) => <li>{step}</li>)}</ol>
+    <p>{t.ai.note}</p>
+
     <h2 id="update">{t.update.h}</h2>
     <p>{t.update.p}</p>
     <p><a href={`${getRelativeLocaleUrl(lang)}#download`}>{t.update.link}</a></p>

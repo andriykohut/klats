@@ -261,6 +261,11 @@ happen.
   format is not supported, the message asks to save it as JPG or PNG.
 - Copy text that holds only a picture from Word and paste it into a question.
   *Expected:* the picture shows and nothing else is added.
+- In «Скласти з ШІ», type a request and press «Копіювати запит», then paste
+  into a text editor. *Expected:* the prompt is pasted with the request at
+  its end. Paste a chatbot's reply, copied with the code block's own copy
+  button, into the reply box. *Expected:* every question is recognised and
+  no line is listed as skipped.
 - Add a WAV over 10 MiB as a sound. *Expected:* it is refused with a message
   that says audio is limited to 10 MB, and the test is unchanged.
 

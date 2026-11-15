@@ -29,7 +29,6 @@ import { Checks } from "./Checks";
 import { QuestionEditor } from "./editors/QuestionEditor";
 import {
   convertQuestion,
-  fromPasted,
   insertAt,
   listed,
   newQuestion,
@@ -38,6 +37,7 @@ import {
 } from "./model";
 import { PasteDialog } from "./PasteDialog";
 import { PreviewPane } from "./PreviewPane";
+import type { PastedQuestion } from "./pasteParse";
 import { QuestionList } from "./QuestionList";
 import { SettingsDialog } from "./SettingsDialog";
 import { StartDialog } from "./StartDialog";
@@ -241,6 +241,11 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
     select(qs[0].id);
   };
 
+  const addPasted = (found: PastedQuestion[]) => {
+    insert(found.map((p) => p.question));
+    notify(m.paste_added({ count: found.length }));
+  };
+
   const offerUndo = (text: string, restore: () => void) => {
     let done = false;
     const key = toasts.add(
@@ -396,12 +401,8 @@ function Builder({ doc, first }: { doc: TestDoc; first?: string }) {
               setFresh(q.id);
             }}
           />
-          <PasteDialog
-            onAdd={(found) => {
-              insert(fromPasted(found));
-              notify(m.paste_added({ count: found.length }));
-            }}
-          />
+          <PasteDialog onAdd={addPasted} />
+          <PasteDialog ai onAdd={addPasted} />
           {showing && (
             <p className="b-tag-hint">{m.tags_new_hint({ tag: showing })}</p>
           )}
