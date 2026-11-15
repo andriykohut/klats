@@ -12,7 +12,6 @@ import type {
   RichNode,
 } from "@klats/shared/rich/RichView.tsx";
 import { Fragment, type Node, type Schema, Slice } from "@tiptap/pm/model";
-import type { PastedQuestion } from "./pasteParse";
 import {
   HAS_BODY,
   HAS_CORRECT,
@@ -388,15 +387,6 @@ function without(node: RichNode, drop: string[]): RichNode {
 export function insertAt<T>(items: T[], index: number, item: T): T[] {
   const at = Math.min(index, items.length);
   return [...items.slice(0, at), item, ...items.slice(at)];
-}
-
-/** Turns parsed paste into questions, each worth one point. */
-export function fromPasted(pasted: PastedQuestion[]): Question[] {
-  return pasted.map((p) => ({
-    ...newQuestion(p.type),
-    text: textDoc(p.text),
-    options: p.options.map((o) => newOption(o.text, o.correct)),
-  }));
 }
 
 /** Returns each tag of `questions` with how many questions carry it, in order of first appearance. */

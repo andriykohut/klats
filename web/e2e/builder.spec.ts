@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, m, test } from "./fixtures";
 
 // The builder's own sample: a single-choice question marked at the letter
@@ -47,4 +49,34 @@ test("questions pasted as text join the test, and one with no correct answer blo
     dialog.getByRole("button", { name: m.problem_no_correct({ number: 1 }) }),
   ).toBeVisible();
   await expect(go).toBeDisabled();
+});
+
+test("a chatbot reply in the prompt's format adds one question of each type, and the test starts", async ({
+  klats,
+}) => {
+  const prompt = readFileSync(
+    join(
+      import.meta.dirname,
+      "../teacher/src/pages/builder/paste-prompt.uk.txt",
+    ),
+    "utf8",
+  );
+  const reply = /```\n([\s\S]*?)\n```/.exec(prompt)?.[1] ?? "";
+  const page = await klats.teacher("/");
+  await page.getByRole("button", { name: m.tests_new() }).click();
+
+  await page.getByRole("button", { name: m.builder_ai() }).click();
+  await page.getByRole("textbox", { name: m.ai_reply_label() }).fill(reply);
+  await page.getByRole("button", { name: m.paste_add({ count: 15 }) }).click();
+  await expect(
+    page
+      .getByRole("listbox", { name: m.builder_questions() })
+      .getByRole("option"),
+  ).toHaveCount(15);
+
+  await page.getByRole("button", { name: m.builder_start() }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText(m.start_no_list(), { exact: true }).click();
+  await dialog.getByRole("button", { name: m.start_go(), exact: true }).click();
+  await expect(page.locator(".l-code strong")).toBeVisible({ timeout: 10_000 });
 });

@@ -253,6 +253,17 @@ const uk = {
       backup:
         "Щоб зберегти копію всього або перенести дані на інший комп’ютер, відкрийте «Налаштування → Резервна копія».",
     },
+    ai: {
+      h: "Чи може тест скласти штучний інтелект?",
+      p: "Так. Будь-який чат-бот зі штучним інтелектом, навіть безплатний, може написати питання так, щоб Клац їх прочитав.",
+      steps: [
+        "У тесті натисніть «Скласти з ШІ», опишіть, який тест потрібен (тему, клас, кількість питань), і натисніть «Копіювати запит».",
+        "Вставте запит у чат-бот і надішліть.",
+        "Скопіюйте відповідь чат-бота кнопкою копіювання на блоці коду й вставте її в поле нижче.",
+        "Праворуч одразу видно, які питання розпізнано, а які рядки пропущено й чому. Натисніть «Додати».",
+      ],
+      note: "Перед уроком перегляньте питання: чат-боти помиляються. Так можна скласти питання всіх типів, крім тих, що із зображенням.",
+    },
     update: {
       h: "Як оновити Клац?",
       p: "Завантажте нову версію й установіть її так само, як першу: на Windows — поверх старої, на Mac — замінивши Клац у папці «Програми», на Linux — новим пакетом .deb або новим файлом AppImage. Тести й результати залишаться на місці.",
@@ -501,6 +512,17 @@ const en: typeof uk = {
       ],
       backup:
         "To keep a copy of everything or move the data to another computer, use Settings → Backup.",
+    },
+    ai: {
+      h: "Can AI write a test?",
+      p: "Yes. Any AI chatbot, free ones included, can write questions in a form Klats reads.",
+      steps: [
+        "In a test, click “Write with AI”, describe the test you need (the topic, the class, how many questions), and click “Copy the prompt”.",
+        "Paste the prompt into the chatbot and send it.",
+        "Copy the chatbot’s reply with the copy button on its code block, and paste it into the box below.",
+        "The right side shows at once which questions were recognised, and which lines were left out and why. Click “Add”.",
+      ],
+      note: "Check the questions before the lesson: chatbots make mistakes. Every question type works this way except those with a picture.",
     },
     update: {
       h: "How do I update Klats?",

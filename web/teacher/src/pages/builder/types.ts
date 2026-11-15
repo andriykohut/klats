@@ -1,4 +1,5 @@
 import { m } from "@klats/shared/paraglide/messages.js";
+import type { Locale } from "@klats/shared/paraglide/runtime.js";
 import type { TypeGroup } from "@klats/shared/questionTypes.ts";
 import type { IconName } from "../../ui/icons";
 
@@ -8,10 +9,16 @@ import type { IconName } from "../../ui/icons";
  * internal/testfmt's types.go, except where a set's doc says otherwise).
  */
 
-/** The name and one-line description of each question type, in the UI language. */
+/**
+ * The name and one-line description of each question type, in the UI
+ * language unless `options.locale` names another.
+ */
 export const TYPE_INFO: Record<
   string,
-  { name: () => string; desc: () => string }
+  {
+    name: (inputs?: object, options?: { locale?: Locale }) => string;
+    desc: () => string;
+  }
 > = {
   single: { name: m.answer_single, desc: m.type_single_desc },
   multi: { name: m.answer_multi, desc: m.type_multi_desc },
