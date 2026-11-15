@@ -156,3 +156,11 @@
   display: grid;
   gap: 6px;
 }
+
+.t-about-check {
+  margin-top: 18px;
+}
+
+.t-about-check .t-muted {
+  margin: 12px 0 0;
+}
