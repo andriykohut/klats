@@ -83,6 +83,11 @@
   color: var(--k-on-dark);
 }
 
+/* Inline code's light chip would leave the white text unreadable. */
+.k-tile[data-selected] .k-code {
+  background: var(--k-sel-dark);
+}
+
 .k-tile[data-selected]::after,
 .k-tile[data-selected] .k-face::before {
   opacity: 1;

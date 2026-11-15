@@ -1,4 +1,42 @@
-import { expect, m, test } from "./fixtures";
+import { contrast } from "@klats/shared/palettes.ts";
+import type { Locator } from "@playwright/test";
+import {
+  answers,
+  doc,
+  expect,
+  joinAs,
+  m,
+  pick,
+  questionOf,
+  test,
+} from "./fixtures";
+
+/** A one-paragraph document that is all inline code. */
+const code = (text: string) => ({
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text, marks: [{ type: "code" }] }],
+    },
+  ],
+});
+
+/** The WCAG contrast between an element's text and its own background. */
+async function legibility(el: Locator): Promise<number> {
+  const colours = await el.evaluate((e) => {
+    const s = getComputedStyle(e);
+    return [s.color, s.backgroundColor];
+  });
+  const [fg, bg] = colours.map(
+    (rgb) =>
+      `#${(rgb.match(/\d+/g) ?? [])
+        .slice(0, 3)
+        .map((n) => Number(n).toString(16).padStart(2, "0"))
+        .join("")}`,
+  );
+  return contrast(fg, bg);
+}
 
 test("a table and a code block written in the builder reach the student's sheet", async ({
   klats,
@@ -52,4 +90,43 @@ test("a table and a code block written in the builder reach the student's sheet"
   expect(
     await student.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(1024);
+});
+
+test("inline code stays readable on a selected answer and on a picked card", async ({
+  klats,
+}) => {
+  const choice = questionOf("single", "q1", "Яка функція рахує за умовою?", {
+    options: [
+      { id: "o1", content: code("=SUM(A2:A40)"), correct: false },
+      { id: "o2", content: code("=COUNTIF(A2:A40;5)"), correct: true },
+    ],
+  });
+  const match = questionOf("match", "q2", "З’єднайте мову з командою", {
+    targets: [
+      { id: "t1", content: code("print()"), x: 0, y: 0 },
+      { id: "t2", content: code("echo"), x: 0, y: 0 },
+    ],
+    options: [
+      { id: "l1", content: doc("Python"), correct: false, target: "t1" },
+      { id: "l2", content: doc("Bash"), correct: false, target: "t2" },
+    ],
+  });
+  const { code: join } = await klats.start([choice, match]);
+  const page = await klats.computer();
+  await joinAs(page, klats, join, "Бондаренко Олена");
+
+  await pick(page, choice, "=COUNTIF(A2:A40;5)");
+  const selected = answers(page, choice).locator("code", {
+    hasText: "=COUNTIF(A2:A40;5)",
+  });
+  await expect.poll(() => legibility(selected)).toBeGreaterThanOrEqual(4.5);
+
+  await page.getByRole("button", { name: m.test_next() }).click();
+  const tray = page.getByRole("grid", { name: m.cards_tray() });
+  await tray.getByRole("row", { name: "print()" }).click();
+  const picked = page.locator("[data-picked]");
+  await expect(picked).toHaveAttribute("aria-label", "print()");
+  await expect
+    .poll(() => legibility(picked.locator("code")))
+    .toBeGreaterThanOrEqual(4.5);
 });

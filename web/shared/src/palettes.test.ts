@@ -30,6 +30,11 @@ const PAIRS: [string, (p: Palette) => [string, string], number][] = [
     (p) => [WHITE, p.sel],
     4.5,
   ],
+  [
+    "inline code on a selected tile or a picked card",
+    (p) => [WHITE, p.selDark],
+    4.5,
+  ],
   ["text and check mark on the accent", (p) => [p.ink, p.accent], 4.5],
   ["progress chip and timer text", (p) => [WHITE, p.track], 4.5],
   ["toast title", (p) => [WHITE, p.ink], 4.5],

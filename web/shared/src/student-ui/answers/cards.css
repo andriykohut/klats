@@ -58,6 +58,11 @@ fieldset.k-set {
   color: var(--k-on-dark);
 }
 
+/* Inline code's light chip would leave the white text unreadable. */
+.k-card[data-picked] .k-code {
+  background: var(--k-sel-dark);
+}
+
 .k-card[data-dragging] {
   opacity: 0.45;
 }
