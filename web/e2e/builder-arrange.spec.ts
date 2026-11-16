@@ -168,7 +168,7 @@ test("a matching question saves each pair with a target of its own, and the extr
   await expect.poll(async () => (await question(page)).targets?.length).toBe(3);
 });
 
-test("a grouping question saves each item under its group, and removing a group takes its items along", async ({
+test("a grouping question saves each item under its group, keeps the focus on a moved item's group choice, and removing a group takes its items along", async ({
   klats,
 }) => {
   const page = await newTest(klats);
@@ -189,12 +189,18 @@ test("a grouping question saves each item under its group, and removing a group 
   await addItem(2).click();
   await field(page, item(2, 3)).fill("Кит");
 
-  // An item put in the wrong group moves with the group choice beside it.
-  await main
-    .getByLabel(m.builder_group_item_group({ item: item(2, 3) }))
-    .selectOption({ label: "Ссавці" });
+  // An item put in the wrong group moves with the group choice beside it,
+  // and its choice keeps the focus.
+  const choice = main.getByLabel(
+    m.builder_group_item_group({ item: item(2, 3) }),
+  );
+  await choice.focus();
+  await choice.selectOption({ label: "Ссавці" });
   await expect(field(page, item(1, 2))).toHaveText("Кит");
   await expect(field(page, item(2, 3))).toHaveCount(0);
+  await expect(
+    main.getByLabel(m.builder_group_item_group({ item: item(1, 2) })),
+  ).toBeFocused();
 
   await expect(preview(page).getByText("Горобець")).toBeVisible();
   const q = await question(page);
@@ -240,7 +246,7 @@ test("a grouping question saves each item under its group, and removing a group 
   ]);
 });
 
-test("a word bank question saves a word for each gap, and shows a word whose gap is gone among the extra words", async ({
+test("a word bank question saves a word for each gap, keeps the spaces around a selected word in the text, and shows a word whose gap is gone among the extra words", async ({
   klats,
 }) => {
   const page = await newTest(klats);
@@ -249,8 +255,8 @@ test("a word bank question saves a word for each gap, and shows a word whose gap
   await field(page, m.builder_question_text()).fill("Вставте слова");
   const body = field(page, m.builder_bank_body());
   await body.click();
-  await body.pressSequentially("кіт сидить");
-  for (let i = 0; i < 10; i++) await body.press("ArrowLeft");
+  await body.pressSequentially("кіт сидить тут");
+  for (let i = 0; i < 14; i++) await body.press("ArrowLeft");
   for (let i = 0; i < 3; i++) await body.press("Shift+ArrowRight");
   await page
     .getByRole("button", { name: m.builder_bank_make_gap(), exact: true })
@@ -276,7 +282,7 @@ test("a word bank question saves a word for each gap, and shows a word whose gap
   const para = (q.body as { content: { content: object[] }[] }).content[0];
   expect(para.content).toEqual([
     { type: "gap", attrs: { id: q.options[0].target } },
-    { type: "text", text: " сидить" },
+    { type: "text", text: " сидить тут" },
   ]);
   expect(textOf(q.options[0])).toBe("кіт");
 
@@ -310,10 +316,11 @@ test("a word bank question saves a word for each gap, and shows a word whose gap
     .poll(async () => (await question(page)).options[0].target)
     .toBe(q.options[0].target);
 
-  // A second gap from the keyboard, and an extra word typed in. The restored
-  // chip is still selected; the arrows take the caret over it and the text.
-  for (let i = 0; i < 8; i++) await body.press("ArrowRight");
-  for (let i = 0; i < 6; i++) await body.press("Shift+ArrowLeft");
+  // A second gap from the keyboard, of a selection with spaces around its
+  // word, and an extra word typed in. The restored chip is still selected;
+  // the arrows take the caret over it and the text.
+  for (let i = 0; i < 9; i++) await body.press("ArrowRight");
+  for (let i = 0; i < 8; i++) await body.press("Shift+ArrowLeft");
   await page.keyboard.press("ControlOrMeta+Shift+g");
   await expect(chip).toHaveCount(2);
   await expect(field(page, m.builder_bank_word({ number: 2 }))).toHaveText(
@@ -330,6 +337,13 @@ test("a word bank question saves a word for each gap, and shows a word whose gap
     ["сидить", "gap"],
     ["лежить", "extra"],
   ]);
+  const gapped = (done.body as { content: { content: object[] }[] }).content[0];
+  expect(gapped.content).toEqual([
+    { type: "gap", attrs: { id: done.options[0].target } },
+    { type: "text", text: " " },
+    { type: "gap", attrs: { id: done.options[1].target } },
+    { type: "text", text: " тут" },
+  ]);
   const ids = JSON.stringify(done.body).match(/"id":"[a-z0-9]+"/g) ?? [];
   expect(ids).toHaveLength(2);
   expect(new Set(done.options.map((o) => o.target).filter(Boolean)).size).toBe(
@@ -337,7 +351,7 @@ test("a word bank question saves a word for each gap, and shows a word whose gap
   );
 });
 
-test("a single-choice question turned into ordering shows its text and four answers in the editor", async ({
+test("a single-choice question turned into ordering and back shows its text and four answers in the editor", async ({
   klats,
 }) => {
   const page = await newTest(klats);
@@ -366,12 +380,18 @@ test("a single-choice question turned into ordering shows its text and four answ
   for (const [i, text] of ["Перша", "Друга", "Третя", "Четверта"].entries()) {
     await expect(field(page, item(i + 1))).toHaveText(text);
   }
+  // Back to single choice, the four answers are in the editor again.
+  await page.getByRole("button", { name: m.builder_type_label() }).click();
+  await page
+    .getByRole("option", { name: m.answer_single(), exact: true })
+    .click();
+  await expect(answer("Г")).toHaveText("Четверта");
 });
 
-/** Puts `edit`'s version of the first question into the open test, and reloads the builder. */
+/** Puts `edit`'s version of each question into the open test, and reloads the builder. */
 async function seed(page: Page, edit: (q: Question) => Question) {
   const { test: doc } = await saved(page);
-  doc.questions = [edit(doc.questions[0])];
+  doc.questions = doc.questions.map(edit);
   await page.evaluate(async (doc) => {
     await fetch(`/api/tests/${doc.id}`, {
       method: "PUT",
@@ -391,57 +411,59 @@ const filler = (n: number, target = ""): Option[] =>
     target,
   }));
 
-for (const [type, desc, label, grouped] of [
-  ["single choice", m.type_single_desc, m.builder_add_answer, false],
-  ["true/false", m.type_truefalse_desc, m.builder_add_statement, false],
-  ["grid", m.type_grid_desc, m.builder_add_row, false],
-  ["ordering", m.type_order_desc, m.builder_add_order_item, false],
-  [
-    "grouping",
-    m.type_groups_desc,
-    () => m.builder_add_group_item({ group: 2 }),
-    true,
-  ],
-] as const) {
-  test(`a ${type} question with 50 options offers no way to add another`, async ({
-    klats,
-  }) => {
-    const page = await newTest(klats);
-    await add(page, desc);
-    await expect(page.getByText(m.builder_saved())).toBeVisible();
-    await seed(page, (q) => ({
-      ...q,
-      options: filler(50, grouped ? q.targets?.[0].id : ""),
-    }));
+test("a question with 50 options offers no way to add another, and a word bank at 50 words makes no more gaps", async ({
+  klats,
+}) => {
+  const full = [
+    [m.type_single_desc, m.builder_add_answer],
+    [m.type_truefalse_desc, m.builder_add_statement],
+    [m.type_grid_desc, m.builder_add_row],
+    [m.type_order_desc, m.builder_add_order_item],
+    [m.type_groups_desc, () => m.builder_add_group_item({ group: 2 })],
+  ] as const;
+  const page = await newTest(klats);
+  for (const [desc] of full) await add(page, desc);
+  await add(page, m.type_bank_desc);
+  const list = page
+    .getByRole("listbox", { name: m.builder_questions() })
+    .getByRole("option");
+  await expect(list).toHaveCount(full.length + 1);
+  await expect(page.getByText(m.builder_saved())).toBeVisible();
+  await seed(page, (q) =>
+    q.type === "bank"
+      ? {
+          ...q,
+          body: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  { type: "text", text: "кіт сидить" },
+                  { type: "gap", attrs: { id: "g1" } },
+                ],
+              },
+            ],
+          },
+          options: [
+            { ...filler(1, "g1")[0], id: "w1" },
+            ...filler(49).map((o) => ({ ...o, id: `x${o.id}` })),
+          ],
+        }
+      : {
+          ...q,
+          options: filler(50, q.type === "groups" ? q.targets?.[0].id : ""),
+        },
+  );
+
+  for (const [i, [, label]] of full.entries()) {
+    await list.nth(i).click();
     await expect(
       editor(page).getByRole("button", { name: label() }),
     ).toBeDisabled();
-  });
-}
+  }
 
-test("a word bank at 50 words makes no more gaps", async ({ klats }) => {
-  const page = await newTest(klats);
-  await add(page, m.type_bank_desc);
-  await expect(page.getByText(m.builder_saved())).toBeVisible();
-  await seed(page, (q) => ({
-    ...q,
-    body: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "кіт сидить" },
-            { type: "gap", attrs: { id: "g1" } },
-          ],
-        },
-      ],
-    },
-    options: [
-      { ...filler(1, "g1")[0], id: "w1" },
-      ...filler(49).map((o) => ({ ...o, id: `x${o.id}` })),
-    ],
-  }));
+  await list.nth(full.length).click();
   const body = field(page, m.builder_bank_body());
   await body.click();
   await body.press("ArrowLeft");
@@ -451,50 +473,4 @@ test("a word bank at 50 words makes no more gaps", async ({ klats }) => {
   ).toBeDisabled();
   await page.keyboard.press("ControlOrMeta+Shift+g");
   await expect(body.locator("[data-klats-gap]")).toHaveCount(1);
-});
-
-test("a gap made of a selection with spaces around its word keeps the spaces in the text", async ({
-  klats,
-}) => {
-  const page = await newTest(klats);
-  await add(page, m.type_bank_desc);
-  const body = field(page, m.builder_bank_body());
-  await body.click();
-  await body.pressSequentially("а кіт б");
-  await body.press("ArrowLeft");
-  for (let i = 0; i < 5; i++) await body.press("Shift+ArrowLeft");
-  await page.keyboard.press("ControlOrMeta+Shift+g");
-  await expect(body.locator("[data-klats-gap]")).toHaveCount(1);
-  const q = await question(page);
-  expect(textOf(q.options[0])).toBe("кіт");
-  const para = (q.body as { content: { content: object[] }[] }).content[0];
-  expect(para.content).toEqual([
-    { type: "text", text: "а " },
-    { type: "gap", attrs: { id: q.options[0].target } },
-    { type: "text", text: " б" },
-  ]);
-});
-
-test("changing an item's group from the keyboard leaves focus on its group choice", async ({
-  klats,
-}) => {
-  const page = await newTest(klats);
-  await add(page, m.type_groups_desc);
-  const item = (g: number, n: number) =>
-    m.builder_group_item({ group: g, number: n });
-  await field(page, m.builder_group_name({ number: 1 })).fill("Ссавці");
-  await field(page, m.builder_group_name({ number: 2 })).fill("Птахи");
-  await field(page, item(1, 1)).fill("Кіт");
-  await field(page, item(2, 1)).fill("Орел");
-
-  const choice = editor(page).getByLabel(
-    m.builder_group_item_group({ item: item(1, 1) }),
-  );
-  await choice.focus();
-  await choice.selectOption({ label: "Птахи" });
-  // The item leads group 2 now, and its choice keeps the focus.
-  await expect(field(page, item(2, 1))).toHaveText("Кіт");
-  await expect(
-    editor(page).getByLabel(m.builder_group_item_group({ item: item(2, 1) })),
-  ).toBeFocused();
 });

@@ -201,7 +201,7 @@ test("a number question stays without a key until its fields are filled", async 
     .toMatchObject({ mode: "exact", value: 7.25 });
 });
 
-test("a gaps question saves a gap made of the selected text, and an undo brings it back whole", async ({
+test("a gaps question saves a gap made of the selected text or from the keyboard, and an undo brings it back whole", async ({
   klats,
 }) => {
   const page = await newTest(klats);
@@ -240,11 +240,13 @@ test("a gaps question saves a gap made of the selected text, and an undo brings 
   });
   await expect(typed).toBeVisible();
 
-  // A second gap, from a list.
+  // A second gap, made from the keyboard, which leaves the focus in the text,
+  // and answered from a list.
   await body.press("End");
   await body.pressSequentially(" і ");
-  await page.getByRole("button", { name: m.rich_gap(), exact: true }).click();
+  await page.keyboard.press("ControlOrMeta+Shift+g");
   await expect(chip).toHaveCount(2);
+  await expect(body).toBeFocused();
   await card(2).getByRole("radio", { name: m.builder_gap_list() }).click();
   const choice = (n: number) =>
     card(2).getByRole("textbox", { name: m.builder_gap_choice({ number: n }) });
@@ -323,25 +325,4 @@ test("a gaps question saves a gap made of the selected text, and an undo brings 
     })
     .toMatchObject({ ids: 3, inBody: 3, pasted: { id: expect.any(String) } });
   expect((await question(page)).gaps?.[2].accepted).toBeUndefined();
-});
-
-test("a gap is inserted from the keyboard", async ({ klats }) => {
-  const page = await newTest(klats);
-  await add(page, m.type_gaps_desc);
-  const main = editor(page);
-  const body = main.getByRole("textbox", { name: m.builder_gaps_body() });
-  await body.click();
-  await body.pressSequentially("Столиця — Київ");
-  for (let i = 0; i < 4; i++) await body.press("Shift+ArrowLeft");
-  await page.keyboard.press("ControlOrMeta+Shift+g");
-
-  await expect(body.locator("[data-klats-gap]")).toHaveCount(1);
-  await expect(body).toBeFocused();
-  const q = await question(page);
-  expect(q.gaps?.[0]).toMatchObject({ accepted: ["Київ"] });
-  const para = (q.body as { content: { content: object[] }[] }).content[0];
-  expect(para.content).toEqual([
-    { type: "text", text: "Столиця — " },
-    { type: "gap", attrs: { id: q.gaps?.[0].id } },
-  ]);
 });

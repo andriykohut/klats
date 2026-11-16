@@ -16,7 +16,7 @@ async function newFile(klats: Klats, path: string): Promise<string> {
   return path;
 }
 
-test("a file the system opens lands in the library", async ({
+test("a file the system opens lands in the library, and opened again finds its test and can still be copied", async ({
   klats,
 }, testInfo) => {
   const file = await newFile(klats, testInfo.outputPath("Дроби 7-Б.klats"));
@@ -40,6 +40,17 @@ test("a file the system opens lands in the library", async ({
     page.getByText(m.tests_open_missing(), { exact: true }),
   ).toBeVisible();
   await expect(rows(page)).toHaveCount(2);
+
+  await klats.opened(file);
+  const existing = page.getByText(m.tests_open_existing({ title: "Дроби" }), {
+    exact: true,
+  });
+  await expect(existing).toBeVisible();
+  await expect(rows(page)).toHaveCount(2);
+
+  await page.getByRole("button", { name: m.tests_open_copy() }).click();
+  await expect(existing).toBeHidden();
+  await expect(rows(page)).toHaveCount(3);
 });
 
 test("a file opened before the window loads lands in the library", async ({
@@ -83,27 +94,4 @@ test("a file opened during a lesson waits while its results show", async ({
   await expect(
     page.getByText(m.tests_opened({ title: "Дроби" }), { exact: true }),
   ).toBeVisible();
-});
-
-test("a file opened twice finds its test, and can still be copied", async ({
-  klats,
-}, testInfo) => {
-  const file = await newFile(klats, testInfo.outputPath("Дроби.klats"));
-  const page = await klats.teacher("/");
-  const stream = page.waitForResponse("**/api/events");
-  await page.reload();
-  await stream;
-  await klats.opened(file);
-  await expect(rows(page)).toHaveCount(1);
-
-  await klats.opened(file);
-  const existing = page.getByText(m.tests_open_existing({ title: "Дроби" }), {
-    exact: true,
-  });
-  await expect(existing).toBeVisible();
-  await expect(rows(page)).toHaveCount(1);
-
-  await page.getByRole("button", { name: m.tests_open_copy() }).click();
-  await expect(existing).toBeHidden();
-  await expect(rows(page)).toHaveCount(2);
 });

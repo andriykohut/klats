@@ -30,7 +30,7 @@ const dialog = (page: Page) =>
 const insertButton = (page: Page) =>
   dialog(page).getByRole("button", { name: m.formula_insert(), exact: true });
 
-test("a fraction is built from the palette and Tab moves to its denominator", async ({
+test("a formula is built from the palette by mouse or keyboard, Tab moves to a fraction's denominator, and one KaTeX cannot read cannot be inserted", async ({
   klats,
 }) => {
   const page = await newQuestion(klats);
@@ -40,12 +40,21 @@ test("a fraction is built from the palette and Tab moves to its denominator", as
   await page.getByRole("button", { name: m.rich_formula() }).click();
 
   await expect(dialog(page)).toBeVisible();
+  // A formula KaTeX cannot read cannot be inserted.
+  const field = dialog(page).getByLabel(m.formula_latex());
+  await field.fill("\\frac{1}{");
+  await expect(dialog(page).getByText(m.formula_error())).toBeVisible();
+  await expect(insertButton(page)).toBeDisabled();
+  await field.fill("");
+
   await page.getByRole("button", { name: "a/b", exact: true }).click();
   await page.keyboard.type("1");
   await page.keyboard.press("Tab");
   await page.keyboard.type("2");
   await expect(dialog(page).locator(".katex .mfrac")).toBeVisible();
   await expect(dialog(page).locator(".katex-html")).toContainText("21"); // KaTeX lays the denominator out first
+  await expect(dialog(page).getByText(m.formula_error())).toHaveCount(0);
+  await expect(insertButton(page)).toBeEnabled();
   await insertButton(page).click();
 
   await expect(text.locator(".katex .mfrac")).toBeVisible();
@@ -66,9 +75,13 @@ test("a fraction is built from the palette and Tab moves to its denominator", as
 
   // Clicking the formula reopens the dialog on it, and the edit replaces it.
   await text.locator(".katex").click();
-  const field = dialog(page).getByLabel(m.formula_latex());
   await expect(field).toHaveValue("\\frac{1}{2}");
   await field.fill("\\sqrt{2}");
+  // A palette button pressed from the keyboard returns the caret to the field.
+  await dialog(page).getByRole("button", { name: "π", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("r");
+  await expect(field).toHaveValue("\\sqrt{2}\\pi r");
   await dialog(page)
     .getByRole("button", { name: m.action_save(), exact: true })
     .click();
@@ -83,20 +96,6 @@ test("a fraction is built from the palette and Tab moves to its denominator", as
     type: "text",
     text: "!",
   });
-});
-
-test("a formula KaTeX cannot read cannot be inserted", async ({ klats }) => {
-  const page = await newQuestion(klats);
-  await page.getByRole("textbox", { name: m.builder_question_text() }).click();
-  await page.getByRole("button", { name: m.rich_formula() }).click();
-
-  await dialog(page).getByLabel(m.formula_latex()).fill("\\frac{1}{");
-  await expect(dialog(page).getByText(m.formula_error())).toBeVisible();
-  await expect(insertButton(page)).toBeDisabled();
-
-  await dialog(page).getByLabel(m.formula_latex()).fill("\\frac{1}{2}");
-  await expect(dialog(page).getByText(m.formula_error())).toHaveCount(0);
-  await expect(insertButton(page)).toBeEnabled();
 });
 
 test("formulas are drawn after the network drops", async ({ klats }) => {
@@ -160,20 +159,6 @@ test("an answer option takes a formula, and Enter in the dialog inserts it witho
   await expect(dialog(page)).toHaveCount(0);
   await expect(option.locator(".katex .sqrt")).toBeVisible();
   await expect(page.getByRole("listitem")).toHaveCount(before);
-});
-
-test("a palette button pressed from the keyboard returns the caret to the field", async ({
-  klats,
-}) => {
-  const page = await newQuestion(klats);
-  await page.getByRole("textbox", { name: m.builder_question_text() }).click();
-  await page.getByRole("button", { name: m.rich_formula() }).click();
-  const field = dialog(page).getByLabel(m.formula_latex());
-
-  await dialog(page).getByRole("button", { name: "π", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  await page.keyboard.type("r");
-  await expect(field).toHaveValue("\\pi r");
 });
 
 test("a line with a formula can be made bold and still saves", async ({

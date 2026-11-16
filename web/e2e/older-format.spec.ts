@@ -46,8 +46,14 @@ const drop = (page: Page, name: string, bytes: Buffer) =>
 const SCRIPTED_FILES =
   "Firefox leaves the files of a script-made DataTransfer empty";
 
-test("an older-format file opens with a report", async ({ klats }) => {
+test("the open button offers .mtf, and an older-format file opens with a report", async ({
+  klats,
+}) => {
   const page = await klats.teacher("/");
+  await expect(page.locator("input[type=file]")).toHaveAttribute(
+    "accept",
+    /\.mtf/,
+  );
   await openFile(page, OLDER);
   const report = page.getByRole("alertdialog", {
     name: m.tests_opened({ title: "Старий тест" }),
@@ -154,14 +160,6 @@ test("a damaged older-format file is refused", async ({ klats }, testInfo) => {
   await expect(
     page.getByRole("heading", { name: m.tests_empty_title() }),
   ).toBeVisible();
-});
-
-test("the open button offers .mtf", async ({ klats }) => {
-  const page = await klats.teacher("/");
-  await expect(page.locator("input[type=file]")).toHaveAttribute(
-    "accept",
-    /\.mtf/,
-  );
 });
 
 test("dropping a .klats file opens it", async ({ klats, browserName }) => {

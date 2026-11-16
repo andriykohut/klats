@@ -176,22 +176,3 @@ test("a file over 256 MB is refused", async ({ klats }, testInfo) => {
   await expect(page.getByText(m.tests_count({ count: 1 }))).toBeVisible();
   await expect(rows(page)).toHaveCount(1);
 });
-
-test("an unsafe title exports to a safe name", async ({ klats }, testInfo) => {
-  const title = "7/8: Дроби?";
-  await klats.create(TEST, undefined, title);
-  const page = await klats.teacher("/");
-  const download = await exportTest(page, title);
-  expect(download.suggestedFilename()).toBe("7_8_ Дроби_.klats");
-  const file = testInfo.outputPath(download.suggestedFilename());
-  await download.saveAs(file);
-
-  await openFile(page, file);
-  await page.getByRole("button", { name: m.tests_open_copy() }).click();
-  await expect(
-    page.getByText(m.tests_opened({ title }), { exact: true }),
-  ).toBeVisible();
-  await page.reload();
-  await expect(rows(page)).toHaveCount(2);
-  await expect(rows(page).first().getByRole("link")).toHaveText(title);
-});

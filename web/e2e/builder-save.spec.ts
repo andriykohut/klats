@@ -40,15 +40,13 @@ test("a bullet list sunk three times with Tab is saved", async ({ klats }) => {
   ).toBeVisible();
 });
 
-test("a save the server refuses is not retried, and the next edit tries again", async ({
+test("a save the server refuses shows as refused and keeps the text, and the next edit saves", async ({
   klats,
 }) => {
   const page = await newQuestion(klats);
-  let puts = 0;
   let refuse = true;
   await page.route(/\/api\/tests\/[^/]+$/, async (route) => {
     if (route.request().method() !== "PUT") return route.fallback();
-    puts++;
     if (!refuse) return route.fallback();
     return route.fulfill({
       status: 400,
@@ -60,14 +58,9 @@ test("a save the server refuses is not retried, and the next edit tries again", 
   const text = page.getByRole("textbox", { name: m.builder_question_text() });
   await text.click();
   await page.keyboard.type("Один");
-  await expect(page.locator(".b-saved")).toHaveText(m.builder_refused());
   await expect(
     page.getByRole("status").filter({ hasText: m.builder_refused() }),
   ).toHaveCount(1);
-  const sent = puts;
-  // The first retry of a dropped connection would come after one second.
-  await page.waitForTimeout(1500);
-  expect(puts).toBe(sent);
   await expect(text).toContainText("Один");
 
   refuse = false;

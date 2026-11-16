@@ -33,7 +33,29 @@ async function shown(page: Page, done: Set<string>): Promise<TestQuestion> {
   return found as TestQuestion;
 }
 
-test("each student gets 3 of 5 questions", async ({ klats }) => {
+/**
+ * Checks a journal of two students who each got 3 questions: the columns are
+ * numbered 1 to 3, each row has 3 cells, there is no class row under them,
+ * and the first student's first cell names its question in the test.
+ */
+async function expectOwnColumns(page: Page) {
+  const table = page.locator(".j-table");
+  await expect(table.locator("thead .j-q")).toHaveText(["1", "2", "3"]);
+  const rows = table.locator("tbody tr");
+  await expect(rows).toHaveCount(2);
+  for (const row of await rows.all()) {
+    await expect(row.locator(".j-cell")).toHaveCount(3);
+  }
+  await expect(table.locator("tfoot")).toHaveCount(0);
+  await expect(rows.first().locator("td.j-q").first()).toHaveAttribute(
+    "title",
+    /у тесті/,
+  );
+}
+
+test("each student gets 3 of 5 questions, and the live view and results show each one's own", async ({
+  klats,
+}) => {
   const { code, assignmentId } = await klats.start(FIVE, {
     settings: { shuffleQuestions: true, draw: [{ tag: "", count: 3 }] },
   });
@@ -58,13 +80,14 @@ test("each student gets 3 of 5 questions", async ({ klats }) => {
     ).toBeVisible();
   }
 
+  const live = await klats.teacher("/live");
+  await expect(live.locator(".l-title span")).toContainText("3 з 5 питань");
+  await expectOwnColumns(live);
   const results = await klats.teacher(`/assignments/${assignmentId}`);
-  const rows = results.locator(".j-table tbody tr");
-  await expect(rows).toHaveCount(2);
-  for (const row of await rows.all()) {
-    await expect(row.locator(".j-cell")).toHaveCount(3);
-    await expect(row.locator('[data-state="absent"]')).toHaveCount(0);
-  }
+  await expectOwnColumns(results);
+  await expect(
+    results.locator('.j-table tbody [data-state="absent"]'),
+  ).toHaveCount(0);
 });
 
 test("the detail names a student's own question numbers", async ({ klats }) => {

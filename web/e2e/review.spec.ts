@@ -11,7 +11,7 @@ const item = (id: string, text: string) => ({
   correct: false,
 });
 
-test("the teacher reviews every answer type and grades the written one", async ({
+test("the teacher opens the pending cell, reviews every answer type and grades the written one", async ({
   klats,
 }) => {
   const tf = questionOf("truefalse", "q1", "Які твердження правильні?", {
@@ -106,7 +106,10 @@ test("the teacher reviews every answer type and grades the written one", async (
   await expect(
     results.locator("td.j-grade").getByText(m.status_pending()),
   ).toBeVisible();
-  await review.click();
+  // The pending cell opens its question with the points field focused.
+  await results
+    .getByRole("button", { name: `3: ${m.status_pending()}` })
+    .click();
 
   const detail = results.getByRole("dialog");
   const questions = detail.locator(".r-q");
@@ -189,34 +192,4 @@ test("zero points grade a written answer too", async ({ klats }) => {
   const graded = await klats.results(assignmentId);
   expect(graded.rows[0].pendingIds).toEqual([]);
   expect(graded.rows[0].overridden).toEqual(["q1"]);
-});
-
-test("a pending cell opens its question with the points field focused", async ({
-  klats,
-}) => {
-  const tf = questionOf("truefalse", "q1", "Які твердження правильні?", {
-    options: [statement("s1", "Земля кругла", true)],
-  });
-  const open = questionOf("open", "q2", "Поясніть чому", { points: 2 });
-  const { code, assignmentId } = await klats.start([tf, open]);
-  const page = await klats.computer();
-  await joinAs(page, klats, code, "Бондаренко Олена");
-  await page
-    .getByRole("radiogroup", { name: "Земля кругла", exact: true })
-    .getByText(m.answer_true(), { exact: true })
-    .click();
-  await page.getByRole("button", { name: m.test_next() }).click();
-  await page.getByRole("textbox", { name: open.title }).fill("Бо так");
-  await page.getByRole("button", { name: m.test_finish() }).click();
-  await page.getByRole("button", { name: m.review_finish() }).click();
-  await until(klats, (live) => live.rows[0]?.status === "finished");
-
-  const results = await klats.teacher(`/assignments/${assignmentId}`);
-  await results
-    .getByRole("button", { name: `2: ${m.status_pending()}` })
-    .click();
-  const detail = results.getByRole("dialog");
-  await expect(
-    detail.locator(".r-q").nth(1).getByLabel(m.col_points()),
-  ).toBeFocused();
 });

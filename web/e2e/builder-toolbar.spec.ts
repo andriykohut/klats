@@ -102,27 +102,28 @@ const CASES = [
   },
 ];
 
-for (const c of CASES) {
-  test(`the toolbar of a ${c.type} question's list fields leaves their headings visible`, async ({
-    klats,
-  }) => {
-    const src = await klats.upload(PNG);
-    const id = await klats.create([
-      questionOf(c.type, "q1", "Питання", c.fields(src)),
-    ]);
-    const page = await klats.teacher(`/tests/${id}`);
-    const main = page.getByRole("main");
+test("the toolbar of each question type's list fields leaves their headings visible", async ({
+  klats,
+}) => {
+  const src = await klats.upload(PNG);
+  const id = await klats.create(
+    CASES.map((c, i) => questionOf(c.type, `q${i}`, "Питання", c.fields(src))),
+  );
+  const page = await klats.teacher(`/tests/${id}`);
+  const main = page.getByRole("main");
+  const list = page
+    .getByRole("listbox", { name: m.builder_questions() })
+    .getByRole("option");
 
+  for (const [i, c] of CASES.entries()) {
+    await list.nth(i).click();
     for (const title of c.headings) {
-      const heading = main.locator(".b-lbl", { hasText: title() }).first();
+      const heading = main.getByText(new RegExp(`^${title()}`)).first();
       await heading.scrollIntoViewIfNeeded();
       const field = heading.locator("xpath=following::*[@role='textbox'][1]");
       await field.focus();
-      const bar = field
-        .locator(
-          "xpath=ancestor::div[contains(concat(' ',@class,' '),' b-rich ')][1]",
-        )
-        .getByRole("toolbar");
+      // Only the focused field shows its toolbar.
+      const bar = main.getByRole("toolbar", { name: m.rich_toolbar() });
       await expect(bar).toBeVisible();
       // The toolbar drops in from 8 px higher, so its box settles only once
       // the animation ends.
@@ -142,5 +143,5 @@ for (const c of CASES) {
         .soft(overlaps, `the toolbar covers the heading "${title()}"`)
         .toBe(false);
     }
-  });
-}
+  }
+});

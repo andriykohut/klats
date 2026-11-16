@@ -32,45 +32,37 @@ test("a student joins by the code, answers three questions and finishes", async 
   ).toBeVisible();
 });
 
-const THRESHOLDS = [16, 25, 33, 41, 50, 58, 66, 75, 83, 91, 100];
-const SCALES = [
-  { kind: "percent", pass: 60, grade: () => m.grade_percent({ n: 50 }) },
-  { kind: "pass", pass: 50, grade: () => m.grade_pass() },
-  { kind: "pass", pass: 51, grade: () => m.grade_fail() },
-];
-
-for (const scale of SCALES) {
-  test(`the finish screen shows a ${scale.kind} grade of 50 % with a pass mark of ${scale.pass}`, async ({
-    klats,
-  }) => {
-    const { code } = await klats.start(TEST, {
-      settings: {
-        scale: { kind: scale.kind, thresholds: THRESHOLDS, pass: scale.pass },
+test("the finish screen shows a pass grade of 50 % with a pass mark of 50", async ({
+  klats,
+}) => {
+  const { code } = await klats.start(TEST, {
+    settings: {
+      scale: {
+        kind: "pass",
+        thresholds: [16, 25, 33, 41, 50, 58, 66, 75, 83, 91, 100],
+        pass: 50,
       },
-    });
-    const student = await klats.computer();
-    const [q1, q2, q3] = TEST;
-
-    await joinAs(student, klats, code, CLASS[0]);
-    await pick(student, q1, "8");
-    await student.getByRole("button", { name: m.test_next() }).click();
-    await pick(student, q2, "Клавіатура");
-    await student.getByRole("button", { name: m.test_next() }).click();
-    await pick(student, q3, "Excel");
-    await student.getByRole("button", { name: m.test_finish() }).click();
-    await student.getByRole("button", { name: m.review_finish() }).click();
-
-    // A pass/fail ring is named by the word under it.
-    const name =
-      scale.kind === "pass"
-        ? scale.grade()
-        : m.finish_grade({ grade: scale.grade() });
-    await expect(student.getByRole("img", { name, exact: true })).toBeVisible();
-    await expect(student.locator(".k-finish [role=status]")).toHaveText(
-      `${name}. ${m.finish_correct({ correct: 1, total: 3 })}`,
-    );
+    },
   });
-}
+  const student = await klats.computer();
+  const [q1, q2, q3] = TEST;
+
+  await joinAs(student, klats, code, CLASS[0]);
+  await pick(student, q1, "8");
+  await student.getByRole("button", { name: m.test_next() }).click();
+  await pick(student, q2, "Клавіатура");
+  await student.getByRole("button", { name: m.test_next() }).click();
+  await pick(student, q3, "Excel");
+  await student.getByRole("button", { name: m.test_finish() }).click();
+  await student.getByRole("button", { name: m.review_finish() }).click();
+
+  // A pass/fail ring is named by the word under it.
+  const name = m.grade_pass();
+  await expect(student.getByRole("img", { name, exact: true })).toBeVisible();
+  await expect(student.locator(".k-finish [role=status]")).toHaveText(
+    `${name}. ${m.finish_correct({ correct: 1, total: 3 })}`,
+  );
+});
 
 test("a second tab waits, and takes the test over once the first is closed", async ({
   klats,

@@ -479,7 +479,7 @@ test("a label question saves its points where they were put, each with the label
   await expect(pin(3)).toBeVisible();
 });
 
-test("a highlight question saves the target mark on the marked words, and the preview shows words", async ({
+test("a highlight question saves the words Mod-K marks, without a selected word's space and all through a partly marked word, and the preview shows words", async ({
   klats,
 }) => {
   const page = await newTest(klats);
@@ -487,25 +487,40 @@ test("a highlight question saves the target mark on the marked words, and the pr
   await field(page, m.builder_question_text()).fill("Знайдіть прислівник");
   const body = field(page, m.builder_highlight_body());
   await body.click();
-  await page.keyboard.type("Небо яскраво світить");
+  await page.keyboard.type("Небо яскраво ");
+  const press = async (key: string, n: number) => {
+    for (let i = 0; i < n; i++) await page.keyboard.press(key);
+  };
+  const markedNow = async () => marked(await question(page));
 
   // Mod-K right after Shift+Arrow marks the whole selected word: ProseMirror
-  // learns of the new selection only after the key.
-  for (let i = 0; i < 15; i++) await page.keyboard.press("ArrowLeft");
-  for (let i = 0; i < 7; i++) await page.keyboard.press("Shift+ArrowRight");
+  // learns of the new selection only after the key. «яскраво » as a double
+  // click may select it, trailing space and all.
+  await press("Shift+ArrowLeft", 8);
   await page.keyboard.press("ControlOrMeta+k");
   await expect(
     editor(page).getByText(m.builder_highlight_count({ count: 1 })),
   ).toBeVisible();
+  await expect.poll(markedNow).toEqual(["яскраво"]);
 
-  // A word marked in part counts as marked.
-  for (let i = 0; i < 9; i++) await page.keyboard.press("ArrowRight");
-  for (let i = 0; i < 4; i++) await page.keyboard.press("Shift+ArrowLeft");
+  // A word marked in part counts as marked. The selection is the word without
+  // its space: two steps pass the space.
+  await press("ArrowRight", 2);
+  await page.keyboard.type("світить");
+  await press("ArrowLeft", 3);
+  await press("Shift+ArrowLeft", 4);
   await page.keyboard.press("ControlOrMeta+k");
   await expect(
     editor(page).getByText(m.builder_highlight_count({ count: 2 })),
   ).toBeVisible();
-  // The same key unmarks it.
+  await expect.poll(markedNow).toEqual(["яскраво", "світ"]);
+
+  // The whole of «світить»: the first press marks all of it, the second clears it.
+  await page.keyboard.press("ArrowRight");
+  await press("ArrowRight", 3);
+  await press("Shift+ArrowLeft", 7);
+  await page.keyboard.press("ControlOrMeta+k");
+  await expect.poll(markedNow).toEqual(["яскраво", "світить"]);
   await page.keyboard.press("ControlOrMeta+k");
   await expect(
     editor(page).getByText(m.builder_highlight_count({ count: 1 })),
@@ -516,42 +531,6 @@ test("a highlight question saves the target mark on the marked words, and the pr
   const q = await question(page);
   expect(q.type).toBe("highlight");
   expect(marked(q)).toEqual(["яскраво"]);
-});
-
-test("Mod-K leaves the space of a selected word unmarked, and marks a partly marked word all through before it clears it", async ({
-  klats,
-}) => {
-  const page = await newTest(klats);
-  await add(page, m.type_highlight_desc);
-  const body = field(page, m.builder_highlight_body());
-  await body.click();
-  await page.keyboard.type("Небо тихо ");
-  const press = async (key: string, n: number) => {
-    for (let i = 0; i < n; i++) await page.keyboard.press(key);
-  };
-  const markedNow = async () => marked(await question(page));
-
-  // «тихо » as a double click may select it, trailing space and all.
-  await press("Shift+ArrowLeft", 5);
-  await page.keyboard.press("ControlOrMeta+k");
-  await expect.poll(markedNow).toEqual(["тихо"]);
-
-  // The selection is the word without its space: two steps pass the space.
-  await press("ArrowRight", 2);
-  await page.keyboard.type("світить");
-  await press("ArrowLeft", 3);
-  await press("Shift+ArrowLeft", 4);
-  await page.keyboard.press("ControlOrMeta+k");
-  await expect.poll(markedNow).toEqual(["тихо", "світ"]);
-
-  // The whole of «світить»: the first press marks all of it, the second clears it.
-  await page.keyboard.press("ArrowRight");
-  await press("ArrowRight", 3);
-  await press("Shift+ArrowLeft", 7);
-  await page.keyboard.press("ControlOrMeta+k");
-  await expect.poll(markedNow).toEqual(["тихо", "світить"]);
-  await page.keyboard.press("ControlOrMeta+k");
-  await expect.poll(markedNow).toEqual(["тихо"]);
 });
 
 test("a written-answer question saves the marking notes, which students never get", async ({
