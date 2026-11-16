@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "*.md"]
   pull_request:
+    paths-ignore: ["docs/**", "*.md"]
 
 permissions:
   contents: read
@@ -25,12 +27,13 @@ jobs:
       - name: Install desktop build dependencies
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
       - run: make gen web check
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.15.0
 
   e2e:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -43,14 +46,15 @@ jobs:
         with:
           node-version: 26.13.0
       - run: make gen
-      - run: pnpm install && pnpm --filter @klats/e2e exec playwright install --with-deps chromium firefox
+      - run: pnpm install && pnpm --filter @klats/e2e exec playwright install --with-deps ${{ matrix.browser }}
         working-directory: web
       # The runner has no sound device, and Firefox on Linux reports a media
       # error when it can't open an audio output, so the audio specs need a
       # (silent) PulseAudio sink.
       - name: Start a silent sound device
+        if: matrix.browser == 'firefox'
         run: |
           sudo apt-get install -y pulseaudio
           pulseaudio --daemonize --exit-idle-time=-1
           pactl load-module module-null-sink
-      - run: make e2e
+      - run: make e2e E2E_ARGS=--project=${{ matrix.browser }}

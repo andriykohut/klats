@@ -44,9 +44,10 @@ gen:
 	go tool tygo generate
 
 # The Playwright specs in web/e2e, in Chromium and Firefox. Their global setup
-# builds the klats binary, which embeds the web apps built here.
+# builds the klats binary, which embeds the web apps built here. E2E_ARGS goes
+# to Playwright, as in `make e2e E2E_ARGS=--project=chromium`.
 e2e: web
-	cd web && pnpm --filter @klats/e2e exec playwright test
+	cd web && pnpm --filter @klats/e2e exec playwright test $(E2E_ARGS)
 
 # The site's screenshots of the app, in uk and en, taken from the real apps by
 # web/e2e/shots into web/site/src/assets/shots/. The suite never runs them.

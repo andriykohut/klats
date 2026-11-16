@@ -128,7 +128,7 @@ Dependabot can't see these, so they are updated by hand:
 | Go | `toolchain` in `go.mod`, `go-version` in each workflow, Setup above, and the README |
 | Node.js | `node-version` in each workflow, Setup above, and the README |
 | pnpm | `packageManager` in `web/package.json`, the `version` given to `pnpm/action-setup` in each workflow, Setup above, and the README |
-| golangci-lint | `GOLANGCI_LINT` in the `Makefile`, and the `version` given to `golangci-lint-action` in `ci.yml` |
+| golangci-lint | `GOLANGCI_LINT` in the `Makefile` |
 | appimagetool | the download URL and its SHA-256 in `build/linux/build.sh`, and ARCHITECTURE.md |
 | Inno Setup | not pinned: the release uses the copy on GitHub's Windows runner |
 | WebView2 runtime | not pinned: `build/windows/build.ps1` downloads Microsoft's current installer |

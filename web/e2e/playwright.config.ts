@@ -8,6 +8,9 @@ export default defineConfig({
   globalSetup: "./global-setup.ts",
   fullyParallel: true,
   retries: 0,
+  // Tests mostly wait on the server's timers, so CI's 4 vCPUs take a worker
+  // each instead of Playwright's default of half.
+  workers: process.env.CI ? 4 : undefined,
   forbidOnly: !!process.env.CI,
   // The offline checks wait out the server's 15 s offline threshold.
   timeout: 90_000,
