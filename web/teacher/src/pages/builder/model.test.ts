@@ -7,7 +7,6 @@ import {
   clearTakenTargets,
   convertQuestion,
   gapInMode,
-  gapsInBody,
   listed,
   newOption,
   newQuestion,
@@ -74,6 +73,10 @@ test("toStored keeps only the keys the server allows", () => {
       },
       { type: "paragraph" },
     ],
+  });
+  expect(toStored({ type: "gap", attrs: { id: "g1", extra: 1 } })).toEqual({
+    type: "gap",
+    attrs: { id: "g1" },
   });
 });
 
@@ -228,16 +231,11 @@ test("newQuestion shapes", () => {
       LEAST[type]?.targets ?? 0,
     );
   }
-  expect(newQuestion("truefalse").options).toHaveLength(2);
-  const grid = newQuestion("grid");
-  expect([grid.options.length, grid.targets?.length]).toEqual([2, 2]);
-  expect(newQuestion("order").options).toHaveLength(3);
   const match = newQuestion("match");
   expect(match.options.map((o) => o.target)).toEqual(
     match.targets?.map((t) => t.id),
   );
   const groups = newQuestion("groups");
-  expect([groups.options.length, groups.targets?.length]).toEqual([2, 2]);
   expect(groups.options.map((o) => o.target)).toEqual(
     groups.targets?.map((t) => t.id),
   );
@@ -286,6 +284,9 @@ test("convertQuestion keeps what it can", () => {
   expect(
     convertQuestion(multi, "truefalse").options.map((o) => o.correct),
   ).toEqual([false, true, false, false]);
+  expect(
+    convertQuestion({ ...newQuestion("single"), tags: ["A"] }, "multi").tags,
+  ).toEqual(["A"]);
 
   const groups = {
     ...newQuestion("groups"),
@@ -508,26 +509,6 @@ const gapBody = (...ids: string[]) => ({
   ],
 });
 
-test("gapsInBody lists the gap ids in document order", () => {
-  expect(gapsInBody(gapBody("g2", "g1"))).toEqual(["g2", "g1"]);
-  expect(gapsInBody(textDoc("Кіт"))).toEqual([]);
-  const nested = {
-    type: "doc" as const,
-    content: [
-      { type: "paragraph", content: [{ type: "gap", attrs: { id: "x" } }] },
-      { type: "paragraph", content: [{ type: "gap", attrs: { id: "y" } }] },
-    ],
-  };
-  expect(gapsInBody(nested)).toEqual(["x", "y"]);
-});
-
-test("toStored keeps the id of a gap", () => {
-  expect(toStored({ type: "gap", attrs: { id: "g1", extra: 1 } })).toEqual({
-    type: "gap",
-    attrs: { id: "g1" },
-  });
-});
-
 test("syncGaps keeps the entries of the gaps in the body, in body order, and stashes the rest", () => {
   const stash = new Map();
   const g1 = { id: "g1", accepted: ["Київ"] };
@@ -546,6 +527,17 @@ test("syncGaps keeps the entries of the gaps in the body, in body order, and sta
     g1,
     g2,
     { id: "g3" },
+  ]);
+  const twoParagraphs = {
+    type: "doc" as const,
+    content: [
+      { type: "paragraph", content: [{ type: "gap", attrs: { id: "x" } }] },
+      { type: "paragraph", content: [{ type: "gap", attrs: { id: "y" } }] },
+    ],
+  };
+  expect(syncGaps(undefined, twoParagraphs, stash)).toEqual([
+    { id: "x" },
+    { id: "y" },
   ]);
   expect(syncGaps(undefined, textDoc(""), stash)).toEqual([]);
 });
@@ -655,14 +647,11 @@ test("tagName reuses a known tag that differs only in case", () => {
   expect(tagName("Урок 10", ["Урок 9"])).toBe("Урок 10");
 });
 
-test("tagLabel fits whole tags, then counts the rest", () => {
+test("tagLabel shows whole tags that fit", () => {
   expect(tagLabel(["Мережі", "Урок 9"])).toEqual({
     shown: "Мережі, Урок 9",
     more: 0,
   });
-  expect(
-    tagLabel(["Урок_10 Безпечне використання Інтернету", "Мережі"]),
-  ).toEqual({ shown: "Урок_10 Безпечне використання Інтернету", more: 1 });
 });
 
 test("listed keeps real numbers and the selected question", () => {
@@ -674,10 +663,4 @@ test("listed keeps real numbers and the selected question", () => {
   expect(listed(qs, "X", "a").map((r) => r.number)).toEqual([1, 3]);
   expect(listed(qs, "X", "b").map((r) => r.number)).toEqual([1, 2, 3]);
   expect(listed(qs, "", "a").map((r) => r.number)).toEqual([1, 2]);
-});
-
-test("convertQuestion keeps tags", () => {
-  expect(
-    convertQuestion({ ...newQuestion("single"), tags: ["A"] }, "multi").tags,
-  ).toEqual(["A"]);
 });

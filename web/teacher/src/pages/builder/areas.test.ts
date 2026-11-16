@@ -1,3 +1,4 @@
+import type { Point } from "@klats/shared/generated/testfmt.ts";
 import { expect, test } from "vitest";
 import {
   areaFromDrag,
@@ -10,35 +11,44 @@ import {
 const near = (n: number) => expect.closeTo(n, 9);
 const area = { id: "a", shape: "rect", x: 0.2, y: 0.3, w: 0.4, h: 0.5 };
 
-test("areaFromDrag", () => {
-  expect(
-    areaFromDrag({ x: 0.5, y: 0.5 }, { x: 0.3, y: 0.2 }, "rect"),
-  ).toMatchObject({
-    shape: "rect",
-    x: near(0.3),
-    y: near(0.2),
-    w: near(0.2),
-    h: near(0.3),
-  });
-  expect(
-    areaFromDrag({ x: 0.9, y: 0.9 }, { x: 1.4, y: 0.9 }, "ellipse"),
-  ).toMatchObject({
-    shape: "ellipse",
-    x: near(0.9),
-    w: near(0.1),
-    h: near(0.02),
-  });
-});
-
-test("areaFromDrag keeps a dragged-out box inside the image and at least the minimum size", () => {
-  const out = areaFromDrag({ x: -0.5, y: 0.99 }, { x: 0.01, y: 2 }, "rect");
-  expect(out).toMatchObject({ x: 0, w: near(MIN_AREA) });
-  expect(out.y + out.h).toBeLessThanOrEqual(1 + 1e-9);
-  expect(out.h).toBeGreaterThanOrEqual(MIN_AREA - 1e-9);
-  const corner = areaFromDrag({ x: 1, y: 1 }, { x: 1, y: 1 }, "rect");
-  expect(corner.x + corner.w).toBeLessThanOrEqual(1 + 1e-9);
-  expect(corner.y + corner.h).toBeLessThanOrEqual(1 + 1e-9);
-  expect(corner.w).toBeCloseTo(MIN_AREA, 9);
+test("areaFromDrag spans a drag either way, cut to the picture and at least the minimum size", () => {
+  const cases: [Point, Point, "rect" | "ellipse", object][] = [
+    [
+      { x: 0.5, y: 0.5 },
+      { x: 0.3, y: 0.2 },
+      "rect",
+      { shape: "rect", x: near(0.3), y: near(0.2), w: near(0.2), h: near(0.3) },
+    ],
+    [
+      { x: 0.9, y: 0.9 },
+      { x: 1.4, y: 0.9 },
+      "ellipse",
+      { shape: "ellipse", x: near(0.9), w: near(0.1), h: near(0.02) },
+    ],
+    [
+      { x: -0.5, y: 0.99 },
+      { x: 0.01, y: 2 },
+      "rect",
+      { x: 0, y: near(0.98), w: near(MIN_AREA), h: near(MIN_AREA) },
+    ],
+    [
+      { x: 1, y: 1 },
+      { x: 1, y: 1 },
+      "rect",
+      { x: near(0.98), y: near(0.98), w: near(MIN_AREA), h: near(MIN_AREA) },
+    ],
+    [
+      { x: 1.2, y: -0.3 },
+      { x: -0.1, y: 1.5 },
+      "ellipse",
+      { x: 0, y: 0, w: near(1), h: near(1) },
+    ],
+  ];
+  for (const [a, b, shape, want] of cases) {
+    expect(areaFromDrag(a, b, shape), JSON.stringify([a, b])).toMatchObject(
+      want,
+    );
+  }
   const whole = () => areaFromDrag({ x: 0, y: 0 }, { x: 1, y: 1 }, "rect");
   expect(whole().id).not.toBe(whole().id);
 });
@@ -74,13 +84,5 @@ test("movePoint steps a point and keeps it within 0 to 1", () => {
   let p = { x: 0.5, y: 0.5 };
   for (let i = 0; i < 30; i++) p = movePoint(p, 0.01, 0);
   expect(p.x).toBe(0.8);
-});
-
-test("areaFromDrag cuts both corners to the picture, whichever way the drag goes", () => {
-  const out = areaFromDrag({ x: 1.2, y: -0.3 }, { x: -0.1, y: 1.5 }, "ellipse");
-  expect(out).toMatchObject({ x: 0, y: 0, w: near(1), h: near(1) });
-});
-
-test("movePoint without a step cuts a point just outside the picture back to its edge", () => {
   expect(movePoint({ x: -0.0004, y: 1.0007 }, 0, 0)).toEqual({ x: 0, y: 1 });
 });

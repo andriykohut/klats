@@ -1,13 +1,10 @@
 import { expect, test } from "vitest";
 import { chooseLayout, countBelow, nextDensity, progressMode } from "./layout";
 
-test("chooseLayout", () => {
+test("chooseLayout makes a grid of at most four options of two lines, or with pictures", () => {
   expect(chooseLayout(4, [1, 1, 2, 1])).toBe("grid");
   expect(chooseLayout(4, [1, 3, 1, 1])).toBe("rows");
   expect(chooseLayout(5, [1, 1, 1, 1, 1])).toBe("rows");
-});
-
-test("chooseLayout with images", () => {
   expect(chooseLayout(4, [3, 3, 3, 3], true)).toBe("grid");
   expect(chooseLayout(5, [1, 1, 1, 1, 1], true)).toBe("rows");
 });

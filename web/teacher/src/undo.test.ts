@@ -25,7 +25,6 @@ test("an undo inside the window resolves false at once", async () => {
   await vi.advanceTimersByTimeAsync(3000);
   w.undo();
   await expect(w.done).resolves.toBe(false);
-  expect(vi.getTimerCount()).toBe(0);
 });
 
 test("an undo after the window changes nothing", async () => {

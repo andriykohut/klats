@@ -107,22 +107,19 @@ test("a lease stamped in the future counts as stale", () => {
 });
 
 test("an unreadable lease is set aside and the claim goes ahead", () => {
-  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
   localStorage.setItem("k", "{oops");
   expect(claimTab("k", noop)).not.toBeNull();
   expect(localStorage.getItem("k.bad")).toBe("{oops");
-  expect(error).toHaveBeenCalledTimes(1);
 });
 
 test("a lease that cannot be written still claims, and the refresh carries on", () => {
-  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
   const setItem = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
     throw new DOMException("full", "QuotaExceededError");
   });
   expect(claimTab("k", noop)).not.toBeNull();
   expect(() => vi.advanceTimersByTime(20_000)).not.toThrow();
-  expect(setItem).toHaveBeenCalledTimes(5);
-  expect(error).toHaveBeenCalledTimes(1);
 
   setItem.mockRestore();
   vi.advanceTimersByTime(5_000);

@@ -1,46 +1,20 @@
 import { expect, test } from "vitest";
-import { hasAnswer, isAnswered, withPair } from "./answers";
+import { isAnswered, withPair } from "./answers";
+import type { Answer } from "./generated/testfmt";
 
 const options = ["a", "b", "c"].map((id) => ({ id }));
 const single = { type: "single", options };
 
-test("isAnswered", () => {
-  expect(
-    [undefined, {}, { text: " " }, { items: [] }].map((a) =>
-      isAnswered(single, a),
-    ),
-  ).toEqual([false, false, false, false]);
-  expect(
-    [{ items: ["a"] }, { text: "x" }, { point: { x: 0, y: 0 } }].map((a) =>
-      isAnswered(single, a),
-    ),
-  ).toEqual([true, true, true]);
-});
+type Case = [Parameters<typeof isAnswered>[0], Answer | undefined, boolean];
 
-test("true/false, grid, match and groups are answered only when every option has a value", () => {
-  for (const type of ["truefalse", "grid", "match", "groups"]) {
-    const q = { type, options };
-    expect(isAnswered(q, undefined)).toBe(false);
-    expect(isAnswered(q, { pairs: { a: "x", b: "y" } })).toBe(false);
-    expect(isAnswered(q, { pairs: { a: "x", b: "y", c: "z" } })).toBe(true);
-  }
-});
-
-test("gaps are answered only when every gap has non-blank text", () => {
-  const q = {
+test("a question counts as answered by the rule of its type", () => {
+  const gap = (id: string) => ({ type: "gap", attrs: { id } });
+  const gaps = {
     type: "gaps",
     options: [],
     gaps: [{ id: "a" }, { id: "b" }, { id: "c" }],
   };
-  expect(isAnswered(q, undefined)).toBe(false);
-  expect(isAnswered(q, { pairs: { a: "x", b: "y" } })).toBe(false);
-  expect(isAnswered(q, { pairs: { a: "x", b: "y", c: "z" } })).toBe(true);
-  expect(isAnswered(q, { pairs: { a: "x", b: " ", c: "z" } })).toBe(false);
-});
-
-test("bank is answered only when every gap of the body has a word", () => {
-  const gap = (id: string) => ({ type: "gap", attrs: { id } });
-  const q = {
+  const bank = {
     type: "bank",
     options,
     body: {
@@ -48,57 +22,67 @@ test("bank is answered only when every gap of the body has a word", () => {
       content: [{ type: "paragraph", content: [gap("g1"), gap("g2")] }],
     },
   };
-  expect(isAnswered(q, undefined)).toBe(false);
-  expect(isAnswered(q, { pairs: { g1: "a" } })).toBe(false);
-  expect(isAnswered(q, { pairs: { g1: "a", g2: "b" } })).toBe(true);
-});
-
-test("order is answered once it has items", () => {
-  const q = { type: "order", options };
-  expect(isAnswered(q, undefined)).toBe(false);
-  expect(isAnswered(q, { items: ["b", "a", "c"] })).toBe(true);
-});
-
-test("short and number are answered by any non-blank text", () => {
-  for (const type of ["short", "number"]) {
-    const q = { type, options: [] };
-    expect(isAnswered(q, { text: " " })).toBe(false);
-    expect(isAnswered(q, { text: "9,8" })).toBe(true);
-  }
-});
-
-test("label is answered when every point has a label, decoys need no place", () => {
-  const q = {
+  const label = {
     type: "label",
     options: ["l1", "l2", "decoy"].map((id) => ({ id })),
     targets: [{ id: "p1" }, { id: "p2" }],
   };
-  expect(isAnswered(q, undefined)).toBe(false);
-  expect(isAnswered(q, { pairs: { l1: "p1" } })).toBe(false);
-  expect(isAnswered(q, { pairs: { l1: "p1", decoy: "p1" } })).toBe(false);
-  expect(isAnswered(q, { pairs: { l1: "p1", l2: "p2" } })).toBe(true);
-  expect(isAnswered(q, { pairs: { l1: "p1", decoy: "p2" } })).toBe(true);
-});
-
-test("hotspot, highlight and open are answered by a point, a word and non-blank text", () => {
+  const order = { type: "order", options };
   const hotspot = { type: "hotspot", options: [] };
-  expect(isAnswered(hotspot, {})).toBe(false);
-  expect(isAnswered(hotspot, { point: { x: 0, y: 0 } })).toBe(true);
   const highlight = { type: "highlight", options: [] };
-  expect(isAnswered(highlight, { items: [] })).toBe(false);
-  expect(isAnswered(highlight, { items: ["0"] })).toBe(true);
   const open = { type: "open", options: [] };
-  expect(isAnswered(open, { text: " \n " })).toBe(false);
-  expect(isAnswered(open, { text: "Так" })).toBe(true);
+  const cases: Case[] = [
+    // A type with no rule of its own counts any part of an answer.
+    [single, undefined, false],
+    [single, {}, false],
+    [single, { text: " " }, false],
+    [single, { items: [] }, false],
+    [single, { pairs: {} }, false],
+    [single, { items: ["a"] }, true],
+    [single, { text: "x" }, true],
+    [single, { point: { x: 0, y: 0 } }, true],
+    [single, { pairs: { a: "x" } }, true],
+    [order, undefined, false],
+    [order, { items: ["b", "a", "c"] }, true],
+    ...["short", "number"].flatMap((type): Case[] => [
+      [{ type, options: [] }, { text: " " }, false],
+      [{ type, options: [] }, { text: "9,8" }, true],
+    ]),
+    [hotspot, {}, false],
+    [hotspot, { point: { x: 0, y: 0 } }, true],
+    [highlight, { items: [] }, false],
+    [highlight, { items: ["0"] }, true],
+    [open, { text: " \n " }, false],
+    [open, { text: "Так" }, true],
+    // True/false, grid, match and groups need a value for every option.
+    ...["truefalse", "grid", "match", "groups"].flatMap((type): Case[] => [
+      [{ type, options }, undefined, false],
+      [{ type, options }, { pairs: { a: "x", b: "y" } }, false],
+      [{ type, options }, { pairs: { a: "x", b: "y", c: "z" } }, true],
+    ]),
+    // Gaps need non-blank text in every gap.
+    [gaps, undefined, false],
+    [gaps, { pairs: { a: "x", b: "y" } }, false],
+    [gaps, { pairs: { a: "x", b: "y", c: "z" } }, true],
+    [gaps, { pairs: { a: "x", b: " ", c: "z" } }, false],
+    // A word bank needs a word in every gap of its body.
+    [bank, undefined, false],
+    [bank, { pairs: { g1: "a" } }, false],
+    [bank, { pairs: { g1: "a", g2: "b" } }, true],
+    // Labels need a label on every point; decoys need no place.
+    [label, undefined, false],
+    [label, { pairs: { l1: "p1" } }, false],
+    [label, { pairs: { l1: "p1", decoy: "p1" } }, false],
+    [label, { pairs: { l1: "p1", l2: "p2" } }, true],
+    [label, { pairs: { l1: "p1", decoy: "p2" } }, true],
+  ];
+  for (const [q, a, want] of cases) {
+    expect(isAnswered(q, a), `${q.type} ${JSON.stringify(a)}`).toBe(want);
+  }
 });
 
 test("withPair sets a gap's value and drops its key when it is empty", () => {
   expect(withPair({ a: "x" }, "b", "y")).toEqual({ a: "x", b: "y" });
   expect(withPair({ a: "x", b: "y" }, "b", "")).toEqual({ a: "x" });
   expect(withPair({ a: "x" }, "a", " ")).toEqual({ a: " " });
-});
-
-test("hasAnswer is true for any part of an answer", () => {
-  expect(hasAnswer({ pairs: { a: "x" } })).toBe(true);
-  expect(hasAnswer({ pairs: {} })).toBe(false);
 });

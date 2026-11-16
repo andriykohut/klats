@@ -22,43 +22,34 @@ test("a short name keeps the surname and the first name's initial", () => {
 });
 
 test("a tally counts good, bad and answered cells and what is left", () => {
-  expect(tally(["correct", "wrong", "current", "empty", "correct"])).toEqual({
-    good: 2,
-    bad: 1,
-    answered: 0,
-    left: 2,
-  });
-  expect(tally(["full", "partial", "zero", "empty"])).toEqual({
-    good: 1,
-    bad: 2,
-    answered: 0,
-    left: 1,
-  });
-  expect(tally(["answered", "answered", "current"])).toEqual({
-    good: 0,
-    bad: 0,
-    answered: 2,
-    left: 1,
-  });
-});
-
-test("a tally counts a pending cell as left", () => {
-  expect(tally(["full", "pending"]).left).toBe(1);
-  expect(tally(["correct", "pending", "pending"])).toEqual({
-    good: 1,
-    bad: 0,
-    answered: 0,
-    left: 2,
-  });
-});
-
-test("a tally leaves out the questions a student did not get", () => {
-  expect(tally(["correct", "absent", "empty", "absent"])).toEqual({
-    good: 1,
-    bad: 0,
-    answered: 0,
-    left: 1,
-  });
+  const cases: [string[], ReturnType<typeof tally>][] = [
+    [
+      ["correct", "wrong", "current", "empty", "correct"],
+      { good: 2, bad: 1, answered: 0, left: 2 },
+    ],
+    [
+      ["full", "partial", "zero", "empty"],
+      { good: 1, bad: 2, answered: 0, left: 1 },
+    ],
+    [
+      ["answered", "answered", "current"],
+      { good: 0, bad: 0, answered: 2, left: 1 },
+    ],
+    // A pending cell counts as left.
+    [["full", "pending"], { good: 1, bad: 0, answered: 0, left: 1 }],
+    [
+      ["correct", "pending", "pending"],
+      { good: 1, bad: 0, answered: 0, left: 2 },
+    ],
+    // An absent cell, a question the student did not get, is left out.
+    [
+      ["correct", "absent", "empty", "absent"],
+      { good: 1, bad: 0, answered: 0, left: 1 },
+    ],
+  ];
+  for (const [states, want] of cases) {
+    expect(tally(states), states.join(" ")).toEqual(want);
+  }
 });
 
 test("padCells fills a short row with absent cells", () => {
