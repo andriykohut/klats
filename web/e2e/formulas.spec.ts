@@ -187,6 +187,8 @@ test("a line with a formula can be made bold and still saves", async ({
   await dialog(page).getByLabel(m.formula_latex()).fill("\\pi r^2");
   await page.keyboard.press("Enter");
   await expect(text.locator(".katex")).toBeVisible();
+  // The field takes focus back a frame after the dialog closes.
+  await expect(text).toBeFocused();
 
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.press("ControlOrMeta+B");
