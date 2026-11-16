@@ -71,13 +71,8 @@ func Judge(q testfmt.Question, a testfmt.Answer) Verdict {
 	return Verdict{}
 }
 
-// Score returns the points the answer earns for the question, as [Judge] does.
-func Score(q testfmt.Question, a testfmt.Answer) float64 {
-	return Judge(q, a).Points
-}
-
 // Total grades a whole test. answers maps question id to the student's answer;
-// overrides maps question id to teacher-set points that replace Score.
+// overrides maps question id to teacher-set points that replace the judged ones.
 func Total(t testfmt.Test, answers map[string]testfmt.Answer, overrides map[string]float64) Result {
 	r := Result{PerQuestion: make(map[string]float64, len(t.Questions)), Verdicts: map[string]map[string]bool{}}
 	for i, q := range t.Questions {
