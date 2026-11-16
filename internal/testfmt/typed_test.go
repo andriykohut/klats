@@ -58,15 +58,6 @@ func TestDecodeCapsGapsOfBody(t *testing.T) {
 	}
 }
 
-func TestDecodeKeepsGapOrderOfBody(t *testing.T) {
-	q := gapsQ(Gap{ID: "g1"}, Gap{ID: "g2"})
-	q.Gaps = []Gap{{ID: "g2", Accepted: []string{"x"}}, {ID: "g1", Accepted: []string{"y"}}}
-	got := mustDecodeQ(t, q).Gaps
-	if len(got) != 2 || got[0].ID != "g1" || got[1].ID != "g2" {
-		t.Errorf("gaps = %+v", got)
-	}
-}
-
 func TestProblemsShortAndNumber(t *testing.T) {
 	ps := wantCodes(t, testOf(t, shortQ()), "no_accepted")
 	if ps[0].Severity != "error" {

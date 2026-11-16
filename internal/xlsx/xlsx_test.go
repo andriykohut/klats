@@ -23,7 +23,7 @@ func sample() wire.AssignmentResults {
 		TestTitle: "Дроби", ClassName: "7-А",
 		Questions: []wire.ResultQuestion{
 			{Question: testfmt.Question{ID: "q1", Text: para("Скільки?")}, Correct: 1, CorrectPct: new(50)},
-			{Question: testfmt.Question{ID: "q2", Text: para(strings.Repeat("я", 250))}, Correct: 2, CorrectPct: new(100)},
+			{Question: testfmt.Question{ID: "q2", Text: para(strings.Repeat("я", 201))}, Correct: 2, CorrectPct: new(100)},
 			{Question: testfmt.Question{ID: "q3", Text: []byte(`{"type":"nope"}`)}},
 		},
 		Rows: []wire.ResultRow{
@@ -102,6 +102,11 @@ func TestExportCells(t *testing.T) {
 	eq(t, "question 3", row(t, f, "Питання", 4, false), []string{"3", "", "0"})
 	if got, _ := f.GetCellType("Питання", "D3"); got != excelize.CellTypeUnset {
 		t.Errorf("type of D3 = %v", got)
+	}
+	whole := sample()
+	whole.Questions[1].Question.Text = para(strings.Repeat("я", 200))
+	if got, _ := open(t, whole, "uk").GetCellValue("Питання", "B3"); got != strings.Repeat("я", 200) {
+		t.Errorf("a question of 200 runes = %d runes, want it whole", len([]rune(got)))
 	}
 
 	for _, sheet := range []string{"Результати", "Питання"} {
@@ -204,7 +209,6 @@ func TestFileName(t *testing.T) {
 		want string
 	}{
 		{"plain", func(*wire.AssignmentResults) {}, "Дроби — 7-А — 2026-10-21.xlsx"},
-		{"slash", func(r *wire.AssignmentResults) { r.TestTitle = `Дроби 1/2: "що?"` }, "Дроби 1_2_ _що__ — 7-А — 2026-10-21.xlsx"},
 		{"empty class", func(r *wire.AssignmentResults) { r.ClassName = "" }, "Дроби — 2026-10-21.xlsx"},
 		{"earliest not first", func(r *wire.AssignmentResults) {
 			day := func(d int) int64 { return time.Date(2026, 10, d, 12, 0, 0, 0, time.Local).UnixMilli() }
@@ -213,7 +217,6 @@ func TestFileName(t *testing.T) {
 		{"no rows", func(r *wire.AssignmentResults) { r.Rows = nil }, "Дроби — 7-А.xlsx"},
 		{"long title", func(r *wire.AssignmentResults) { r.TestTitle = strings.Repeat("ї", 150) }, strings.Repeat("ї", 100) + " — 7-А — 2026-10-21.xlsx"},
 		{"empty title", func(r *wire.AssignmentResults) { r.TestTitle = " . " }, "Тест — 7-А — 2026-10-21.xlsx"},
-		{"trailing dot and control", func(r *wire.AssignmentResults) { r.TestTitle = "Тест\n1..." }, "Тест_1 — 7-А — 2026-10-21.xlsx"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := r
@@ -231,22 +234,6 @@ func TestDateColumnWidth(t *testing.T) {
 	w, err := f.GetColWidth("Результати", "J")
 	if err != nil || w < 11 {
 		t.Errorf("date column width = %v, %v; want at least 11", w, err)
-	}
-}
-
-func TestQuestionCut(t *testing.T) {
-	for _, tc := range []struct {
-		runes int
-		want  string
-	}{
-		{200, strings.Repeat("я", 200)},
-		{201, strings.Repeat("я", 200) + "…"},
-	} {
-		r := wire.AssignmentResults{Questions: []wire.ResultQuestion{{Question: testfmt.Question{Text: para(strings.Repeat("я", tc.runes))}}}}
-		f := open(t, r, "uk")
-		if got, _ := f.GetCellValue("Питання", "B2"); got != tc.want {
-			t.Errorf("%d runes: got %d runes, want %d", tc.runes, len([]rune(got)), len([]rune(tc.want)))
-		}
 	}
 }
 

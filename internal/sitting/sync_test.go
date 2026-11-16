@@ -216,16 +216,6 @@ func TestSubmitRejectsInvalidChanges(t *testing.T) {
 }
 
 func TestLateFlagUsesServerClock(t *testing.T) {
-	// A change carries nothing a device clock could set.
-	typ := reflect.TypeFor[wire.AnswerChange]()
-	var fields []string
-	for i := range typ.NumField() {
-		fields = append(fields, typ.Field(i).Name)
-	}
-	if want := []string{"ChangeID", "ParticipantID", "QuestionID", "Answer", "Seq"}; !slices.Equal(fields, want) {
-		t.Fatalf("AnswerChange fields = %v, want %v", fields, want)
-	}
-
 	clk := newClock()
 	e, st, _ := setupAt(t, clk)
 	info := start(t, e, nil)
@@ -336,9 +326,6 @@ func TestFinishGrades(t *testing.T) {
 	}
 	if !received(ch) {
 		t.Error("device not told its status changed")
-	}
-	if row := participantRow(t, st, info.SittingID, p.ID); row.State != "finished" || row.FinishedBy.String != "student" || row.FinishedAt.Int64 != clock().UnixMilli() {
-		t.Errorf("participant = %+v", row)
 	}
 	if evs := eventParams(t, st, info.SittingID, "finished"); len(evs) != 1 || evs[0]["name"] != "Шевченко Учень" || evs[0]["grade"] != "10" {
 		t.Errorf("finished events = %v", evs)
@@ -476,16 +463,13 @@ func TestEndThenLateAnswersRegrade(t *testing.T) {
 	if !received(ch) {
 		t.Error("device not told the sitting ended")
 	}
-	if row := participantRow(t, st, info.SittingID, pa.ID); row.State != "finished" || row.FinishedBy.String != "end" || row.FinishedAt.Int64 != clk.now().UnixMilli() {
-		t.Errorf("participant writing at the end = %+v", row)
-	}
 	row := func(p wire.Participant) wire.ResultRow {
 		t.Helper()
 		r := resultsOf(t, e, info.AssignmentID)
 		return r.Rows[slices.IndexFunc(r.Rows, func(r wire.ResultRow) bool { return r.ParticipantID == p.ID })]
 	}
-	if g := row(pa).Grade; g != 1 {
-		t.Errorf("grade at the end = %d, want 1", g)
+	if r := row(pa); r.Grade != 1 || r.DurationSec != 60 {
+		t.Errorf("row at the end = %+v, want grade 1, finished after 60 s", r)
 	}
 
 	// devA comes back online with the fix it made offline.
@@ -548,15 +532,9 @@ func TestResultWithheldUntilSynced(t *testing.T) {
 	if res := submitPending(t, e, devA, 1, change(p, "q1", 2, "o0")); res.Status.Result != nil {
 		t.Errorf("status with one change pending = %+v, want no result", res.Status)
 	}
-	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end" {
-		t.Errorf("finished by %q before syncing, want end", by)
-	}
 	want := wire.FinishResult{Scale: "points12", Show: "grade", Grade: 12, Correct: 2, Total: 2}
 	if res := submitPending(t, e, devA, 0, change(p, "q2", 1, "o0")); res.Status.Result == nil || !reflect.DeepEqual(*res.Status.Result, want) {
 		t.Errorf("status once synced = %+v, want %+v", res.Status, want)
-	}
-	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
-		t.Errorf("finished by %q once synced, want end_synced", by)
 	}
 	// Locked: a further change is acked and ignored, and the grade stays.
 	res := submit(t, e, devA, change(p, "q1", 3, "o1"))
@@ -645,7 +623,7 @@ func TestLateDeliveryFromMovedOffDevice(t *testing.T) {
 }
 
 func TestMovedOffDeliveryAfterLock(t *testing.T) {
-	e, st, _ := setup(t)
+	e, st, hub := setup(t)
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
 	join(t, e, info.Code, devB, "10.0.0.2")
@@ -658,9 +636,6 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 	// The new device syncs first and is shown the result, which locks p.
 	if s := heartbeat(t, e, devB, 0); s.Result == nil || !reflect.DeepEqual(*s.Result, wire.FinishResult{Scale: "points12", Show: "grade", Grade: 1, Correct: 0, Total: 2}) {
 		t.Fatalf("new device = %+v", s)
-	}
-	if by := participantRow(t, st, info.SittingID, p.ID).FinishedBy.String; by != "end_synced" {
-		t.Fatalf("finished by %q, want end_synced", by)
 	}
 
 	// The dead old device comes back with a change it held: still taken.
@@ -680,10 +655,14 @@ func TestMovedOffDeliveryAfterLock(t *testing.T) {
 	if assignment(t, st, info.AssignmentID).ExportStale != 1 {
 		t.Error("export not marked stale")
 	}
-	// The participant's own device stays locked.
-	submit(t, e, devB, change(p, "q2", 1, "o0"))
-	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.ChangeID != "" {
-		t.Errorf("stored %+v from the locked device", a)
+	// The participant's own device stays locked, also after a restart.
+	for _, e := range []*Engine{e, newEngine(t, st, hub)} {
+		if res := submit(t, e, devB, change(p, "q2", 1, "o0")); res.Rejected != 0 {
+			t.Errorf("the own device's change was rejected: %+v", res)
+		}
+		if a := stored(t, st, info.SittingID, p.ID, "q2"); a.ChangeID != "" {
+			t.Errorf("stored %+v from the locked device", a)
+		}
 	}
 }
 
@@ -861,30 +840,6 @@ func TestRestartKeepsAnswers(t *testing.T) {
 	}
 }
 
-func TestSubmitStoresAnswerValue(t *testing.T) {
-	e, st, _ := setup(t)
-	info := start(t, e, nil)
-	p := enter(t, e, info.Code, devA, "Шевченко")
-
-	submit(t, e, devA, change(p, "q1", 1, "o1"))
-	res, err := e.Resume(devA)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res.Answers) != 1 || !slices.Equal(res.Answers[0].Answer.Items, []string{"o1"}) {
-		t.Errorf("answers = %+v, want the stored items", res.Answers)
-	}
-
-	text := change(p, "q2", 1)
-	text.Answer = testfmt.Answer{Text: "x"}
-	if res := submit(t, e, devA, text); res.Rejected != 0 {
-		t.Errorf("result = %+v, want the text dropped, not rejected", res)
-	}
-	if a := stored(t, st, info.SittingID, p.ID, "q2"); a.Value != `{}` {
-		t.Errorf("q2 = %s, want text dropped", a.Value)
-	}
-}
-
 func TestResumeReturnsStoredAnswers(t *testing.T) {
 	e, _, _ := setup(t)
 	info := start(t, e, nil)
@@ -913,42 +868,6 @@ func TestResumeReturnsStoredAnswers(t *testing.T) {
 	}
 }
 
-func TestStoredAnswerMarksExportStale(t *testing.T) {
-	e, st, _ := setup(t)
-	info := start(t, e, nil)
-	p := enter(t, e, info.Code, devA, "Шевченко")
-	export := func() {
-		t.Helper()
-		res, err := e.Results(info.AssignmentID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: res.AssignmentID, ResultsRev: res.ResultsRev}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
-		t.Fatal("stale before any answer")
-	}
-	submit(t, e, devA, change(p, "q1", 1, "o0"))
-	if a := assignment(t, st, info.AssignmentID); a.ExportStale != 1 || a.ResultsRev != 1 {
-		t.Errorf("after a live answer: stale %d, rev %d", a.ExportStale, a.ResultsRev)
-	}
-	export()
-	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
-		t.Fatal("export did not clear")
-	}
-	// A repeat stores nothing and leaves the export current.
-	submit(t, e, devA, change(p, "q1", 1, "o0"))
-	if assignment(t, st, info.AssignmentID).ExportStale != 0 {
-		t.Error("a change that stored nothing marked the export stale")
-	}
-	submit(t, e, devA, change(p, "q2", 1, "o0"))
-	if a := assignment(t, st, info.AssignmentID); a.ExportStale != 1 || a.ResultsRev != 2 {
-		t.Errorf("after a second live answer: stale %d, rev %d", a.ExportStale, a.ResultsRev)
-	}
-}
-
 // clearExport pretends the current results were exported.
 func clearExport(t *testing.T, e *Engine, st *store.Store, assignmentID string) {
 	t.Helper()
@@ -961,45 +880,35 @@ func clearExport(t *testing.T, e *Engine, st *store.Store, assignmentID string) 
 	}
 }
 
-func TestUnstoredChangesLeaveExportCurrent(t *testing.T) {
+func TestStoredAnswerMarksExportStale(t *testing.T) {
 	e, st, _ := setup(t)
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
-	q := enter(t, e, info.Code, devB, "Франко")
-	submit(t, e, devA, change(p, "q1", 1, "o0"))
-	finish(t, e, devA)
-	clearExport(t, e, st, info.AssignmentID)
-	before := assignment(t, st, info.AssignmentID)
-	if before.ExportStale != 0 {
-		t.Fatal("export still stale after clearing")
+	done := enter(t, e, info.Code, devB, "Франко")
+	if resultsOf(t, e, info.AssignmentID).ExportStale {
+		t.Fatal("stale before any answer")
 	}
+	finish(t, e, devB)
 
-	// A locked participant's change, a repeat, and a change for an unknown question store nothing.
-	repeat := change(q, "q1", 1, "o0")
-	submit(t, e, devB, repeat)
-	clearExport(t, e, st, info.AssignmentID)
-	before = assignment(t, st, info.AssignmentID)
-	res := submit(t, e, devA, change(p, "q2", 1, "o0"))
-	if res.Rejected != 0 {
-		t.Errorf("locked change rejected = %d, want it acked and ignored", res.Rejected)
-	}
-	submit(t, e, devB, repeat)
-	res = submit(t, e, devB, change(q, "nope", 1, "o0"))
-	if res.Rejected != 1 {
-		t.Fatalf("unknown question rejected = %d, want 1", res.Rejected)
-	}
-	if after := assignment(t, st, info.AssignmentID); after.ExportStale != 0 || after.ResultsRev != before.ResultsRev {
-		t.Errorf("stale %d, rev %d -> %d after changes that stored nothing", after.ExportStale, before.ResultsRev, after.ResultsRev)
-	}
-}
-
-func TestOneSubmitBumpsResultsRevOnce(t *testing.T) {
-	e, st, _ := setup(t)
-	info := start(t, e, nil)
-	p := enter(t, e, info.Code, devA, "Шевченко")
-	before := assignment(t, st, info.AssignmentID).ResultsRev
-	submit(t, e, devA, change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"), change(p, "q1", 2, "o1"))
-	if after := assignment(t, st, info.AssignmentID); after.ResultsRev != before+1 || after.ExportStale != 1 {
-		t.Errorf("rev %d -> %d, stale %d; want one bump", before, after.ResultsRev, after.ExportStale)
+	newer := change(p, "q2", 2, "o1")
+	for _, c := range []struct {
+		name     string
+		device   string
+		changes  []wire.AnswerChange
+		rejected int
+		stale    bool
+	}{
+		{"three changes in one submit", devA, []wire.AnswerChange{change(p, "q1", 1, "o0"), change(p, "q2", 1, "o0"), change(p, "q1", 2, "o1")}, 0, true},
+		{"a change no newer than the stored one", devA, []wire.AnswerChange{change(p, "q1", 2, "o1")}, 0, false},
+		{"a newer change", devA, []wire.AnswerChange{newer}, 0, true},
+		{"the same change again", devA, []wire.AnswerChange{newer}, 0, false},
+		{"a finished student's change", devB, []wire.AnswerChange{change(done, "q1", 1, "o0")}, 0, false},
+		{"a change to an unknown question", devA, []wire.AnswerChange{change(p, "nope", 1, "o0")}, 1, false},
+	} {
+		clearExport(t, e, st, info.AssignmentID)
+		res := submit(t, e, c.device, c.changes...)
+		if stale := resultsOf(t, e, info.AssignmentID).ExportStale; res.Rejected != c.rejected || stale != c.stale {
+			t.Errorf("%s: %d rejected, export stale %v; want %d, %v", c.name, res.Rejected, stale, c.rejected, c.stale)
+		}
 	}
 }

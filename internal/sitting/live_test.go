@@ -95,7 +95,7 @@ func TestLiveCellsAndPct(t *testing.T) {
 	}
 }
 
-func TestLiveDrawnOwnOrder(t *testing.T) {
+func TestLiveOrder(t *testing.T) {
 	e, _ := setupSettings(t, 5, testfmt.Settings{Draw: []testfmt.DrawLine{{Count: 3}}, ShuffleQuestions: true})
 	info := start(t, e, nil)
 	p := enter(t, e, info.Code, devA, "Шевченко")
@@ -119,16 +119,13 @@ func TestLiveDrawnOwnOrder(t *testing.T) {
 	if c := row.Cells[0]; (c != "correct" && c != "wrong") || row.Cells[1] != "current" {
 		t.Errorf("cells = %v, want the answered first question, then current", row.Cells)
 	}
-}
 
-func TestLiveNotDrawn(t *testing.T) {
-	e, _ := setupSettings(t, 5, testfmt.Settings{})
-	info := start(t, e, nil)
+	e, _ = setupSettings(t, 5, testfmt.Settings{})
+	info = start(t, e, nil)
 	enter(t, e, info.Code, devA, "Шевченко")
-
-	snap := liveOf(t, e)
+	snap = liveOf(t, e)
 	if row := snap.Rows[0]; snap.Drawn || row.Order != nil || snap.QuestionTexts != nil || len(row.Cells) != 5 {
-		t.Errorf("drawn %v, question texts %q, order %v, cells %v; want test order only", snap.Drawn, snap.QuestionTexts, row.Order, row.Cells)
+		t.Errorf("not drawn: drawn %v, question texts %q, order %v, cells %v; want test order only", snap.Drawn, snap.QuestionTexts, row.Order, row.Cells)
 	}
 }
 
@@ -189,8 +186,12 @@ func TestEndFinishesWritersAndSnapshots(t *testing.T) {
 	if !received(ch) {
 		t.Error("writing device not told the sitting ended")
 	}
-	if a, b := participantRow(t, st, info.SittingID, pa.ID), participantRow(t, st, info.SittingID, pb.ID); a.FinishedBy.String != "end" || b.FinishedBy.String != "student" {
-		t.Errorf("finished by %q and %q, want end and student", a.FinishedBy.String, b.FinishedBy.String)
+	// The writer's device may still deliver late, but whoever finished on
+	// their own may not.
+	submitPending(t, e, devA, 1, change(pa, "q1", 1, "o1"))
+	submit(t, e, devB, change(pb, "q1", 1, "o0"))
+	if a, b := stored(t, st, info.SittingID, pa.ID, "q1"), stored(t, st, info.SittingID, pb.ID, "q1"); a.Seq != 1 || b.ChangeID != "" {
+		t.Errorf("after the end: the writer's change %+v, the finished student's %+v; want only the writer's stored", a, b)
 	}
 	s, err := st.Q().GetSitting(context.Background(), info.SittingID)
 	if err != nil || s.EndedAt.Int64 != clock().UnixMilli() {

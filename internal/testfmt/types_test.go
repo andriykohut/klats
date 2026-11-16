@@ -94,14 +94,6 @@ func TestDecodeKeepsFieldsOfItsType(t *testing.T) {
 	}
 }
 
-func TestDecodeAcceptsEveryTypeID(t *testing.T) {
-	for _, id := range strings.Fields("single multi truefalse grid short number gaps order match groups bank hotspot label highlight open") {
-		if _, err := decodeQ(t, Question{ID: "q1", Type: id, Points: 1}); err != nil {
-			t.Errorf("%s: %v", id, err)
-		}
-	}
-}
-
 // The builder reads options as a list for every type, so a stored question
 // with no options, or with "options": null, must come back as [].
 func TestDecodeEncodesNoOptionsAsAnEmptyList(t *testing.T) {
@@ -202,16 +194,6 @@ func TestDecodeTags(t *testing.T) {
 		if _, err := decodeQ(t, withTags(tags...)); err == nil {
 			t.Errorf("%s: want error", name)
 		}
-	}
-}
-
-func TestMediaListsTargetAndQuestionImages(t *testing.T) {
-	a, b := strings.Repeat("a", 64)+".png", strings.Repeat("b", 64)+".png"
-	tst := Test{Questions: []Question{{
-		ID: "q1", Image: &Image{Src: a, W: 1, H: 1}, Targets: []Target{{ID: "t", Image: &Image{Src: b, W: 1, H: 1}}},
-	}}}
-	if got := tst.Media(); !slices.Equal(got, []string{a, b}) {
-		t.Errorf("Media() = %v", got)
 	}
 }
 

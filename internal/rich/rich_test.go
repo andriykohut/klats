@@ -12,48 +12,6 @@ func para(inner string) string {
 	return `{"type":"doc","content":[{"type":"paragraph","content":[` + inner + `]}]}`
 }
 
-func TestParseAcceptsFormattedParagraph(t *testing.T) {
-	raw := para(`{"type":"text","text":"H"},{"type":"text","text":"2","marks":[{"type":"subscript"}]},{"type":"text","text":"O"}`)
-	doc, err := Parse([]byte(raw), Inline)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := doc.PlainText(); got != "H2O" {
-		t.Fatalf("PlainText = %q, want H2O", got)
-	}
-}
-
-func TestParseRejectsUnknownNode(t *testing.T) {
-	_, err := Parse([]byte(para(`{"type":"image"}`)), Block)
-	if !errors.Is(err, ErrInvalid) {
-		t.Fatalf("err = %v, want ErrInvalid", err)
-	}
-}
-
-func TestParseRejectsAttrs(t *testing.T) {
-	raw := `{"type":"doc","content":[{"type":"paragraph","attrs":{"onclick":"x"}}]}`
-	_, err := Parse([]byte(raw), Block)
-	if !errors.Is(err, ErrInvalid) {
-		t.Fatalf("err = %v, want ErrInvalid", err)
-	}
-}
-
-func TestParseRejectsLinkMark(t *testing.T) {
-	raw := para(`{"type":"text","text":"x","marks":[{"type":"link"}]}`)
-	_, err := Parse([]byte(raw), Block)
-	if !errors.Is(err, ErrInvalid) {
-		t.Fatalf("err = %v, want ErrInvalid", err)
-	}
-}
-
-func TestParseRejectsMarkAttrs(t *testing.T) {
-	raw := para(`{"type":"text","text":"x","marks":[{"type":"bold","attrs":{"a":1}}]}`)
-	_, err := Parse([]byte(raw), Block)
-	if !errors.Is(err, ErrInvalid) {
-		t.Fatalf("err = %v, want ErrInvalid", err)
-	}
-}
-
 func TestInlineModeRejectsLists(t *testing.T) {
 	raw := `{"type":"doc","content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph"}]}]}]}`
 	if _, err := Parse([]byte(raw), Block); err != nil {
@@ -71,6 +29,10 @@ func TestParseRejectsMalformed(t *testing.T) {
 		"wrong root":    `{"type":"paragraph"}`,
 		"text children": para(`{"type":"text","text":"x","content":[{"type":"text","text":"y"}]}`),
 		"empty":         ``,
+		"unknown node":  para(`{"type":"image"}`),
+		"node attrs":    `{"type":"doc","content":[{"type":"paragraph","attrs":{"onclick":"x"}}]}`,
+		"link mark":     para(`{"type":"text","text":"x","marks":[{"type":"link"}]}`),
+		"mark attrs":    para(`{"type":"text","text":"x","marks":[{"type":"bold","attrs":{"a":1}}]}`),
 	} {
 		if _, err := Parse([]byte(raw), Block); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: err = %v, want ErrInvalid", name, err)
@@ -114,46 +76,59 @@ func TestParseEnforcesDepthLimit(t *testing.T) {
 	}
 }
 
-func TestPlainTextJoinsParagraphsWithNewline(t *testing.T) {
-	raw := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"а"}]},{"type":"paragraph","content":[{"type":"text","text":"б"}]}]}`
-	doc, err := Parse([]byte(raw), Block)
-	if err != nil {
-		t.Fatal(err)
+func TestPlainText(t *testing.T) {
+	row := func(a, b string) string {
+		c := func(s string) string {
+			return `{"type":"tableCell","content":[{"type":"paragraph","content":[{"type":"text","text":"` + s + `"}]}]}`
+		}
+		return `{"type":"tableRow","content":[` + c(a) + `,` + c(b) + `]}`
 	}
-	if got := doc.PlainText(); got != "а\nб" {
-		t.Fatalf("PlainText = %q", got)
+	for name, c := range map[string]struct {
+		raw  string
+		mode Mode
+		want string
+	}{
+		"formatted paragraph": {para(`{"type":"text","text":"H"},{"type":"text","text":"2","marks":[{"type":"subscript"}]},{"type":"text","text":"O"}`), Inline, "H2O"},
+		"paragraphs":          {`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"а"}]},{"type":"paragraph","content":[{"type":"text","text":"б"}]}]}`, Block, "а\nб"},
+		"hard break and list": {`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"a"},{"type":"hardBreak"},{"type":"text","text":"b"}]},` +
+			`{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"c"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"d"}]}]}]}]}`, Block, "a\nb\nc\nd"},
+		"math":  {para(`{"type":"text","text":"x = "},{"type":"math","attrs":{"latex":"\\pi"}}`), Inline, `x = \pi`},
+		"gap":   {para(`{"type":"gap","attrs":{"id":"g"}}`), Gapped, "___"},
+		"table": {doc(`{"type":"table","content":[` + row("а", "б") + `,` + row("в", "г") + `]}`), Block, "а\tб\nв\tг"},
+		"image": {doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`), Block, ""},
+		"code":  {doc(`{"type":"codeBlock","content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]}`), Block, "ab"},
+	} {
+		d, err := Parse([]byte(c.raw), c.mode)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if got := d.PlainText(); got != c.want {
+			t.Errorf("%s: PlainText = %q, want %q", name, got, c.want)
+		}
 	}
 }
 
-func TestPlainTextRendersHardBreakAndLists(t *testing.T) {
-	raw := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"a"},{"type":"hardBreak"},{"type":"text","text":"b"}]},` +
-		`{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"c"}]}]},{"type":"listItem","content":[{"type":"paragraph","content":[{"type":"text","text":"d"}]}]}]}]}`
-	doc, err := Parse([]byte(raw), Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := doc.PlainText(); got != "a\nb\nc\nd" {
-		t.Fatalf("PlainText = %q", got)
-	}
-}
-
-func TestIsEmptyTreatsWhitespaceAsEmpty(t *testing.T) {
-	doc, err := Parse([]byte(para(`{"type":"text","text":" \n "}`)), Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !doc.IsEmpty() {
-		t.Fatal("whitespace-only doc should be empty")
-	}
-	doc, err = Parse([]byte(para(`{"type":"text","text":"x"}`)), Block)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if doc.IsEmpty() {
-		t.Fatal("doc with text should not be empty")
-	}
-	if !(Doc{Type: "doc"}).IsEmpty() {
-		t.Fatal("doc without content should be empty")
+func TestIsEmpty(t *testing.T) {
+	for name, c := range map[string]struct {
+		raw  string
+		want bool
+	}{
+		"whitespace": {para(`{"type":"text","text":" \n "}`), true},
+		"text":       {para(`{"type":"text","text":"x"}`), false},
+		"no content": {`{"type":"doc"}`, true},
+		"image":      {doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`), false},
+		"audio":      {doc(`{"type":"audio","attrs":{"src":"` + hex64 + `.mp3"}}`), false},
+		"math":       {para(`{"type":"math","attrs":{"latex":"x"}}`), false},
+	} {
+		d, err := Parse([]byte(c.raw), Block)
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		if got := d.IsEmpty(); got != c.want {
+			t.Errorf("%s: IsEmpty = %v, want %v", name, got, c.want)
+		}
 	}
 }
 
@@ -323,57 +298,6 @@ func TestParseCodeLanguage(t *testing.T) {
 	rejects(t, code(`"attrs":{"language":""},`), Block)
 	rejects(t, code(`"attrs":{"language":"python","src":"x"},`), Block)
 	rejects(t, doc(`{"type":"paragraph","attrs":{"language":"python"}}`), Block)
-}
-
-func TestPlainTextNewNodes(t *testing.T) {
-	parse := func(raw string, mode Mode) Doc {
-		t.Helper()
-		d, err := Parse([]byte(raw), mode)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return d
-	}
-	if got := parse(para(`{"type":"text","text":"x = "},{"type":"math","attrs":{"latex":"\\pi"}}`), Inline).PlainText(); got != `x = \pi` {
-		t.Errorf("math: %q", got)
-	}
-	if got := parse(para(`{"type":"gap","attrs":{"id":"g"}}`), Gapped).PlainText(); got != "___" {
-		t.Errorf("gap: %q", got)
-	}
-	row := func(a, b string) string {
-		c := func(s string) string {
-			return `{"type":"tableCell","content":[{"type":"paragraph","content":[{"type":"text","text":"` + s + `"}]}]}`
-		}
-		return `{"type":"tableRow","content":[` + c(a) + `,` + c(b) + `]}`
-	}
-	table := doc(`{"type":"table","content":[` + row("а", "б") + `,` + row("в", "г") + `]}`)
-	if got := parse(table, Block).PlainText(); got != "а\tб\nв\tг" {
-		t.Errorf("table: %q", got)
-	}
-	img := doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`)
-	if got := parse(img, Block).PlainText(); got != "" {
-		t.Errorf("image: %q", got)
-	}
-	code := doc(`{"type":"codeBlock","content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]}`)
-	if got := parse(code, Block).PlainText(); got != "ab" {
-		t.Errorf("code: %q", got)
-	}
-}
-
-func TestIsEmptyWithMediaAndMath(t *testing.T) {
-	for name, raw := range map[string]string{
-		"image": doc(`{"type":"image","attrs":{"src":"` + hex64 + `.png","w":1,"h":1}}`),
-		"audio": doc(`{"type":"audio","attrs":{"src":"` + hex64 + `.mp3"}}`),
-		"math":  para(`{"type":"math","attrs":{"latex":"x"}}`),
-	} {
-		d, err := Parse([]byte(raw), Block)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if d.IsEmpty() {
-			t.Errorf("%s: doc should not be empty", name)
-		}
-	}
 }
 
 func TestMediaAndGapIDs(t *testing.T) {

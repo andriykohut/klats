@@ -2,19 +2,30 @@ package testfmt
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
 
 func TestTestMedia(t *testing.T) {
-	a, b := strings.Repeat("a", 64)+".png", strings.Repeat("b", 64)+".webp"
+	a := strings.Repeat("a", 64) + ".png"
+	b, c := strings.Repeat("b", 64)+".webp", strings.Repeat("b", 64)+".png"
 	text := `{"type":"doc","content":[{"type":"image","attrs":{"src":"` + a + `","w":8,"h":6}}]}`
-	tst := Test{Questions: []Question{{
-		ID: "q1", Text: json.RawMessage(text),
-		Options: []Option{{ID: "o1", Image: &Image{Src: b, W: 10, H: 10}}, {ID: "o2", Image: &Image{Src: a, W: 10, H: 10}}},
-	}}}
-	if got := tst.Media(); len(got) != 2 || got[0] != a || got[1] != b {
-		t.Errorf("Media() = %v, want [%s %s]", got, a, b)
+	for name, row := range map[string]struct {
+		q    Question
+		want []string
+	}{
+		"text and option images": {Question{
+			ID: "q1", Text: json.RawMessage(text),
+			Options: []Option{{ID: "o1", Image: &Image{Src: b, W: 10, H: 10}}, {ID: "o2", Image: &Image{Src: a, W: 10, H: 10}}},
+		}, []string{a, b}},
+		"question and target images": {Question{
+			ID: "q1", Image: &Image{Src: a, W: 1, H: 1}, Targets: []Target{{ID: "t", Image: &Image{Src: c, W: 1, H: 1}}},
+		}, []string{a, c}},
+	} {
+		if got := (Test{Questions: []Question{row.q}}).Media(); !slices.Equal(got, row.want) {
+			t.Errorf("%s: Media() = %v, want %v", name, got, row.want)
+		}
 	}
 }
 

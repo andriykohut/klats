@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/andriykohut/klats/internal/testfmt"
@@ -47,16 +46,6 @@ func choiceIDs(g wire.StudentGap) []string {
 func TestStudentPayloadGaps(t *testing.T) {
 	tst := typedPayloadTest(t)
 	st := studentTest(tst, tst.Questions, "dev1")
-	raw, err := json.Marshal(st)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, leak := range []string{`"accepted":`, `"correct":`, `"match":`, `"number":`, "secret", "4242", "прихований-тег"} {
-		if strings.Contains(string(raw), leak) {
-			t.Errorf("payload carries %s: %s", leak, raw)
-		}
-	}
-
 	q := st.Questions[0]
 	if string(q.Body) != string(tst.Questions[0].Body) {
 		t.Errorf("body changed: %s", q.Body)
@@ -177,16 +166,6 @@ func TestStudentPayloadArrange(t *testing.T) {
 				t.Fatalf("bank sends its body and no gaps: %+v", bank)
 			}
 			sawWordShuffle = sawWordShuffle || !slices.Equal(optionIDs(bank), key(3))
-
-			js, err := json.Marshal(st)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, leak := range []string{`"target":`, `"correct":`, `"partial":`} {
-				if strings.Contains(string(js), leak) {
-					t.Fatalf("payload carries %s: %s", leak, js)
-				}
-			}
 		}
 		if !sawTargetShuffle || !sawItemShuffle || !sawWordShuffle {
 			t.Errorf("n=%d: match targets, group items and bank words should shuffle: %v %v %v", n, sawTargetShuffle, sawItemShuffle, sawWordShuffle)

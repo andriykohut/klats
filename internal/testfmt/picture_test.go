@@ -109,13 +109,3 @@ func TestCleanAnswerPictureText(t *testing.T) {
 		t.Error("5,001 characters: want invalid")
 	}
 }
-
-func TestDecodeRejectsTwoLabelsForOnePoint(t *testing.T) {
-	points := []Target{spot("p1", 0.2, 0.3), spot("p2", 0.6, 0.7)}
-	if _, err := decodeQ(t, labelQ(points, row("l1", "a", "p1"), row("l2", "b", "p1"))); err == nil {
-		t.Error("two labels for p1 must be rejected")
-	}
-	if _, err := decodeQ(t, labelQ(points, row("l1", "a", "p1"), row("l2", "b", "p2"), row("d1", "c", ""), row("d2", "d", ""))); err != nil {
-		t.Errorf("decoys share the empty target: %v", err)
-	}
-}

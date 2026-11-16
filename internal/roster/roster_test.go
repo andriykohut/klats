@@ -5,41 +5,23 @@ import (
 	"testing"
 )
 
-func TestParsePasteExcelRows(t *testing.T) {
-	got := ParsePaste("№\tПрізвище\tІм'я\r\n1\tКоваль\tДмитро\r\n2.\tОлійник\tДарина\r\n")
-	want := []string{"Коваль Дмитро", "Олійник Дарина"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-
-func TestParsePasteSkipsHeaderPIB(t *testing.T) {
-	got := ParsePaste("ПІБ\n3\tМороз\t\tНазар\n")
-	want := []string{"Мороз Назар"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-
-func TestParsePasteNumberedLists(t *testing.T) {
-	for _, c := range []struct{ in, want string }{
-		{"1. Іванов Петро", "Іванов Петро"},
-		{"12) Іванов Петро", "Іванов Петро"},
-		{"1.Іванов Петро", "Іванов Петро"},
-		{"1)\tІванов\tПетро", "Іванов Петро"},
-		{"№ з/п\tПрізвище, ім’я\n1\tІванов Петро", "Іванов Петро"},
+func TestParsePaste(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		want []string
+	}{
+		{"№\tПрізвище\tІм'я\r\n1\tКоваль\tДмитро\r\n2.\tОлійник\tДарина\r\n", []string{"Коваль Дмитро", "Олійник Дарина"}},
+		{"ПІБ\n3\tМороз\t\tНазар\n", []string{"Мороз Назар"}},
+		{"1. Іванов Петро", []string{"Іванов Петро"}},
+		{"12) Іванов Петро", []string{"Іванов Петро"}},
+		{"1.Іванов Петро", []string{"Іванов Петро"}},
+		{"1)\tІванов\tПетро", []string{"Іванов Петро"}},
+		{"№ з/п\tПрізвище, ім’я\n1\tІванов Петро", []string{"Іванов Петро"}},
+		{"Мороз Назар\n\n  Бойко Андрій ", []string{"Мороз Назар", "Бойко Андрій"}},
 	} {
-		if got := ParsePaste(c.in); !slices.Equal(got, []string{c.want}) {
-			t.Errorf("ParsePaste(%q) = %q, want [%q]", c.in, got, c.want)
+		if got := ParsePaste(c.in); !slices.Equal(got, c.want) {
+			t.Errorf("ParsePaste(%q) = %q, want %q", c.in, got, c.want)
 		}
-	}
-}
-
-func TestParsePastePlainLines(t *testing.T) {
-	got := ParsePaste("Мороз Назар\n\n  Бойко Андрій ")
-	want := []string{"Мороз Назар", "Бойко Андрій"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("got %q, want %q", got, want)
 	}
 }
 

@@ -293,35 +293,29 @@ func TestStartEmptiesTheTempFolder(t *testing.T) {
 	}
 }
 
+// A first run saves the port the student server took. Damaged settings are
+// logged, and the run saves the port as a first run does, which repairs the
+// file.
 func TestFirstRunSavesTheChosenPort(t *testing.T) {
-	stubs(t)
-	dataDir := t.TempDir()
-	d := startDev(t, dataDir)
-	d.stop(t)
-
-	saved, err := config.Load(dataDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "http://127.0.0.1:" + strconv.Itoa(saved.Port); saved.Port == 0 || d.lines["student"] != want {
-		t.Errorf("settings.json port = %d, student line %q: want the port the server took", saved.Port, d.lines["student"])
-	}
-}
-
-func TestDamagedSettingsStartWithTheDefaults(t *testing.T) {
-	stubs(t)
-	dataDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dataDir, "settings.json"), []byte("{"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	d := startDev(t, dataDir)
-	d.stop(t)
-	if !strings.Contains(d.logs.String(), "starting with the defaults") {
-		t.Errorf("the damaged settings were not logged:\n%s", d.logs)
-	}
-	// As on a first run, the chosen port is saved, which repairs the file.
-	if saved, err := config.Load(dataDir); err != nil || saved.Port == 0 {
-		t.Errorf("settings.json after the run = %+v, %v; want the chosen port", saved, err)
+	for name, settings := range map[string]string{"no settings": "", "damaged settings": "{"} {
+		t.Run(name, func(t *testing.T) {
+			stubs(t)
+			dataDir := t.TempDir()
+			if settings != "" {
+				if err := os.WriteFile(filepath.Join(dataDir, "settings.json"), []byte(settings), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			d := startDev(t, dataDir)
+			d.stop(t)
+			if settings != "" && !strings.Contains(d.logs.String(), "starting with the defaults") {
+				t.Errorf("the damaged settings were not logged:\n%s", d.logs)
+			}
+			saved, err := config.Load(dataDir)
+			if want := "http://127.0.0.1:" + strconv.Itoa(saved.Port); err != nil || saved.Port == 0 || d.lines["student"] != want {
+				t.Errorf("settings.json = %+v, %v; student line %q: want the port the server took", saved, err, d.lines["student"])
+			}
+		})
 	}
 }
 

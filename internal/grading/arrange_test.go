@@ -3,15 +3,21 @@ package grading
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"math"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/andriykohut/klats/internal/testfmt"
 )
 
-func orderQ(partial bool) testfmt.Question {
-	return testfmt.Question{ID: "q", Type: "order", Points: 3, Partial: partial,
-		Options: []testfmt.Option{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}}}
+func orderQ(ids string, partial bool) testfmt.Question {
+	q := testfmt.Question{ID: "q", Type: "order", Points: 3, Partial: partial}
+	for _, id := range items(ids).Items {
+		q.Options = append(q.Options, testfmt.Option{ID: id})
+	}
+	return q
 }
 
 func items(ids string) testfmt.Answer {
@@ -22,50 +28,41 @@ func items(ids string) testfmt.Answer {
 	return a
 }
 
-func TestLis(t *testing.T) {
-	for _, c := range []struct {
-		in   []int
-		want []bool
-	}{
-		{nil, []bool{}},
-		{[]int{0, 1, 2}, []bool{true, true, true}},
-		{[]int{2, 1, 0}, []bool{true, false, false}},
-		{[]int{1, 0}, []bool{true, false}},
-		{[]int{1, 2, 0, 3}, []bool{true, true, false, true}},
-		{[]int{3, 1, 2, 0, 4}, []bool{false, true, true, false, true}},
-		{[]int{0, 3, 1, 2}, []bool{true, false, true, true}},
-	} {
-		if got := lis(c.in); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("lis(%v) = %v, want %v", c.in, got, c.want)
-		}
-	}
-}
-
 func TestJudgeOrder(t *testing.T) {
 	for _, c := range []struct {
-		answer  string
-		partial bool
-		want    float64
+		options, answer string
+		partial         bool
+		points          float64
+		// inOrder holds the options the verdict marks right: the longest
+		// subsequence in the key's order, the earliest one when several are
+		// longest. It marks the answer's other options wrong. "" means no
+		// verdict.
+		inOrder string
 	}{
-		{"abcd", true, 3}, {"bacd", true, 2}, {"dcba", true, 0}, {"bacd", false, 0}, {"abcd", false, 3},
+		{"abcd", "abcd", true, 3, "abcd"},
+		{"abcd", "abcd", false, 3, "abcd"},
+		{"abcd", "bacd", true, 2, "bcd"},
+		{"abcd", "bacd", false, 0, "bcd"},
+		{"abcd", "bcad", true, 2, "bcd"},
+		{"abcd", "adbc", true, 2, "abc"},
+		{"abcd", "dcba", true, 0, "d"},
+		{"abc", "abc", true, 3, "abc"},
+		{"abc", "cba", true, 0, "c"},
+		{"ab", "ba", true, 0, "b"},
+		{"abcde", "dbcae", true, 1.5, "bce"},
+		{"abcd", "", true, 0, ""},
+		{"abcd", "abzd", true, 0, ""},
 	} {
-		near(t, Judge(orderQ(c.partial), items(c.answer)).Points, c.want)
-	}
-	near(t, Judge(orderQ(true), testfmt.Answer{}).Points, 0)
-}
-
-func TestJudgeOrderVerdicts(t *testing.T) {
-	v := Judge(orderQ(true), items("bcad"))
-	want := map[string]bool{"a": false, "b": true, "c": true, "d": true}
-	if !reflect.DeepEqual(v.Items, want) {
-		t.Errorf("items = %v, want %v", v.Items, want)
-	}
-	near(t, v.Points, 2)
-}
-
-func TestJudgeOrderIncompleteAnswerEarnsNothing(t *testing.T) {
-	if got := Judge(orderQ(true), items("abzd")); got.Points != 0 || len(got.Items) != 0 {
-		t.Errorf("got %+v", got)
+		v := Judge(orderQ(c.options, c.partial), items(c.answer))
+		want := map[string]bool{}
+		if c.inOrder != "" {
+			for _, id := range items(c.answer).Items {
+				want[id] = strings.Contains(c.inOrder, id)
+			}
+		}
+		if math.Abs(v.Points-c.points) > 1e-9 || !maps.Equal(v.Items, want) {
+			t.Errorf("%q on %s, partial %v: got %v %v, want %v %v", c.answer, c.options, c.partial, v.Points, v.Items, c.points, want)
+		}
 	}
 }
 
@@ -97,39 +94,33 @@ func inline(s string) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":%q}]}]}`, s))
 }
 
-func bankQ(partial bool) testfmt.Question {
-	return testfmt.Question{ID: "q", Type: "bank", Points: 2, Partial: partial,
-		Options: []testfmt.Option{
-			{ID: "w1", Target: "g1", Content: inline("the")},
-			{ID: "w2", Target: "g2", Content: inline(" the ")},
-			{ID: "w3", Target: "g3", Content: inline("cat")},
-			{ID: "d1", Content: inline("dog")},
-		}}
+func bankQ(partial bool, words ...testfmt.Option) testfmt.Question {
+	return testfmt.Question{ID: "q", Type: "bank", Points: 2, Partial: partial, Options: words}
 }
 
-func TestJudgeBankEqualWords(t *testing.T) {
-	q := bankQ(false)
-	q.Options = q.Options[:2]
-	v := Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "w2", "g2": "w1"}})
-	near(t, v.Points, 2)
-	if !reflect.DeepEqual(v.Items, map[string]bool{"g1": true, "g2": true}) {
-		t.Errorf("items = %v", v.Items)
+func TestJudgeBank(t *testing.T) {
+	w1 := testfmt.Option{ID: "w1", Target: "g1", Content: inline("the")}
+	w2 := testfmt.Option{ID: "w2", Target: "g2", Content: inline(" the ")}
+	w3 := testfmt.Option{ID: "w3", Target: "g3", Content: inline("cat")}
+	d1 := testfmt.Option{ID: "d1", Content: inline("dog")}
+	for _, c := range []struct {
+		q      testfmt.Question
+		answer testfmt.Answer
+		points float64
+		items  map[string]bool
+	}{
+		// Equal words swap freely, but words without text, such as pictures,
+		// are equal only to themselves.
+		{bankQ(false, w1, w2), pairs("g1", "w2", "g2", "w1"), 2, map[string]bool{"g1": true, "g2": true}},
+		{bankQ(false, testfmt.Option{ID: "w1", Target: "g1"}, testfmt.Option{ID: "w2", Target: "g2"}), pairs("g1", "w2", "g2", "w1"), 0, map[string]bool{"g1": false, "g2": false}},
+		{bankQ(true, w1, w2, w3, d1), pairs("g1", "w1", "g2", "d1"), 0, map[string]bool{"g1": true, "g2": false}},
+		{bankQ(true, w1, w2, w3, d1), pairs("g1", "w1", "g3", "w3"), 2.0 * 2 / 3, map[string]bool{"g1": true, "g3": true}},
+		{bankQ(false, w1, w2, w3, d1), pairs("g1", "w1", "g3", "w3"), 0, map[string]bool{"g1": true, "g3": true}},
+		{bankQ(false, w1, w2, w3, d1), pairs("g1", "w2", "g2", "w1", "g3", "w3"), 2, map[string]bool{"g1": true, "g2": true, "g3": true}},
+	} {
+		v := Judge(c.q, c.answer)
+		if math.Abs(v.Points-c.points) > 1e-9 || !maps.Equal(v.Items, c.items) {
+			t.Errorf("%v with %d words, partial %v: got %v %v, want %v %v", c.answer.Pairs, len(c.q.Options), c.q.Partial, v.Points, v.Items, c.points, c.items)
+		}
 	}
-}
-
-func TestJudgeBankPartialAndDecoy(t *testing.T) {
-	v := Judge(bankQ(true), testfmt.Answer{Pairs: map[string]string{"g1": "w1", "g2": "d1"}})
-	near(t, v.Points, 0)
-	if !reflect.DeepEqual(v.Items, map[string]bool{"g1": true, "g2": false}) {
-		t.Errorf("items = %v", v.Items)
-	}
-	near(t, Judge(bankQ(true), testfmt.Answer{Pairs: map[string]string{"g1": "w1", "g3": "w3"}}).Points, 2.0*2/3)
-	near(t, Judge(bankQ(false), testfmt.Answer{Pairs: map[string]string{"g1": "w1", "g3": "w3"}}).Points, 0)
-	near(t, Judge(bankQ(false), testfmt.Answer{Pairs: map[string]string{"g1": "w2", "g2": "w1", "g3": "w3"}}).Points, 2)
-}
-
-func TestJudgeBankWordsWithoutTextAreNotEqual(t *testing.T) {
-	q := bankQ(false)
-	q.Options = []testfmt.Option{{ID: "w1", Target: "g1"}, {ID: "w2", Target: "g2"}}
-	near(t, Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "w2", "g2": "w1"}}).Points, 0)
 }

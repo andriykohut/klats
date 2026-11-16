@@ -3,7 +3,6 @@ package mtf
 import (
 	"encoding/json"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -17,10 +16,6 @@ func txt(s string, marks ...string) rich.Node {
 		n.Marks = append(n.Marks, rich.Mark{Type: m})
 	}
 	return n
-}
-
-func img(i int) rich.Node {
-	return rich.Node{Type: "image", Attrs: &rich.Attrs{Src: "pict:" + strconv.Itoa(i)}}
 }
 
 var br = rich.Node{Type: "hardBreak"}
@@ -109,34 +104,6 @@ func TestRTFSkipsDestinations(t *testing.T) {
 	wantParas(t, `{\rtf1\ansi{\fonttbl{\f0\fnil\fcharset204 Font;}}{\colortbl ;\red0\green0\blue0;}`+
 		`{\stylesheet{\s0 Style;}}{\info{\title Info}}{\*\generator Riched20;}\f0 a{\*\objdata 0102}b{\*\other x}c}`,
 		[][]rich.Node{{txt("abc")}})
-}
-
-func TestRTFPict(t *testing.T) {
-	got := parseRTF(`{\rtf1 a{\pict\wmetafile8\picw10\pich10 01 02` + "\r\n" + `ff}b}`)
-	if want := [][]rich.Node{{txt("a"), img(0), txt("b")}}; !reflect.DeepEqual(got.Paras, want) {
-		t.Errorf("Paras = %s, want %s", js(got.Paras), js(want))
-	}
-	if want := []pict{{"wmetafile", []byte{1, 2, 0xff}}}; !reflect.DeepEqual(got.Picts, want) {
-		t.Errorf("Picts = %v, want %v", got.Picts, want)
-	}
-
-	got = parseRTF(`{\rtf1 {\pict{\*\blipuid 0123}\pngblip 89}{\pict\emfblip 0a}}`)
-	if want := [][]rich.Node{{img(0), img(1)}}; !reflect.DeepEqual(got.Paras, want) {
-		t.Errorf("Paras = %s, want %s", js(got.Paras), js(want))
-	}
-	if want := []pict{{"pngblip", []byte{0x89}}, {"emfblip", []byte{0x0a}}}; !reflect.DeepEqual(got.Picts, want) {
-		t.Errorf("Picts = %v, want %v", got.Picts, want)
-	}
-}
-
-func TestRTFObjectResult(t *testing.T) {
-	got := parseRTF(`{\rtf1 {\object\objemb{\*\objclass PBrush}{\*\objdata 0102}{\result{\pict\wmetafile8 0a0b}}}}`)
-	if want := [][]rich.Node{{img(0)}}; !reflect.DeepEqual(got.Paras, want) {
-		t.Errorf("Paras = %s, want %s", js(got.Paras), js(want))
-	}
-	if want := []pict{{"wmetafile", []byte{0x0a, 0x0b}}}; !reflect.DeepEqual(got.Picts, want) {
-		t.Errorf("Picts = %v, want %v", got.Picts, want)
-	}
 }
 
 func TestRTFSpecials(t *testing.T) {

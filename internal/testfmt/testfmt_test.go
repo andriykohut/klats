@@ -2,9 +2,9 @@ package testfmt
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -58,58 +58,29 @@ func wantCodes(t *testing.T, tst Test, want ...string) []Problem {
 	return ps
 }
 
-func TestValidQuestionHasNoProblems(t *testing.T) {
-	wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false})))
-}
-
-func TestNoText(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "", opt{"a", true}, opt{"b", false})), "no_text")
-	if ps[0].Severity != "error" || ps[0].QuestionID != "q1" {
-		t.Fatalf("problem = %+v", ps[0])
+func TestProblems(t *testing.T) {
+	for name, c := range map[string]struct {
+		raw  []byte
+		want []Problem
+	}{
+		"valid":      {testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}), nil},
+		"no text":    {testJSON("teal", "single", 1, false, "", opt{"a", true}, opt{"b", false}), []Problem{{"q1", "no_text", "error", 0}}},
+		"no correct": {testJSON("teal", "single", 1, false, "Q", opt{"a", false}, opt{"b", false}), []Problem{{"q1", "no_correct", "error", 0}}},
+		"one option": {testJSON("teal", "single", 1, false, "Q", opt{"a", true}), []Problem{{"q1", "too_few_options", "error", 2}}},
+		// The student can pick only one option, and scoring needs every correct
+		// one, so nobody could score: the start is blocked.
+		"single, two correct":  {testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", true}, opt{"c", false}), []Problem{{"q1", "single_many_correct", "error", 2}}},
+		"empty option":         {testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"", false}), []Problem{{"q1", "empty_option", "warning", 0}}},
+		"weak partial":         {testJSON("teal", "multi", 1, true, "Q", opt{"a", true}, opt{"b", true}, opt{"c", false}), []Problem{{"q1", "weak_partial", "warning", 0}}},
+		"partial, one correct": {testJSON("teal", "multi", 1, true, "Q", opt{"a", true}, opt{"b", false}, opt{"c", false}), nil},
+		"in order": {testJSON("teal", "single", 1, false, "", opt{"", false}), []Problem{
+			{"q1", "no_text", "error", 0}, {"q1", "no_correct", "error", 0}, {"q1", "too_few_options", "error", 2}, {"q1", "empty_option", "warning", 0},
+		}},
+	} {
+		if got := decode(t, c.raw).Problems(); !slices.Equal(got, c.want) {
+			t.Errorf("%s: problems = %+v, want %+v", name, got, c.want)
+		}
 	}
-}
-
-func TestNoCorrect(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", false}, opt{"b", false})), "no_correct")
-	if ps[0].Severity != "error" {
-		t.Fatalf("severity = %s", ps[0].Severity)
-	}
-}
-
-func TestTooFewOptions(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", true})), "too_few_options")
-	if ps[0].Severity != "error" {
-		t.Fatalf("severity = %s", ps[0].Severity)
-	}
-}
-
-func TestSingleManyCorrect(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", true}, opt{"c", false})), "single_many_correct")
-	// The student can pick only one option, and scoring needs every correct
-	// one, so nobody could score: the start is blocked.
-	if ps[0].Severity != "error" || ps[0].Count != 2 {
-		t.Fatalf("problem = %+v", ps[0])
-	}
-}
-
-func TestEmptyOption(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"", false})), "empty_option")
-	if ps[0].Severity != "warning" {
-		t.Fatalf("severity = %s", ps[0].Severity)
-	}
-}
-
-func TestWeakPartial(t *testing.T) {
-	ps := wantCodes(t, decode(t, testJSON("teal", "multi", 1, true, "Q", opt{"a", true}, opt{"b", true}, opt{"c", false})), "weak_partial")
-	if ps[0].Severity != "warning" {
-		t.Fatalf("severity = %s", ps[0].Severity)
-	}
-	wantCodes(t, decode(t, testJSON("teal", "multi", 1, true, "Q", opt{"a", true}, opt{"b", false}, opt{"c", false})))
-}
-
-func TestProblemsOrder(t *testing.T) {
-	wantCodes(t, decode(t, testJSON("teal", "single", 1, false, "", opt{"", false})),
-		"no_text", "no_correct", "too_few_options", "empty_option")
 }
 
 func TestHasBlockingOnlyForErrors(t *testing.T) {
@@ -123,9 +94,18 @@ func TestHasBlockingOnlyForErrors(t *testing.T) {
 	}
 }
 
-func TestDecodeRejectsUnknownPalette(t *testing.T) {
-	if _, err := Decode(testJSON("pink", "single", 1, false, "Q", opt{"a", true}, opt{"b", false})); err == nil {
-		t.Fatal("want error")
+func TestDecodeRejects(t *testing.T) {
+	valid := string(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}))
+	for name, raw := range map[string][]byte{
+		"unknown palette":   testJSON("pink", "single", 1, false, "Q", opt{"a", true}, opt{"b", false}),
+		"0 points":          testJSON("teal", "single", 0, false, "Q", opt{"a", true}, opt{"b", false}),
+		"13 points":         testJSON("teal", "single", 13, false, "Q", opt{"a", true}, opt{"b", false}),
+		"unknown type":      testJSON("teal", "essay", 1, false, "Q", opt{"a", true}, opt{"b", false}),
+		"invalid rich text": []byte(strings.Replace(valid, `"type":"paragraph"`, `"type":"image"`, 1)),
+	} {
+		if _, err := Decode(raw); err == nil {
+			t.Errorf("%s: want error", name)
+		}
 	}
 }
 
@@ -142,28 +122,6 @@ func TestDecodeDefaultsPaletteTeal(t *testing.T) {
 	}
 }
 
-func TestDecodeRejectsPointsOutOfRange(t *testing.T) {
-	for _, p := range []int{0, 13} {
-		if _, err := Decode(testJSON("teal", "single", p, false, "Q", opt{"a", true}, opt{"b", false})); err == nil {
-			t.Fatalf("points %d: want error", p)
-		}
-	}
-}
-
-func TestDecodeRejectsUnknownType(t *testing.T) {
-	if _, err := Decode(testJSON("teal", "essay", 1, false, "Q", opt{"a", true}, opt{"b", false})); err == nil {
-		t.Fatal("want error")
-	}
-}
-
-func TestDecodeRejectsInvalidRich(t *testing.T) {
-	raw := strings.Replace(string(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false})),
-		`"type":"paragraph"`, `"type":"image"`, 1)
-	if _, err := Decode([]byte(raw)); err == nil {
-		t.Fatal("want error")
-	}
-}
-
 func TestDecodeCanonicalizesRichFields(t *testing.T) {
 	raw := strings.Replace(string(testJSON("teal", "single", 1, false, "Q", opt{"a", true}, opt{"b", false})),
 		`{"type":"doc","content"`, `{ "type": "doc", "content"`, 1)
@@ -171,13 +129,6 @@ func TestDecodeCanonicalizesRichFields(t *testing.T) {
 	want := `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Q"}]}]}`
 	if got := string(tst.Questions[0].Text); got != want {
 		t.Fatalf("text = %s, want %s", got, want)
-	}
-}
-
-func TestProblemJSONOmitsZeroCount(t *testing.T) {
-	b, _ := json.Marshal(Problem{QuestionID: "q", Code: "no_text", Severity: "error"})
-	if string(b) != `{"questionId":"q","code":"no_text","severity":"error"}` {
-		t.Fatalf("json = %s", b)
 	}
 }
 

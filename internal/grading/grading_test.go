@@ -27,41 +27,39 @@ func near(t *testing.T, got, want float64) {
 	}
 }
 
-func TestScoreMultiPartialTickAll(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"a", "b", "c", "d"}}), 2.0/3)
+func TestJudgePick(t *testing.T) {
+	for _, c := range []struct {
+		q      testfmt.Question
+		picked []string
+		want   float64
+	}{
+		{q("multi", true, "a", "b", "c"), []string{"a", "b", "c", "d"}, 2.0 / 3},
+		{q("multi", true, "a", "b", "c"), []string{"a", "b", "d"}, 1.0 / 3},
+		{q("multi", true, "a", "b", "c"), []string{"d"}, 0},
+		{q("multi", false, "a", "b"), []string{"b", "a"}, 1},
+		{q("multi", false, "a", "b"), []string{"a"}, 0},
+		{q("multi", false, "a", "b"), []string{"a", "b", "c"}, 0},
+		{q("single", false, "a"), []string{"a"}, 1},
+		{q("single", false, "a"), []string{"b"}, 0},
+		{q("single", false, "a"), []string{"a", "b"}, 0},
+		{q("single", false, "a"), nil, 0},
+		// Unknown ids are ignored and repeated ones count once.
+		{q("single", false, "a"), []string{"a", "zzz"}, 1},
+		{q("single", false, "a"), []string{"a", "a"}, 1},
+		{q("multi", false, "a", "b"), []string{"a", "a"}, 0},
+		{q("multi", true, "a", "b"), []string{"a", "a"}, 0.5},
+	} {
+		if got := Judge(c.q, testfmt.Answer{Items: c.picked}).Points; math.Abs(got-c.want) > 1e-9 {
+			t.Errorf("%s, partial %v, picked %v: got %v, want %v", c.q.Type, c.q.Partial, c.picked, got, c.want)
+		}
+	}
+	v := Judge(q("multi", true, "a", "b"), testfmt.Answer{Items: []string{"a", "c", "zzz"}})
+	if want := map[string]bool{"a": true, "c": false}; !reflect.DeepEqual(v.Items, want) {
+		t.Errorf("Items = %v, want %v", v.Items, want)
+	}
 }
 
-func TestScoreMultiPartialOneWrong(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"a", "b", "d"}}), 1.0/3)
-}
-
-func TestScoreMultiPartialFloorsAtZero(t *testing.T) {
-	near(t, Score(q("multi", true, "a", "b", "c"), testfmt.Answer{Items: []string{"d"}}), 0)
-}
-
-func TestScoreMultiAllOrNothing(t *testing.T) {
-	m := q("multi", false, "a", "b")
-	near(t, Score(m, testfmt.Answer{Items: []string{"b", "a"}}), 1)
-	near(t, Score(m, testfmt.Answer{Items: []string{"a"}}), 0)
-	near(t, Score(m, testfmt.Answer{Items: []string{"a", "b", "c"}}), 0)
-}
-
-func TestScoreSingle(t *testing.T) {
-	s := q("single", false, "a")
-	near(t, Score(s, testfmt.Answer{Items: []string{"a"}}), 1)
-	near(t, Score(s, testfmt.Answer{Items: []string{"b"}}), 0)
-	near(t, Score(s, testfmt.Answer{Items: []string{"a", "b"}}), 0)
-	near(t, Score(s, testfmt.Answer{}), 0)
-}
-
-func TestScoreIgnoresUnknownAndDuplicateIDs(t *testing.T) {
-	near(t, Score(q("single", false, "a"), testfmt.Answer{Items: []string{"a", "zzz"}}), 1)
-	near(t, Score(q("single", false, "a"), testfmt.Answer{Items: []string{"a", "a"}}), 1)
-	near(t, Score(q("multi", false, "a", "b"), testfmt.Answer{Items: []string{"a", "a"}}), 0)
-	near(t, Score(q("multi", true, "a", "b"), testfmt.Answer{Items: []string{"a", "a"}}), 0.5)
-}
-
-func TestTotalOverrideReplacesScore(t *testing.T) {
+func TestTotal(t *testing.T) {
 	q1, q2, q3 := q("single", false, "a"), q("single", false, "a"), q("single", false, "a")
 	q1.ID, q2.ID, q3.ID = "q1", "q2", "q3"
 	q2.Points, q3.Points = 2, 2
@@ -79,15 +77,13 @@ func TestTotalOverrideReplacesScore(t *testing.T) {
 	if r.Grade != 8 {
 		t.Fatalf("Grade = %d, want 8", r.Grade)
 	}
-}
 
-func TestTotalUnanswered(t *testing.T) {
-	q1, q2 := q("single", false, "a"), q("single", false, "a")
-	q1.ID, q2.ID = "q1", "q2"
-	test := testfmt.Test{Settings: testfmt.DefaultSettings(), Questions: []testfmt.Question{q1, q2}}
-	r := Total(test, map[string]testfmt.Answer{"q1": {Items: []string{"a"}}}, nil)
+	unanswered := q("single", false, "a")
+	unanswered.ID = "q2"
+	test.Questions = []testfmt.Question{q1, unanswered}
+	r = Total(test, map[string]testfmt.Answer{"q1": {Items: []string{"a"}}}, nil)
 	if v, ok := r.PerQuestion["q2"]; !ok || v != 0 || r.Correct != 1 || r.Grade != 6 {
-		t.Fatalf("unexpected result %+v", r)
+		t.Fatalf("unanswered q2 without an override: %+v", r)
 	}
 }
 
@@ -156,19 +152,4 @@ func TestJudgeGrid(t *testing.T) {
 	g.Partial = false
 	near(t, Judge(g, pairs("r1", "A", "r2", "A", "r3", "A")).Points, 0)
 	near(t, Judge(g, pairs("r1", "A", "r2", "B", "r3", "A")).Points, 3)
-}
-
-func TestJudgePickItems(t *testing.T) {
-	v := Judge(q("multi", true, "a", "b"), testfmt.Answer{Items: []string{"a", "c", "zzz"}})
-	if want := map[string]bool{"a": true, "c": false}; !reflect.DeepEqual(v.Items, want) {
-		t.Errorf("Items = %v, want %v", v.Items, want)
-	}
-}
-
-func TestTotalCarriesVerdicts(t *testing.T) {
-	test := testfmt.Test{Questions: []testfmt.Question{tfQuestion(true)}}
-	r := Total(test, map[string]testfmt.Answer{"q": pairs("s1", "true")}, nil)
-	if want := map[string]map[string]bool{"q": {"s1": true}}; !reflect.DeepEqual(r.Verdicts, want) {
-		t.Errorf("Verdicts = %v, want %v", r.Verdicts, want)
-	}
 }

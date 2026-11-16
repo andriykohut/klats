@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	pngenc "image/png"
 	"math"
 	"math/rand/v2"
 	"reflect"
@@ -215,6 +217,11 @@ func TestOpenPictures(t *testing.T) {
 	wmf := mtftest.WMF(mtftest.BMP(2, 2), false, 0x0F43)
 	fromMedia, _, _ := mtf.StorePicture(ms, bmp)
 	fromWMF, _, _ := mtf.PictPicture(ms, mtf.Pict{Kind: "wmetafile", Data: wmf})
+	var png bytes.Buffer
+	if err := pngenc.Encode(&png, image.NewGray(image.Rect(0, 0, 3, 2))); err != nil {
+		t.Fatal(err)
+	}
+	fromPNG, _, _ := mtf.StorePicture(ms, png.Bytes())
 
 	t.Run("media picture", func(t *testing.T) {
 		q, notes := openOne(t, mtf.Question{Type: 1, Points: 1, Text: mtftest.RTF("Що це?"), Picture: "{A}.bmp"}, mtftest.Entry{Key: "{A}.bmp", Data: bmp})
@@ -256,6 +263,31 @@ func TestOpenPictures(t *testing.T) {
 		if want := docOf(para(text("A"), rich.Node{Type: "hardBreak"}, text("B"))); string(q.Options[0].Content) != want {
 			t.Errorf("content = %s, want %s", q.Options[0].Content, want)
 		}
+	})
+	t.Run("pict between words, its data split by a space and a line break", func(t *testing.T) {
+		data := fmt.Sprintf("%x", wmf)
+		src := `{\rtf1 a{\pict\wmetafile8\picw10\pich10 ` + data[:10] + " \r\n" + data[10:] + `}b}`
+		q, notes := openOne(t, mtf.Question{Type: 1, Points: 1, Text: src})
+		if want := docOf(para(text("a")), picture(fromWMF), para(text("b"))); string(q.Text) != want {
+			t.Errorf("text = %s, want %s", q.Text, want)
+		}
+		wantNotes(t, notes)
+	})
+	t.Run("PNG and EMF blips", func(t *testing.T) {
+		src := fmt.Sprintf(`{\rtf1 {\pict{\*\blipuid 0123}\pngblip %x}{\pict\emfblip 0a}}`, png.Bytes())
+		q, notes := openOne(t, mtf.Question{Type: 1, Points: 1, Text: src})
+		if want := docOf(picture(fromPNG)); string(q.Text) != want {
+			t.Errorf("text = %s, want %s", q.Text, want)
+		}
+		wantNotes(t, notes, wire.OpenNote{QuestionID: "q1", Code: "image_lost", Count: 1})
+	})
+	t.Run("object shown by its result", func(t *testing.T) {
+		src := fmt.Sprintf(`{\rtf1 {\object\objemb{\*\objclass PBrush}{\*\objdata 0102}{\result{\pict\wmetafile8 %x}}}}`, wmf)
+		q, notes := openOne(t, mtf.Question{Type: 1, Points: 1, Text: src})
+		if want := docOf(picture(fromWMF)); string(q.Text) != want {
+			t.Errorf("text = %s, want %s", q.Text, want)
+		}
+		wantNotes(t, notes)
 	})
 	t.Run("hotspot picture refused", func(t *testing.T) {
 		junk := make([]byte, 64)

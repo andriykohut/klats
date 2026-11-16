@@ -73,25 +73,26 @@ func TestProblemsArrange(t *testing.T) {
 	wantCodes(t, testOf(t, bankQ(0, words[2])), "no_gaps")
 }
 
-func TestDecodeRejectsTwoWordsForOneGap(t *testing.T) {
-	if _, err := decodeQ(t, bankQ(2, row("w1", "a", "g1"), row("w2", "b", "g1"))); err == nil {
-		t.Error("two words for g1 must be rejected")
-	}
-	if _, err := decodeQ(t, bankQ(2, row("w1", "a", "g1"), row("w2", "b", "g2"), row("d1", "c", ""), row("d2", "d", ""))); err != nil {
-		t.Errorf("decoys share the empty target: %v", err)
-	}
-	// A target that names no gap is cleared before the check.
-	if _, err := decodeQ(t, bankQ(1, row("w1", "a", "zz"), row("w2", "b", "zz"))); err != nil {
-		t.Errorf("dangling targets are decoys: %v", err)
-	}
-}
-
-func TestDecodeRejectsTwoLeftItemsForOneTarget(t *testing.T) {
-	if _, err := decodeQ(t, matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r1")}, "r1", "r2")); err == nil {
-		t.Error("two left items for r1 must be rejected")
-	}
-	if _, err := decodeQ(t, matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r2")}, "r1", "r2", "decoy")); err != nil {
-		t.Errorf("a decoy target is fine: %v", err)
+// A gap, a right-hand item or a point takes one item at most; decoys, with no
+// target, may be many.
+func TestDecodeOneItemPerTarget(t *testing.T) {
+	points := []Target{spot("p1", 0.2, 0.3), spot("p2", 0.6, 0.7)}
+	for name, c := range map[string]struct {
+		q  Question
+		ok bool
+	}{
+		"two words for g1": {bankQ(2, row("w1", "a", "g1"), row("w2", "b", "g1")), false},
+		"bank decoys":      {bankQ(2, row("w1", "a", "g1"), row("w2", "b", "g2"), row("d1", "c", ""), row("d2", "d", "")), true},
+		// A target that names no gap is cleared before the check.
+		"dangling bank targets": {bankQ(1, row("w1", "a", "zz"), row("w2", "b", "zz")), true},
+		"two left items for r1": {matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r1")}, "r1", "r2"), false},
+		"a decoy match target":  {matchQ([]Option{row("l1", "x", "r1"), row("l2", "y", "r2")}, "r1", "r2", "decoy"), true},
+		"two labels for p1":     {labelQ(points, row("l1", "a", "p1"), row("l2", "b", "p1")), false},
+		"label decoys":          {labelQ(points, row("l1", "a", "p1"), row("l2", "b", "p2"), row("d1", "c", ""), row("d2", "d", "")), true},
+	} {
+		if _, err := decodeQ(t, c.q); (err == nil) != c.ok {
+			t.Errorf("%s: err = %v", name, err)
+		}
 	}
 }
 

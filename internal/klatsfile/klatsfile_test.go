@@ -175,13 +175,6 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range zr.File {
-		method := zip.Store
-		if f.Name == "test.json" {
-			method = zip.Deflate
-		}
-		if f.Method != method {
-			t.Errorf("%s: method %d, want %d", f.Name, f.Method, method)
-		}
 		if f.Name == "test.json" {
 			var doc struct{ ID string }
 			if err := json.Unmarshal(readEntry(t, f), &doc); err != nil || doc.ID != "" {

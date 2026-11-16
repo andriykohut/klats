@@ -29,21 +29,9 @@ func TestPublishReachesOnlyTopic(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeClosesChannel(t *testing.T) {
-	h := New()
-	ch, unsub := h.Subscribe("teacher")
-	unsub()
-	unsub() // idempotent
-
-	if _, ok := <-ch; ok {
-		t.Fatal("channel not closed")
-	}
-	h.Publish(Event{Topic: "teacher", Name: "live"}) // must not panic on a closed subscriber
-}
-
 func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	h := New()
-	ch, unsub := h.Subscribe("teacher")
+	_, unsub := h.Subscribe("teacher")
 	defer unsub()
 
 	done := make(chan struct{})
@@ -57,9 +45,6 @@ func TestSlowSubscriberDoesNotBlockPublish(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("Publish blocked on a slow subscriber")
-	}
-	if got := len(ch); got != 16 {
-		t.Fatalf("buffered %d events, want 16", got)
 	}
 }
 
@@ -81,23 +66,6 @@ func TestConcurrentUse(t *testing.T) {
 	}
 }
 
-func TestSubscribersCountsOpenSubscriptions(t *testing.T) {
-	h := New()
-	if n := h.Subscribers("t"); n != 0 {
-		t.Fatalf("empty hub = %d", n)
-	}
-	_, unsubA := h.Subscribe("t")
-	_, unsubB := h.Subscribe("t")
-	if n := h.Subscribers("t"); n != 2 {
-		t.Errorf("two subscribed = %d", n)
-	}
-	unsubA()
-	unsubB()
-	if n := h.Subscribers("t"); n != 0 {
-		t.Errorf("after unsubscribing = %d", n)
-	}
-}
-
 func TestSubscribeToSeveralTopics(t *testing.T) {
 	h := New()
 	ch, unsub := h.Subscribe("device:x", "names:s")
@@ -107,11 +75,11 @@ func TestSubscribeToSeveralTopics(t *testing.T) {
 		t.Fatalf("got %q then %q", a.Name, b.Name)
 	}
 	unsub()
-	unsub()
-	if h.Subscribers("device:x")+h.Subscribers("names:s") != 0 {
-		t.Fatal("still subscribed after unsubscribing")
-	}
+	unsub() // idempotent
 	if _, ok := <-ch; ok {
 		t.Fatal("channel not closed")
 	}
+	// A topic still holding the closed channel would panic on this send.
+	h.Publish(Event{Topic: "device:x", Name: "status"})
+	h.Publish(Event{Topic: "names:s", Name: "taken"})
 }

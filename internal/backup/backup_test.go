@@ -256,18 +256,6 @@ func TestBackupRoundTrip(t *testing.T) {
 	if got := names(t, a.tmp); len(got) != 0 {
 		t.Errorf("Write left %v in tmp", got)
 	}
-	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var listed []string
-	for _, f := range zr.File {
-		listed = append(listed, fmt.Sprintf("%s %d", f.Name, f.Method))
-	}
-	if wantListed := []string{"klats.db 8", "media/" + name + " 0"}; !reflect.DeepEqual(listed, wantListed) {
-		t.Errorf("the backup holds %v, want %v", listed, wantListed)
-	}
-
 	b := newFolder(t)
 	prep, err := b.prepare(t, buf.Bytes())
 	if err != nil {

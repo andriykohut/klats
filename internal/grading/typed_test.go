@@ -1,81 +1,11 @@
 package grading
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/andriykohut/klats/internal/testfmt"
 )
-
-func TestNormalizeDefaults(t *testing.T) {
-	var m testfmt.Match
-	if got, want := normalize(" Мар'яна  ", m), normalize("марʼяна", m); got != want {
-		t.Errorf("apostrophes and spaces: %q vs %q", got, want)
-	}
-	if normalize("пiсня", m) != normalize("пісня", m) {
-		t.Error("a Latin i must equal the Cyrillic one")
-	}
-	if normalize("КИЇВ", m) != normalize("Київ", m) {
-		t.Error("case must not matter")
-	}
-	if got := normalize("a  b c", m); got != "а b с" {
-		t.Errorf("spaces collapse to one: %q", got)
-	}
-	if normalize("й", m) != normalize("й", m) {
-		t.Error("NFC must compose й")
-	}
-}
-
-func TestNormalizeSwitchesOff(t *testing.T) {
-	for name, c := range map[string]struct {
-		m    testfmt.Match
-		a, b string
-	}{
-		"case":        {testfmt.Match{CaseSensitive: true}, "Київ", "київ"},
-		"apostrophes": {testfmt.Match{StrictApostrophes: true}, "м'ята", "м’ята"},
-		"letters":     {testfmt.Match{StrictLetters: true}, "пiсня", "пісня"},
-	} {
-		if normalize(c.a, c.m) == normalize(c.b, c.m) {
-			t.Errorf("%s: want different", name)
-		}
-	}
-}
-
-func TestTypo(t *testing.T) {
-	for _, s := range []string{"Кийв", "Київв", "Кив", "Кивї", "Київ"} {
-		if !typo1(s, "Київ") {
-			t.Errorf("%q should match Київ", s)
-		}
-	}
-	for _, s := range []string{"Кі", "Кйив", "Київвв", "Кйвї"} {
-		if typo1(s, "Київ") {
-			t.Errorf("%q should not match Київ", s)
-		}
-	}
-}
-
-func TestTypoNeedsSwitch(t *testing.T) {
-	q := testfmt.Question{Type: "short", Points: 1, Accepted: []string{"Київ"}}
-	if Judge(q, testfmt.Answer{Text: "Кийв"}).Points != 0 {
-		t.Error("a typo must not match without AllowTypo")
-	}
-	q.Match = &testfmt.Match{AllowTypo: true}
-	if Judge(q, testfmt.Answer{Text: "Кийв"}).Points != 1 {
-		t.Error("a typo must match with AllowTypo")
-	}
-}
-
-func TestParseNumber(t *testing.T) {
-	for in, want := range map[string]float64{"9,8": 9.8, "9.8": 9.8, " -1 000,5 ": -1000.5, "−3": -3, "+2": 2, "1 000": 1000} {
-		if got, ok := parseNumber(in); !ok || got != want {
-			t.Errorf("parseNumber(%q) = %v, %v; want %v", in, got, ok, want)
-		}
-	}
-	for _, in := range []string{"1.000,5", "9,8 м", "1e3", "", " ", "-", "--3", "1 - 2", "- 3", "1,2,3", "∞"} {
-		if _, ok := parseNumber(in); ok {
-			t.Errorf("parseNumber(%q) should fail", in)
-		}
-	}
-}
 
 func numberQ(k testfmt.NumberKey) testfmt.Question {
 	return testfmt.Question{ID: "q", Type: "number", Points: 2, Number: &k}
@@ -104,6 +34,19 @@ func TestJudgeNumber(t *testing.T) {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
 	}
+	for text, want := range map[string]float64{"9.8": 9.8, " -1 000,5 ": -1000.5, "−3": -3, "+2": 2, "1 000": 1000} {
+		if got := Judge(numberQ(testfmt.NumberKey{Mode: "exact", Value: want}), testfmt.Answer{Text: text}).Points; got != 2 {
+			t.Errorf("%q: %v, want 2", text, got)
+		}
+	}
+	// Every number lies in this range, so 0 points means the text does not
+	// read as one.
+	anyNumber := numberQ(testfmt.NumberKey{Mode: "range", Min: -1e6, Max: 1e6})
+	for _, text := range []string{"1.000,5", "9,8 м", "1e3", "-", "--3", "1 - 2", "- 3", "1,2,3", "∞"} {
+		if got := Judge(anyNumber, testfmt.Answer{Text: text}).Points; got != 0 {
+			t.Errorf("%q reads as a number: %v", text, got)
+		}
+	}
 	v := Judge(numberQ(testfmt.NumberKey{Mode: "exact", Value: 3}), testfmt.Answer{Text: "4"})
 	if len(v.Items) != 1 || v.Items[""] {
 		t.Errorf("a wrong number: %+v", v.Items)
@@ -114,20 +57,62 @@ func TestJudgeNumber(t *testing.T) {
 }
 
 func TestJudgeShort(t *testing.T) {
-	q := testfmt.Question{ID: "q", Type: "short", Points: 2, Accepted: []string{"Київ", "Kyiv"}}
-	for text, want := range map[string]float64{"київ ": 2, "Kyiv": 2, "Львів": 0, "": 0} {
-		if got := Judge(q, testfmt.Answer{Text: text}).Points; got != want {
-			t.Errorf("%q: %v, want %v", text, got, want)
+	typo := &testfmt.Match{AllowTypo: true}
+	for _, c := range []struct {
+		accepted []string
+		match    *testfmt.Match
+		text     string
+		right    bool
+	}{
+		{[]string{"Київ", "Kyiv"}, nil, "київ ", true},
+		{[]string{"Київ", "Kyiv"}, nil, "Kyiv", true},
+		{[]string{"Київ", "Kyiv"}, nil, "Львів", false},
+		// Unless a switch turns it off, matching ignores case, apostrophe
+		// variants and Latin lookalikes of Cyrillic letters. It always ignores
+		// extra spaces and Unicode composition.
+		{[]string{"марʼяна"}, nil, " Мар'яна  ", true},
+		{[]string{"пісня"}, nil, "пiсня", true},
+		{[]string{"Київ"}, nil, "КИЇВ", true},
+		{[]string{"а b с"}, nil, "a  b c", true},
+		{[]string{"й"}, nil, "й", true},
+		{[]string{"Київ"}, &testfmt.Match{CaseSensitive: true}, "київ", false},
+		{[]string{"м’ята"}, &testfmt.Match{StrictApostrophes: true}, "м'ята", false},
+		{[]string{"пісня"}, &testfmt.Match{StrictLetters: true}, "пiсня", false},
+		// AllowTypo forgives one extra, missing, wrong or swapped letter, only
+		// in an accepted text of at least 4 characters without a digit.
+		{[]string{"Київ"}, nil, "Кийв", false},
+		{[]string{"Київ"}, typo, "Кийв", true},
+		{[]string{"Київ"}, typo, "Київв", true},
+		{[]string{"Київ"}, typo, "Кив", true},
+		{[]string{"Київ"}, typo, "Кивї", true},
+		{[]string{"Київ"}, typo, "Київ", true},
+		{[]string{"Київ"}, typo, "Кі", false},
+		{[]string{"Київ"}, typo, "Кйив", false},
+		{[]string{"Київ"}, typo, "Київвв", false},
+		{[]string{"Київ"}, typo, "Кйвї", false},
+		{[]string{"1991"}, typo, "1990", false},
+		{[]string{"1991"}, typo, "1991", true},
+		{[]string{"Fe"}, typo, "F", false},
+		{[]string{"Fe"}, typo, "Fr", false},
+		{[]string{"Fe"}, typo, "fe", true},
+		{[]string{"H2O ok"}, typo, "H2O o", false},
+		// A blank accepted text matches nothing, not even with a typo.
+		{[]string{"Київ", " "}, typo, "?", false},
+		{[]string{"Київ", " "}, typo, "х", false},
+		{[]string{"Київ", " "}, typo, "Київ", true},
+	} {
+		q := testfmt.Question{ID: "q", Type: "short", Points: 2, Accepted: c.accepted, Match: c.match}
+		want := Verdict{Items: map[string]bool{"": c.right}}
+		if c.right {
+			want.Points = 2
+		}
+		if got := Judge(q, testfmt.Answer{Text: c.text}); !reflect.DeepEqual(got, want) {
+			t.Errorf("%q against %q: got %+v, want %+v", c.text, c.accepted, got, want)
 		}
 	}
-	if v := Judge(q, testfmt.Answer{Text: "Львів"}); len(v.Items) != 1 || v.Items[""] {
-		t.Errorf("a wrong answer: %+v", v.Items)
-	}
-	if v := Judge(q, testfmt.Answer{Text: "київ"}); !v.Items[""] {
-		t.Errorf("a right answer: %+v", v.Items)
-	}
-	if v := Judge(q, testfmt.Answer{}); len(v.Items) != 0 {
-		t.Errorf("no answer: %+v", v.Items)
+	q := testfmt.Question{ID: "q", Type: "short", Points: 2, Accepted: []string{"Київ", "Kyiv"}}
+	if v := Judge(q, testfmt.Answer{}); v.Points != 0 || len(v.Items) != 0 {
+		t.Errorf("no answer: %+v", v)
 	}
 }
 
@@ -168,36 +153,6 @@ func TestJudgeGapsUsesMatchSwitches(t *testing.T) {
 	q.Match = &testfmt.Match{CaseSensitive: true}
 	near(t, Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "київ"}}).Points, 0)
 	near(t, Judge(q, testfmt.Answer{Pairs: map[string]string{"g1": "Київ"}}).Points, 1)
-}
-
-func TestBlankAcceptedMatchesNothing(t *testing.T) {
-	q := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"Київ", " "}, Match: &testfmt.Match{AllowTypo: true}}
-	for text, want := range map[string]float64{"?": 0, "х": 0, "Київ": 1} {
-		if got := Judge(q, testfmt.Answer{Text: text}).Points; got != want {
-			t.Errorf("%q: %v, want %v", text, got, want)
-		}
-	}
-}
-
-func TestTypoOnlyForLongWordsWithoutDigits(t *testing.T) {
-	typo := &testfmt.Match{AllowTypo: true}
-	year := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"1991"}, Match: typo}
-	if Judge(year, testfmt.Answer{Text: "1990"}).Points != 0 || Judge(year, testfmt.Answer{Text: "1991"}).Points != 1 {
-		t.Error("a year must match exactly")
-	}
-	symbol := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"Fe"}, Match: typo}
-	for _, s := range []string{"F", "Fr"} {
-		if Judge(symbol, testfmt.Answer{Text: s}).Points != 0 {
-			t.Errorf("%q must not match Fe", s)
-		}
-	}
-	if Judge(symbol, testfmt.Answer{Text: "fe"}).Points != 1 {
-		t.Error("Fe must still match without case")
-	}
-	mixed := testfmt.Question{ID: "q", Type: "short", Points: 1, Accepted: []string{"H2O ok"}, Match: typo}
-	if Judge(mixed, testfmt.Answer{Text: "H2O o"}).Points != 0 {
-		t.Error("an accepted text with a digit must match exactly")
-	}
 }
 
 func TestJudgeGapsTypoOnlyInWords(t *testing.T) {

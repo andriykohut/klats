@@ -372,7 +372,7 @@ func testFor(e *Engine, device string) (wire.StudentTest, error) {
 	return res.Test, err
 }
 
-func TestStudentPayloadHasNoAnswers(t *testing.T) {
+func TestStudentPayloadNeedsPick(t *testing.T) {
 	e, _, _ := setup(t)
 	code := start(t, e, nil).Code
 	join(t, e, code, devA, "10.0.0.107")
@@ -386,15 +386,6 @@ func TestStudentPayloadHasNoAnswers(t *testing.T) {
 	}
 	if st.Title != "Дроби" || st.Palette != "teal" || len(st.Questions) != 2 || len(st.Questions[1].Options) != 6 {
 		t.Fatalf("test = %+v", st)
-	}
-	b, err := json.Marshal(st)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, banned := range []string{"correct", "Correct", "points", "partial"} {
-		if strings.Contains(string(b), banned) {
-			t.Errorf("payload contains %q: %s", banned, b)
-		}
 	}
 }
 
@@ -479,13 +470,6 @@ func TestResolveClashMove(t *testing.T) {
 	if row := participantRow(t, st, info.SittingID, p.ID); row.DeviceToken != devB || row.State != "writing" {
 		t.Errorf("participant = %+v", row)
 	}
-	moved, err := st.Q().ListMovedDevices(context.Background(), info.SittingID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(moved) != 1 || moved[0] != (db.MovedDevice{DeviceToken: devA, ParticipantID: p.ID}) {
-		t.Errorf("moved devices = %+v", moved)
-	}
 	if len(openClashes(t, st, info.SittingID)) != 0 {
 		t.Error("event still open")
 	}
@@ -495,8 +479,12 @@ func TestResolveClashMove(t *testing.T) {
 	if _, err := testFor(e, devA); !errors.Is(err, ErrNotJoined) {
 		t.Errorf("old device: err = %v, want ErrNotJoined", err)
 	}
-	if e.DeviceStatus(devA) != "moved" || e.DeviceStatus(devB) != "writing" || !slices.Equal(e.cur.movedFrom[devA], []string{p.ID}) {
-		t.Errorf("statuses %q, %q; moved from devA %v", e.DeviceStatus(devA), e.DeviceStatus(devB), e.cur.movedFrom[devA])
+	if e.DeviceStatus(devA) != "moved" || e.DeviceStatus(devB) != "writing" {
+		t.Errorf("statuses %q, %q", e.DeviceStatus(devA), e.DeviceStatus(devB))
+	}
+	// The old device may still hold changes it made before the move.
+	if res := submit(t, e, devA, change(p, "q1", 1, "o0")); res.Rejected != 0 {
+		t.Errorf("old device's change = %+v, want accepted", res)
 	}
 	if err := e.ResolveEvent(eventID, "move"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("resolving twice: err = %v, want ErrNotFound", err)
@@ -743,8 +731,8 @@ func TestRestartRebuildsDeviceStatus(t *testing.T) {
 			t.Errorf("status of %s after restart = %q, want %q", device, got, want)
 		}
 	}
-	if !slices.Equal(e2.cur.movedFrom[devB], []string{pb.ID}) {
-		t.Errorf("moved from devB = %v, want [%s]", e2.cur.movedFrom[devB], pb.ID)
+	if res := submit(t, e2, devB, change(pb, "q1", 1, "o0")); res.Rejected != 0 {
+		t.Errorf("moved-off device's change after restart = %+v, want accepted", res)
 	}
 
 	// Picking clears a kicked or moved status.

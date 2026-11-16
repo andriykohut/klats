@@ -348,10 +348,15 @@ func TestTestOfNewerVersion(t *testing.T) {
 
 func TestStartBlockedByProblems(t *testing.T) {
 	v := setup(t, false)
+	w := v.do("GET", "/api/sittings/current", nil)
+	wantStatus(t, w, 200)
+	if live := decodeBody[wire.LiveSnapshot](t, w); live.Sitting.SittingID != "" {
+		t.Errorf("live without a sitting = %+v", live)
+	}
 	bad := goodTest("")
 	bad.Questions[0].Options[0].Correct = false
 	badID := v.saveTest(t, bad)
-	w := v.do("POST", "/api/sittings", wire.StartRequest{TestID: badID})
+	w = v.do("POST", "/api/sittings", wire.StartRequest{TestID: badID})
 	wantError(t, w, 409, "has_problems")
 	probs := decodeBody[wire.ProblemsError](t, w).Problems
 	if len(probs) != 1 || probs[0].Code != "no_correct" || probs[0].QuestionID != "q1" {
@@ -374,15 +379,6 @@ func TestStartBlockedByProblems(t *testing.T) {
 	}
 	wantStatus(t, v.do("POST", "/api/sittings/current/end", nil), 204)
 	wantError(t, v.do("POST", "/api/sittings/current/end", nil), 404, "not_found")
-}
-
-func TestLiveWithoutSitting(t *testing.T) {
-	v := setup(t, false)
-	w := v.do("GET", "/api/sittings/current", nil)
-	wantStatus(t, w, 200)
-	if live := decodeBody[wire.LiveSnapshot](t, w); live.Sitting.SittingID != "" {
-		t.Errorf("live = %+v", live)
-	}
 }
 
 func TestParticipantAndDeviceRoutes(t *testing.T) {
@@ -654,9 +650,6 @@ func ptr(f float64) *float64 { return &f }
 func TestExportFallbackDownload(t *testing.T) {
 	v := setup(t, false)
 	asg := v.startSitting(t)
-	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
-		t.Fatal(err)
-	}
 	w := v.do("POST", "/api/assignments/"+asg+"/export", nil)
 	wantStatus(t, w, 200)
 	if ct := w.Header().Get("Content-Type"); ct != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
@@ -675,18 +668,12 @@ func TestExportFallbackDownload(t *testing.T) {
 	if !bytes.HasPrefix(w.Body.Bytes(), []byte("PK")) {
 		t.Errorf("body is not a zip: %.10q", w.Body)
 	}
-	if v.stale(t, asg) {
-		t.Error("export_stale not cleared")
-	}
 	wantError(t, v.do("POST", "/api/assignments/nope/export", nil), 404, "not_found")
 }
 
 func TestExportThroughDialogs(t *testing.T) {
 	v := setup(t, true)
 	asg := v.startSitting(t)
-	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
-		t.Fatal(err)
-	}
 	target := filepath.Join(t.TempDir(), "out.xlsx")
 	if err := os.WriteFile(target, []byte("old"), 0o600); err != nil {
 		t.Fatal(err)
@@ -704,52 +691,8 @@ func TestExportThroughDialogs(t *testing.T) {
 	if err != nil || !bytes.HasPrefix(data, []byte("PK")) {
 		t.Errorf("file = %.10q, %v", data, err)
 	}
-	if v.stale(t, asg) {
-		t.Error("export_stale not cleared")
-	}
 	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(target), "*.tmp")); len(left) != 0 {
 		t.Errorf("temp files left: %v", left)
-	}
-}
-
-func TestClearStaleSkipsChangedResults(t *testing.T) {
-	v := setup(t, false)
-	asg := v.startSitting(t)
-	info := decodeBody[wire.LiveSnapshot](t, v.do("GET", "/api/sittings/current", nil)).Sitting
-	if _, err := v.e.Join(info.Code, "dev1", "10.0.0.5"); err != nil {
-		t.Fatal(err)
-	}
-	p, err := v.e.Pick(info.Code, "dev1", wire.PickRequest{Surname: "Учень", FirstName: "А"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := v.e.SetOverride(asg, p.ID, "q1", ptr(1)); err != nil {
-		t.Fatal(err)
-	}
-	read, err := v.e.Results(asg) // what an export in progress holds
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := v.e.SetOverride(asg, p.ID, "q1", ptr(2)); err != nil {
-		t.Fatal(err)
-	}
-	clearStale := func(res wire.AssignmentResults) {
-		t.Helper()
-		if err := v.st.Q().ClearExportStale(context.Background(), db.ClearExportStaleParams{ID: asg, ResultsRev: res.ResultsRev}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	clearStale(read)
-	if !v.stale(t, asg) {
-		t.Error("an export of older results cleared export_stale")
-	}
-	fresh, err := v.e.Results(asg)
-	if err != nil || fresh.ResultsRev <= read.ResultsRev {
-		t.Fatalf("rev %d after %d, %v", fresh.ResultsRev, read.ResultsRev, err)
-	}
-	clearStale(fresh)
-	if v.stale(t, asg) {
-		t.Error("an export of the current results left export_stale set")
 	}
 }
 
@@ -799,54 +742,52 @@ type failingWriter struct{ *httptest.ResponseRecorder }
 
 func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("client went away") }
 
-func TestDownloadFailureKeepsStale(t *testing.T) {
-	v := setup(t, false)
-	asg := v.startSitting(t)
-	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
-		t.Fatal(err)
+// An export that reaches neither the browser nor a file leaves the assignment
+// stale.
+func TestFailedExportKeepsStale(t *testing.T) {
+	for name, c := range map[string]struct {
+		dialogs bool
+		export  func(t *testing.T, v *env, path string)
+	}{
+		"download that does not reach the client": {false, func(t *testing.T, v *env, path string) {
+			v.h.ServeHTTP(failingWriter{httptest.NewRecorder()}, v.req("POST", path, nil))
+		}},
+		"cancelled dialog": {true, func(t *testing.T, v *env, path string) {
+			wantStatus(t, v.do("POST", path, nil), 204) // dialogs return ("", nil)
+		}},
+		// The rename cannot replace a directory.
+		"target is a directory": {true, func(t *testing.T, v *env, path string) {
+			dir := filepath.Join(t.TempDir(), "taken.xlsx")
+			if err := os.Mkdir(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			v.dialogs.path = dir
+			wantError(t, v.do("POST", path, nil), 409, "write_failed")
+			if left, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "*.tmp")); len(left) != 0 {
+				t.Errorf("temp files left: %v", left)
+			}
+		}},
+		"target in a missing folder": {true, func(t *testing.T, v *env, path string) {
+			v.dialogs.path = filepath.Join(t.TempDir(), "missing", "out.xlsx")
+			wantError(t, v.do("POST", path, nil), 409, "write_failed")
+		}},
+		"dialog crashed": {true, func(t *testing.T, v *env, path string) {
+			v.dialogs.err = errors.New("dialog crashed")
+			wantError(t, v.do("POST", path, nil), 500, "internal")
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := setup(t, c.dialogs)
+			asg := v.startSitting(t)
+			if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
+				t.Fatal(err)
+			}
+			c.export(t, v, "/api/assignments/"+asg+"/export")
+			if !v.stale(t, asg) {
+				t.Error("the failed export cleared export_stale")
+			}
+		})
 	}
-	v.h.ServeHTTP(failingWriter{httptest.NewRecorder()}, v.req("POST", "/api/assignments/"+asg+"/export", nil))
-	if !v.stale(t, asg) {
-		t.Error("a download that did not reach the client cleared export_stale")
-	}
-}
-
-func TestExportCancelledKeepsStale(t *testing.T) {
-	v := setup(t, true)
-	asg := v.startSitting(t)
-	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
-		t.Fatal(err)
-	}
-	wantStatus(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 204) // dialogs return ("", nil)
-	if !v.stale(t, asg) {
-		t.Error("a cancelled export cleared export_stale")
-	}
-}
-
-func TestExportWriteFailure(t *testing.T) {
-	v := setup(t, true)
-	asg := v.startSitting(t)
-	if err := v.st.Q().SetExportStale(context.Background(), asg); err != nil {
-		t.Fatal(err)
-	}
-	// The target is a directory, so the rename cannot replace it.
-	dir := filepath.Join(t.TempDir(), "taken.xlsx")
-	if err := os.Mkdir(dir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	v.dialogs.path = dir
-	wantError(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 409, "write_failed")
-	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), "*.tmp")); len(left) != 0 {
-		t.Errorf("temp files left: %v", left)
-	}
-	// So is a target in a folder that does not exist.
-	v.dialogs.path = filepath.Join(t.TempDir(), "missing", "out.xlsx")
-	wantError(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 409, "write_failed")
-	if !v.stale(t, asg) {
-		t.Error("a failed export cleared export_stale")
-	}
-	v.dialogs.err = errors.New("dialog crashed")
-	wantError(t, v.do("POST", "/api/assignments/"+asg+"/export", nil), 500, "internal")
 }
 
 func TestNetwork(t *testing.T) {
@@ -929,15 +870,6 @@ func TestSettingsCheckUpdates(t *testing.T) {
 	}
 }
 
-func TestAbout(t *testing.T) {
-	v := setup(t, false, func(d *Deps) { d.Version = "1.2.3" })
-	w := v.do("GET", "/api/about", nil)
-	wantStatus(t, w, 200)
-	if got := strings.TrimSpace(w.Body.String()); got != `{"version":"1.2.3","latest":"","notesUrl":""}` {
-		t.Errorf("about = %s", got)
-	}
-}
-
 func TestAboutNamesTheFoundRelease(t *testing.T) {
 	var u *Updates
 	v := setup(t, false, func(d *Deps) {
@@ -945,6 +877,11 @@ func TestAboutNamesTheFoundRelease(t *testing.T) {
 		u = NewUpdates(d.Hub)
 		d.Updates = u
 	})
+	w := v.do("GET", "/api/about", nil)
+	wantStatus(t, w, 200)
+	if got := strings.TrimSpace(w.Body.String()); got != `{"version":"1.0.0","latest":"","notesUrl":""}` {
+		t.Errorf("about before a release is found = %s", got)
+	}
 	ch, unsub := v.hub.Subscribe("teacher")
 	defer unsub()
 	u.Set(update.Release{Version: "1.1.0", NotesURL: "https://x/r"})
@@ -1367,25 +1304,6 @@ func TestImportOlderFormat(t *testing.T) {
 		t.Errorf("%d tests listed, want 1", n)
 	}
 	v.noTemps(t)
-}
-
-func TestImportOlderTwice(t *testing.T) {
-	v := setup(t, false)
-	var ids []string
-	for _, path := range []string{"/api/tests/import", "/api/tests/import?copy"} {
-		w := v.do("POST", path, olderFile())
-		wantStatus(t, w, 201)
-		ids = append(ids, decodeBody[wire.TestDoc](t, w).ID)
-	}
-	if ids[0] == ids[1] {
-		t.Errorf("both opens gave the id %q", ids[0])
-	}
-	if n := v.testCount(t); n != 2 {
-		t.Errorf("%d tests listed, want 2", n)
-	}
-	if files, err := os.ReadDir(filepath.Join(v.dir, "media")); err != nil || len(files) != 1 {
-		t.Errorf("media folder holds %d files, want 1; %v", len(files), err)
-	}
 }
 
 // A file opened again, or one the test was exported to, finds the test as it

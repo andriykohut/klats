@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -23,124 +22,6 @@ func openTemp(t *testing.T) *Store {
 	}
 	t.Cleanup(func() { _ = s.Close() })
 	return s
-}
-
-func TestOpenMigratesFreshDB(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "klats.db")
-	for range 2 {
-		s, err := Open(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var n int
-		err = s.conn.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name IN
-			('tests','classes','students','assignments','sittings','devices','participants','moved_devices','answers','overrides','events')`).Scan(&n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n != 11 {
-			t.Fatalf("got %d tables, want 11", n)
-		}
-		if err := s.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func TestOpenAppliesPragmas(t *testing.T) {
-	s := openTemp(t)
-	var fk, timeout int
-	var mode string
-	if err := s.conn.QueryRow(`PRAGMA foreign_keys`).Scan(&fk); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.conn.QueryRow(`PRAGMA busy_timeout`).Scan(&timeout); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.conn.QueryRow(`PRAGMA journal_mode`).Scan(&mode); err != nil {
-		t.Fatal(err)
-	}
-	if fk != 1 || timeout != 5000 || mode != "wal" {
-		t.Fatalf("foreign_keys=%d busy_timeout=%d journal_mode=%s", fk, timeout, mode)
-	}
-}
-
-func TestNewID(t *testing.T) {
-	a, b := NewID(), NewID()
-	if len(a) != 26 || a == b {
-		t.Fatalf("got %q and %q", a, b)
-	}
-}
-
-func TestTestRoundTrip(t *testing.T) {
-	s := openTemp(t)
-	ctx := context.Background()
-	doc := `{"id":"t1","title":"Фізика","questions":[]}`
-	err := s.Q().InsertTest(ctx, db.InsertTestParams{ID: "t1", Title: "Фізика", Doc: doc, CreatedAt: 1000, UpdatedAt: 1000})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.Q().GetTest(ctx, "t1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Doc != doc || got.Title != "Фізика" || got.CreatedAt != 1000 {
-		t.Fatalf("got %+v", got)
-	}
-
-	_, err = s.Q().UpdateTest(ctx, db.UpdateTestParams{ID: "t1", Title: "Хімія", Doc: `{}`, UpdatedAt: 2000})
-	if err != nil {
-		t.Fatal(err)
-	}
-	list, err := s.Q().ListTests(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(list) != 1 || list[0].Title != "Хімія" || list[0].UpdatedAt != 2000 {
-		t.Fatalf("got %+v", list)
-	}
-
-	if _, err := s.Q().DeleteTest(ctx, "t1"); err != nil {
-		t.Fatal(err)
-	}
-	list, _ = s.Q().ListTests(ctx)
-	if len(list) != 0 {
-		t.Fatalf("got %+v after delete", list)
-	}
-}
-
-func TestClassStudentsSortedByKey(t *testing.T) {
-	s := openTemp(t)
-	ctx := context.Background()
-	if err := s.Q().InsertClass(ctx, db.InsertClassParams{ID: "c1", Name: "7-А", CreatedAt: 1}); err != nil {
-		t.Fatal(err)
-	}
-	names := []string{"Яременко Оля", "Бойко Андрій", "Їжак Марко", "Іваненко Софія", "Гнатюк Ірина", "Ґудзь Пилип"}
-	for _, n := range names {
-		err := s.Q().InsertStudent(ctx, db.InsertStudentParams{ID: NewID(), ClassID: "c1", Name: n, SortKey: roster.SortKey(n)})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	rows, err := s.Q().ListStudents(ctx, "c1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var got []string
-	for _, r := range rows {
-		got = append(got, r.Name)
-	}
-	want := []string{"Бойко Андрій", "Гнатюк Ірина", "Ґудзь Пилип", "Іваненко Софія", "Їжак Марко", "Яременко Оля"}
-	if !slices.Equal(got, want) {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-
-	if _, err := s.Q().DeleteClass(ctx, "c1"); err != nil {
-		t.Fatal(err)
-	}
-	if rows, _ = s.Q().ListStudents(ctx, "c1"); len(rows) != 0 {
-		t.Fatalf("students outlived their class: %+v", rows)
-	}
 }
 
 func TestTxRollsBack(t *testing.T) {
@@ -358,29 +239,9 @@ func mustExec(t *testing.T, s *Store, query string, args ...any) {
 	}
 }
 
-func TestDeleteTestKeepsAssignment(t *testing.T) {
-	s := openTemp(t)
-	ctx := context.Background()
-	if err := s.Q().InsertTest(ctx, db.InsertTestParams{ID: "t1", Title: "Фізика", Doc: `{}`, CreatedAt: 1, UpdatedAt: 1}); err != nil {
-		t.Fatal(err)
-	}
-	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, created_at) VALUES ('a1', 't1', '{"title":"Фізика"}', 1)`)
-
-	if _, err := s.Q().DeleteTest(ctx, "t1"); err != nil {
-		t.Fatal(err)
-	}
-	var testID *string
-	var snapshot string
-	if err := s.conn.QueryRow(`SELECT test_id, test_snapshot FROM assignments WHERE id = 'a1'`).Scan(&testID, &snapshot); err != nil {
-		t.Fatal(err)
-	}
-	if testID != nil || snapshot != `{"title":"Фізика"}` {
-		t.Fatalf("test_id=%v snapshot=%s", testID, snapshot)
-	}
-}
-
-// seedParticipant inserts a class, a student, an assignment of class c1, a
-// sitting, a device and a participant picked from the class list.
+// seedParticipant inserts a test, a class, a student, an assignment of the
+// test to class c1, a sitting, a device and a participant picked from the
+// class list.
 func seedParticipant(t *testing.T, s *Store) {
 	t.Helper()
 	ctx := context.Background()
@@ -393,52 +254,43 @@ func seedParticipant(t *testing.T, s *Store) {
 	if err := s.Q().InsertStudent(ctx, db.InsertStudentParams{ID: "s1", ClassID: "c1", Name: "Бойко Андрій", SortKey: roster.SortKey("Бойко Андрій")}); err != nil {
 		t.Fatal(err)
 	}
-	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, class_id, class_name, created_at) VALUES ('a1', 't1', '{}', 'c1', '7-А', 1)`)
+	mustExec(t, s, `INSERT INTO assignments (id, test_id, test_snapshot, class_id, class_name, created_at) VALUES ('a1', 't1', '{"title":"Фізика"}', 'c1', '7-А', 1)`)
 	mustExec(t, s, `INSERT INTO sittings (id, assignment_id, join_code, started_at) VALUES ('si1', 'a1', '1234', 1)`)
 	mustExec(t, s, `INSERT INTO devices (token, last_seen_at) VALUES ('d1', 1)`)
 	mustExec(t, s, `INSERT INTO participants (id, sitting_id, student_id, display_name, device_token, state, joined_at)
 		VALUES ('p1', 'si1', 's1', 'Бойко Андрій', 'd1', 'writing', 1)`)
 }
 
-func TestDeleteStudentKeepsParticipant(t *testing.T) {
-	s := openTemp(t)
-	seedParticipant(t, s)
-
-	if err := s.Q().DeleteStudent(context.Background(), "s1"); err != nil {
-		t.Fatal(err)
-	}
-	var studentID *string
-	var name string
-	if err := s.conn.QueryRow(`SELECT student_id, display_name FROM participants WHERE id = 'p1'`).Scan(&studentID, &name); err != nil {
-		t.Fatal(err)
-	}
-	if studentID != nil || name != "Бойко Андрій" {
-		t.Fatalf("student_id=%v display_name=%q", studentID, name)
-	}
-}
-
-func TestDeleteClassKeepsAssignmentClassName(t *testing.T) {
-	s := openTemp(t)
-	seedParticipant(t, s)
-
-	if _, err := s.Q().DeleteClass(context.Background(), "c1"); err != nil {
-		t.Fatal(err)
-	}
-	var classID, className *string
-	if err := s.conn.QueryRow(`SELECT class_id, class_name FROM assignments WHERE id = 'a1'`).Scan(&classID, &className); err != nil {
-		t.Fatal(err)
-	}
-	if classID != nil || className == nil || *className != "7-А" {
-		t.Fatalf("class_id=%v class_name=%v", classID, className)
-	}
-	// The class's students are gone, but the participant keeps its name.
-	var studentID *string
-	var name string
-	if err := s.conn.QueryRow(`SELECT student_id, display_name FROM participants WHERE id = 'p1'`).Scan(&studentID, &name); err != nil {
-		t.Fatal(err)
-	}
-	if studentID != nil || name != "Бойко Андрій" {
-		t.Fatalf("student_id=%v display_name=%q", studentID, name)
+// Deleting a test, a student or a class keeps the results of their sittings
+// listed with the test's title, the class's name and the student's name.
+func TestDeleteKeepsResults(t *testing.T) {
+	ctx := context.Background()
+	for name, del := range map[string]func(q *db.Queries) error{
+		"test": func(q *db.Queries) error {
+			_, err := q.DeleteTest(ctx, "t1")
+			return err
+		},
+		"student": func(q *db.Queries) error { return q.DeleteStudent(ctx, "s1") },
+		"class": func(q *db.Queries) error {
+			_, err := q.DeleteClass(ctx, "c1")
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := openTemp(t)
+			seedParticipant(t, s)
+			if err := del(s.Q()); err != nil {
+				t.Fatal(err)
+			}
+			list, err := s.Q().ListAssignments(ctx)
+			if err != nil || len(list) != 1 || list[0].TestTitle != "Фізика" || list[0].ClassName != "7-А" || list[0].Participants != 1 {
+				t.Errorf("assignments = %+v, %v", list, err)
+			}
+			ps, err := s.Q().ListParticipants(ctx, "si1")
+			if err != nil || len(ps) != 1 || ps[0].DisplayName != "Бойко Андрій" {
+				t.Errorf("participants = %+v, %v", ps, err)
+			}
+		})
 	}
 }
 

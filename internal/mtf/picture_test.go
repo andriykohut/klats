@@ -101,13 +101,16 @@ func TestStorePictureRejects(t *testing.T) {
 	}
 }
 
-func TestStorePictureStoreFailure(t *testing.T) {
+// A media store that cannot take a picture fails the open with its own
+// error, not as a damaged file.
+func TestOpenStoreFailure(t *testing.T) {
 	ms, dir := store(t)
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := mtf.StorePicture(ms, jpg()); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("storePicture = %v, want the store's error", err)
+	file := mtftest.Encode(mtf.File{Title: "Дроби"}, mtftest.Entry{Key: "{A}.jpg", Data: jpg()})
+	if _, _, err := mtf.Open(bytes.NewReader(file), ms); !errors.Is(err, fs.ErrNotExist) || errors.Is(err, mtf.ErrDamaged) {
+		t.Errorf("Open = %v, want the store's error", err)
 	}
 }
 

@@ -74,16 +74,6 @@ func setupQuestions(t *testing.T, qs []testfmt.Question) (*Engine, *store.Store)
 func TestStudentPayloadPictureText(t *testing.T) {
 	tst := decodeTest(t, pictureTextQuestions())
 	st := studentTest(tst, tst.Questions, "dev1")
-	raw, err := json.Marshal(st)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, leak := range []string{`"areas"`, `"target"`, `"rubric"`, `"correct"`, "ключова"} {
-		if strings.Contains(string(raw), leak) {
-			t.Errorf("payload carries %s: %s", leak, raw)
-		}
-	}
-
 	hotspot, label, highlight, open := st.Questions[0], st.Questions[1], st.Questions[2], st.Questions[3]
 	if hotspot.Image == nil || *hotspot.Image != *picture || len(hotspot.Options) != 0 {
 		t.Errorf("hotspot = %+v", hotspot)

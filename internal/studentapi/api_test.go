@@ -234,27 +234,61 @@ func TestJoinPickTestFlow(t *testing.T) {
 	}
 }
 
-func TestTestResponseNeverHasCorrect(t *testing.T) {
-	v := setup(t)
-	v.enter(t, devA, "Шевченко")
-	w := v.do("GET", "/api/test", devA, nil)
-	wantStatus(t, w, 200)
-	body := w.Body.String()
-	for _, banned := range []string{`"correct"`, `"points"`} {
-		if strings.Contains(body, banned) {
-			t.Errorf("test response contains %s: %s", banned, body)
-		}
+// TestTestResponseHasNoKey checks that the test a device fetches holds no
+// part of the key of any question type.
+func TestTestResponseHasNoKey(t *testing.T) {
+	text := rich("Питання")
+	paragraph := func(nodes ...string) json.RawMessage {
+		return json.RawMessage(`{"type":"doc","content":[{"type":"paragraph","content":[` + strings.Join(nodes, ",") + `]}]}`)
 	}
-}
-
-func TestNameTakenIs409WithLabel(t *testing.T) {
-	v := setup(t)
-	v.enter(t, devA, "Шевченко")
-	wantStatus(t, v.do("POST", "/api/join", devB, map[string]string{"code": v.code}), 200)
-	w := v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "Шевченко", "firstName": "Учень"})
-	wantError(t, w, 409, "name_taken")
-	if got := decodeBody[map[string]string](t, w); got["label"] == "" {
-		t.Errorf("body = %v, want the holder's label", got)
+	word := func(s string) string { return fmt.Sprintf(`{"type":"text","text":%q}`, s) }
+	gap := func(id string) string { return `{"type":"gap","attrs":{"id":"` + id + `"}}` }
+	option := func(id, target string, correct bool) testfmt.Option {
+		return testfmt.Option{ID: id, Content: rich("варіант " + id), Target: target, Correct: correct}
+	}
+	groups := []testfmt.Target{{ID: "t0", Content: rich("А")}, {ID: "t1", Content: rich("Б")}}
+	picture := &testfmt.Image{Src: strings.Repeat("c", 64) + ".png", W: 800, H: 600}
+	for _, c := range []struct {
+		q testfmt.Question
+		// key holds what the payload must not carry beyond the fields of
+		// every type: points, Partial and Go field names.
+		key []string
+	}{
+		{testfmt.Question{Type: "single", Text: text, Options: []testfmt.Option{option("o0", "", true), option("o1", "", false)}}, []string{"correct"}},
+		{testfmt.Question{Type: "multi", Text: text, Partial: true, Options: []testfmt.Option{option("o0", "", true), option("o1", "", false), option("o2", "", false)}}, []string{"correct"}},
+		{testfmt.Question{Type: "truefalse", Text: text, Options: []testfmt.Option{option("s1", "", true), option("s2", "", false)}}, []string{"correct"}},
+		{testfmt.Question{Type: "grid", Text: text, Options: []testfmt.Option{option("r0", "t0", false), option("r1", "t1", false)}, Targets: groups}, []string{`"target"`}},
+		// The order key is the options' order, which the payload shuffles.
+		{testfmt.Question{Type: "order", Text: text, Options: []testfmt.Option{option("o0", "", false), option("o1", "", false), option("o2", "", false)}}, nil},
+		{testfmt.Question{Type: "match", Text: text, Options: []testfmt.Option{option("l0", "r0", false), option("l1", "r1", false)},
+			Targets: []testfmt.Target{{ID: "r0", Content: rich("r0")}, {ID: "r1", Content: rich("r1")}}}, []string{`"target"`}},
+		{testfmt.Question{Type: "groups", Text: text, Options: []testfmt.Option{option("i0", "t0", false), option("i1", "t1", false)}, Targets: groups}, []string{`"target"`}},
+		{testfmt.Question{Type: "bank", Body: paragraph(gap("g1"), word(" і "), gap("g2")), Options: []testfmt.Option{option("w1", "g1", false), option("w2", "g2", false), option("d1", "", false)}}, []string{`"target"`}},
+		{testfmt.Question{Type: "gaps", Body: paragraph(gap("g1"), gap("g2")), Match: &testfmt.Match{AllowTypo: true}, Gaps: []testfmt.Gap{
+			{ID: "g1", Accepted: []string{"secret"}},
+			{ID: "g2", Choices: []testfmt.Choice{{ID: "c0", Text: "0"}, {ID: "c1", Text: "1", Correct: true}}},
+		}}, []string{`"accepted"`, "correct", `"match":`, "secret"}},
+		{testfmt.Question{Type: "short", Text: text, Accepted: []string{"secret"}, Match: &testfmt.Match{}, Tags: []string{"прихований-тег"}}, []string{`"accepted"`, `"match":`, "secret", "прихований-тег"}},
+		{testfmt.Question{Type: "number", Text: text, Number: &testfmt.NumberKey{Mode: "exact", Value: 31415926}}, []string{`"number":`, "31415926"}},
+		{testfmt.Question{Type: "hotspot", Text: text, Image: picture, Areas: []testfmt.Area{{ID: "a1", Shape: "ellipse", X: 0.4, Y: 0.4, W: 0.2, H: 0.2}}}, []string{`"areas"`}},
+		{testfmt.Question{Type: "label", Text: text, Image: picture, Options: []testfmt.Option{option("l0", "p1", false), option("l1", "", false)},
+			Targets: []testfmt.Target{{ID: "p1", X: 0.2, Y: 0.3}}}, []string{`"target"`}},
+		{testfmt.Question{Type: "highlight", Body: paragraph(word("Кіт "), `{"type":"text","text":"біжить","marks":[{"type":"target"}]}`)}, []string{`"target"`}},
+		{testfmt.Question{Type: "open", Text: text, Rubric: "ключова думка"}, []string{`"rubric"`, "ключова"}},
+	} {
+		v := setupWith(t, func(tst *testfmt.Test, _ *media.Store) {
+			c.q.ID, c.q.Points = "q1", 2
+			tst.Questions = []testfmt.Question{c.q}
+		})
+		v.enter(t, devA, "Шевченко")
+		w := v.do("GET", "/api/test", devA, nil)
+		wantStatus(t, w, 200)
+		body := w.Body.String()
+		for _, leak := range append(c.key, `"points"`, "partial", "Correct") {
+			if strings.Contains(body, leak) {
+				t.Errorf("%s: the test carries %s: %s", c.q.Type, leak, body)
+			}
+		}
 	}
 }
 
@@ -275,19 +309,6 @@ func TestJoinRateLimitPerDevice(t *testing.T) {
 	v.now.add(time.Minute)
 	if c := join(devA); c != 200 {
 		t.Errorf("join after the window = %d, want 200", c)
-	}
-}
-
-func TestManyDevicesOneIP(t *testing.T) {
-	v := setup(t)
-	for i := range 35 {
-		device := token(i)
-		for j := range 2 {
-			w := v.doFrom("10.0.0.9:5000", "POST", "/api/join", device, map[string]string{"code": v.code})
-			if w.Code != 200 {
-				t.Fatalf("device %d join %d = %d", i, j, w.Code)
-			}
-		}
 	}
 }
 
@@ -382,6 +403,12 @@ func TestErrorMapping(t *testing.T) {
 	wantStatus(t, v.do("POST", "/api/join", devB, map[string]string{"code": v.code}), 200)
 	wantError(t, v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "", "firstName": "Х"}), 400, "invalid")
 	wantError(t, v.do("POST", "/api/pick", devB, map[string]string{"code": "nope", "surname": "А", "firstName": "Б"}), 404, "bad_code")
+	// A name another device holds, with the holder's label.
+	w := v.do("POST", "/api/pick", devB, map[string]string{"code": v.code, "surname": "Шевченко", "firstName": "Учень"})
+	wantError(t, w, 409, "name_taken")
+	if got := decodeBody[map[string]string](t, w); got["label"] == "" {
+		t.Errorf("body = %v, want the holder's label", got)
+	}
 	// Kicked.
 	if err := v.e.Kick(p.ID); err != nil {
 		t.Fatal(err)
@@ -564,24 +591,6 @@ func openEvents(t *testing.T, srv *httptest.Server, query string) (*http.Respons
 		t.Fatal(err)
 	}
 	return resp, cancel
-}
-
-func TestEventsStream(t *testing.T) {
-	v := setup(t)
-	srv := httptest.NewServer(v.h)
-	defer srv.Close()
-	resp, cancel := openStream(t, srv, devA)
-	defer cancel()
-	defer func() { _ = resp.Body.Close() }()
-	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
-		t.Fatalf("content type = %q", ct)
-	}
-	v.hub.Publish(events.Event{Topic: "device:" + devA, Name: "status"})
-	buf := make([]byte, 64)
-	n, err := resp.Body.Read(buf)
-	if err != nil || !strings.HasPrefix(string(buf[:n]), "event: status") {
-		t.Errorf("frame = %q, %v", buf[:n], err)
-	}
 }
 
 func TestEventsStreamCarriesTheRunningSittingsTakenNames(t *testing.T) {

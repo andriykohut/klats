@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,7 +54,10 @@ func TestPutSniffsAndNames(t *testing.T) {
 
 func TestPutRejectsUnknown(t *testing.T) {
 	s, dir := open(t)
-	for _, in := range []string{`<?xml version="1.0"?><note/>`, "<html><script>1</script></html>", "", "RIFF\x00\x00\x00\x00AVI "} {
+	for _, in := range []string{
+		`<?xml version="1.0"?><note/>`, "<html><script>1</script></html>", "", "RIFF\x00\x00\x00\x00AVI ",
+		"\x00\x00\x00\x20ftypheic\x00\x00", "\xff\x1b",
+	} {
 		if _, err := s.Put(strings.NewReader(in)); !errors.Is(err, ErrUnsupported) {
 			t.Errorf("Put(%q) = %v, want ErrUnsupported", in, err)
 		}
@@ -90,28 +92,6 @@ func TestPutCaps(t *testing.T) {
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".") {
 			t.Errorf("temp file left behind: %s", e.Name())
-		}
-	}
-}
-
-func TestSniffAudio(t *testing.T) {
-	cases := []struct{ ext, head string }{
-		{"mp3", "ID3\x04\x00"},
-		{"mp3", "\xff\xfb\x90\x00"},
-		{"ogg", "OggS\x00\x02"},
-		{"wav", "RIFF\x24\x00\x00\x00WAVEfmt "},
-		{"m4a", "\x00\x00\x00\x20ftypM4A \x00\x00"},
-		{"m4a", "\x00\x00\x00\x20ftypisom\x00\x00"},
-		{"m4a", "\x00\x00\x00\x20ftypmp42\x00\x00"},
-		{"jpg", "\xff\xd8\xff\xe0"},
-		{"gif", "GIF89a"},
-		{"webp", string(riffWebp)},
-		{"", "\x00\x00\x00\x20ftypheic\x00\x00"},
-		{"", "\xff\x1b"},
-	}
-	for _, c := range cases {
-		if got := sniff([]byte(c.head)); got != c.ext {
-			t.Errorf("sniff(%q) = %q, want %q", c.head, got, c.ext)
 		}
 	}
 }
@@ -171,22 +151,6 @@ func TestOpenRejectsBadNames(t *testing.T) {
 	}
 }
 
-func TestOpenServesStoredFile(t *testing.T) {
-	s, _ := open(t)
-	name, err := s.Put(bytes.NewReader(padded([]byte("ID3"), 20)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, ct, err := s.Open(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = f.Close() }()
-	if b, _ := io.ReadAll(f); len(b) != 20 || ct != "audio/mpeg" {
-		t.Errorf("len %d, content type %q", len(b), ct)
-	}
-}
-
 func TestOpenContentTypeForEveryExtension(t *testing.T) {
 	s, _ := open(t)
 	for _, c := range []struct{ head, ext, contentType string }{
@@ -195,7 +159,10 @@ func TestOpenContentTypeForEveryExtension(t *testing.T) {
 		{"GIF89a", "gif", "image/gif"},
 		{string(riffWebp), "webp", "image/webp"},
 		{"ID3\x04", "mp3", "audio/mpeg"},
+		{"\xff\xfb\x90\x00", "mp3", "audio/mpeg"},
 		{"\x00\x00\x00\x20ftypM4A \x00\x00", "m4a", "audio/mp4"},
+		{"\x00\x00\x00\x20ftypisom\x00\x00", "m4a", "audio/mp4"},
+		{"\x00\x00\x00\x20ftypmp42\x00\x00", "m4a", "audio/mp4"},
 		{"OggS\x00", "ogg", "audio/ogg"},
 		{"RIFF\x24\x00\x00\x00WAVEfmt ", "wav", "audio/wav"},
 		{string(svgHead), "svg", "image/svg+xml"},

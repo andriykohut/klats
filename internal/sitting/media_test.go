@@ -51,10 +51,6 @@ func TestStudentPayloadOptionImage(t *testing.T) {
 	if res.Questions[0].Options[1].Image != nil {
 		t.Error("an option without an image got one")
 	}
-	b, _ := json.Marshal(res)
-	if strings.Contains(string(b), `"correct"`) {
-		t.Errorf("payload has a correct key: %s", b)
-	}
 }
 
 func TestHasMedia(t *testing.T) {

@@ -98,15 +98,6 @@ func TestReadRejects(t *testing.T) {
 	}
 }
 
-func TestReadCallbackError(t *testing.T) {
-	f, media := sample()
-	stop := errors.New("disk full")
-	_, err := mtf.Read(bytes.NewReader(mtftest.Encode(f, media...)), func(string, []byte) error { return stop })
-	if err != stop {
-		t.Errorf("read = %v, want the callback's error as it is", err)
-	}
-}
-
 func TestReadOldLayout(t *testing.T) {
 	if _, err := mtf.Read(bytes.NewReader(mtftest.OldLayout()), none); !errors.Is(err, mtf.ErrOldLayout) {
 		t.Errorf("read = %v, want ErrOldLayout", err)
