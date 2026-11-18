@@ -529,6 +529,8 @@
   "builder_not_saved": "Зміни не збережено",
   "live_code": "Код тесту",
   "live_show_board": "Показати на дошці",
+  "live_copy_link": "Копіювати посилання",
+  "live_link_copied": "Посилання скопійовано",
   "live_end": "Завершити тест",
   "live_ended": "Тест завершено",
   "live_open_results": "Переглянути результати",

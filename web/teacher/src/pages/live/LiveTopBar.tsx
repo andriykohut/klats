@@ -2,7 +2,9 @@ import type { SittingInfo } from "@klats/shared/generated/wire.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import { Link } from "@tanstack/react-router";
 import { Button } from "react-aria-components";
+import { useNetwork } from "../../api/queries";
 import { Icon } from "../../ui/icons";
+import { notify } from "../../ui/Toasts";
 import { EndDialog } from "./EndDialog";
 import { EndTime } from "./EndTime";
 
@@ -16,7 +18,9 @@ const SCALE_NAMES = {
  * The live view's own bar: the test, its class, question count («4 з 9
  * питань» when each student gets some of them), scale and per-student time
  * limit, the end time with the time left when the sitting has a common one,
- * the join code with «Показати на дошці», and «Завершити тест». Once the
+ * the join code with «Копіювати посилання» (the students' address with the
+ * code, shown while there is an address) and «Показати на дошці», and
+ * «Завершити тест». Once the
  * sitting has ended, the time and the code go and the button opens the
  * results instead. The mark leads back to «Мої тести».
  */
@@ -26,6 +30,7 @@ export function LiveTopBar(props: {
   onBoard: () => void;
 }) {
   const s = props.sitting;
+  const url = useNetwork().data?.url;
   const about = [
     s.className,
     s.perStudent < s.questionCount
@@ -67,6 +72,19 @@ export function LiveTopBar(props: {
           <div className="l-code">
             <small>{m.live_code()}</small>
             <strong>{s.code}</strong>
+            {url && (
+              <Button
+                className="l-ghost"
+                onPress={() =>
+                  navigator.clipboard.writeText(`${url}/?code=${s.code}`).then(
+                    () => notify(m.live_link_copied()),
+                    () => notify(m.error_server(), true),
+                  )
+                }
+              >
+                {m.live_copy_link()}
+              </Button>
+            )}
             <Button className="l-ghost" onPress={props.onBoard}>
               {m.live_show_board()}
             </Button>

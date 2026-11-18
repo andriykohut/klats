@@ -500,6 +500,8 @@
   "builder_not_saved": "Changes not saved",
   "live_code": "Test code",
   "live_show_board": "Show on the board",
+  "live_copy_link": "Copy link",
+  "live_link_copied": "Link copied",
   "live_end": "End the test",
   "live_ended": "Test ended",
   "live_open_results": "See the results",
