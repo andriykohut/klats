@@ -8,6 +8,6 @@
   },
   "dependencies": {
     "@klats/shared": "workspace:*",
-    "astro": "7.4.8"
+    "astro": "7.4.12"
   }
 }
