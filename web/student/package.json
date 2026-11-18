@@ -11,7 +11,7 @@
   "dependencies": {
     "@klats/shared": "workspace:*",
     "katex": "0.19.1",
-    "motion": "14.12.0",
+    "motion": "14.14.0",
     "react": "19.3.1",
     "react-aria-components": "1.22.1",
     "react-dom": "19.3.1"
@@ -23,7 +23,7 @@
     "@vitejs/plugin-react": "6.3.0",
     "babel-plugin-react-compiler": "1.0.0",
     "typescript": "7.0.2",
-    "vite": "8.3.7",
+    "vite": "8.3.8",
     "vitest": "5.1.0"
   }
 }
