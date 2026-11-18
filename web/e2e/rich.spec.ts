@@ -130,3 +130,34 @@ test("inline code stays readable on a selected answer and on a picked card", asy
     .poll(() => legibility(picked.locator("code")))
     .toBeGreaterThanOrEqual(4.5);
 });
+
+test("a formula in an answer option stays on one line", async ({ klats }) => {
+  const formulas = [
+    '=COUNTIFS(A2:A40;"Samsung";B2:B40;"<15000")',
+    '=COUNTIFS(A2:A40;"Samsung";B2:B40;">15000")',
+    '=COUNTIF(A2:A40;"Samsung")',
+    '=SUMIFS(B2:B40;A2:A40;"Samsung")',
+  ];
+  const choice = questionOf(
+    "single",
+    "q1",
+    "Скільки телефонів Samsung дешевші за 15000 грн?",
+    {
+      options: formulas.map((f, i) => ({
+        id: `o${i}`,
+        content: code(f),
+        correct: i === 0,
+      })),
+    },
+  );
+  const { code: join } = await klats.start([choice]);
+  const page = await klats.computer();
+  await joinAs(page, klats, join, "Бондаренко Олена");
+
+  for (const f of formulas) {
+    const formula = answers(page, choice).getByText(f, { exact: true });
+    await expect
+      .poll(() => formula.evaluate((e) => e.getClientRects().length))
+      .toBe(1);
+  }
+});

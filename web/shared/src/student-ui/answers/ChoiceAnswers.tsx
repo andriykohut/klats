@@ -73,7 +73,12 @@ export function ChoiceAnswers({
       const lines = faces.map((f) =>
         Math.round(f.offsetHeight / probe.offsetHeight),
       );
-      setLayout(chooseLayout(options.length, lines, hasImages));
+      const wideCode = faces.some((f) =>
+        Array.from(f.querySelectorAll<HTMLElement>(".k-code")).some(
+          (c) => c.offsetWidth > f.clientWidth,
+        ),
+      );
+      setLayout(chooseLayout(options.length, lines, hasImages, wideCode));
       setPhase("fit");
     } else if (phase === "fit") {
       const next = nextDensity(

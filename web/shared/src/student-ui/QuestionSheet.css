@@ -120,6 +120,11 @@
   pointer-events: none;
 }
 
+/* Unbroken, so its width tells whether it fits a grid column (ChoiceAnswers). */
+.k-measure .k-code {
+  white-space: nowrap;
+}
+
 .k-answers-rows .k-face {
   min-height: calc(70 * var(--k-px));
   padding: calc(12 * var(--k-px)) calc(22 * var(--k-px)) calc(12 * var(--k-px))
