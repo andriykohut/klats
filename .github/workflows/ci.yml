@@ -58,3 +58,10 @@ jobs:
           pulseaudio --daemonize --exit-idle-time=-1
           pactl load-module module-null-sink
       - run: make e2e E2E_ARGS=--project=${{ matrix.browser }}
+      # Open a failed test's trace with `pnpm exec playwright show-trace`.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: traces-${{ matrix.browser }}
+          path: web/e2e/test-results/
+          retention-days: 7
