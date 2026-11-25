@@ -5,36 +5,99 @@ import type { IconName } from "../../ui/icons";
 
 /*
  * What the builder knows about each question type: its name and description
- * in the picker, and which parts of a question each has (the sets follow
- * internal/testfmt's types.go, except where a set's doc says otherwise).
+ * in the picker, the example an empty question text shows, and which parts
+ * of a question each has (the sets follow internal/testfmt's types.go, except
+ * where a set's doc says otherwise).
  */
 
 /**
  * The name and one-line description of each question type, in the UI
- * language unless `options.locale` names another.
+ * language unless `options.locale` names another, and the example question
+ * text that fits the type.
  */
 export const TYPE_INFO: Record<
   string,
   {
     name: (inputs?: object, options?: { locale?: Locale }) => string;
     desc: () => string;
+    example: () => string;
   }
 > = {
-  single: { name: m.answer_single, desc: m.type_single_desc },
-  multi: { name: m.answer_multi, desc: m.type_multi_desc },
-  truefalse: { name: m.type_truefalse_name, desc: m.type_truefalse_desc },
-  grid: { name: m.type_grid_name, desc: m.type_grid_desc },
-  short: { name: m.type_short_name, desc: m.type_short_desc },
-  number: { name: m.type_number_name, desc: m.type_number_desc },
-  gaps: { name: m.type_gaps_name, desc: m.type_gaps_desc },
-  order: { name: m.type_order_name, desc: m.type_order_desc },
-  match: { name: m.type_match_name, desc: m.type_match_desc },
-  groups: { name: m.type_groups_name, desc: m.type_groups_desc },
-  bank: { name: m.type_bank_name, desc: m.type_bank_desc },
-  hotspot: { name: m.type_hotspot_name, desc: m.type_hotspot_desc },
-  label: { name: m.type_label_name, desc: m.type_label_desc },
-  highlight: { name: m.type_highlight_name, desc: m.type_highlight_desc },
-  open: { name: m.type_open_name, desc: m.type_open_desc },
+  single: {
+    name: m.answer_single,
+    desc: m.type_single_desc,
+    example: m.builder_question_placeholder_single,
+  },
+  multi: {
+    name: m.answer_multi,
+    desc: m.type_multi_desc,
+    example: m.builder_question_placeholder_multi,
+  },
+  truefalse: {
+    name: m.type_truefalse_name,
+    desc: m.type_truefalse_desc,
+    example: m.builder_question_placeholder_truefalse,
+  },
+  grid: {
+    name: m.type_grid_name,
+    desc: m.type_grid_desc,
+    example: m.builder_question_placeholder_grid,
+  },
+  short: {
+    name: m.type_short_name,
+    desc: m.type_short_desc,
+    example: m.builder_question_placeholder_short,
+  },
+  number: {
+    name: m.type_number_name,
+    desc: m.type_number_desc,
+    example: m.builder_question_placeholder_number,
+  },
+  gaps: {
+    name: m.type_gaps_name,
+    desc: m.type_gaps_desc,
+    example: m.builder_question_placeholder_gaps,
+  },
+  order: {
+    name: m.type_order_name,
+    desc: m.type_order_desc,
+    example: m.builder_question_placeholder_order,
+  },
+  match: {
+    name: m.type_match_name,
+    desc: m.type_match_desc,
+    example: m.builder_question_placeholder_match,
+  },
+  groups: {
+    name: m.type_groups_name,
+    desc: m.type_groups_desc,
+    example: m.builder_question_placeholder_groups,
+  },
+  bank: {
+    name: m.type_bank_name,
+    desc: m.type_bank_desc,
+    example: m.builder_question_placeholder_bank,
+  },
+  hotspot: {
+    name: m.type_hotspot_name,
+    desc: m.type_hotspot_desc,
+    example: m.builder_question_placeholder_hotspot,
+  },
+  label: {
+    name: m.type_label_name,
+    desc: m.type_label_desc,
+    example: m.builder_question_placeholder_label,
+  },
+  highlight: {
+    name: m.type_highlight_name,
+    desc: m.type_highlight_desc,
+    example: m.builder_question_placeholder_highlight,
+  },
+  open: {
+    name: m.type_open_name,
+    desc: m.type_open_desc,
+    example: m.builder_question_placeholder_open,
+  },
 };
 
 /** The heading of each group of question types in the picker. */

@@ -2,6 +2,7 @@ import type { Question } from "@klats/shared/generated/testfmt.ts";
 import { m } from "@klats/shared/paraglide/messages.js";
 import type { ComponentType } from "react";
 import { RichField } from "../RichField";
+import { TYPE_INFO } from "../types";
 import { BankEditor } from "./BankEditor";
 import { ChoiceEditor } from "./ChoiceEditor";
 import { EditorHead, Grading } from "./EditorHead";
@@ -76,7 +77,7 @@ export function QuestionEditor(props: {
         value={q.text}
         onChange={(doc) => onChange((x) => ({ ...x, text: doc }))}
         label={m.builder_question_text()}
-        placeholder={m.builder_question_placeholder()}
+        placeholder={TYPE_INFO[q.type].example()}
         focus={props.focusText}
       />
       {Body && (

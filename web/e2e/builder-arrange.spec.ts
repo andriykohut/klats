@@ -351,6 +351,25 @@ test("a word bank question saves a word for each gap, keeps the spaces around a 
   );
 });
 
+test("an empty question text shows an example that fits the question's type", async ({
+  klats,
+}) => {
+  const page = await newTest(klats);
+  await add(page, m.type_single_desc);
+  const text = field(page, m.builder_question_text());
+  const shows = async (example: string) => {
+    await expect(editor(page).getByText(example)).toBeVisible();
+    await expect(text).toHaveAttribute("aria-placeholder", example);
+  };
+  await shows(m.builder_question_placeholder_single());
+
+  await page.getByRole("button", { name: m.builder_type_label() }).click();
+  await page
+    .getByRole("option", { name: m.type_order_name(), exact: true })
+    .click();
+  await shows(m.builder_question_placeholder_order());
+});
+
 test("a single-choice question turned into ordering and back shows its text and four answers in the editor", async ({
   klats,
 }) => {
