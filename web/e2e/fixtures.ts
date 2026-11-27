@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { crc32, deflateSync } from "node:zlib";
 import type { Question, Settings } from "@klats/shared/generated/testfmt.ts";
 import type {
   AssignmentResults,
@@ -23,6 +24,7 @@ import {
   type BrowserContext,
   test as base,
   expect,
+  type Locator,
   type Page,
 } from "@playwright/test";
 
@@ -163,6 +165,8 @@ export interface Klats {
   rename(name: string, label: string): Promise<void>;
   /** A student computer: a 1024×768 page in a browser context of its own, with a touch screen when `touch` and clock zone `timezoneId`. */
   computer(touch?: boolean, timezoneId?: string): Promise<Page>;
+  /** A student's phone: a 360×740 touch-screen page in a browser context of its own. */
+  phone(): Promise<Page>;
   /** The teacher app at `path`: a 1366×768 page in a context of its own. */
   teacher(path?: string): Promise<Page>;
 }
@@ -297,6 +301,7 @@ export const test = base.extend<{ klats: Klats }>({
         await api("PUT", `/api/devices/${row.deviceToken}`, { label });
       },
       computer: (touch, timezoneId) => open(1024, 768, touch, timezoneId),
+      phone: () => open(360, 740, true),
       async teacher(path = "/live") {
         const page = await open(1366, 768);
         await page.goto(teacherURL.href); // sets the launch-token cookie
@@ -349,6 +354,49 @@ export async function openFile(page: Page, path: string) {
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: m.tests_open() }).click();
   await (await chooser).setFiles(path);
+}
+
+/** A `width`×`height` plain grey PNG, to upload as a question's picture. */
+export function png(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const head = Buffer.alloc(4);
+    head.writeUInt32BE(data.length);
+    const tail = Buffer.alloc(4);
+    tail.writeUInt32BE(crc32(body));
+    return Buffer.concat([head, body, tail]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 0; // greyscale
+  // Each scanline is a filter byte (0) and `width` grey samples.
+  const rows = Buffer.alloc((width + 1) * height, 0xc0);
+  for (let y = 0; y < height; y++) rows[y * (width + 1)] = 0;
+  return Buffer.concat([
+    Buffer.from("\x89PNG\r\n\x1a\n", "latin1"),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(rows)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+/**
+ * Returns `el`'s box once the sheet has stopped moving: its entry animation
+ * rotates and moves it, and the bounding box of the rotated sheet is not
+ * `el`'s own box. Throws when `el` has no box.
+ */
+export async function settledBox(el: Locator) {
+  let box = await el.boundingBox();
+  for (let i = 0; i < 50; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    const now = await el.boundingBox();
+    if (JSON.stringify(now) === JSON.stringify(box)) break;
+    box = now;
+  }
+  if (!box) throw new Error("the element has no box");
+  return box;
 }
 
 /** Waits until the teacher's live snapshot satisfies `ok`. */

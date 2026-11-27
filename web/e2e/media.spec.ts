@@ -1,35 +1,7 @@
-import { crc32, deflateSync } from "node:zlib";
-import { expect, joinAs, m, question, test } from "./fixtures";
+import { expect, joinAs, m, png, question, test } from "./fixtures";
 
 const WIDTH = 64;
 const HEIGHT = 40;
-
-function chunk(type: string, data: Buffer): Buffer {
-  const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
-  const head = Buffer.alloc(4);
-  head.writeUInt32BE(data.length);
-  const tail = Buffer.alloc(4);
-  tail.writeUInt32BE(crc32(body));
-  return Buffer.concat([head, body, tail]);
-}
-
-/** A WIDTH×HEIGHT grey PNG. */
-function png(): Buffer {
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(WIDTH, 0);
-  ihdr.writeUInt32BE(HEIGHT, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 0; // greyscale
-  // Each scanline is a filter byte (0) and WIDTH grey samples.
-  const rows = Buffer.alloc((WIDTH + 1) * HEIGHT, 0x80);
-  for (let y = 0; y < HEIGHT; y++) rows[y * (WIDTH + 1)] = 0;
-  return Buffer.concat([
-    Buffer.from("\x89PNG\r\n\x1a\n", "latin1"),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
 
 /** `seconds` of 16-bit mono silence at 8 kHz. */
 function wav(seconds = 1): Buffer {
@@ -62,7 +34,7 @@ const text = (line: string, media: unknown) => ({
 test("images and audio are shown after the network drops", async ({
   klats,
 }) => {
-  const picture = await klats.upload(png());
+  const picture = await klats.upload(png(WIDTH, HEIGHT));
   const sound = await klats.upload(wav());
 
   const q1 = question("q1", "Що на малюнку?", ["Сіре", "*Прямокутник"]);
@@ -119,7 +91,7 @@ test("images and audio are shown after the network drops", async ({
 test("a picture's box is reserved before it loads, so the sheet already knows its answers overflow", async ({
   klats,
 }) => {
-  const picture = await klats.upload(png());
+  const picture = await klats.upload(png(WIDTH, HEIGHT));
   const q = question("q1", "Що на малюнку?", [
     "*Один",
     "Два",

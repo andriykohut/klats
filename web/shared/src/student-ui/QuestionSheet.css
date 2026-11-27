@@ -271,3 +271,67 @@
   gap: calc(12 * var(--k-px));
   margin-left: auto;
 }
+
+/*
+ * The phone layout (see tokens.css): one column, with the number in a row of
+ * its own beside the timer, and the buttons sharing the footer's width. The
+ * key hints go: a phone has no letter keys to press.
+ */
+@media (max-width: 679px) {
+  .k-sheet-scroll {
+    --k-pad-top: calc(20 * var(--k-px));
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--k-pad-top) calc(20 * var(--k-px)) calc(12 * var(--k-px));
+  }
+
+  .k-sheet[data-density] .k-sheet-scroll {
+    --k-pad-top: calc(14 * var(--k-px));
+    padding-bottom: calc(8 * var(--k-px));
+  }
+
+  .k-count {
+    display: flex;
+    align-items: baseline;
+    gap: calc(8 * var(--k-px));
+    margin-bottom: calc(14 * var(--k-px));
+  }
+
+  .k-num,
+  .k-num-small {
+    font-size: calc(56 * var(--k-px));
+  }
+
+  .k-of {
+    margin: 0;
+    padding: 0;
+  }
+
+  .k-sheet-timer {
+    top: calc(24 * var(--k-px));
+    right: calc(20 * var(--k-px));
+  }
+
+  .k-more {
+    right: calc(20 * var(--k-px));
+    left: calc(20 * var(--k-px));
+  }
+
+  .k-sheet-foot {
+    padding: calc(12 * var(--k-px)) calc(20 * var(--k-px))
+      calc(20 * var(--k-px));
+  }
+
+  .k-keys {
+    display: none;
+  }
+
+  .k-actions {
+    flex: 1;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+
+  .k-actions > * {
+    flex: 1 1 auto;
+  }
+}

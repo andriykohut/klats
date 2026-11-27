@@ -11,6 +11,11 @@ body {
   margin: 0;
 }
 
+/* Safari on an iPhone would otherwise enlarge the text when it turns sideways. */
+html {
+  text-size-adjust: 100%;
+}
+
 body {
   overflow: hidden;
   background: var(--k-field);
@@ -628,4 +633,102 @@ input {
 /* An excerpt is one line of words; pictures and audio stay out of it. */
 .s-excerpt :is(.k-img, .k-audio, .k-media-wait) {
   display: none;
+}
+
+/*
+ * The phone layout (see tokens.css): narrower margins round the sheet, the
+ * name list under its title, smaller code cells, and buttons that share a
+ * row's width and wrap when their labels don't fit side by side.
+ */
+@media (max-width: 679px) {
+  .s-top {
+    top: calc(14 * var(--k-px));
+    right: calc(24 * var(--k-px));
+    left: calc(24 * var(--k-px));
+  }
+
+  .s-slot {
+    top: calc(70 * var(--k-px));
+    right: calc(10 * var(--k-px));
+    left: calc(10 * var(--k-px));
+  }
+
+  .s-prompt {
+    padding: calc(32 * var(--k-px)) calc(24 * var(--k-px));
+  }
+
+  .s-code {
+    gap: calc(12 * var(--k-px));
+  }
+
+  .s-cell {
+    width: calc(84 * var(--k-px));
+    height: calc(104 * var(--k-px));
+    font-size: calc(54 * var(--k-px));
+  }
+
+  .s-code[data-focused] .s-cell[data-current]:not([data-filled])::after {
+    height: calc(48 * var(--k-px));
+  }
+
+  .s-actions > .s-btn,
+  .s-foot > .s-btn {
+    flex: 1 1 auto;
+  }
+
+  .s-btn > span {
+    padding: 0 calc(16 * var(--k-px));
+  }
+
+  .s-pick-head {
+    flex-wrap: wrap;
+    gap: calc(16 * var(--k-px));
+    padding: calc(24 * var(--k-px)) calc(20 * var(--k-px)) 0;
+  }
+
+  .s-search {
+    width: 100%;
+  }
+
+  .s-names-scroll {
+    padding-right: calc(20 * var(--k-px));
+    padding-left: calc(20 * var(--k-px));
+  }
+
+  .s-pick .s-notes {
+    padding: 0 calc(20 * var(--k-px)) calc(12 * var(--k-px));
+    text-align: left;
+  }
+
+  .s-foot {
+    flex-wrap: wrap;
+    gap: calc(12 * var(--k-px));
+    padding: 0 calc(20 * var(--k-px)) calc(20 * var(--k-px));
+  }
+
+  /* A problem takes a line of its own above the buttons. */
+  .s-foot .s-problem {
+    order: -1;
+    width: auto;
+    flex-basis: 100%;
+  }
+
+  .s-foot .s-btn:last-child {
+    margin-left: 0;
+  }
+
+  .k-ring .s-icon {
+    width: calc(78 * var(--k-px));
+    height: calc(78 * var(--k-px));
+  }
+
+  /* A notice's words sit centred under its ring, like the finish screen's. */
+  .k-finish :is(.s-lead, .s-form, .s-problem) {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .k-finish .s-form {
+    text-align: left;
+  }
 }

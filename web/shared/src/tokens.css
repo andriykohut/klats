@@ -7,6 +7,14 @@
  * 1.5 at 1920×1080. Container query units fall back to the viewport when no
  * ancestor is a size container, so a preview pane sets `container-type: size`
  * to scale the components to itself.
+ *
+ * The phone layout: on a screen under 680 px wide (a phone or a small tablet
+ * held upright) --k-px sits at its 0.75 px floor, and a stylesheet whose part
+ * needs it ends with a block under `@media (max-width: 679px)` that lays the
+ * part out in one column with full-width buttons. Media queries see the
+ * viewport, never a preview pane, so the lab layout and the teacher's
+ * previews never get it. A phone on its side keeps the lab layout, whose
+ * number column spares the little height it has.
  */
 :root {
   --k-px: max(0.75px, min(100cqw / 1280, 100cqh / 720));

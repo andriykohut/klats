@@ -91,8 +91,9 @@ cd web && KLATS_TEACHER_API='<the teacher address>' pnpm --filter @klats/teacher
     `crypto.getRandomValues()` where you might reach for
     `crypto.randomUUID()`.
   - On student pages, animate only `transform`, `opacity` and SVG strokes.
-  - Student layouts must work at 1024×768. The teacher UI must work at
-    1366×768, in WebView2 and in WebKit.
+  - Student layouts must work at 1024×768, and on a phone held upright
+    from 360 px wide (the phone layout in `web/shared/src/tokens.css`). The
+    teacher UI must work at 1366×768, in WebView2 and in WebKit.
 - **Two lines are never crossed.** Correct answers never reach a student
   device. Teacher endpoints are never reachable from the LAN.
 - **New dependencies need a maintainer's approval.** Open an issue first.

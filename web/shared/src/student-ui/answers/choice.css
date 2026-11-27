@@ -214,3 +214,15 @@ fieldset.k-tf {
 .k-grid input {
   scroll-margin-top: calc(150 * var(--k-px));
 }
+
+/* The phone layout (see tokens.css): a statement above its two picks. */
+@media (max-width: 679px) {
+  .k-tf-row {
+    flex-wrap: wrap;
+    row-gap: calc(10 * var(--k-px));
+  }
+
+  .k-tf-text {
+    flex-basis: 100%;
+  }
+}

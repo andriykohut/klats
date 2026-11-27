@@ -1,50 +1,23 @@
-import { crc32, deflateSync } from "node:zlib";
 import type { Locator } from "@playwright/test";
-import { doc, expect, joinAs, m, questionOf, test, until } from "./fixtures";
+import {
+  doc,
+  expect,
+  joinAs,
+  m,
+  png,
+  questionOf,
+  settledBox,
+  test,
+  until,
+} from "./fixtures";
 
+// The picture is the size of a phone photo the builder keeps.
 const WIDTH = 1600;
 const HEIGHT = 1200;
 
-function chunk(type: string, data: Buffer): Buffer {
-  const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
-  const head = Buffer.alloc(4);
-  head.writeUInt32BE(data.length);
-  const tail = Buffer.alloc(4);
-  tail.writeUInt32BE(crc32(body));
-  return Buffer.concat([head, body, tail]);
-}
-
-/** A WIDTH×HEIGHT grey PNG, the size of a phone photo the builder keeps. */
-function png(): Buffer {
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(WIDTH, 0);
-  ihdr.writeUInt32BE(HEIGHT, 4);
-  ihdr[8] = 8; // bit depth
-  ihdr[9] = 0; // greyscale
-  const rows = Buffer.alloc((WIDTH + 1) * HEIGHT, 0xc0); // filter byte 0, then grey
-  for (let y = 0; y < HEIGHT; y++) rows[y * (WIDTH + 1)] = 0;
-  return Buffer.concat([
-    Buffer.from("\x89PNG\r\n\x1a\n", "latin1"),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(rows)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-/**
- * Clicks `fraction` of the way across and down the image, once the sheet has
- * stopped moving: its entry animation rotates and moves it, and the bounding
- * box of the rotated sheet is not the picture's own box.
- */
+/** Clicks `fraction` of the way across and down the image, once the sheet has stopped moving. */
 async function clickAt(img: Locator, fraction: number) {
-  let box = await img.boundingBox();
-  for (let i = 0; i < 50; i++) {
-    await new Promise((r) => setTimeout(r, 100));
-    const now = await img.boundingBox();
-    if (JSON.stringify(now) === JSON.stringify(box)) break;
-    box = now;
-  }
-  if (!box) throw new Error("the image has no box");
+  const box = await settledBox(img);
   await img.click({
     position: { x: box.width * fraction, y: box.height * fraction },
   });
@@ -71,7 +44,7 @@ const point = (id: string, x: number, y: number) => ({
 test("hotspot, labels, highlight and a written answer, with the pending finish", async ({
   klats,
 }) => {
-  const src = await klats.upload(png());
+  const src = await klats.upload(png(WIDTH, HEIGHT));
   const image = { src, w: WIDTH, h: HEIGHT };
   const hotspot = questionOf("hotspot", "q1", "Клацніть на сонце", {
     image,
