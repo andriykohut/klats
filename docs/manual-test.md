@@ -317,9 +317,11 @@ happen.
 
 The phone e2e test runs in desktop Chromium and Firefox at 360×740 with
 touch. It cannot cover mobile Safari, Chrome on Android, a real on-screen
-keyboard or a phone's own browser bar. Use an iPhone with Safari and an
-Android phone with Chrome, both upright, on the same Wi-Fi as the teacher
-computer, and the test with one question of each of the 15 types.
+keyboard or a phone's own browser bar. Use an iPhone with Safari on iOS
+16.4 (the oldest Safari the build targets, in `web/shared/src/browsers.ts`)
+or the oldest iOS at hand, and an Android phone with Chrome, both upright,
+on the same Wi-Fi as the teacher computer, and the test with one question
+of each of the 15 types.
 
 1. **Join by QR.** Scan the board's QR code with the phone camera, pick a
    name and start.

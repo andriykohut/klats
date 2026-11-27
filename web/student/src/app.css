@@ -11,6 +11,11 @@ body {
   margin: 0;
 }
 
+/* Safari on an iPhone would otherwise enlarge the text when it turns sideways. */
+html {
+  text-size-adjust: 100%;
+}
+
 body {
   overflow: hidden;
   background: var(--k-field);
