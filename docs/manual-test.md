@@ -3,9 +3,9 @@
 `make check`, `make e2e` and `make load` cover the server, both web apps in
 current Chromium and Firefox, and a full-size lesson against the sitting
 engine. They cannot cover the old browsers of school labs, the desktop
-window on each OS, real Excel, or the oldest systems Klats supports. Run
-the checks below on real machines before each release, and record each
-result (pass, or what went wrong) in the release pull request.
+window on each OS, real Excel, real phones, or the oldest systems Klats
+supports. Run the checks below on real machines before each release, and
+record each result (pass, or what went wrong) in the release pull request.
 
 ## Before you start
 
@@ -312,3 +312,32 @@ happen.
 
 - macOS only: repeat check 2.8, starting Klats.app from the Dock or Finder.
   *Expected:* the same results as check 3.6.
+
+## 7. The student app on phones
+
+The phone e2e test runs in desktop Chromium and Firefox at 360×740 with
+touch. It cannot cover mobile Safari, Chrome on Android, a real on-screen
+keyboard or a phone's own browser bar. Use an iPhone with Safari and an
+Android phone with Chrome, both upright, on the same Wi-Fi as the teacher
+computer, and the test with one question of each of the 15 types.
+
+1. **Join by QR.** Scan the board's QR code with the phone camera, pick a
+   name and start.
+   - *Expected:* the test opens with the code filled in, and «Почати тест»
+     is fully on screen.
+2. **Every type by touch.** Answer each question with a finger: tap the
+   tiles, the true/false picks and the grid's circles, move the ordering rows
+   with ↑ and ↓, tap a card and then its place, tap the picture, and type in
+   the short, number, gaps and written answers.
+   - *Expected:* nothing is cut off at the sides, «Далі» stays in view, and
+     a long question scrolls under «Ще N відповідей нижче».
+3. **The on-screen keyboard.** Tap a short answer and a gap.
+   - *Expected:* the field stays in view above the keyboard, and the page
+     doesn't zoom in.
+4. **Turned sideways.** Turn the phone during a question.
+   - *Expected:* the lab layout shows, and the answers still scroll into
+     reach.
+5. **Locked and back.** Lock the phone for a minute in the middle of the
+   test, then unlock it.
+   - *Expected:* the test is where it was, and every answer is in the
+     teacher's journal.

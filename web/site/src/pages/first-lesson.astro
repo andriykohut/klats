@@ -16,5 +16,10 @@ const t = strings[lang].firstLesson;
     <h1>{t.title}</h1>
     <p>{t.intro}</p>
     <Steps lang={lang} steps={t.steps} />
+
+    <h2 id="phones">{t.phones.h}</h2>
+    <p>{t.phones.p}</p>
+    <ul>{t.phones.list.map((item) => <li set:html={item} />)}</ul>
+    <p>{t.phones.scan}</p>
   </article>
 </Page>

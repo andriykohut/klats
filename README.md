@@ -4,9 +4,9 @@
 
 Klats is a free, open-source app for running tests in school computer labs.
 The teacher builds tests and runs them from one program on their own
-computer, and students take them in any browser on the lab PCs, over the
-school's local network, with no accounts, no internet and nothing to
-install. Answers survive network drops and restarts, and the teacher
+computer, and students take them in any browser on the lab PCs or their
+own phones, over the school's local network, with no accounts, no internet
+and nothing to install. Answers survive network drops and restarts, and the teacher
 watches the class live and gets graded results.
 
 ![The live journal: six students part-way through a test](web/site/src/assets/shots/en/live.png)

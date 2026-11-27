@@ -571,7 +571,7 @@
   "ev_unknown": "Test event",
   "board_open": "Open in the browser",
   "board_enter_code": "and enter the code",
-  "board_scan": "Or scan it with a tablet",
+  "board_scan": "Or scan the QR code",
   "board_finished": "{finished} of {total} finished",
   "board_qr": "QR code of the test address",
   "end_title": "End the test for everyone?",

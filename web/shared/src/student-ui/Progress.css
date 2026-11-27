@@ -167,3 +167,10 @@ span.k-prog-chip {
     0 0 0 calc(2 * var(--k-px)) var(--k-paper),
     0 0 0 calc(5 * var(--k-px)) var(--k-sel);
 }
+
+/* The phone layout (see tokens.css): seven questions to a row of the grid. */
+@media (max-width: 679px) {
+  .k-qgrid {
+    grid-template-columns: repeat(7, calc(44 * var(--k-px)));
+  }
+}

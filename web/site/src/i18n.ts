@@ -229,6 +229,16 @@ const uk = {
         shot: "results",
       },
     ] as { text: string; shot?: ShotName }[],
+    phones: {
+      h: "Урок на телефонах",
+      p: "Учні можуть писати тест і на своїх телефонах. Для цього телефони мають бути в одній мережі з вашим комп’ютером.",
+      list: [
+        "<b>Шкільний Wi-Fi.</b> Підключіть комп’ютер і телефони до тієї самої мережі. Гостьовий Wi-Fi часто не пускає пристрої один до одного, тож краще основна мережа школи.",
+        "<b>Свій роутер.</b> Якщо шкільного Wi-Fi немає, підійде звичайний домашній роутер: увімкніть його в класі й підключіть до нього комп’ютер і телефони. Інтернет для тесту не потрібен.",
+        "<b>Не роздавайте Wi-Fi з ноутбука чи телефона.</b> Мобільна точка доступу Windows приймає щонайбільше 8 пристроїв, а телефон зазвичай 5–10, тож на цілий клас не вистачить.",
+      ],
+      scan: "Учні наводять камеру телефона на QR-код на дошці — і тест відкривається вже з кодом.",
+    },
   },
   faq: {
     title: "Питання й відповіді",
@@ -489,6 +499,16 @@ const en: typeof uk = {
         shot: "results",
       },
     ],
+    phones: {
+      h: "A lesson on phones",
+      p: "Students can also take a test on their own phones. The phones must be on the same network as your computer.",
+      list: [
+        "<b>School Wi-Fi.</b> Connect the computer and the phones to the same network. Guest Wi-Fi often keeps devices from reaching each other, so the school’s main network works better.",
+        "<b>Your own router.</b> If the school has no Wi-Fi, an ordinary home router will do: switch it on in the classroom and connect the computer and the phones to it. The test needs no internet.",
+        "<b>Don’t share Wi-Fi from a laptop or a phone.</b> A Windows mobile hotspot takes 8 devices at most, and a phone usually 5–10, which isn’t enough for a whole class.",
+      ],
+      scan: "Students point their phone camera at the QR code on the board, and the test opens with its code already filled in.",
+    },
   },
   faq: {
     title: "Questions and answers",

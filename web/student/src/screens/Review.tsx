@@ -45,7 +45,7 @@ export function Review({
     <Sheet className="s-review">
       <div className="k-sheet-main">
         <div className="k-sheet-scroll">
-          <div>
+          <div className="k-count">
             <div
               className={answered >= 10 ? "k-num k-num-small" : "k-num"}
               aria-hidden="true"

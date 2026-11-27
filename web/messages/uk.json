@@ -600,7 +600,7 @@
   "ev_unknown": "Подія в тесті",
   "board_open": "Відкрийте в браузері",
   "board_enter_code": "і введіть код",
-  "board_scan": "Або відскануйте з планшета",
+  "board_scan": "Або відскануйте QR-код",
   "board_finished": "{finished} з {total} завершили",
   "board_qr": "QR-код адреси тесту",
   "end_title": "Завершити тест для всіх?",

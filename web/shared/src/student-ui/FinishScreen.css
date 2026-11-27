@@ -141,3 +141,48 @@
   font-weight: 700;
   font-size: max(15px, calc(18 * var(--k-px)));
 }
+
+/*
+ * The phone layout (see tokens.css): the ring above the words, both smaller
+ * and centred, and the sheet scrolls when a long list of wrong answers
+ * doesn't fit.
+ */
+@media (max-width: 679px) {
+  .k-finish {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: calc(24 * var(--k-px));
+    overflow-y: auto;
+    padding: calc(32 * var(--k-px)) calc(24 * var(--k-px));
+    text-align: center;
+  }
+
+  .k-finish-note,
+  .k-finish-wrong {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .k-finish-chips {
+    justify-content: center;
+  }
+
+  .k-finish-ring,
+  .k-ring {
+    justify-self: center;
+    width: calc(180 * var(--k-px));
+  }
+
+  .k-ring {
+    height: calc(180 * var(--k-px));
+  }
+
+  .k-grade {
+    font-size: calc(68 * var(--k-px));
+  }
+
+  .k-verdict-icon {
+    width: calc(76 * var(--k-px));
+    height: calc(76 * var(--k-px));
+  }
+}

@@ -109,7 +109,7 @@ export function QuestionSheet(props: QuestionSheetProps) {
     >
       <div className="k-sheet-main">
         <div className="k-sheet-scroll" ref={scrollRef}>
-          <div>
+          <div className="k-count">
             <div className={number >= 10 ? "k-num k-num-small" : "k-num"}>
               {number}
             </div>
