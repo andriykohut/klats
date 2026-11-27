@@ -6,6 +6,7 @@ import {
   m,
   png,
   questionOf,
+  settledBox,
   test,
   until,
 } from "./fixtures";
@@ -14,20 +15,9 @@ import {
 const WIDTH = 1600;
 const HEIGHT = 1200;
 
-/**
- * Clicks `fraction` of the way across and down the image, once the sheet has
- * stopped moving: its entry animation rotates and moves it, and the bounding
- * box of the rotated sheet is not the picture's own box.
- */
+/** Clicks `fraction` of the way across and down the image, once the sheet has stopped moving. */
 async function clickAt(img: Locator, fraction: number) {
-  let box = await img.boundingBox();
-  for (let i = 0; i < 50; i++) {
-    await new Promise((r) => setTimeout(r, 100));
-    const now = await img.boundingBox();
-    if (JSON.stringify(now) === JSON.stringify(box)) break;
-    box = now;
-  }
-  if (!box) throw new Error("the image has no box");
+  const box = await settledBox(img);
   await img.click({
     position: { x: box.width * fraction, y: box.height * fraction },
   });

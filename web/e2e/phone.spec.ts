@@ -1,4 +1,3 @@
-import type { Locator } from "@playwright/test";
 import {
   doc,
   expect,
@@ -6,6 +5,7 @@ import {
   png,
   question,
   questionOf,
+  settledBox,
   test,
   until,
 } from "./fixtures";
@@ -37,19 +37,6 @@ const place = (id: string, label: string, x = 0, y = 0) => ({
   x,
   y,
 });
-
-/** Waits out the sheet's entry animation, which moves and rotates `el`'s box. */
-async function settled(el: Locator) {
-  let box = await el.boundingBox();
-  for (let i = 0; i < 50; i++) {
-    await new Promise((r) => setTimeout(r, 100));
-    const now = await el.boundingBox();
-    if (JSON.stringify(now) === JSON.stringify(box)) break;
-    box = now;
-  }
-  if (!box) throw new Error("no box");
-  return box;
-}
 
 test("a student on a phone types the code, answers every question type by touch and finishes", async ({
   klats,
@@ -233,7 +220,7 @@ test("a student on a phone types the code, answers every question type by touch 
   const picture = page
     .getByRole("group", { name: hotspot.title })
     .locator("img");
-  const box = await settled(picture);
+  const box = await settledBox(picture);
   await picture.tap({ position: { x: box.width * 0.1, y: box.height * 0.1 } });
   await next();
   await put("Сонце", m.point_label({ number: 1 }));

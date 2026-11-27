@@ -284,6 +284,11 @@
     padding: var(--k-pad-top) calc(20 * var(--k-px)) calc(12 * var(--k-px));
   }
 
+  .k-sheet[data-density] .k-sheet-scroll {
+    --k-pad-top: calc(14 * var(--k-px));
+    padding-bottom: calc(8 * var(--k-px));
+  }
+
   .k-count {
     display: flex;
     align-items: baseline;

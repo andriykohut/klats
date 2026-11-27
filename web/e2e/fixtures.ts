@@ -24,6 +24,7 @@ import {
   type BrowserContext,
   test as base,
   expect,
+  type Locator,
   type Page,
 } from "@playwright/test";
 
@@ -379,6 +380,23 @@ export function png(width: number, height: number): Buffer {
     chunk("IDAT", deflateSync(rows)),
     chunk("IEND", Buffer.alloc(0)),
   ]);
+}
+
+/**
+ * Returns `el`'s box once the sheet has stopped moving: its entry animation
+ * rotates and moves it, and the bounding box of the rotated sheet is not
+ * `el`'s own box. Throws when `el` has no box.
+ */
+export async function settledBox(el: Locator) {
+  let box = await el.boundingBox();
+  for (let i = 0; i < 50; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    const now = await el.boundingBox();
+    if (JSON.stringify(now) === JSON.stringify(box)) break;
+    box = now;
+  }
+  if (!box) throw new Error("the element has no box");
+  return box;
 }
 
 /** Waits until the teacher's live snapshot satisfies `ok`. */

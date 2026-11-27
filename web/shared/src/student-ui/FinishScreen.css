@@ -148,9 +148,13 @@
  * doesn't fit.
  */
 @media (max-width: 679px) {
+  /*
+   * `safe` keeps an overflowing sheet's top in reach of the scroll; a browser
+   * without it skips the line and starts the words at the top.
+   */
   .k-finish {
     grid-template-columns: minmax(0, 1fr);
-    align-content: center;
+    align-content: safe center;
     gap: calc(24 * var(--k-px));
     overflow-y: auto;
     padding: calc(32 * var(--k-px)) calc(24 * var(--k-px));
